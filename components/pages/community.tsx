@@ -1,6 +1,12 @@
+"use client"
+
 import type React from "react"
 
-const CommunityPage: React.FC = () => {
+interface CommunityPageProps {
+  onNavigate?: (path: string) => void
+}
+
+const CommunityPage: React.FC<CommunityPageProps> = ({ onNavigate }) => {
   return (
     <div className="mobile-content">
       <div className="container mx-auto py-8">
@@ -50,4 +56,6 @@ const CommunityPage: React.FC = () => {
   )
 }
 
+// Export both named and default
+export { CommunityPage }
 export default CommunityPage

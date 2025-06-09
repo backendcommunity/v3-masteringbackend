@@ -1,3 +1,5 @@
+"use client"
+
 const CoursesPage = () => {
   return (
     <div className="container mx-auto py-8">
@@ -66,4 +68,6 @@ const CoursesPage = () => {
   )
 }
 
+// Export both named and default
+export { CoursesPage }
 export default CoursesPage

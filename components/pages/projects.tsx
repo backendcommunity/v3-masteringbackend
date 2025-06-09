@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { ProjectCard } from "../project-card"
 
-const Projects = () => {
+const ProjectsPage = () => {
   const [filter, setFilter] = useState("all")
 
   const projects = [
@@ -78,4 +78,6 @@ const Projects = () => {
   )
 }
 
-export default Projects
+// Export both named and default
+export { ProjectsPage }
+export default ProjectsPage
