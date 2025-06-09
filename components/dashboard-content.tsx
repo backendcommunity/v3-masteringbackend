@@ -89,4 +89,5 @@ const DashboardContent: React.FC = () => {
   )
 }
 
+export { DashboardContent }
 export default DashboardContent
