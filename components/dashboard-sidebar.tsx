@@ -213,7 +213,7 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={safePath && safePath.startsWith(item.url)}
+                    isActive={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     className="sidebar-item"
                   >
                     <button
@@ -242,7 +242,7 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={safePath && safePath.startsWith(item.url)}
+                    isActive={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     className="sidebar-item"
                   >
                     <button
@@ -271,7 +271,7 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={safePath && safePath.startsWith(item.url)}
+                    isActive={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     className="sidebar-item"
                   >
                     <button
