@@ -70,10 +70,10 @@ import { InterviewResultsPage } from "@/components/pages/interview-results"
 import { InterviewProjectPage } from "@/components/pages/interview-project"
 import { InterviewAlgorithmPage } from "@/components/pages/interview-algorithm"
 
-// Add mock interview imports
+// Add mock interview imports - FIXED IMPORTS
 import { MockInterviewsPage } from "@/components/pages/mock-interviews"
-import { MockInterviewSession } from "@/components/pages/mock-interview-session"
-import { MockInterviewResults } from "@/components/pages/mock-interview-results"
+import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session"
+import { MockInterviewResultsPage } from "@/components/pages/mock-interview-results"
 
 export function DashboardLayout() {
   const [currentPath, setCurrentPath] = useState("/dashboard")
@@ -124,19 +124,19 @@ export function DashboardLayout() {
       return <DashboardContent onNavigate={handleNavigate} />
     }
 
-    // Mock Interviews routes
+    // Mock Interviews routes - FIXED TO USE CORRECT COMPONENTS
     if (currentPath === "/dashboard/mock-interviews") {
       return <MockInterviewsPage onNavigate={handleNavigate} />
     }
 
     if (currentPath.includes("/dashboard/mock-interviews/") && currentPath.includes("/results")) {
       const interviewId = pathSegments[2]
-      return <MockInterviewResults interviewId={interviewId} onNavigate={handleNavigate} />
+      return <MockInterviewResultsPage interviewId={interviewId} onNavigate={handleNavigate} />
     }
 
     if (currentPath.includes("/dashboard/mock-interviews/") && pathSegments.length === 3) {
       const interviewId = pathSegments[2]
-      return <MockInterviewSession interviewId={interviewId} onNavigate={handleNavigate} />
+      return <MockInterviewSessionPage interviewId={interviewId} onNavigate={handleNavigate} />
     }
 
     // Courses routes
