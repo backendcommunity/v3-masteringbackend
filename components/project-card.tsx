@@ -1,107 +1,136 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, Star, ExternalLink } from "lucide-react"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Star } from "lucide-react"
 
-interface ProjectCardProps {
+export interface ProjectCardProps {
+  id: string
   title: string
   description: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
+  image?: string
+  difficulty: "beginner" | "intermediate" | "advanced"
   duration: string
-  participants?: number
   rating?: number
+  progress?: number
   tags?: string[]
-  imageUrl?: string
-  href?: string
-  onStart?: () => void
+  enrolled?: boolean
+  completed?: boolean
+  onStart?: (id: string) => void
+  onView?: (id: string) => void
+  externalLink?: string
 }
 
 export function ProjectCard({
+  id,
   title,
   description,
+  image = "/placeholder.svg?height=150&width=300",
   difficulty,
   duration,
-  participants,
-  rating,
+  rating = 0,
+  progress = 0,
   tags = [],
-  imageUrl,
-  href,
+  enrolled = false,
+  completed = false,
   onStart,
+  onView,
+  externalLink,
 }: ProjectCardProps) {
-  const difficultyColors = {
-    Beginner: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    Intermediate: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-    Advanced: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+  const difficultyColor = {
+    beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    intermediate: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    advanced: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  }
+
+  const renderStars = (rating: number) => {
+    return Array(5)
+      .fill(0)
+      .map((_, i) => (
+        <Star
+          key={i}
+          className={`h-4 w-4 ${i < rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300 dark:text-gray-600"}`}
+        />
+      ))
+  }
+
+  const handleStart = () => {
+    if (onStart) {
+      onStart(id)
+    }
+  }
+
+  const handleView = () => {
+    if (onView) {
+      onView(id)
+    }
   }
 
   return (
-    <Card className="group hover:shadow-lg transition-shadow duration-200">
-      {imageUrl && (
-        <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-          <img
-            src={imageUrl || "/placeholder.svg"}
-            alt={title}
-            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-          />
-        </div>
-      )}
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">{title}</CardTitle>
-          <Badge className={`shrink-0 ${difficultyColors[difficulty]}`}>{difficulty}</Badge>
-        </div>
-        <CardDescription className="line-clamp-2">{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            <span>{duration}</span>
-          </div>
-          {participants && (
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{participants.toLocaleString()}</span>
-            </div>
-          )}
-          {rating && (
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-current text-yellow-500" />
-              <span>{rating.toFixed(1)}</span>
-            </div>
-          )}
-        </div>
-
+    <Card className="overflow-hidden border-border h-full flex flex-col">
+      <div className="aspect-video relative overflow-hidden">
+        <img src={image || "/placeholder.svg"} alt={title} className="w-full h-full object-cover" />
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
+          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            {tags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
                 {tag}
               </Badge>
             ))}
-            {tags.length > 3 && (
+            {tags.length > 2 && (
               <Badge variant="secondary" className="text-xs">
-                +{tags.length - 3}
+                +{tags.length - 2}
               </Badge>
             )}
           </div>
         )}
-
-        <div className="flex gap-2">
-          <Button className="flex-1" onClick={onStart}>
+      </div>
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between items-start mb-1">
+          <Badge variant="outline" className={`${difficultyColor[difficulty]} text-xs`}>
+            {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+          </Badge>
+          <span className="text-xs text-muted-foreground">{duration}</span>
+        </div>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription className="line-clamp-2 text-sm">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 pt-0 flex-grow">
+        {rating > 0 && <div className="flex items-center gap-1 mb-2">{renderStars(rating)}</div>}
+        {enrolled && !completed && (
+          <div className="mt-2">
+            <div className="flex justify-between text-xs mb-1">
+              <span>Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} className="h-1" />
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="p-4 pt-0">
+        {enrolled ? (
+          <Button onClick={handleView} className="w-full" variant={completed ? "outline" : "default"}>
+            {completed ? "View Project" : "Continue"}
+          </Button>
+        ) : (
+          <Button onClick={handleStart} className="w-full">
             Start Project
           </Button>
-          {href && (
-            <Button variant="outline" size="icon" asChild>
-              <a href={href} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-        </div>
-      </CardContent>
+        )}
+        {externalLink && (
+          <Button
+            variant="outline"
+            className="ml-2"
+            onClick={() => window.open(externalLink, "_blank", "noopener,noreferrer")}
+          >
+            GitHub
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   )
 }
+
+export default ProjectCard

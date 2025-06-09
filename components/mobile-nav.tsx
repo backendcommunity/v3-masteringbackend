@@ -34,6 +34,9 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
   const store = useAppStore()
   const user = store.getUser()
 
+  // Safety check for currentPath
+  const safePath = currentPath || "/dashboard"
+
   // Mock subscription data - in real app this would come from store
   const subscription = {
     plan: "Pro",
@@ -103,6 +106,12 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
   const handleNavigate = (path: string) => {
     onNavigate(path)
     setOpen(false)
+  }
+
+  // Helper function to check if a path is active
+  const isPathActive = (path: string): boolean => {
+    if (!safePath) return false
+    return safePath === path || safePath.startsWith(path)
   }
 
   return (
@@ -195,9 +204,7 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
                     key={item.title}
                     onClick={() => handleNavigate(item.url)}
                     className={`flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm ${
-                      currentPath === item.url || currentPath.startsWith(item.url)
-                        ? "bg-primary/15 text-primary"
-                        : "hover:bg-primary/10"
+                      isPathActive(item.url) ? "bg-primary/15 text-primary" : "hover:bg-primary/10"
                     }`}
                   >
                     <item.icon className="h-4 w-4" />
@@ -216,9 +223,7 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
                     key={item.title}
                     onClick={() => handleNavigate(item.url)}
                     className={`flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm ${
-                      currentPath === item.url || currentPath.startsWith(item.url)
-                        ? "bg-primary/15 text-primary"
-                        : "hover:bg-primary/10"
+                      isPathActive(item.url) ? "bg-primary/15 text-primary" : "hover:bg-primary/10"
                     }`}
                   >
                     <item.icon className="h-4 w-4" />
@@ -237,9 +242,7 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
                     key={item.title}
                     onClick={() => handleNavigate(item.url)}
                     className={`flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm ${
-                      currentPath === item.url || currentPath.startsWith(item.url)
-                        ? "bg-primary/15 text-primary"
-                        : "hover:bg-primary/10"
+                      isPathActive(item.url) ? "bg-primary/15 text-primary" : "hover:bg-primary/10"
                     }`}
                   >
                     <item.icon className="h-4 w-4" />
@@ -255,7 +258,7 @@ export function MobileNav({ currentPath, onNavigate }: MobileNavProps) {
                 <button
                   onClick={() => handleNavigate(routes.settings)}
                   className={`flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm ${
-                    currentPath === routes.settings ? "bg-primary/15 text-primary" : "hover:bg-primary/10"
+                    safePath === routes.settings ? "bg-primary/15 text-primary" : "hover:bg-primary/10"
                   }`}
                 >
                   <Settings className="h-4 w-4" />

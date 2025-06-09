@@ -52,6 +52,9 @@ export function NavigationBar({ onNavigate, currentPath }: NavigationBarProps) {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const user = getUser()
 
+  // Safety check for currentPath
+  const safePath = currentPath || "/dashboard"
+
   // Mock subscription data
   const subscription = {
     plan: "Pro",
@@ -156,7 +159,7 @@ export function NavigationBar({ onNavigate, currentPath }: NavigationBarProps) {
       <div className="flex h-16 items-center px-4 md:px-6">
         {/* Mobile Navigation */}
         <div className="flex md:hidden">
-          <MobileNav currentPath={currentPath} onNavigate={onNavigate} />
+          <MobileNav currentPath={safePath} onNavigate={onNavigate} />
         </div>
 
         {/* Logo - Visible on all screens */}
