@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Sparkles,
   Star,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,15 +38,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { getUser } from "@/lib/data"
 import { routes } from "@/lib/routes"
+import { MobileNav } from "@/components/mobile-nav"
 
 interface NavigationBarProps {
   onNavigate: (path: string) => void
+  currentPath: string
 }
 
-export function NavigationBar({ onNavigate }: NavigationBarProps) {
+export function NavigationBar({ onNavigate, currentPath }: NavigationBarProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isExploreOpen, setIsExploreOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const user = getUser()
 
   // Mock subscription data
@@ -138,6 +142,7 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
     if (searchQuery.trim()) {
       console.log("Searching for:", searchQuery)
       // Implement search functionality
+      setIsMobileSearchOpen(false)
     }
   }
 
@@ -148,19 +153,26 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center px-6">
-        {/* Left Section - Logo and Explore */}
-        <div className="flex items-center space-x-6">
-          {/* MasteringBackend Logo */}
+      <div className="flex h-16 items-center px-4 md:px-6">
+        {/* Mobile Navigation */}
+        <div className="flex md:hidden">
+          <MobileNav currentPath={currentPath} onNavigate={onNavigate} />
+        </div>
+
+        {/* Logo - Visible on all screens */}
+        <div className="flex items-center">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => onNavigate(routes.dashboard)}>
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">MB</span>
             </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline-block">
               MasteringBackend
             </span>
           </div>
+        </div>
 
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-6 ml-6">
           {/* Explore Dropdown */}
           <Popover open={isExploreOpen} onOpenChange={setIsExploreOpen}>
             <PopoverTrigger asChild>
@@ -169,10 +181,14 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[1200px] p-0 mt-2 border-border bg-popover" align="start" side="bottom">
-              <div className="p-8 space-y-8">
+            <PopoverContent
+              className="w-[90vw] max-w-[1200px] p-0 mt-2 border-border bg-popover"
+              align="start"
+              side="bottom"
+            >
+              <div className="p-4 md:p-8 space-y-6 md:space-y-8 overflow-auto max-h-[80vh]">
                 {/* Level Sections */}
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <Card className="relative overflow-hidden border-border card-hover">
                     <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-orange-500">
                       <img
@@ -250,7 +266,7 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
                     Explore foundational content and tools to help you understand, learn, and improve at the skills
                     involved in trending industry roles.
                   </p>
-                  <div className="grid grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     {skillGuides.map((skill) => (
                       <Card
                         key={skill.name}
@@ -276,7 +292,7 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
                 {/* Roadmaps */}
                 <div>
                   <h3 className="text-xl font-bold mb-6">Roadmaps</h3>
-                  <div className="grid grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {roadmaps.map((roadmap) => (
                       <Card
                         key={roadmap.id}
@@ -308,9 +324,9 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
           </Popover>
         </div>
 
-        {/* Center Section - Search Bar */}
-        <div className="flex-1 max-w-2xl mx-8">
-          <form onSubmit={handleSearch} className="relative">
+        {/* Desktop Search Bar */}
+        <div className="hidden md:flex flex-1 max-w-2xl mx-8">
+          <form onSubmit={handleSearch} className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -322,17 +338,70 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
           </form>
         </div>
 
+        {/* Mobile Search Button */}
+        <div className="flex md:hidden ml-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2"
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+          >
+            <Search className="h-5 w-5" />
+            <span className="sr-only">Search</span>
+          </Button>
+        </div>
+
+        {/* Mobile Search Overlay */}
+        {isMobileSearchOpen && (
+          <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Search</h2>
+              <Button variant="ghost" size="icon" onClick={() => setIsMobileSearchOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <form onSubmit={handleSearch} className="relative w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search courses, projects, or ask anything..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 h-10 bg-muted/50 border-border focus-visible:ring-primary focus-visible:border-primary"
+                autoFocus
+              />
+            </form>
+            <div className="mt-4">
+              <h3 className="text-sm font-medium mb-2">Popular Searches</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery("Node.js")}>
+                  Node.js
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery("Database Design")}>
+                  Database Design
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery("API")}>
+                  API Development
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setSearchQuery("Authentication")}>
+                  Authentication
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Right Section - Theme Toggle, Subscription Status, XP, Notifications and Profile */}
-        <div className="ml-auto flex items-center space-x-4">
+        <div className="ml-auto flex items-center space-x-2 md:space-x-4">
           {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* Subscription Status */}
+          {/* Subscription Status - Hidden on mobile */}
           {subscription.plan !== "Free" && (
             <Button
               variant="outline"
               size="sm"
-              className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:bg-gradient-to-r hover:from-yellow-400/20 hover:to-orange-400/20 dark:text-yellow-400"
+              className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:bg-gradient-to-r hover:from-yellow-400/20 hover:to-orange-400/20 dark:text-yellow-400 hidden md:flex"
               onClick={() => onNavigate(routes.subscriptionManagement)}
             >
               <Crown className="h-4 w-4 mr-1" />
@@ -340,11 +409,11 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
             </Button>
           )}
 
-          {/* XP Balance */}
+          {/* XP Balance - Hidden on mobile */}
           <Button
             variant="ghost"
             size="sm"
-            className="text-primary hover:bg-primary/10 hover:text-primary transition-colors"
+            className="text-primary hover:bg-primary/10 hover:text-primary transition-colors hidden md:flex"
             onClick={() => onNavigate(routes.xpStore)}
           >
             <Gift className="h-4 w-4 mr-1" />
@@ -366,12 +435,12 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 border-border bg-popover" align="end">
+            <PopoverContent className="w-[90vw] max-w-[380px] p-0 border-border bg-popover" align="end">
               <div className="p-4 border-b border-border">
                 <h3 className="font-semibold">Notifications</h3>
                 <p className="text-sm text-muted-foreground">You have {unreadCount} unread notifications</p>
               </div>
-              <div className="max-h-80 overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
@@ -415,8 +484,8 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
           {/* Profile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full nav-item">
-                <Avatar className="h-10 w-10 border-2 border-border">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full nav-item">
+                <Avatar className="h-8 w-8 border-2 border-border">
                   <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
                     {user.name
