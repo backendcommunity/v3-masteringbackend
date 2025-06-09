@@ -299,4 +299,6 @@ export function MockInterviewResultsPage({ interviewId, onNavigate }: MockInterv
   )
 }
 
+// Export both named and default
+export const MockInterviewResults = MockInterviewResultsPage
 export default MockInterviewResultsPage
