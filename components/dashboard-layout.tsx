@@ -111,6 +111,12 @@ export function DashboardLayout() {
   console.log("Current path segments:", pathSegments)
 
   const renderCurrentPage = () => {
+    // Ensure currentPath is defined and is a string
+    if (!currentPath || typeof currentPath !== "string") {
+      console.log("Invalid currentPath:", currentPath)
+      return <DashboardContent onNavigate={handleNavigate} />
+    }
+
     console.log("Rendering page for path:", currentPath)
 
     // Dashboard home

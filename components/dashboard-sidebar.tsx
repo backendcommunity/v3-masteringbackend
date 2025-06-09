@@ -133,6 +133,9 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
     return null
   }
 
+  // Add safety check for currentPath
+  const safePath = currentPath || "/dashboard"
+
   const user = store.getUser()
 
   // Mock subscription data - in real app this would come from store
@@ -210,13 +213,13 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={currentPath === item.url || currentPath.startsWith(item.url)}
+                    isActive={safePath && safePath.startsWith(item.url)}
                     className="sidebar-item"
                   >
                     <button
                       onClick={() => onNavigate(item.url)}
                       className="flex w-full items-center justify-between hover:bg-primary/10 data-[active=true]:bg-primary/15 data-[active=true]:text-primary transition-colors"
-                      data-active={currentPath === item.url || currentPath.startsWith(item.url)}
+                      data-active={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     >
                       <div className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
@@ -239,13 +242,13 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={currentPath === item.url || currentPath.startsWith(item.url)}
+                    isActive={safePath && safePath.startsWith(item.url)}
                     className="sidebar-item"
                   >
                     <button
                       onClick={() => onNavigate(item.url)}
                       className="flex w-full items-center justify-between hover:bg-primary/10 data-[active=true]:bg-primary/15 data-[active=true]:text-primary transition-colors"
-                      data-active={currentPath === item.url || currentPath.startsWith(item.url)}
+                      data-active={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     >
                       <div className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
@@ -268,13 +271,13 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={currentPath === item.url || currentPath.startsWith(item.url)}
+                    isActive={safePath && safePath.startsWith(item.url)}
                     className="sidebar-item"
                   >
                     <button
                       onClick={() => onNavigate(item.url)}
                       className="flex w-full items-center justify-between hover:bg-primary/10 data-[active=true]:bg-primary/15 data-[active=true]:text-primary transition-colors"
-                      data-active={currentPath === item.url || currentPath.startsWith(item.url)}
+                      data-active={safePath === item.url || (safePath && safePath.startsWith(item.url))}
                     >
                       <div className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
@@ -293,11 +296,11 @@ export function DashboardSidebar({ currentPath, onNavigate, ...props }: Dashboar
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={currentPath === routes.settings} className="sidebar-item">
+                <SidebarMenuButton asChild isActive={safePath === routes.settings} className="sidebar-item">
                   <button
                     onClick={() => onNavigate(routes.settings)}
                     className="flex w-full items-center gap-2 hover:bg-primary/10 data-[active=true]:bg-primary/15 data-[active=true]:text-primary transition-colors"
-                    data-active={currentPath === routes.settings}
+                    data-active={safePath === routes.settings}
                   >
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>
