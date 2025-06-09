@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import ProjectCard from "../components/ProjectCard"
+import { ProjectCard } from "../project-card"
 
 const Projects = () => {
   const [filter, setFilter] = useState("all")
@@ -62,7 +62,16 @@ const Projects = () => {
 
       <div className="mobile-grid">
         {filteredProjects.map((project) => (
-          <ProjectCard key={project.id} project={project} className="card-hover mobile-padding" />
+          <ProjectCard
+            key={project.id}
+            title={project.title}
+            description={project.description}
+            difficulty="Beginner"
+            duration="2-3 hours"
+            imageUrl={project.imageUrl}
+            tags={[project.category]}
+            onStart={() => console.log(`Starting project: ${project.title}`)}
+          />
         ))}
       </div>
     </div>
