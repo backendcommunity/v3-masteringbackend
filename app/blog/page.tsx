@@ -126,9 +126,9 @@ export default function BlogPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [showFilters, setShowFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 6
+  const postsPerPage = 6
 
-  const allFilteredPosts = blogPosts.filter((post) => {
+  const filteredPosts = blogPosts.filter((post) => {
     const matchesSearch =
       post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,19 +137,24 @@ export default function BlogPage() {
     return matchesSearch && matchesCategory
   })
 
-  const totalPages = Math.ceil(allFilteredPosts.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const filteredPosts = allFilteredPosts.slice(startIndex, endIndex)
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-    // Scroll to top of results
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
   const featuredPosts = filteredPosts.filter((post) => post.featured)
   const regularPosts = filteredPosts.filter((post) => !post.featured)
+
+  // Pagination for regular posts
+  const totalPages = Math.ceil(regularPosts.length / postsPerPage)
+  const startIndex = (currentPage - 1) * postsPerPage
+  const paginatedPosts = regularPosts.slice(startIndex, startIndex + postsPerPage)
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (newCategory: string) => {
+    setSelectedCategory(newCategory)
+    setCurrentPage(1)
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -203,10 +208,7 @@ export default function BlogPage() {
                   type="text"
                   placeholder="Search articles..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setCurrentPage(1)
-                  }}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-xl text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/40 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent"
                 />
               </div>
@@ -253,10 +255,7 @@ export default function BlogPage() {
                   {categories.map((category) => (
                     <button
                       key={category}
-                      onClick={() => {
-                        setSelectedCategory(category)
-                        setCurrentPage(1)
-                      }}
+                      onClick={() => handleFilterChange(category)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedCategory === category
                           ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
@@ -337,13 +336,13 @@ export default function BlogPage() {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">Latest Articles</h2>
             <div className="text-[#0E1F33]/60 dark:text-[#94A3B8]">
-              {allFilteredPosts.length} article{allFilteredPosts.length !== 1 ? "s" : ""} found
+              {filteredPosts.length} article{filteredPosts.length !== 1 ? "s" : ""} found
             </div>
           </div>
 
           {viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {regularPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
                     <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
@@ -383,7 +382,7 @@ export default function BlogPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {regularPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card p-6 rounded-xl hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01]">
                     <div className="flex flex-col md:flex-row gap-6">
@@ -445,15 +444,11 @@ export default function BlogPage() {
             </div>
           )}
 
-          {allFilteredPosts.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              showInfo={true}
-              totalItems={allFilteredPosts.length}
-              itemsPerPage={itemsPerPage}
-            />
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-12">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
           )}
 
           {filteredPosts.length === 0 && (

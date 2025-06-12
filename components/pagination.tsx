@@ -6,19 +6,10 @@ interface PaginationProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
-  showInfo?: boolean
-  totalItems?: number
-  itemsPerPage?: number
+  className?: string
 }
 
-export function Pagination({
-  currentPage,
-  totalPages,
-  onPageChange,
-  showInfo = false,
-  totalItems = 0,
-  itemsPerPage = 0,
-}: PaginationProps) {
+export function Pagination({ currentPage, totalPages, onPageChange, className = "" }: PaginationProps) {
   const getVisiblePages = () => {
     const delta = 2
     const range = []
@@ -38,10 +29,8 @@ export function Pagination({
 
     if (currentPage + delta < totalPages - 1) {
       rangeWithDots.push("...", totalPages)
-    } else {
-      if (totalPages > 1) {
-        rangeWithDots.push(totalPages)
-      }
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages)
     }
 
     return rangeWithDots
@@ -50,52 +39,50 @@ export function Pagination({
   if (totalPages <= 1) return null
 
   const visiblePages = getVisiblePages()
-  const startItem = (currentPage - 1) * itemsPerPage + 1
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-8">
-      {showInfo && (
-        <div className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">
-          Showing {startItem}-{endItem} of {totalItems} results
-        </div>
-      )}
+    <div className={`pagination ${className}`}>
+      {/* Previous Button */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`pagination-button flex items-center space-x-1 ${
+          currentPage === 1 ? "pagination-button-disabled" : "pagination-button-inactive"
+        }`}
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span>Previous</span>
+      </button>
 
-      <div className="flex items-center space-x-2">
-        {/* Previous Button */}
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="pagination-button flex items-center space-x-1"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Previous</span>
-        </button>
-
-        {/* Page Numbers */}
-        <div className="flex items-center space-x-1">
-          {visiblePages.map((page, index) => (
+      {/* Page Numbers */}
+      {visiblePages.map((page, index) => (
+        <div key={index}>
+          {page === "..." ? (
+            <span className="px-3 py-2 text-[#0E1F33]/60 dark:text-[#94A3B8]">...</span>
+          ) : (
             <button
-              key={index}
-              onClick={() => typeof page === "number" && onPageChange(page)}
-              disabled={page === "..."}
-              className={`pagination-button min-w-[40px] ${page === currentPage ? "active" : ""}`}
+              onClick={() => onPageChange(page as number)}
+              className={`pagination-button ${
+                currentPage === page ? "pagination-button-active" : "pagination-button-inactive"
+              }`}
             >
               {page}
             </button>
-          ))}
+          )}
         </div>
+      ))}
 
-        {/* Next Button */}
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="pagination-button flex items-center space-x-1"
-        >
-          <span className="hidden sm:inline">Next</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Next Button */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className={`pagination-button flex items-center space-x-1 ${
+          currentPage === totalPages ? "pagination-button-disabled" : "pagination-button-inactive"
+        }`}
+      >
+        <span>Next</span>
+        <ChevronRight className="w-4 h-4" />
+      </button>
     </div>
   )
 }

@@ -62,6 +62,12 @@ export default function MasteringbackendLandingPage() {
                 Grow
               </a>
               <a
+                href="/blog"
+                className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
+              >
+                Blog
+              </a>
+              <a
                 href="#community"
                 className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
               >
@@ -1427,6 +1433,164 @@ export default function MasteringbackendLandingPage() {
         </div>
       </section>
 
+      {/* Blog Section */}
+      <section className="py-20 bg-[#97C3CC]/5 dark:bg-[#1E293B]/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-6">Latest from Our Blog</h2>
+            <p className="text-xl text-[#0E1F33] dark:text-[#CBD5E1] max-w-3xl mx-auto">
+              Stay updated with the latest backend development trends, tutorials, and career advice from industry experts.
+            </p>
+          </div>
+
+          {/* Featured Blog Posts */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {/* Blog Post 1 */}
+            <a href="/blog/1" className="group glass-card rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="aspect-video bg-gradient-to-br from-[#13AECE]/20 to-[#97C3CC]/30 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/placeholder.svg?height=200&width=400')] bg-cover bg-center"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                <div className="absolute bottom-4 left-4">
+                  <span className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-3 py-1 rounded-full text-sm font-medium">
+                    Python
+                  </span>
+                </div>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                  Building Scalable APIs with FastAPI and PostgreSQL
+                </h3>
+                <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-3">
+                  Learn how to build production-ready APIs using FastAPI, PostgreSQL, and modern Python practices. This comprehensive guide covers everything from setup to deployment.
+                </p>
+                <div className="flex items-center justify-between text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">KS</span>
+                    </div>
+                    <span>Kapehe Sevilleja</span>
+                  </div>
+                  <span>5 min read</span>
+                </div>
+              </div>
+            </a>
+
+            {/* Blog Post 2 */}
+            <a href="/blog/2" className="group glass-card rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="aspect-video bg-gradient-to-br from-[#0E1F33]/20 to-[#97C3CC]/30 dark:from-[#475569]/20 dark:to-[#0EA5E9]/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/placeholder.svg?height=200&width=400')] bg-cover bg-center"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                <div className="absolute bottom-4 left-4">
+                  <span className="bg-[#0E1F33] dark:bg-[#475569] text-white px-3 py-1 rounded-full text-sm font-medium">
+                    Architecture
+                  </span>
+                </div>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                  Microservices Architecture: A Complete Guide
+                </h3>
+                <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-3">
+                  Discover how to design and implement microservices architecture for scalable backend systems. Learn about service communication, data management, and deployment strategies.
+                </p>
+                <div className="flex items-center justify-between text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-[#0E1F33] dark:bg-[#475569] rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">KS</span>
+                    </div>
+                    <span>Kapehe Sevilleja</span>
+                  </div>
+                  <span>8 min read</span>
+                </div>
+              </div>
+            </a>
+
+            {/* Blog Post 3 */}
+            <a href="/blog/3" className="group glass-card rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="aspect-video bg-gradient-to-br from-[#97C3CC]/20 to-[#13AECE]/30 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/placeholder.svg?height=200&width=400')] bg-cover bg-center"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                <div className="absolute bottom-4 left-4">
+                  <span className="bg-[#97C3CC] dark:bg-[#475569] text-[#0E1F33] dark:text-white px-3 py-1 rounded-full text-sm font-medium">
+                    Career
+                  </span>
+                </div>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                  From Junior to Senior: Backend Developer Career Path
+                </h3>
+                <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-3">
+                  Navigate your backend development career with our comprehensive guide. Learn about skill progression, salary expectations, and how to advance from junior to senior roles.
+                </p>
+                <div className="flex items-center justify-between text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-[#97C3CC] dark:bg-[#475569] rounded-full flex items-center justify-center">
+                      <span className="text-[#0E1F33] dark:text-white text-xs font-bold">KS</span>
+                    </div>
+                    <span>Kapehe Sevilleja</span>
+                  </div>
+                  <span>12 min read</span>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          {/* Blog Categories */}
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] text-center mb-8">Explore by Category</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <a href="/blog/category/python" className="group glass-card p-6 rounded-xl text-center hover:shadow-lg transition-all duration-300">
+                <div className="w-12 h-12 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/20 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                  <span className="text-[#13AECE] dark:text-[#0EA5E9] font-bold text-lg">Py</span>
+                </div>
+                <h4 className="font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-1">Python</h4>
+                <p className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">24 articles</p>
+              </a>
+
+              <a href="/blog/category/javascript" className="group glass-card p-6 rounded-xl text-center hover:shadow-lg transition-all duration-300">
+                <div className="w-12 h-12 bg-[#97C3CC]/20 dark:bg-[#475569]/40 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                  <span className="text-[#0E1F33] dark:text-[#F1F5F9] font-bold text-lg">JS</span>
+                </div>
+                <h4 className="font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-1">JavaScript</h4>
+                <p className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">18 articles</p>
+              </a>
+
+              <a href="/blog/category/architecture" className="group glass-card p-6 rounded-xl text-center hover:shadow-lg transition-all duration-300">
+                <div className="w-12 h-12 bg-[#0E1F33]/10 dark:bg-[#0EA5E9]/20 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                  <span className="text-[#0E1F33] dark:text-[#0EA5E9] font-bold text-sm">Arc</span>
+                </div>
+                <h4 className="font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-1">Architecture</h4>
+                <p className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">15 articles</p>
+              </a>
+
+              <a href="/blog/category/career" className="group glass-card p-6 rounded-xl text-center hover:shadow-lg transition-all duration-300">
+                <div className="w-12 h-12 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/20 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                  <Briefcase className="w-6 h-6 text-[#13AECE] dark:text-[#0EA5E9]" />
+                </div>
+                <h4 className="font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-1">Career</h4>
+                <p className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">12 articles</p>
+              </a>
+            </div>
+          </div>
+
+          {/* Call to Action */}
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-4">
+              Want More Backend Insights?
+            </h3>
+            <p className="text-[#0E1F33]/60 dark:text-[#94A3B8] mb-8 max-w-2xl mx-auto">
+              Explore our complete collection of tutorials, guides, and career advice to accelerate your backend development journey.
+            </p>
+            <a href="/blog" className="inline-flex items-center space-x-2 bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-all transform hover:scale-105">
+              <BookOpen className="w-5 h-5" />
+              <span>Explore All Articles</span>
+              <ArrowRight className="w-5 h-5" />
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Community Section */}
       <section id="community" className="py-20 bg-[#0E1F33] dark:bg-[#0A0F1C]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -1556,152 +1720,4 @@ export default function MasteringbackendLandingPage() {
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                    </svg>
-                  </a>
-                  <a
-                    href="#"
-                    className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#1E293B] rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] transition-colors group"
-                  >
-                    <svg
-                      className="w-5 h-5 text-[#0E1F33]/60 dark:text-[#94A3B8] group-hover:text-white"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.402.163-1.499-.698-2.436-2.888-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.357-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24.001 12.017 24.001c6.624 0 11.99-5.367 11.99-11.987C24.007 5.367 18.641.001 12.017.001z" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-white font-semibold mb-4">Learn</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Courses
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Bootcamps
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Roadmaps
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Learning Paths
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Build</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    MB Projects
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Project30
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    MB Lands
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Code Reviews
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Grow</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    MB Interviews
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Mock Interviews
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Certifications
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Career Support
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Careers
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                    Contact
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Footer Bottom */}
-          <div className="border-t border-white/10 dark:border-[#475569]/20 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-              <div className="text-white/70 dark:text-[#94A3B8] text-sm mb-4 md:mb-0">
-                © 2024 Masteringbackend. All rights reserved.
-              </div>
-              <div className="flex space-x-6 text-sm">
-                <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                  Privacy Policy
-                </a>
-                <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                  Terms of Service
-                </a>
-                <a href="#" className="text-white/70 dark:text-[#94A3B8] hover:text-white transition-colors">
-                  Cookie Policy
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 2\
