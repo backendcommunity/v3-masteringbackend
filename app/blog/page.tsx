@@ -276,12 +276,7 @@ export default function BlogPage() {
                     </div>
                     <div className="p-6">
                       <div className="flex items-center space-x-4 mb-4">
-                        <Link
-                          href={`/blog/category/${post.category.toLowerCase()}`}
-                          className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium hover:underline"
-                        >
-                          {post.category}
-                        </Link>
+                        <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">{post.category}</span>
                         <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
                           <Calendar className="w-4 h-4" />
                           <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
@@ -296,20 +291,15 @@ export default function BlogPage() {
                       </h3>
                       <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">{post.excerpt}</p>
                       <div className="flex items-center justify-between">
-                        <Link
-                          href={`/blog/author/${post.author.name.toLowerCase().replace(" ", "-")}`}
-                          className="flex items-center space-x-3 group/author"
-                        >
+                        <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
                             <span className="text-white font-bold text-sm">{post.author.avatar}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9] group-hover/author:text-[#13AECE] dark:group-hover/author:text-[#0EA5E9] transition-colors">
-                              {post.author.name}
-                            </p>
+                            <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9]">{post.author.name}</p>
                             <p className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">{post.author.bio}</p>
                           </div>
-                        </Link>
+                        </div>
                         <ArrowRight className="w-5 h-5 text-[#13AECE] dark:text-[#0EA5E9] group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </div>
@@ -345,12 +335,7 @@ export default function BlogPage() {
                     </div>
                     <div className="p-6">
                       <div className="flex items-center space-x-4 mb-3">
-                        <Link
-                          href={`/blog/category/${post.category.toLowerCase()}`}
-                          className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium hover:underline"
-                        >
-                          {post.category}
-                        </Link>
+                        <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">{post.category}</span>
                         <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
                           <Clock className="w-4 h-4" />
                           <span>{post.readTime}</span>
@@ -361,17 +346,12 @@ export default function BlogPage() {
                       </h3>
                       <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] text-sm mb-4 line-clamp-2">{post.excerpt}</p>
                       <div className="flex items-center justify-between">
-                        <Link
-                          href={`/blog/author/${post.author.name.toLowerCase().replace(" ", "-")}`}
-                          className="flex items-center space-x-2 group/author"
-                        >
+                        <div className="flex items-center space-x-2">
                           <div className="w-8 h-8 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
                             <span className="text-white font-bold text-xs">{post.author.avatar}</span>
                           </div>
-                          <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9] group-hover/author:text-[#13AECE] dark:group-hover/author:text-[#0EA5E9] transition-colors">
-                            {post.author.name}
-                          </span>
-                        </Link>
+                          <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9]">{post.author.name}</span>
+                        </div>
                         <span className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">
                           {new Date(post.publishedAt).toLocaleDateString()}
                         </span>
@@ -398,12 +378,9 @@ export default function BlogPage() {
                       </div>
                       <div className="md:w-2/3">
                         <div className="flex items-center space-x-4 mb-3">
-                          <Link
-                            href={`/blog/category/${post.category.toLowerCase()}`}
-                            className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium hover:underline"
-                          >
+                          <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">
                             {post.category}
-                          </Link>
+                          </span>
                           <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
                             <Calendar className="w-4 h-4" />
                             <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
@@ -418,29 +395,25 @@ export default function BlogPage() {
                         </h3>
                         <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">{post.excerpt}</p>
                         <div className="flex items-center justify-between">
-                          <Link
-                            href={`/blog/author/${post.author.name.toLowerCase().replace(" ", "-")}`}
-                            className="flex items-center space-x-3 group/author"
-                          >
+                          <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
                               <span className="text-white font-bold text-sm">{post.author.avatar}</span>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9] group-hover/author:text-[#13AECE] dark:group-hover/author:text-[#0EA5E9] transition-colors">
+                              <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9]">
                                 {post.author.name}
                               </p>
                               <p className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">{post.author.bio}</p>
                             </div>
-                          </Link>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             {post.tags.slice(0, 2).map((tag) => (
-                              <Link
+                              <span
                                 key={tag}
-                                href={`/blog/tag/${tag.toLowerCase()}`}
-                                className="text-xs bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] px-2 py-1 rounded-full hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] hover:text-white transition-colors"
+                                className="text-xs bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] px-2 py-1 rounded-full"
                               >
                                 {tag}
-                              </Link>
+                              </span>
                             ))}
                           </div>
                         </div>
