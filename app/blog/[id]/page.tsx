@@ -20,9 +20,29 @@ import { BrandLogo } from "@/components/brand-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism"
-import { useTheme } from "@/hooks/use-theme"
+import { useTheme } from "next-themes"
+
+// Custom syntax highlighter component
+const CodeBlock = ({ children, className }: { children: string; className?: string }) => {
+  const language = className?.replace("language-", "") || "text"
+
+  return (
+    <div className="relative my-6">
+      <div className="flex items-center justify-between bg-[#1e293b] dark:bg-[#0f172a] px-4 py-2 rounded-t-lg">
+        <span className="text-[#94a3b8] text-sm font-medium">{language}</span>
+        <button
+          onClick={() => navigator.clipboard.writeText(children)}
+          className="text-[#94a3b8] hover:text-white text-sm px-2 py-1 rounded hover:bg-[#334155] transition-colors"
+        >
+          Copy
+        </button>
+      </div>
+      <pre className="bg-[#0f172a] dark:bg-[#020617] text-[#e2e8f0] p-4 rounded-b-lg overflow-x-auto">
+        <code className="text-sm leading-relaxed">{children}</code>
+      </pre>
+    </div>
+  )
+}
 
 // Mock blog post data
 const blogPost = {
@@ -212,7 +232,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [copied, setCopied] = useState(false)
-  const { isDark } = useTheme()
+  const { theme } = useTheme()
 
   const handleShare = (platform: string) => {
     const url = window.location.href
@@ -414,26 +434,20 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
       {/* Article Content */}
       <main className="px-4 sm:px-6 lg:px-8 pb-16">
         <div className="max-w-4xl mx-auto">
-          <div className="prose prose-lg max-w-none prose-headings:text-[#0E1F33] dark:prose-headings:text-[#F1F5F9] prose-p:text-[#0E1F33]/80 dark:prose-p:text-[#CBD5E1] prose-a:text-[#13AECE] dark:prose-a:text-[#0EA5E9] prose-code:text-[#13AECE] dark:prose-code:text-[#0EA5E9] prose-pre:bg-[#0E1F33] dark:prose-pre:bg-[#1E293B] prose-pre:text-white">
+          <div className="prose prose-lg max-w-none prose-headings:text-[#0E1F33] dark:prose-headings:text-[#F1F5F9] prose-p:text-[#0E1F33]/80 dark:prose-p:text-[#CBD5E1] prose-a:text-[#13AECE] dark:prose-a:text-[#0EA5E9]">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
                 code({ node, inline, className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || "")
-                  return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={isDark ? oneDark : oneLight}
-                      language={match[1]}
-                      PreTag="div"
-                      className="rounded-lg my-4 text-sm"
-                      showLineNumbers={true}
-                      {...props}
-                    >
-                      {String(children).replace(/\n$/, "")}
-                    </SyntaxHighlighter>
-                  ) : (
+                  const content = String(children).replace(/\n$/, "")
+
+                  if (!inline && className) {
+                    return <CodeBlock className={className}>{content}</CodeBlock>
+                  }
+
+                  return (
                     <code
-                      className={`${className} bg-[#97C3CC]/10 dark:bg-[#475569]/20 px-1.5 py-0.5 rounded text-[#13AECE] dark:text-[#0EA5E9]`}
+                      className="bg-[#97C3CC]/10 dark:bg-[#475569]/20 px-1.5 py-0.5 rounded text-[#13AECE] dark:text-[#0EA5E9] text-sm"
                       {...props}
                     >
                       {children}
