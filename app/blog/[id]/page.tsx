@@ -18,6 +18,11 @@ import {
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism"
+import { useTheme } from "@/hooks/use-theme"
 
 // Mock blog post data
 const blogPost = {
@@ -207,6 +212,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [copied, setCopied] = useState(false)
+  const { isDark } = useTheme()
 
   const handleShare = (platform: string) => {
     const url = window.location.href
@@ -409,7 +415,48 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
       <main className="px-4 sm:px-6 lg:px-8 pb-16">
         <div className="max-w-4xl mx-auto">
           <div className="prose prose-lg max-w-none prose-headings:text-[#0E1F33] dark:prose-headings:text-[#F1F5F9] prose-p:text-[#0E1F33]/80 dark:prose-p:text-[#CBD5E1] prose-a:text-[#13AECE] dark:prose-a:text-[#0EA5E9] prose-code:text-[#13AECE] dark:prose-code:text-[#0EA5E9] prose-pre:bg-[#0E1F33] dark:prose-pre:bg-[#1E293B] prose-pre:text-white">
-            <div dangerouslySetInnerHTML={{ __html: blogPost.content.replace(/\n/g, "<br />") }} />
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, inline, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || "")
+                  return !inline && match ? (
+                    <SyntaxHighlighter
+                      style={isDark ? oneDark : oneLight}
+                      language={match[1]}
+                      PreTag="div"
+                      className="rounded-lg my-4 text-sm"
+                      showLineNumbers={true}
+                      {...props}
+                    >
+                      {String(children).replace(/\n$/, "")}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code
+                      className={`${className} bg-[#97C3CC]/10 dark:bg-[#475569]/20 px-1.5 py-0.5 rounded text-[#13AECE] dark:text-[#0EA5E9]`}
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  )
+                },
+                h1: ({ node, ...props }) => <h1 className="text-3xl font-bold mt-8 mb-4" {...props} />,
+                h2: ({ node, ...props }) => <h2 className="text-2xl font-bold mt-8 mb-4" {...props} />,
+                h3: ({ node, ...props }) => <h3 className="text-xl font-bold mt-6 mb-3" {...props} />,
+                p: ({ node, ...props }) => <p className="my-4 leading-relaxed" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc pl-6 my-4" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal pl-6 my-4" {...props} />,
+                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                blockquote: ({ node, ...props }) => (
+                  <blockquote
+                    className="border-l-4 border-[#13AECE] dark:border-[#0EA5E9] pl-4 italic my-4 text-[#0E1F33]/70 dark:text-[#94A3B8]"
+                    {...props}
+                  />
+                ),
+              }}
+            >
+              {blogPost.content}
+            </ReactMarkdown>
           </div>
 
           {/* Tags */}
