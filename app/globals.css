@@ -67,42 +67,40 @@
     box-shadow: 0 0 30px rgba(14, 165, 233, 0.6);
   }
 
-  /* Pagination styles */
-  .pagination {
-    @apply flex items-center justify-center space-x-2;
-  }
-
-  .pagination-button {
-    @apply px-3 py-2 rounded-lg text-sm font-medium transition-colors;
-  }
-
-  .pagination-button-active {
-    @apply bg-[#13AECE] dark:bg-[#0EA5E9] text-white;
-  }
-
-  .pagination-button-inactive {
-    @apply bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30;
-  }
-
-  .pagination-button-disabled {
-    @apply bg-[#97C3CC]/5 dark:bg-[#475569]/10 text-[#0E1F33]/40 dark:text-[#94A3B8] cursor-not-allowed;
-  }
-
-  /* Fix bullet point colors */
-  .prose ul li::marker {
-    color: #13aece;
-  }
-
-  .dark .prose ul li::marker {
-    color: #0ea5e9;
-  }
-
+  /* List styling fixes */
+  .prose ul li::marker,
   .prose ol li::marker {
     color: #13aece;
   }
 
+  .dark .prose ul li::marker,
   .dark .prose ol li::marker {
     color: #0ea5e9;
+  }
+
+  /* Pagination styles */
+  .pagination-button {
+    @apply px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
+  }
+
+  .pagination-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .pagination-button.active {
+    @apply bg-[#13AECE] text-white;
+  }
+
+  .dark .pagination-button.active {
+    @apply bg-[#0EA5E9];
+  }
+
+  .pagination-button:not(.active):not(:disabled) {
+    @apply bg-[#97C3CC]/10 text-[#0E1F33] hover:bg-[#97C3CC]/20;
+  }
+
+  .dark .pagination-button:not(.active):not(:disabled) {
+    @apply bg-[#475569]/20 text-[#F1F5F9] hover:bg-[#475569]/30;
   }
 }
 

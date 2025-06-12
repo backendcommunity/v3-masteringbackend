@@ -88,7 +88,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [contentFilter, setContentFilter] = useState<"all" | "articles" | "courses">("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const postsPerPage = 6
+  const itemsPerPage = 6
 
   const tag = tagData[params.tag as keyof typeof tagData]
 
@@ -105,20 +105,21 @@ export default function TagPage({ params }: { params: { tag: string } }) {
     )
   }
 
-  const filteredPosts = tag.posts.filter((post) => {
+  const allFilteredPosts = tag.posts.filter((post) => {
     if (contentFilter === "all") return true
     if (contentFilter === "articles") return post.type === "article"
     if (contentFilter === "courses") return post.type === "course"
     return true
   })
 
-  const totalPosts = filteredPosts.length
-  const totalPages = Math.ceil(totalPosts / postsPerPage)
-  const paginatedPosts = filteredPosts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
+  const totalPages = Math.ceil(allFilteredPosts.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const filteredPosts = allFilteredPosts.slice(startIndex, endIndex)
 
-  const handleFilterChange = (newFilter: "all" | "articles" | "courses") => {
-    setContentFilter(newFilter)
-    setCurrentPage(1) // Reset to the first page when the filter changes
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
@@ -202,7 +203,10 @@ export default function TagPage({ params }: { params: { tag: string } }) {
                 <span className="text-[#0E1F33] dark:text-[#F1F5F9] font-medium">Show:</span>
                 <select
                   value={contentFilter}
-                  onChange={(e) => handleFilterChange(e.target.value as "all" | "articles" | "courses")}
+                  onChange={(e) => {
+                    setContentFilter(e.target.value as "all" | "articles" | "courses")
+                    setCurrentPage(1)
+                  }}
                   className="bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg px-3 py-2 text-[#0E1F33] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9]"
                 >
                   <option value="all">All Content</option>
@@ -211,7 +215,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
                 </select>
               </div>
               <div className="text-[#0E1F33]/60 dark:text-[#94A3B8]">
-                {filteredPosts.length} item{filteredPosts.length !== 1 ? "s" : ""} found
+                {allFilteredPosts.length} item{allFilteredPosts.length !== 1 ? "s" : ""} found
               </div>
             </div>
 
@@ -246,7 +250,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
         <div className="max-w-7xl mx-auto">
           {viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {paginatedPosts.map((post) => (
+              {filteredPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -304,7 +308,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
             </div>
           ) : (
             <div className="space-y-6">
-              {paginatedPosts.map((post) => (
+              {filteredPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -386,12 +390,19 @@ export default function TagPage({ params }: { params: { tag: string } }) {
               </button>
             </div>
           )}
-
-          {filteredPosts.length > 0 && (
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-          )}
         </div>
       </section>
+
+      {allFilteredPosts.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          showInfo={true}
+          totalItems={allFilteredPosts.length}
+          itemsPerPage={itemsPerPage}
+        />
+      )}
 
       {/* Newsletter Signup */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#0E1F33] dark:bg-[#0A0F1C]">
