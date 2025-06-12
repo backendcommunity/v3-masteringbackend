@@ -1,45 +1,48 @@
 "use client"
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { Moon, Sun } from "lucide-react"
 
 export function ThemeToggle() {
-  const { setTheme, theme, resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const [isDark, setIsDark] = useState(false)
 
-  // Avoid hydration mismatch
   useEffect(() => {
-    setMounted(true)
+    const theme = localStorage.getItem("theme")
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+
+    if (theme === "dark" || (!theme && systemPrefersDark)) {
+      setIsDark(true)
+      document.documentElement.classList.add("dark")
+    } else {
+      setIsDark(false)
+      document.documentElement.classList.remove("dark")
+    }
   }, [])
 
-  if (!mounted) {
-    return (
-      <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
-        <div className="h-4 w-4" />
-        <span className="sr-only">Loading theme toggle</span>
-      </Button>
-    )
+  const toggleTheme = () => {
+    const newTheme = !isDark
+    setIsDark(newTheme)
+
+    if (newTheme) {
+      document.documentElement.classList.add("dark")
+      localStorage.setItem("theme", "dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+      localStorage.setItem("theme", "light")
+    }
   }
 
-  const isDark = resolvedTheme === "dark"
-
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="h-9 w-9 transition-all duration-300 hover:bg-primary/10 hover:text-primary"
-      title={`Switch to ${isDark ? "light" : "dark"} mode`}
+    <button
+      onClick={toggleTheme}
+      className="glass-card p-3 rounded-xl hover:scale-105 transition-all duration-300 glow-hover border border-[#97C3CC]/20 dark:border-[#475569]/20"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <Sun className={`h-4 w-4 transition-all duration-300 ${isDark ? "rotate-90 scale-0" : "rotate-0 scale-100"}`} />
-      <Moon
-        className={`absolute h-4 w-4 transition-all duration-300 ${
-          isDark ? "rotate-0 scale-100" : "-rotate-90 scale-0"
-        }`}
-      />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+      {isDark ? (
+        <Sun className="w-5 h-5 text-[#F4E04D] dark:text-[#0EA5E9]" />
+      ) : (
+        <Moon className="w-5 h-5 text-[#0E1F33] dark:text-[#F1F5F9]" />
+      )}
+    </button>
   )
 }
