@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Calendar, Clock, TagIcon, Grid, List } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Pagination } from "@/components/pagination"
 
 // Mock data for tag content
 const tagData = {
@@ -86,6 +87,8 @@ const tagData = {
 export default function TagPage({ params }: { params: { tag: string } }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [contentFilter, setContentFilter] = useState<"all" | "articles" | "courses">("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 6
 
   const tag = tagData[params.tag as keyof typeof tagData]
 
@@ -108,6 +111,15 @@ export default function TagPage({ params }: { params: { tag: string } }) {
     if (contentFilter === "courses") return post.type === "course"
     return true
   })
+
+  const totalPosts = filteredPosts.length
+  const totalPages = Math.ceil(totalPosts / postsPerPage)
+  const paginatedPosts = filteredPosts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
+
+  const handleFilterChange = (newFilter: "all" | "articles" | "courses") => {
+    setContentFilter(newFilter)
+    setCurrentPage(1) // Reset to the first page when the filter changes
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -190,7 +202,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
                 <span className="text-[#0E1F33] dark:text-[#F1F5F9] font-medium">Show:</span>
                 <select
                   value={contentFilter}
-                  onChange={(e) => setContentFilter(e.target.value as "all" | "articles" | "courses")}
+                  onChange={(e) => handleFilterChange(e.target.value as "all" | "articles" | "courses")}
                   className="bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg px-3 py-2 text-[#0E1F33] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9]"
                 >
                   <option value="all">All Content</option>
@@ -234,7 +246,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
         <div className="max-w-7xl mx-auto">
           {viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -292,7 +304,7 @@ export default function TagPage({ params }: { params: { tag: string } }) {
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -373,6 +385,10 @@ export default function TagPage({ params }: { params: { tag: string } }) {
                 Show All Content
               </button>
             </div>
+          )}
+
+          {filteredPosts.length > 0 && (
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
           )}
         </div>
       </section>

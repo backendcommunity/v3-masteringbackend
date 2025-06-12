@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Calendar, Clock, Grid, List, Filter } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Pagination } from "@/components/pagination"
 
 // Mock data for category content
 const categoryData = {
@@ -71,6 +72,8 @@ const categoryData = {
 export default function CategoryPage({ params }: { params: { category: string } }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [contentFilter, setContentFilter] = useState<"all" | "articles" | "courses">("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 6
 
   const category = categoryData[params.category as keyof typeof categoryData]
 
@@ -93,6 +96,16 @@ export default function CategoryPage({ params }: { params: { category: string } 
     if (contentFilter === "courses") return post.type === "course"
     return true
   })
+
+  const totalPages = Math.ceil(filteredPosts.length / postsPerPage)
+  const startIndex = (currentPage - 1) * postsPerPage
+  const paginatedPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage)
+
+  // Reset page when filter changes
+  const handleFilterChange = (filter: "all" | "articles" | "courses") => {
+    setContentFilter(filter)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -158,7 +171,7 @@ export default function CategoryPage({ params }: { params: { category: string } 
                 <span className="text-[#0E1F33] dark:text-[#F1F5F9] font-medium">Show:</span>
                 <select
                   value={contentFilter}
-                  onChange={(e) => setContentFilter(e.target.value as "all" | "articles" | "courses")}
+                  onChange={(e) => handleFilterChange(e.target.value as "all" | "articles" | "courses")}
                   className="bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg px-3 py-2 text-[#0E1F33] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9]"
                 >
                   <option value="all">All Content</option>
@@ -202,7 +215,7 @@ export default function CategoryPage({ params }: { params: { category: string } 
         <div className="max-w-7xl mx-auto">
           {viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -255,7 +268,7 @@ export default function CategoryPage({ params }: { params: { category: string } 
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link
                   key={post.id}
                   href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
@@ -314,6 +327,13 @@ export default function CategoryPage({ params }: { params: { category: string } 
                   </article>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-12">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           )}
 

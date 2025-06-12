@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Search, Calendar, Clock, ArrowRight, Filter, Grid, List } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Pagination } from "@/components/pagination"
 
 // Mock blog data
 const blogPosts = [
@@ -124,6 +125,8 @@ export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [showFilters, setShowFilters] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 6
 
   const filteredPosts = blogPosts.filter((post) => {
     const matchesSearch =
@@ -136,6 +139,22 @@ export default function BlogPage() {
 
   const featuredPosts = filteredPosts.filter((post) => post.featured)
   const regularPosts = filteredPosts.filter((post) => !post.featured)
+
+  // Pagination for regular posts
+  const totalPages = Math.ceil(regularPosts.length / postsPerPage)
+  const startIndex = (currentPage - 1) * postsPerPage
+  const paginatedPosts = regularPosts.slice(startIndex, startIndex + postsPerPage)
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (newCategory: string) => {
+    setSelectedCategory(newCategory)
+    setCurrentPage(1)
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -189,7 +208,7 @@ export default function BlogPage() {
                   type="text"
                   placeholder="Search articles..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-xl text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/40 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent"
                 />
               </div>
@@ -236,7 +255,7 @@ export default function BlogPage() {
                   {categories.map((category) => (
                     <button
                       key={category}
-                      onClick={() => setSelectedCategory(category)}
+                      onClick={() => handleFilterChange(category)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedCategory === category
                           ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
@@ -323,7 +342,7 @@ export default function BlogPage() {
 
           {viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {regularPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
                     <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
@@ -363,7 +382,7 @@ export default function BlogPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {regularPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card p-6 rounded-xl hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01]">
                     <div className="flex flex-col md:flex-row gap-6">
@@ -422,6 +441,13 @@ export default function BlogPage() {
                   </article>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-12">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           )}
 
