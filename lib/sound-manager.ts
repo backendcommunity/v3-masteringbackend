@@ -1,15 +1,30 @@
 "use client"
 
+interface SoundFile {
+  name: string
+  src: string
+  audio?: HTMLAudioElement
+}
+
 class SoundManager {
   private sounds: Map<string, HTMLAudioElement> = new Map()
   private isEnabled = true
   private masterVolume = 0.7
+  private isInitialized = false
 
   constructor() {
-    // Check if we're in browser environment
-    if (typeof window !== "undefined" && "Audio" in window) {
-      this.preloadSounds()
+    if (typeof window !== "undefined") {
+      this.initialize()
+    }
+  }
+
+  private async initialize() {
+    try {
       this.checkUserPreferences()
+      await this.preloadSounds()
+      this.isInitialized = true
+    } catch (error) {
+      console.warn("Failed to initialize sound manager:", error)
     }
   }
 
@@ -24,54 +39,72 @@ class SoundManager {
     }
   }
 
-  private preloadSounds() {
-    const soundFiles = [
+  private async preloadSounds() {
+    const soundFiles: SoundFile[] = [
       { name: "celebration", src: "/sounds/celebration.mp3" },
       { name: "success", src: "/sounds/success.mp3" },
       { name: "achievement", src: "/sounds/achievement.mp3" },
     ]
 
-    soundFiles.forEach(({ name, src }) => {
+    for (const soundFile of soundFiles) {
       try {
         const audio = new Audio()
-        audio.preload = "auto"
+        audio.preload = "metadata"
         audio.volume = this.masterVolume
-        audio.src = src
+        audio.src = soundFile.src
 
-        // Handle loading errors gracefully
-        audio.addEventListener("error", (e) => {
-          console.warn(`Failed to load sound: ${name}`, e)
+        // Wait for the audio to be ready
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error(`Timeout loading ${soundFile.name}`))
+          }, 5000)
+
+          audio.addEventListener(
+            "canplaythrough",
+            () => {
+              clearTimeout(timeout)
+              resolve()
+            },
+            { once: true },
+          )
+
+          audio.addEventListener(
+            "error",
+            (e) => {
+              clearTimeout(timeout)
+              console.warn(`Failed to load sound: ${soundFile.name}`, e)
+              resolve() // Don't reject, just continue without this sound
+            },
+            { once: true },
+          )
         })
 
-        this.sounds.set(name, audio)
+        this.sounds.set(soundFile.name, audio)
       } catch (error) {
-        console.warn(`Failed to create audio for: ${name}`, error)
+        console.warn(`Failed to preload sound: ${soundFile.name}`, error)
       }
-    })
+    }
   }
 
-  play(soundName: string, volume?: number): void {
-    if (!this.isEnabled) return
+  play(soundName: string, volume = 0.7): void {
+    if (!this.isEnabled || !this.isInitialized) return
 
-    const sound = this.sounds.get(soundName)
-    if (sound) {
-      try {
+    try {
+      const sound = this.sounds.get(soundName)
+      if (sound) {
         sound.currentTime = 0
-        sound.volume = (volume ?? this.masterVolume) * this.masterVolume
+        sound.volume = Math.min(volume * this.masterVolume, 1)
 
-        // Handle autoplay restrictions
         const playPromise = sound.play()
-        if (playPromise !== undefined) {
+        if (playPromise) {
           playPromise.catch((error) => {
-            // Autoplay was prevented, which is normal behavior
-            console.debug(`Autoplay prevented for sound: ${soundName}`, error)
+            // This is expected behavior for autoplay restrictions
+            console.debug(`Autoplay prevented for sound: ${soundName}`)
           })
         }
-      } catch (error) {
-        console.warn(`Error playing sound: ${soundName}`, error)
       }
-    } else {
-      console.warn(`Sound not found: ${soundName}`)
+    } catch (error) {
+      console.warn(`Error playing sound: ${soundName}`, error)
     }
   }
 
@@ -86,7 +119,6 @@ class SoundManager {
 
   setMasterVolume(volume: number): void {
     this.masterVolume = Math.max(0, Math.min(1, volume))
-    // Update all existing sounds
     this.sounds.forEach((sound) => {
       sound.volume = this.masterVolume
     })
@@ -98,6 +130,10 @@ class SoundManager {
 
   getMasterVolume(): number {
     return this.masterVolume
+  }
+
+  getSoundNames(): string[] {
+    return Array.from(this.sounds.keys())
   }
 }
 

@@ -42,14 +42,21 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   }
 
   const handleEnroll = (courseId: string) => {
-    const course = courses.find((c) => c.id === courseId)
-    if (!course) return
+    try {
+      const course = courses.find((c) => c.id === courseId)
+      if (!course) {
+        console.error("Course not found:", courseId)
+        return
+      }
 
-    console.log("Enrolling in course:", courseId)
-    enrollInCourse(courseId)
+      console.log("Enrolling in course:", courseId)
+      enrollInCourse(courseId)
 
-    // Trigger celebration for first-time enrollment
-    triggerCelebration(course.title, courseId)
+      // Trigger celebration for first-time enrollment
+      triggerCelebration(course.title, courseId, "enrollment")
+    } catch (error) {
+      console.error("Error enrolling in course:", error)
+    }
   }
 
   const handleViewDetails = (courseId: string) => {
@@ -385,6 +392,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         isVisible={celebration.isVisible}
         onComplete={hideCelebration}
         courseName={celebration.courseName}
+        celebrationType={celebration.celebrationType}
       />
     </div>
   )
