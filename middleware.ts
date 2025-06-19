@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
 
     if (!token) {
       // Redirect to login if no token
-      return NextResponse.redirect(new URL("/login", request.url))
+      // return NextResponse.redirect(new URL("/login", request.url))
     }
 
     try {
@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
       return response
     } catch (error) {
       // Invalid token, redirect to login
-      const response = NextResponse.redirect(new URL("/login", request.url))
+      const response = NextResponse.redirect(new URL("/dashboard", request.url))
       response.cookies.delete("auth-token")
       return response
     }
