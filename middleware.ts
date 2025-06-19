@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 
 export function middleware(request: NextRequest) {
   // Check if the request is for the dashboard
-  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+  if (request.nextUrl.pathname.startsWith("/dashboard11")) {
     const token = request.cookies.get("auth-token")?.value
 
     if (!token) {
