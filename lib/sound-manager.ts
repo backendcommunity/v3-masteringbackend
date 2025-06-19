@@ -6,7 +6,7 @@ class SoundManager {
   private masterVolume = 0.7
 
   constructor() {
-    // Check if audio is supported and user hasn't disabled it
+    // Check if we're in browser environment
     if (typeof window !== "undefined" && "Audio" in window) {
       this.preloadSounds()
       this.checkUserPreferences()
@@ -14,42 +14,43 @@ class SoundManager {
   }
 
   private checkUserPreferences() {
-    const soundEnabled = localStorage.getItem("soundEnabled")
-    if (soundEnabled !== null) {
-      this.isEnabled = JSON.parse(soundEnabled)
+    try {
+      const soundEnabled = localStorage.getItem("soundEnabled")
+      if (soundEnabled !== null) {
+        this.isEnabled = JSON.parse(soundEnabled)
+      }
+    } catch (error) {
+      console.warn("Failed to load sound preferences:", error)
     }
   }
 
   private preloadSounds() {
     const soundFiles = [
-      { name: "celebration", src: "/sounds/celebration.mp3", fallback: "/sounds/celebration.wav" },
+      { name: "celebration", src: "/sounds/celebration.mp3" },
       { name: "success", src: "/sounds/success.mp3" },
       { name: "achievement", src: "/sounds/achievement.mp3" },
     ]
 
-    soundFiles.forEach(({ name, src, fallback }) => {
+    soundFiles.forEach(({ name, src }) => {
       try {
         const audio = new Audio()
         audio.preload = "auto"
         audio.volume = this.masterVolume
-
-        // Try primary format first
         audio.src = src
-        audio.addEventListener("error", () => {
-          // Fallback to alternative format if available
-          if (fallback) {
-            audio.src = fallback
-          }
+
+        // Handle loading errors gracefully
+        audio.addEventListener("error", (e) => {
+          console.warn(`Failed to load sound: ${name}`, e)
         })
 
         this.sounds.set(name, audio)
       } catch (error) {
-        console.warn(`Failed to preload sound: ${name}`, error)
+        console.warn(`Failed to create audio for: ${name}`, error)
       }
     })
   }
 
-  play(soundName: string, volume?: number) {
+  play(soundName: string, volume?: number): void {
     if (!this.isEnabled) return
 
     const sound = this.sounds.get(soundName)
@@ -62,21 +63,28 @@ class SoundManager {
         const playPromise = sound.play()
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
-            console.warn(`Autoplay prevented for sound: ${soundName}`, error)
+            // Autoplay was prevented, which is normal behavior
+            console.debug(`Autoplay prevented for sound: ${soundName}`, error)
           })
         }
       } catch (error) {
         console.warn(`Error playing sound: ${soundName}`, error)
       }
+    } else {
+      console.warn(`Sound not found: ${soundName}`)
     }
   }
 
-  setEnabled(enabled: boolean) {
+  setEnabled(enabled: boolean): void {
     this.isEnabled = enabled
-    localStorage.setItem("soundEnabled", JSON.stringify(enabled))
+    try {
+      localStorage.setItem("soundEnabled", JSON.stringify(enabled))
+    } catch (error) {
+      console.warn("Failed to save sound preference:", error)
+    }
   }
 
-  setMasterVolume(volume: number) {
+  setMasterVolume(volume: number): void {
     this.masterVolume = Math.max(0, Math.min(1, volume))
     // Update all existing sounds
     this.sounds.forEach((sound) => {
@@ -84,11 +92,11 @@ class SoundManager {
     })
   }
 
-  isAudioEnabled() {
+  isAudioEnabled(): boolean {
     return this.isEnabled
   }
 
-  getMasterVolume() {
+  getMasterVolume(): number {
     return this.masterVolume
   }
 }
