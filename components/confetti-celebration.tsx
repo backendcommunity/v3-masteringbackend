@@ -6,11 +6,22 @@ import confetti from "canvas-confetti"
 import { soundManager } from "@/lib/sound-manager"
 
 interface ConfettiCelebrationProps {
+  isVisible: boolean
+  onComplete: () => void
+  courseName: string
+  celebrationType?: "enrollment" | "completion" | "achievement"
   duration?: number
   colors?: string[]
 }
 
-const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({ duration = 5000, colors }) => {
+const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({
+  isVisible,
+  onComplete,
+  courseName,
+  celebrationType = "enrollment",
+  duration = 5000,
+  colors,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -19,6 +30,8 @@ const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({ duration = 50
     if (!canvas) {
       return
     }
+
+    if (!isVisible) return
 
     const myConfetti = confetti.create(canvas, {
       resize: true,
@@ -55,8 +68,18 @@ const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({ duration = 50
       })
     }
 
-    // Play celebration sound
-    soundManager.play("celebration", 0.7)
+    // Play different sounds based on celebration type
+    switch (celebrationType) {
+      case "enrollment":
+        soundManager.play("celebration", 0.7)
+        break
+      case "completion":
+        soundManager.play("success", 0.8)
+        break
+      case "achievement":
+        soundManager.play("achievement", 0.6)
+        break
+    }
 
     interval.push(setInterval(party, 200))
 
@@ -64,7 +87,7 @@ const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({ duration = 50
       interval.forEach((i) => clearInterval(i))
       myConfetti.reset()
     }
-  }, [duration, colors])
+  }, [isVisible, celebrationType, duration, colors])
 
   return (
     <canvas
