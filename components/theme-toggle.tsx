@@ -1,36 +1,38 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Moon, Sun } from "lucide-react"
+import { useState, useEffect } from "react";
+import { Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    const theme = localStorage.getItem("theme")
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const theme = localStorage.getItem("theme");
+    const systemPrefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
 
     if (theme === "dark" || (!theme && systemPrefersDark)) {
-      setIsDark(true)
-      document.documentElement.classList.add("dark")
+      setIsDark(true);
+      document.documentElement.classList.add("dark");
     } else {
-      setIsDark(false)
-      document.documentElement.classList.remove("dark")
+      setIsDark(false);
+      document.documentElement.classList.remove("dark");
     }
-  }, [])
+  }, []);
 
   const toggleTheme = () => {
-    const newTheme = !isDark
-    setIsDark(newTheme)
+    const newTheme = !isDark;
+    setIsDark(newTheme);
 
     if (newTheme) {
-      document.documentElement.classList.add("dark")
-      localStorage.setItem("theme", "dark")
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      document.documentElement.classList.remove("dark")
-      localStorage.setItem("theme", "light")
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
-  }
+  };
 
   return (
     <button
@@ -39,10 +41,10 @@ export function ThemeToggle() {
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? (
-        <Sun className="w-5 h-5 text-[#F4E04D] dark:text-[#0EA5E9]" />
+        <Sun className="w-5 h-5 text-[#F4E04D] dark:text-[#13aece]" />
       ) : (
-        <Moon className="w-5 h-5 text-[#0E1F33] dark:text-[#F1F5F9]" />
+        <Moon className="w-5 h-5 text-[#13aece] dark:text-[#F1F5F9]" />
       )}
     </button>
-  )
+  );
 }

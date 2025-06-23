@@ -1,11 +1,19 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Search, Calendar, Clock, ArrowRight, Filter, Grid, List } from "lucide-react"
-import { BrandLogo } from "@/components/brand-logo"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Pagination } from "@/components/pagination"
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Search,
+  Calendar,
+  Clock,
+  ArrowRight,
+  Filter,
+  Grid,
+  List,
+} from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Pagination } from "@/components/pagination";
 
 // Mock blog data
 const blogPosts = [
@@ -66,7 +74,8 @@ const blogPosts = [
   {
     id: 4,
     title: "Node.js Performance Optimization Techniques",
-    excerpt: "Master advanced Node.js optimization techniques including clustering, caching, and memory management.",
+    excerpt:
+      "Master advanced Node.js optimization techniques including clustering, caching, and memory management.",
     content: "Full content here...",
     author: {
       name: "David Liu",
@@ -116,45 +125,59 @@ const blogPosts = [
     featured: false,
     image: "/placeholder.svg?height=400&width=600",
   },
-]
+];
 
-const categories = ["All", "Python", "JavaScript", "Java", "Architecture", "Database", "API Design"]
+const categories = [
+  "All",
+  "Python",
+  "JavaScript",
+  "Java",
+  "Architecture",
+  "Database",
+  "API Design",
+];
 
 export default function BlogPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [showFilters, setShowFilters] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const postsPerPage = 6
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 6;
 
   const filteredPosts = blogPosts.filter((post) => {
     const matchesSearch =
       post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesCategory = selectedCategory === "All" || post.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
+      post.tags.some((tag) =>
+        tag.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    const matchesCategory =
+      selectedCategory === "All" || post.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const featuredPosts = filteredPosts.filter((post) => post.featured)
-  const regularPosts = filteredPosts.filter((post) => !post.featured)
+  const featuredPosts = filteredPosts.filter((post) => post.featured);
+  const regularPosts = filteredPosts.filter((post) => !post.featured);
 
   // Pagination for regular posts
-  const totalPages = Math.ceil(regularPosts.length / postsPerPage)
-  const startIndex = (currentPage - 1) * postsPerPage
-  const paginatedPosts = regularPosts.slice(startIndex, startIndex + postsPerPage)
+  const totalPages = Math.ceil(regularPosts.length / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const paginatedPosts = regularPosts.slice(
+    startIndex,
+    startIndex + postsPerPage
+  );
 
   // Reset to page 1 when filters change
   const handleFilterChange = (newCategory: string) => {
-    setSelectedCategory(newCategory)
-    setCurrentPage(1)
-  }
+    setSelectedCategory(newCategory);
+    setCurrentPage(1);
+  };
 
   const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1)
-  }
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -168,16 +191,19 @@ export default function BlogPage() {
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 href="/"
-                className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
+                className="text-[#13aece]/70 hover:text-[#13aece] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
               >
                 Home
               </Link>
-              <Link href="/blog" className="text-[#13AECE] dark:text-[#0EA5E9] font-medium">
+              <Link
+                href="/blog"
+                className="text-[#13AECE] dark:text-[#13aece] font-medium"
+              >
                 Blog
               </Link>
               <Link
                 href="/courses"
-                className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
+                className="text-[#13aece]/70 hover:text-[#13aece] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
               >
                 Courses
               </Link>
@@ -190,12 +216,15 @@ export default function BlogPage() {
       {/* Hero Section */}
       <section className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#97C3CC]/10 via-[#E8F4F8]/50 to-white dark:from-[#1E293B]/30 dark:via-[#0F172A]/50 dark:to-[#0A0F1C]">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-6">
+          <h1 className="text-4xl md:text-6xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-6">
             Backend Engineering
-            <span className="block text-[#13AECE] dark:text-[#0EA5E9]">Blog</span>
+            <span className="block text-[#13AECE] dark:text-[#13aece]">
+              Blog
+            </span>
           </h1>
-          <p className="text-xl text-[#0E1F33]/70 dark:text-[#94A3B8] max-w-3xl mx-auto mb-8">
-            Deep dives into backend development, system design, and engineering best practices from industry experts.
+          <p className="text-xl text-[#13aece]/70 dark:text-[#94A3B8] max-w-3xl mx-auto mb-8">
+            Deep dives into backend development, system design, and engineering
+            best practices from industry experts.
           </p>
 
           {/* Search and Filters */}
@@ -203,13 +232,13 @@ export default function BlogPage() {
             <div className="flex flex-col md:flex-row gap-4 items-center justify-center mb-6">
               {/* Search Bar */}
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#0E1F33]/40 dark:text-[#94A3B8]" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#13aece]/40 dark:text-[#94A3B8]" />
                 <input
                   type="text"
                   placeholder="Search articles..."
                   value={searchTerm}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-xl text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/40 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-xl text-[#13aece] dark:text-[#F1F5F9] placeholder-[#13aece]/40 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#13aece] focus:border-transparent"
                 />
               </div>
 
@@ -219,8 +248,8 @@ export default function BlogPage() {
                   onClick={() => setViewMode("grid")}
                   className={`p-2 rounded-lg transition-colors ${
                     viewMode === "grid"
-                      ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
-                      : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
+                      ? "bg-[#13AECE] dark:bg-[#13aece] text-white"
+                      : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
                   }`}
                 >
                   <Grid className="w-5 h-5" />
@@ -229,8 +258,8 @@ export default function BlogPage() {
                   onClick={() => setViewMode("list")}
                   className={`p-2 rounded-lg transition-colors ${
                     viewMode === "list"
-                      ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
-                      : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
+                      ? "bg-[#13AECE] dark:bg-[#13aece] text-white"
+                      : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
                   }`}
                 >
                   <List className="w-5 h-5" />
@@ -240,7 +269,7 @@ export default function BlogPage() {
               {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] rounded-lg hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] rounded-lg hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30 transition-colors"
               >
                 <Filter className="w-5 h-5" />
                 <span>Filters</span>
@@ -250,7 +279,9 @@ export default function BlogPage() {
             {/* Category Filters */}
             {showFilters && (
               <div className="glass-card p-4 rounded-xl mb-6">
-                <h3 className="text-lg font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-3">Categories</h3>
+                <h3 className="text-lg font-semibold text-[#13aece] dark:text-[#F1F5F9] mb-3">
+                  Categories
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((category) => (
                     <button
@@ -258,8 +289,8 @@ export default function BlogPage() {
                       onClick={() => handleFilterChange(category)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedCategory === category
-                          ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
-                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
+                          ? "bg-[#13AECE] dark:bg-[#13aece] text-white"
+                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
                       }`}
                     >
                       {category}
@@ -276,50 +307,64 @@ export default function BlogPage() {
       {featuredPosts.length > 0 && (
         <section className="py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-8">Featured Articles</h2>
+            <h2 className="text-3xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-8">
+              Featured Articles
+            </h2>
             <div className="grid md:grid-cols-2 gap-8">
               {featuredPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
-                    <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
+                    <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#13aece]/20 dark:to-[#475569]/30 relative overflow-hidden">
                       <img
                         src={post.image || "/placeholder.svg"}
                         alt={post.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute top-4 left-4">
-                        <span className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-3 py-1 rounded-full text-sm font-medium">
+                        <span className="bg-[#13AECE] dark:bg-[#13aece] text-white px-3 py-1 rounded-full text-sm font-medium">
                           Featured
                         </span>
                       </div>
                     </div>
                     <div className="p-6">
                       <div className="flex items-center space-x-4 mb-4">
-                        <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">{post.category}</span>
-                        <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                        <span className="text-[#13AECE] dark:text-[#13aece] text-sm font-medium">
+                          {post.category}
+                        </span>
+                        <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                           <Calendar className="w-4 h-4" />
-                          <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
+                          <span>
+                            {new Date(post.publishedAt).toLocaleDateString()}
+                          </span>
                         </div>
-                        <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                        <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                           <Clock className="w-4 h-4" />
                           <span>{post.readTime}</span>
                         </div>
                       </div>
-                      <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                      <h3 className="text-xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#13aece] transition-colors">
                         {post.title}
                       </h3>
-                      <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">{post.excerpt}</p>
+                      <p className="text-[#13aece]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">
+                        {post.excerpt}
+                      </p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">{post.author.avatar}</span>
+                          <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#13aece] rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              {post.author.avatar}
+                            </span>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9]">{post.author.name}</p>
-                            <p className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">{post.author.bio}</p>
+                            <p className="text-sm font-medium text-[#13aece] dark:text-[#F1F5F9]">
+                              {post.author.name}
+                            </p>
+                            <p className="text-xs text-[#13aece]/60 dark:text-[#94A3B8]">
+                              {post.author.bio}
+                            </p>
                           </div>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-[#13AECE] dark:text-[#0EA5E9] group-hover:translate-x-1 transition-transform duration-300" />
+                        <ArrowRight className="w-5 h-5 text-[#13AECE] dark:text-[#13aece] group-hover:translate-x-1 transition-transform duration-300" />
                       </div>
                     </div>
                   </article>
@@ -334,9 +379,12 @@ export default function BlogPage() {
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">Latest Articles</h2>
-            <div className="text-[#0E1F33]/60 dark:text-[#94A3B8]">
-              {filteredPosts.length} article{filteredPosts.length !== 1 ? "s" : ""} found
+            <h2 className="text-3xl font-bold text-[#13aece] dark:text-[#F1F5F9]">
+              Latest Articles
+            </h2>
+            <div className="text-[#13aece]/60 dark:text-[#94A3B8]">
+              {filteredPosts.length} article
+              {filteredPosts.length !== 1 ? "s" : ""} found
             </div>
           </div>
 
@@ -345,7 +393,7 @@ export default function BlogPage() {
               {paginatedPosts.map((post) => (
                 <Link key={post.id} href={`/blog/${post.id}`} className="group">
                   <article className="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
-                    <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
+                    <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#13aece]/20 dark:to-[#475569]/30 relative overflow-hidden">
                       <img
                         src={post.image || "/placeholder.svg"}
                         alt={post.title}
@@ -354,24 +402,32 @@ export default function BlogPage() {
                     </div>
                     <div className="p-6">
                       <div className="flex items-center space-x-4 mb-3">
-                        <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">{post.category}</span>
-                        <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                        <span className="text-[#13AECE] dark:text-[#13aece] text-sm font-medium">
+                          {post.category}
+                        </span>
+                        <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                           <Clock className="w-4 h-4" />
                           <span>{post.readTime}</span>
                         </div>
                       </div>
-                      <h3 className="text-lg font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors line-clamp-2">
+                      <h3 className="text-lg font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2 group-hover:text-[#13AECE] dark:group-hover:text-[#13aece] transition-colors line-clamp-2">
                         {post.title}
                       </h3>
-                      <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] text-sm mb-4 line-clamp-2">{post.excerpt}</p>
+                      <p className="text-[#13aece]/70 dark:text-[#94A3B8] text-sm mb-4 line-clamp-2">
+                        {post.excerpt}
+                      </p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold text-xs">{post.author.avatar}</span>
+                          <div className="w-8 h-8 bg-[#13AECE] dark:bg-[#13aece] rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">
+                              {post.author.avatar}
+                            </span>
                           </div>
-                          <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9]">{post.author.name}</span>
+                          <span className="text-sm text-[#13aece] dark:text-[#F1F5F9]">
+                            {post.author.name}
+                          </span>
                         </div>
-                        <span className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                        <span className="text-xs text-[#13aece]/60 dark:text-[#94A3B8]">
                           {new Date(post.publishedAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -387,7 +443,7 @@ export default function BlogPage() {
                   <article className="glass-card p-6 rounded-xl hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01]">
                     <div className="flex flex-col md:flex-row gap-6">
                       <div className="md:w-1/3">
-                        <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 rounded-lg overflow-hidden">
+                        <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#13aece]/20 dark:to-[#475569]/30 rounded-lg overflow-hidden">
                           <img
                             src={post.image || "/placeholder.svg"}
                             alt={post.title}
@@ -397,39 +453,47 @@ export default function BlogPage() {
                       </div>
                       <div className="md:w-2/3">
                         <div className="flex items-center space-x-4 mb-3">
-                          <span className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium">
+                          <span className="text-[#13AECE] dark:text-[#13aece] text-sm font-medium">
                             {post.category}
                           </span>
-                          <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                          <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                             <Calendar className="w-4 h-4" />
-                            <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
+                            <span>
+                              {new Date(post.publishedAt).toLocaleDateString()}
+                            </span>
                           </div>
-                          <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                          <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                             <Clock className="w-4 h-4" />
                             <span>{post.readTime}</span>
                           </div>
                         </div>
-                        <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                        <h3 className="text-xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#13aece] transition-colors">
                           {post.title}
                         </h3>
-                        <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">{post.excerpt}</p>
+                        <p className="text-[#13aece]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">
+                          {post.excerpt}
+                        </p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center">
-                              <span className="text-white font-bold text-sm">{post.author.avatar}</span>
+                            <div className="w-10 h-10 bg-[#13AECE] dark:bg-[#13aece] rounded-full flex items-center justify-center">
+                              <span className="text-white font-bold text-sm">
+                                {post.author.avatar}
+                              </span>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-[#0E1F33] dark:text-[#F1F5F9]">
+                              <p className="text-sm font-medium text-[#13aece] dark:text-[#F1F5F9]">
                                 {post.author.name}
                               </p>
-                              <p className="text-xs text-[#0E1F33]/60 dark:text-[#94A3B8]">{post.author.bio}</p>
+                              <p className="text-xs text-[#13aece]/60 dark:text-[#94A3B8]">
+                                {post.author.bio}
+                              </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {post.tags.slice(0, 2).map((tag) => (
                               <span
                                 key={tag}
-                                className="text-xs bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] px-2 py-1 rounded-full"
+                                className="text-xs bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] px-2 py-1 rounded-full"
                               >
                                 {tag}
                               </span>
@@ -447,25 +511,32 @@ export default function BlogPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-12">
-              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           )}
 
           {filteredPosts.length === 0 && (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Search className="w-12 h-12 text-[#0E1F33]/40 dark:text-[#94A3B8]" />
+                <Search className="w-12 h-12 text-[#13aece]/40 dark:text-[#94A3B8]" />
               </div>
-              <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2">No articles found</h3>
-              <p className="text-[#0E1F33]/60 dark:text-[#94A3B8] mb-6">
-                Try adjusting your search terms or filters to find what you're looking for.
+              <h3 className="text-xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2">
+                No articles found
+              </h3>
+              <p className="text-[#13aece]/60 dark:text-[#94A3B8] mb-6">
+                Try adjusting your search terms or filters to find what you're
+                looking for.
               </p>
               <button
                 onClick={() => {
-                  setSearchTerm("")
-                  setSelectedCategory("All")
+                  setSearchTerm("");
+                  setSelectedCategory("All");
                 }}
-                className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors"
+                className="bg-[#13AECE] dark:bg-[#13aece] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors"
               >
                 Clear Filters
               </button>
@@ -475,25 +546,28 @@ export default function BlogPage() {
       </section>
 
       {/* Newsletter Signup */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#0E1F33] dark:bg-[#0A0F1C]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#13aece] dark:bg-[#0A0F1C]">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Stay Updated</h2>
           <p className="text-white/80 dark:text-[#CBD5E1] mb-8 max-w-2xl mx-auto">
-            Get the latest backend engineering articles, tutorials, and insights delivered to your inbox weekly.
+            Get the latest backend engineering articles, tutorials, and insights
+            delivered to your inbox weekly.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-3 bg-white/10 dark:bg-[#1E293B] border border-white/20 dark:border-[#475569]/20 rounded-lg text-white placeholder-white/60 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent"
+              className="flex-1 px-4 py-3 bg-white/10 dark:bg-[#1E293B] border border-white/20 dark:border-[#475569]/20 rounded-lg text-white placeholder-white/60 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#13aece] focus:border-transparent"
             />
-            <button className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors whitespace-nowrap">
+            <button className="bg-[#13AECE] dark:bg-[#13aece] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors whitespace-nowrap">
               Subscribe
             </button>
           </div>
-          <p className="text-white/60 dark:text-[#94A3B8] text-sm mt-4">No spam. Unsubscribe at any time.</p>
+          <p className="text-white/60 dark:text-[#94A3B8] text-sm mt-4">
+            No spam. Unsubscribe at any time.
+          </p>
         </div>
       </section>
     </div>
-  )
+  );
 }

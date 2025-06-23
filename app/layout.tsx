@@ -1,14 +1,17 @@
-import type React from "react"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import type React from "react";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata = {
   title: "Masteringbackend",
   description: "Transform your backend career with our proven methodology",
-    generator: 'v0.dev'
-}
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
@@ -17,5 +20,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

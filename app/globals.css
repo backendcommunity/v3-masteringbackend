@@ -8,7 +8,8 @@
   }
   body {
     @apply bg-background text-foreground transition-colors duration-300;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+      "Helvetica Neue", Arial, sans-serif;
   }
 }
 
@@ -77,15 +78,15 @@
   }
 
   .pagination-button-active {
-    @apply bg-[#13AECE] dark:bg-[#0EA5E9] text-white;
+    @apply bg-[#13AECE] dark:bg-[#13aece] text-white;
   }
 
   .pagination-button-inactive {
-    @apply bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30;
+    @apply bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30;
   }
 
   .pagination-button-disabled {
-    @apply bg-[#97C3CC]/5 dark:bg-[#475569]/10 text-[#0E1F33]/40 dark:text-[#94A3B8] cursor-not-allowed;
+    @apply bg-[#97C3CC]/5 dark:bg-[#475569]/10 text-[#13aece]/40 dark:text-[#94A3B8] cursor-not-allowed;
   }
 
   /* Fix bullet point colors */
