@@ -1,11 +1,23 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Calendar, Clock, MapPin, Twitter, Linkedin, Github, Globe, Grid, List, Filter } from "lucide-react"
-import { BrandLogo } from "@/components/brand-logo"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Pagination } from "@/components/pagination"
+import { useState } from "react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  MapPin,
+  Twitter,
+  Linkedin,
+  Github,
+  Globe,
+  Grid,
+  List,
+  Filter,
+} from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Pagination } from "@/components/pagination";
 
 // Mock author data
 const authorData = {
@@ -28,7 +40,15 @@ const authorData = {
       followers: 15420,
       totalViews: 2500000,
     },
-    expertise: ["Python", "FastAPI", "Django", "Microservices", "AWS", "Docker", "Kubernetes"],
+    expertise: [
+      "Python",
+      "FastAPI",
+      "Django",
+      "Microservices",
+      "AWS",
+      "Docker",
+      "Kubernetes",
+    ],
     posts: [
       {
         id: 1,
@@ -84,44 +104,54 @@ const authorData = {
       },
     ],
   },
-}
+};
 
 export default function AuthorPage({ params }: { params: { author: string } }) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [contentFilter, setContentFilter] = useState<"all" | "articles" | "courses">("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const postsPerPage = 6
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [contentFilter, setContentFilter] = useState<
+    "all" | "articles" | "courses"
+  >("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const postsPerPage = 6;
 
-  const author = authorData[params.author as keyof typeof authorData]
+  const author = authorData[params.author as keyof typeof authorData];
 
   if (!author) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0A0F1C] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-4">Author Not Found</h1>
-          <Link href="/blog" className="text-[#13AECE] dark:text-[#0EA5E9] hover:underline">
+          <h1 className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-4">
+            Author Not Found
+          </h1>
+          <Link
+            href="/blog"
+            className="text-[#13AECE] dark:text-[#13aece] hover:underline"
+          >
             Back to Blog
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   const filteredPosts = author.posts.filter((post) => {
-    if (contentFilter === "all") return true
-    if (contentFilter === "articles") return post.type === "article"
-    if (contentFilter === "courses") return post.type === "course"
-    return true
-  })
+    if (contentFilter === "all") return true;
+    if (contentFilter === "articles") return post.type === "article";
+    if (contentFilter === "courses") return post.type === "course";
+    return true;
+  });
 
-  const totalPosts = filteredPosts.length
-  const totalPages = Math.ceil(totalPosts / postsPerPage)
-  const paginatedPosts = filteredPosts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
+  const totalPosts = filteredPosts.length;
+  const totalPages = Math.ceil(totalPosts / postsPerPage);
+  const paginatedPosts = filteredPosts.slice(
+    (currentPage - 1) * postsPerPage,
+    currentPage * postsPerPage
+  );
 
   const handleFilterChange = (filter: "all" | "articles" | "courses") => {
-    setContentFilter(filter)
-    setCurrentPage(1)
-  }
+    setContentFilter(filter);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1C] transition-colors duration-300">
@@ -135,16 +165,19 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 href="/"
-                className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
+                className="text-[#13aece]/70 hover:text-[#13aece] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
               >
                 Home
               </Link>
-              <Link href="/blog" className="text-[#13AECE] dark:text-[#0EA5E9] font-medium">
+              <Link
+                href="/blog"
+                className="text-[#13AECE] dark:text-[#13aece] font-medium"
+              >
                 Blog
               </Link>
               <Link
                 href="/courses"
-                className="text-[#0E1F33]/70 hover:text-[#0E1F33] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
+                className="text-[#13aece]/70 hover:text-[#13aece] dark:text-[#CBD5E1] dark:hover:text-[#F1F5F9] transition-colors"
               >
                 Courses
               </Link>
@@ -159,7 +192,7 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
         <div className="max-w-7xl mx-auto">
           <Link
             href="/blog"
-            className="inline-flex items-center space-x-2 text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors"
+            className="inline-flex items-center space-x-2 text-[#13AECE] dark:text-[#13aece] hover:text-[#13AECE]/80 dark:hover:text-[#13aece] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Blog</span>
@@ -176,12 +209,18 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
               <div className="glass-card p-8 rounded-2xl sticky top-24">
                 {/* Avatar and Basic Info */}
                 <div className="text-center mb-6">
-                  <div className="w-32 h-32 bg-[#13AECE] dark:bg-[#0EA5E9] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-white font-bold text-4xl">{author.avatar}</span>
+                  <div className="w-32 h-32 bg-[#13AECE] dark:bg-[#13aece] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-white font-bold text-4xl">
+                      {author.avatar}
+                    </span>
                   </div>
-                  <h1 className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2">{author.name}</h1>
-                  <p className="text-[#13AECE] dark:text-[#0EA5E9] font-medium mb-2">{author.title}</p>
-                  <div className="flex items-center justify-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                  <h1 className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2">
+                    {author.name}
+                  </h1>
+                  <p className="text-[#13AECE] dark:text-[#13aece] font-medium mb-2">
+                    {author.title}
+                  </p>
+                  <div className="flex items-center justify-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                     <MapPin className="w-4 h-4" />
                     <span>{author.location}</span>
                   </div>
@@ -189,41 +228,57 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
 
                 {/* Bio */}
                 <div className="mb-6">
-                  <p className="text-[#0E1F33]/80 dark:text-[#CBD5E1] leading-relaxed">{author.bio}</p>
+                  <p className="text-[#13aece]/80 dark:text-[#CBD5E1] leading-relaxed">
+                    {author.bio}
+                  </p>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="text-center p-3 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg">
-                    <div className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">{author.stats.articles}</div>
-                    <div className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">Articles</div>
+                    <div className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9]">
+                      {author.stats.articles}
+                    </div>
+                    <div className="text-sm text-[#13aece]/60 dark:text-[#94A3B8]">
+                      Articles
+                    </div>
                   </div>
                   <div className="text-center p-3 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg">
-                    <div className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">{author.stats.courses}</div>
-                    <div className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">Courses</div>
+                    <div className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9]">
+                      {author.stats.courses}
+                    </div>
+                    <div className="text-sm text-[#13aece]/60 dark:text-[#94A3B8]">
+                      Courses
+                    </div>
                   </div>
                   <div className="text-center p-3 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg">
-                    <div className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">
+                    <div className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9]">
                       {author.stats.followers.toLocaleString()}
                     </div>
-                    <div className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">Followers</div>
+                    <div className="text-sm text-[#13aece]/60 dark:text-[#94A3B8]">
+                      Followers
+                    </div>
                   </div>
                   <div className="text-center p-3 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg">
-                    <div className="text-2xl font-bold text-[#0E1F33] dark:text-[#F1F5F9]">
+                    <div className="text-2xl font-bold text-[#13aece] dark:text-[#F1F5F9]">
                       {(author.stats.totalViews / 1000000).toFixed(1)}M
                     </div>
-                    <div className="text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">Total Views</div>
+                    <div className="text-sm text-[#13aece]/60 dark:text-[#94A3B8]">
+                      Total Views
+                    </div>
                   </div>
                 </div>
 
                 {/* Expertise */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-3">Expertise</h3>
+                  <h3 className="text-lg font-semibold text-[#13aece] dark:text-[#F1F5F9] mb-3">
+                    Expertise
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {author.expertise.map((skill) => (
                       <span
                         key={skill}
-                        className="bg-[#13AECE]/10 dark:bg-[#0EA5E9]/20 text-[#13AECE] dark:text-[#0EA5E9] px-3 py-1 rounded-full text-sm font-medium"
+                        className="bg-[#13AECE]/10 dark:bg-[#13aece]/20 text-[#13AECE] dark:text-[#13aece] px-3 py-1 rounded-full text-sm font-medium"
                       >
                         {skill}
                       </span>
@@ -233,13 +288,18 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
 
                 {/* Social Links */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-[#0E1F33] dark:text-[#F1F5F9] mb-3">Connect</h3>
+                  <h3 className="text-lg font-semibold text-[#13aece] dark:text-[#F1F5F9] mb-3">
+                    Connect
+                  </h3>
                   <div className="flex space-x-3">
                     <a
-                      href={`https://twitter.com/${author.social.twitter.replace("@", "")}`}
+                      href={`https://twitter.com/${author.social.twitter.replace(
+                        "@",
+                        ""
+                      )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] hover:text-white transition-colors"
+                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#13aece] hover:text-white transition-colors"
                     >
                       <Twitter className="w-5 h-5" />
                     </a>
@@ -247,7 +307,7 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                       href={`https://linkedin.com/in/${author.social.linkedin}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] hover:text-white transition-colors"
+                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#13aece] hover:text-white transition-colors"
                     >
                       <Linkedin className="w-5 h-5" />
                     </a>
@@ -255,7 +315,7 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                       href={`https://github.com/${author.social.github}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] hover:text-white transition-colors"
+                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#13aece] hover:text-white transition-colors"
                     >
                       <Github className="w-5 h-5" />
                     </a>
@@ -263,7 +323,7 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                       href={author.social.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#0EA5E9] hover:text-white transition-colors"
+                      className="w-10 h-10 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-lg flex items-center justify-center hover:bg-[#13AECE] dark:hover:bg-[#13aece] hover:text-white transition-colors"
                     >
                       <Globe className="w-5 h-5" />
                     </a>
@@ -272,9 +332,12 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
 
                 {/* Member Since */}
                 <div className="text-center pt-6 border-t border-[#97C3CC]/20 dark:border-[#475569]/20">
-                  <p className="text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                  <p className="text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                     Member since{" "}
-                    {new Date(author.joinedDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    {new Date(author.joinedDate).toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </p>
                 </div>
               </div>
@@ -285,19 +348,24 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
               {/* Content Header */}
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2">
+                  <h2 className="text-3xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2">
                     Content by {author.name}
                   </h2>
-                  <p className="text-[#0E1F33]/60 dark:text-[#94A3B8]">
-                    {filteredPosts.length} item{filteredPosts.length !== 1 ? "s" : ""} found
+                  <p className="text-[#13aece]/60 dark:text-[#94A3B8]">
+                    {filteredPosts.length} item
+                    {filteredPosts.length !== 1 ? "s" : ""} found
                   </p>
                 </div>
 
                 <div className="flex items-center space-x-4">
                   <select
                     value={contentFilter}
-                    onChange={(e) => handleFilterChange(e.target.value as "all" | "articles" | "courses")}
-                    className="bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg px-3 py-2 text-[#0E1F33] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9]"
+                    onChange={(e) =>
+                      handleFilterChange(
+                        e.target.value as "all" | "articles" | "courses"
+                      )
+                    }
+                    className="bg-white dark:bg-[#1E293B] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg px-3 py-2 text-[#13aece] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#13aece]"
                   >
                     <option value="all">All Content</option>
                     <option value="articles">Articles Only</option>
@@ -309,8 +377,8 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                       onClick={() => setViewMode("grid")}
                       className={`p-2 rounded-lg transition-colors ${
                         viewMode === "grid"
-                          ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
-                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
+                          ? "bg-[#13AECE] dark:bg-[#13aece] text-white"
+                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
                       }`}
                     >
                       <Grid className="w-5 h-5" />
@@ -319,8 +387,8 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                       onClick={() => setViewMode("list")}
                       className={`p-2 rounded-lg transition-colors ${
                         viewMode === "list"
-                          ? "bg-[#13AECE] dark:bg-[#0EA5E9] text-white"
-                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#0E1F33] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
+                          ? "bg-[#13AECE] dark:bg-[#13aece] text-white"
+                          : "bg-[#97C3CC]/10 dark:bg-[#475569]/20 text-[#13aece] dark:text-[#F1F5F9] hover:bg-[#97C3CC]/20 dark:hover:bg-[#475569]/30"
                       }`}
                     >
                       <List className="w-5 h-5" />
@@ -335,11 +403,15 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                   {paginatedPosts.map((post) => (
                     <Link
                       key={post.id}
-                      href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
+                      href={
+                        post.type === "course"
+                          ? `/courses/${post.id}`
+                          : `/blog/${post.id}`
+                      }
                       className="group"
                     >
                       <article className="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
-                        <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 relative overflow-hidden">
+                        <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#13aece]/20 dark:to-[#475569]/30 relative overflow-hidden">
                           <img
                             src={post.image || "/placeholder.svg"}
                             alt={post.title}
@@ -349,8 +421,8 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                             <span
                               className={`px-3 py-1 rounded-full text-sm font-medium text-white ${
                                 post.type === "course"
-                                  ? "bg-[#0E1F33] dark:bg-[#475569]"
-                                  : "bg-[#13AECE] dark:bg-[#0EA5E9]"
+                                  ? "bg-[#13aece] dark:bg-[#475569]"
+                                  : "bg-[#13AECE] dark:bg-[#13aece]"
                               }`}
                             >
                               {post.type === "course" ? "Course" : "Article"}
@@ -361,26 +433,26 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                           <div className="flex items-center space-x-4 mb-3">
                             <Link
                               href={`/blog/category/${post.category.toLowerCase()}`}
-                              className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium hover:underline"
+                              className="text-[#13AECE] dark:text-[#13aece] text-sm font-medium hover:underline"
                             >
                               {post.category}
                             </Link>
-                            <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                            <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                               <Clock className="w-4 h-4" />
                               <span>{post.readTime}</span>
                             </div>
                           </div>
-                          <h3 className="text-lg font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors line-clamp-2">
+                          <h3 className="text-lg font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2 group-hover:text-[#13AECE] dark:group-hover:text-[#13aece] transition-colors line-clamp-2">
                             {post.title}
                           </h3>
-                          <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] text-sm mb-4 line-clamp-2">
+                          <p className="text-[#13aece]/70 dark:text-[#94A3B8] text-sm mb-4 line-clamp-2">
                             {post.excerpt}
                           </p>
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                            <span className="text-[#13aece]/60 dark:text-[#94A3B8]">
                               {new Date(post.publishedAt).toLocaleDateString()}
                             </span>
-                            <div className="flex items-center space-x-4 text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                            <div className="flex items-center space-x-4 text-[#13aece]/60 dark:text-[#94A3B8]">
                               <span>{post.views.toLocaleString()} views</span>
                               <span>{post.likes} likes</span>
                             </div>
@@ -395,13 +467,17 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                   {paginatedPosts.map((post) => (
                     <Link
                       key={post.id}
-                      href={post.type === "course" ? `/courses/${post.id}` : `/blog/${post.id}`}
+                      href={
+                        post.type === "course"
+                          ? `/courses/${post.id}`
+                          : `/blog/${post.id}`
+                      }
                       className="group"
                     >
                       <article className="glass-card p-6 rounded-xl hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01]">
                         <div className="flex flex-col md:flex-row gap-6">
                           <div className="md:w-1/3">
-                            <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#0EA5E9]/20 dark:to-[#475569]/30 rounded-lg overflow-hidden relative">
+                            <div className="aspect-video bg-gradient-to-br from-[#13AECE]/10 to-[#97C3CC]/20 dark:from-[#13aece]/20 dark:to-[#475569]/30 rounded-lg overflow-hidden relative">
                               <img
                                 src={post.image || "/placeholder.svg"}
                                 alt={post.title}
@@ -411,11 +487,13 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                                 <span
                                   className={`px-2 py-1 rounded-full text-xs font-medium text-white ${
                                     post.type === "course"
-                                      ? "bg-[#0E1F33] dark:bg-[#475569]"
-                                      : "bg-[#13AECE] dark:bg-[#0EA5E9]"
+                                      ? "bg-[#13aece] dark:bg-[#475569]"
+                                      : "bg-[#13AECE] dark:bg-[#13aece]"
                                   }`}
                                 >
-                                  {post.type === "course" ? "Course" : "Article"}
+                                  {post.type === "course"
+                                    ? "Course"
+                                    : "Article"}
                                 </span>
                               </div>
                             </div>
@@ -424,25 +502,31 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
                             <div className="flex items-center space-x-4 mb-3">
                               <Link
                                 href={`/blog/category/${post.category.toLowerCase()}`}
-                                className="text-[#13AECE] dark:text-[#0EA5E9] text-sm font-medium hover:underline"
+                                className="text-[#13AECE] dark:text-[#13aece] text-sm font-medium hover:underline"
                               >
                                 {post.category}
                               </Link>
-                              <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                              <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                                 <Calendar className="w-4 h-4" />
-                                <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
+                                <span>
+                                  {new Date(
+                                    post.publishedAt
+                                  ).toLocaleDateString()}
+                                </span>
                               </div>
-                              <div className="flex items-center space-x-2 text-[#0E1F33]/60 dark:text-[#94A3B8] text-sm">
+                              <div className="flex items-center space-x-2 text-[#13aece]/60 dark:text-[#94A3B8] text-sm">
                                 <Clock className="w-4 h-4" />
                                 <span>{post.readTime}</span>
                               </div>
                             </div>
-                            <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#0EA5E9] transition-colors">
+                            <h3 className="text-xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-3 group-hover:text-[#13AECE] dark:group-hover:text-[#13aece] transition-colors">
                               {post.title}
                             </h3>
-                            <p className="text-[#0E1F33]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">{post.excerpt}</p>
+                            <p className="text-[#13aece]/70 dark:text-[#94A3B8] mb-4 line-clamp-2">
+                              {post.excerpt}
+                            </p>
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-4 text-sm text-[#0E1F33]/60 dark:text-[#94A3B8]">
+                              <div className="flex items-center space-x-4 text-sm text-[#13aece]/60 dark:text-[#94A3B8]">
                                 <span>{post.views.toLocaleString()} views</span>
                                 <span>{post.likes} likes</span>
                               </div>
@@ -458,22 +542,28 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
               {filteredPosts.length === 0 && (
                 <div className="text-center py-12">
                   <div className="w-24 h-24 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Filter className="w-12 h-12 text-[#0E1F33]/40 dark:text-[#94A3B8]" />
+                    <Filter className="w-12 h-12 text-[#13aece]/40 dark:text-[#94A3B8]" />
                   </div>
-                  <h3 className="text-xl font-bold text-[#0E1F33] dark:text-[#F1F5F9] mb-2">No content found</h3>
-                  <p className="text-[#0E1F33]/60 dark:text-[#94A3B8] mb-6">
+                  <h3 className="text-xl font-bold text-[#13aece] dark:text-[#F1F5F9] mb-2">
+                    No content found
+                  </h3>
+                  <p className="text-[#13aece]/60 dark:text-[#94A3B8] mb-6">
                     Try adjusting your filters to find what you're looking for.
                   </p>
                   <button
                     onClick={() => setContentFilter("all")}
-                    className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors"
+                    className="bg-[#13AECE] dark:bg-[#13aece] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#13aece] transition-colors"
                   >
                     Show All Content
                   </button>
                 </div>
               )}
               {totalPages > 1 && (
-                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               )}
             </div>
           </div>
@@ -481,24 +571,27 @@ export default function AuthorPage({ params }: { params: { author: string } }) {
       </section>
 
       {/* Newsletter Signup */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#0E1F33] dark:bg-[#0A0F1C]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#13aece] dark:bg-[#0A0F1C]">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Follow {author.name}</h2>
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Follow {author.name}
+          </h2>
           <p className="text-white/80 dark:text-[#CBD5E1] mb-8 max-w-2xl mx-auto">
-            Stay updated with {author.name}'s latest articles, courses, and insights on backend development.
+            Stay updated with {author.name}'s latest articles, courses, and
+            insights on backend development.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-3 bg-white/10 dark:bg-[#1E293B] border border-white/20 dark:border-[#475569]/20 rounded-lg text-white placeholder-white/60 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent"
+              className="flex-1 px-4 py-3 bg-white/10 dark:bg-[#1E293B] border border-white/20 dark:border-[#475569]/20 rounded-lg text-white placeholder-white/60 dark:placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#13aece] focus:border-transparent"
             />
-            <button className="bg-[#13AECE] dark:bg-[#0EA5E9] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#0284C7] transition-colors whitespace-nowrap">
+            <button className="bg-[#13AECE] dark:bg-[#13aece] text-white px-6 py-3 rounded-lg hover:bg-[#13AECE]/90 dark:hover:bg-[#13aece] transition-colors whitespace-nowrap">
               Follow
             </button>
           </div>
         </div>
       </section>
     </div>
-  )
+  );
 }
