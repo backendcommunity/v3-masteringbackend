@@ -4,9 +4,9 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { NavigationBar } from "@/components/navigation-bar";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useMobile } from "@/hooks/use-mobile";
+import NavigationBar from "./navigation-bar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -76,11 +76,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:ml-72">
-        <NavigationBar
-          onNavigate={handleNavigate}
-          onMenuToggle={toggleSidebar}
+        {/* <NavigationBar
+
+toggleSidebar={true}
           isMobile={isMobile}
-        />
+        /> */}
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
