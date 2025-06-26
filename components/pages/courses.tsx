@@ -18,6 +18,8 @@ import {
 import { BookOpen, Clock, Star, Users, Search, Play, Crown, Gift, CreditCard, Lock } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 import { routes } from "@/lib/routes"
+import { ConfettiCelebration } from "@/components/confetti-celebration"
+import { useCelebration } from "@/hooks/use-celebration"
 
 interface CoursesPageProps {
   onNavigate: (path: string) => void
@@ -30,6 +32,8 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
 
+  const { celebration, triggerCelebration, hideCelebration } = useCelebration()
+
   // Mock subscription data
   const subscription = {
     plan: "Pro", // Free, Pro, Enterprise
@@ -38,8 +42,21 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   }
 
   const handleEnroll = (courseId: string) => {
-    console.log("Enrolling in course:", courseId)
-    enrollInCourse(courseId)
+    try {
+      const course = courses.find((c) => c.id === courseId)
+      if (!course) {
+        console.error("Course not found:", courseId)
+        return
+      }
+
+      console.log("Enrolling in course:", courseId)
+      enrollInCourse(courseId)
+
+      // Trigger celebration for first-time enrollment
+      triggerCelebration(course.title, courseId, "enrollment")
+    } catch (error) {
+      console.error("Error enrolling in course:", error)
+    }
   }
 
   const handleViewDetails = (courseId: string) => {
@@ -370,6 +387,13 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
           )
         })}
       </div>
+      {/* Confetti Celebration */}
+      <ConfettiCelebration
+        isVisible={celebration.isVisible}
+        onComplete={hideCelebration}
+        courseName={celebration.courseName}
+        celebrationType={celebration.celebrationType}
+      />
     </div>
   )
 }

@@ -3,14 +3,13 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { KapAIAssistant } from "@/components/kap-ai-assistant"
+import { AuthProvider } from "@/lib/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MasteringBackend - Learn Backend Development",
-  description: "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
-  viewport: "width=device-width, initial-scale=1",
+  title: "MasteringBackend Dashboard",
+  description: "Learn backend development with hands-on projects and courses",
     generator: 'v0.dev'
 }
 
@@ -22,15 +21,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={false}
-          storageKey="masteringbackend-theme"
-        >
-          {children}
-          <KapAIAssistant />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

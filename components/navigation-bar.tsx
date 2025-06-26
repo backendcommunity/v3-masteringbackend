@@ -1,30 +1,7 @@
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
 
-import { useState } from "react";
-import {
-  Search,
-  Bell,
-  User,
-  Settings,
-  LogOut,
-  BookOpen,
-  ChevronDown,
-  Code,
-  Users,
-  Crown,
-  Gift,
-  TrendingUp,
-  Sparkles,
-  Menu,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,156 +9,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { getUser } from "@/lib/data";
-import { routes } from "@/lib/routes";
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/auth-context"
+import { LogOut, User, Settings, Bell, Search, Menu } from "lucide-react"
 
 interface NavigationBarProps {
-  onNavigate: (path: string) => void;
-  onMenuToggle?: () => void;
-  isMobile?: boolean;
+  setCurrentPage: (page: string) => void
+  isMobile: boolean
+  toggleSidebar: () => void
 }
 
-export function NavigationBar({
-  onNavigate,
-  onMenuToggle,
-  isMobile = false,
-}: NavigationBarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isExploreOpen, setIsExploreOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [showMobileSearch, setShowMobileSearch] = useState(false);
-
-  const user = getUser();
-
-  // Mock subscription data
-  const subscription = {
-    plan: "Pro",
-    status: "active",
-    xpBalance: 2450,
-  };
-
-  const notifications = [
-    {
-      id: "1",
-      title: "Course Completed!",
-      message: "You've completed Advanced Node.js Patterns",
-      time: "2 hours ago",
-      type: "success",
-      read: false,
-    },
-    {
-      id: "2",
-      title: "Subscription Renewed",
-      message: "Your Pro subscription has been renewed for another month",
-      time: "3 hours ago",
-      type: "billing",
-      read: false,
-    },
-    {
-      id: "3",
-      title: "New Assignment",
-      message: "Database Design exercise is now available",
-      time: "4 hours ago",
-      type: "info",
-      read: false,
-    },
-    {
-      id: "4",
-      title: "XP Earned!",
-      message: "You earned 150 XP for completing the API challenge",
-      time: "1 day ago",
-      type: "achievement",
-      read: true,
-    },
-  ];
-
-  const skillGuides = [
-    {
-      name: "Python",
-      icon: "🐍",
-      color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    },
-    {
-      name: "Ruby",
-      icon: "💎",
-      color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-    },
-    {
-      name: "Java",
-      icon: "☕",
-      color:
-        "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-    },
-    {
-      name: "GoLang",
-      icon: "🔷",
-      color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-    },
-    {
-      name: "Node.js",
-      icon: "🟢",
-      color:
-        "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    },
-  ];
-
-  const roadmaps = [
-    {
-      id: "1",
-      title: "Career Essentials in Generative AI using Ruby",
-      image: "/placeholder.svg?height=120&width=200",
-      category: "Roadmap",
-    },
-    {
-      id: "2",
-      title: "Become Ruby Hero",
-      image: "/placeholder.svg?height=120&width=200",
-      category: "Roadmap",
-    },
-    {
-      id: "3",
-      title: "Full-Stack Development",
-      image: "/placeholder.svg?height=120&width=200",
-      category: "Roadmap",
-    },
-    {
-      id: "4",
-      title: "DevOps Engineering",
-      image: "/placeholder.svg?height=120&width=200",
-      category: "Roadmap",
-    },
-    {
-      id: "5",
-      title: "Cloud Architecture",
-      image: "/placeholder.svg?height=120&width=200",
-      category: "Roadmap",
-    },
-  ];
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log("Searching for:", searchQuery);
-      // Implement search functionality
-      if (isMobile) {
-        setShowMobileSearch(false);
-      }
-    }
-  };
-
-  const handleNotificationClick = (notificationId: string) => {
-    console.log("Clicked notification:", notificationId);
-    setIsNotificationsOpen(false);
-  };
+const NavigationBar: React.FC<NavigationBarProps> = ({ setCurrentPage, isMobile, toggleSidebar }) => {
+  const { user, logout } = useAuth()
 
   return (
     <>
@@ -604,7 +445,48 @@ export function NavigationBar({
             </form>
           </div>
         )}
-      </nav>
-    </>
-  );
+        <div className="ml-4 flex-1">
+          <Search className="mr-2 h-4 w-4" />
+          Search
+        </div>
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="/avatars/01.png" alt="Avatar" />
+                <AvatarFallback>CN</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setCurrentPage("profile")}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCurrentPage("settings")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
 }
+
+export default NavigationBar
