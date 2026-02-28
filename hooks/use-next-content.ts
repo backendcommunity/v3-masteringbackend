@@ -13,6 +13,7 @@ export interface NextContent {
   type: "VIDEO" | "QUIZ" | "EXERCISE" | "CHAPTER" | null;
   id: string | null;
   title: string | null;
+  slug: string | null;
   chapterId: string | null;
   required: boolean;
   metadata?: {
@@ -40,7 +41,7 @@ export function useNextContent(
   courseId: string,
   chapterId: string,
   videoId: string,
-  options: UseNextContentOptions = {}
+  options: UseNextContentOptions = {},
 ) {
   const { enabled = true, onSuccess, onError } = options;
 
@@ -71,7 +72,8 @@ export function useNextContent(
 
       return content;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Failed to fetch next content");
+      const error =
+        err instanceof Error ? err : new Error("Failed to fetch next content");
       setError(error);
 
       if (onError) {
