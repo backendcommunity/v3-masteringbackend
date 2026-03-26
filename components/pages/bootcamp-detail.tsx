@@ -900,7 +900,7 @@ export function BootcampDetailPage({
           bootcampId: bootcampId,
           paddle_price_id: bootcamp?.cohort?.paddle_price_id,
         }}
-        disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
+        disableSubscription={bootcamp?.cohort?.allowsSubscription === "false"}
         onHandlePreview={() => {}}
         onHandlePurchase={(id: string, type: any, success: boolean) =>
           handlePurchase(id, type, success)
