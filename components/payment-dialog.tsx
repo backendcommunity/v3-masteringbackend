@@ -201,7 +201,7 @@ export function PaymentDialog({
             <Card
               className={`border ${
                 disableSubscription
-                  ? "bg-muted/10"
+                  ? "bg-muted/10 opacity-50"
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
@@ -217,7 +217,9 @@ export function PaymentDialog({
                       Upgrade to {data?.plan ?? "Pro"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Get unlimited access to MB Platform
+                      {disableSubscription
+                        ? "Not available for this bootcamp"
+                        : "Get unlimited access to MB Platform"}
                     </p>
                   </div>
                   <div>
@@ -226,15 +228,17 @@ export function PaymentDialog({
                         ${channel?.originalMonthlyPrice}/mo
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Best value
+                        {disableSubscription ? "Disabled" : "Best value"}
                       </div>
                     </div>
-                    <Link
-                      href={"/subscription/plans"}
-                      className="text-xs text-primary z-10"
-                    >
-                      Choose another plan
-                    </Link>
+                    {!disableSubscription && (
+                      <Link
+                        href={"/subscription/plans"}
+                        className="text-xs text-primary z-10"
+                      >
+                        Choose another plan
+                      </Link>
+                    )}
                   </div>
                 </div>
               </CardContent>
