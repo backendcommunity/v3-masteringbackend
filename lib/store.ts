@@ -108,8 +108,14 @@ interface AppState {
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
-  getBootcampLeaderboard: (bootcampId: string, cohortId: string) => Promise<any>;
-  getLearningPaths: () => LearningPath[];
+  getBootcampLeaderboard: (
+    bootcampId: string,
+    cohortId: string,
+  ) => Promise<any>;
+  getLearningPaths: (filters?: {
+    skip?: number;
+    size?: number;
+  }) => Promise<LearningPath[] | any>;
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
   getQuiz: (id: string) => Quiz | any;

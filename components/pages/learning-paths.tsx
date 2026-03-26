@@ -32,7 +32,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
 
   return (
     <div className="flex-1 space-y-6 relative">
-      <WIP />
+      {/* <WIP /> */}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -58,7 +58,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {paths.filter((p) => p.enrolled).length}
+              {paths?.filter((p) => p.enrolled).length}
             </div>
             <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
@@ -97,7 +97,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
 
       {/* Learning Paths Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {paths.map((path) => (
+        {paths?.map((path) => (
           <Card key={path.id} className="overflow-hidden">
             <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center">
               <div className="text-center text-white">
@@ -112,8 +112,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                     path?.level === "Advanced"
                       ? "destructive"
                       : path?.level === "Intermediate"
-                      ? "default"
-                      : "secondary"
+                        ? "default"
+                        : "secondary"
                   }
                 >
                   {path?.level}

@@ -44,7 +44,7 @@ interface CoursesPageProps {
 export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
   const user = useUser();
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
-    null
+    null,
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [level, setLevel] = useState("");
@@ -252,7 +252,7 @@ export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
                   </div>
                 </div>
                 <Button
-                  onClick={() => onNavigate("/subscription-plans")}
+                  onClick={() => onNavigate("/subscription/plans")}
                   className="w-full md:w-auto"
                 >
                   Upgrade Now
@@ -334,8 +334,8 @@ export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
                           course?.level === "Advanced"
                             ? "destructive"
                             : course?.level === "Intermediate"
-                            ? "default"
-                            : "secondary"
+                              ? "default"
+                              : "secondary"
                         }
                         className="text-xs"
                       >
@@ -460,8 +460,8 @@ export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
                               userCourse?.course?.level === "Advanced"
                                 ? "destructive"
                                 : userCourse?.course?.level === "Intermediate"
-                                ? "default"
-                                : "secondary"
+                                  ? "default"
+                                  : "secondary"
                             }
                             className="text-xs"
                           >
@@ -567,8 +567,8 @@ export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
                               course?.level === "Advanced"
                                 ? "destructive"
                                 : course?.level === "Intermediate"
-                                ? "default"
-                                : "secondary"
+                                  ? "default"
+                                  : "secondary"
                             }
                             className="text-xs"
                           >
@@ -703,8 +703,8 @@ export function CoursesPage({ onNavigate, onFilter }: CoursesPageProps) {
                           course?.level === "Advanced"
                             ? "destructive"
                             : course?.level === "Intermediate"
-                            ? "default"
-                            : "secondary"
+                              ? "default"
+                              : "secondary"
                         }
                         className="text-xs"
                       >

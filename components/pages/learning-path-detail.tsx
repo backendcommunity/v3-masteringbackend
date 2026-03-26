@@ -34,9 +34,9 @@ export function LearningPathDetailPage({
   onNavigate,
 }: LearningPathDetailPageProps) {
   const store = useAppStore();
-  const path = store.getLearningPaths().find((p) => p.id === pathId);
-  const courses = store.getCourses();
-  const projects = store.getProjects();
+  const path = store?.getLearningPaths()?.find((p) => p.id === pathId);
+  const courses = store?.getCourses();
+  const projects = store?.getProjects();
 
   if (!path) {
     return (
@@ -92,7 +92,7 @@ export function LearningPathDetailPage({
                       </div>
                       <Progress value={60} className="h-2" />
                       <span className="text-xs text-blue-100">
-                        2 of {path.courses.length} completed
+                        2 of {path?.courses?.length} completed
                       </span>
                     </div>
                     <div className="space-y-2">
@@ -162,7 +162,7 @@ export function LearningPathDetailPage({
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">
-                        {path.courses.length}
+                        {path?.courses?.length}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Courses
@@ -198,9 +198,9 @@ export function LearningPathDetailPage({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {path.courses.map((courseId, index) => {
-                    const course = courses.find(
-                      (c: Course) => c.id === courseId
+                  {path?.courses?.map((courseId, index) => {
+                    const course = path?.courses?.find(
+                      (c: Course) => c.id === courseId,
                     );
                     if (!course) return null;
 
@@ -263,8 +263,10 @@ export function LearningPathDetailPage({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {path.projects.map((projectId, index) => {
-                    const project = projects.find((p) => p.id === projectId);
+                  {path?.projects?.map((projectId, index) => {
+                    const project = path?.projects?.find(
+                      (p) => p.id === projectId,
+                    );
                     if (!project) return null;
 
                     return (
