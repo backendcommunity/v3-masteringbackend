@@ -880,7 +880,7 @@ export function BootcampDetailPage({
                 >
                   <BadgeIcon className="mr-2 h-4 w-4" />
                   Enroll to Earn Certificate{" "}
-                  {bootcamp?.cohort?.allowsSubscription}
+                  {bootcamp?.cohort?.allowsSubscription + ""}
                 </Button>
               )}
             </CardContent>
