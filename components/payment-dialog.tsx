@@ -79,19 +79,50 @@ export function PaymentDialog({
     });
   }, []);
 
-  useMemo(async () => {
-    const plan = await store.getPlan(data?.plan ?? "Pro");
-    setPlan(plan);
+  useEffect(() => {
+    const load = async () => {
+      const plan = await store.getPlan(data?.plan ?? "Pro");
+      setPlan(plan);
 
-    //TODO: Select channel based on user country
-    const paymentChannel = plan?.paymentChannels?.find(
-      (pp: any) => pp.channel === "PADDLE"
-    );
-    setChannel(paymentChannel);
+      //TODO: Select channel based on user country
+      const paymentChannel = plan?.paymentChannels?.find(
+        (pp: any) => pp.channel === "PADDLE",
+      );
+      setChannel(paymentChannel);
+    };
+    load();
   }, [data?.plan]);
 
   // Callback to open a checkout
-  const openCheckout = (priceId: string, data: any) => {
+  const openCheckout = (priceId: string, customData: any) => {
+    if (!priceId) {
+      toast.error("Price ID is not available. Please refresh and try again.");
+      return;
+    }
+
+    if (!user?.email) {
+      toast.error("Email is required to complete the purchase.");
+      return;
+    }
+
+    // Find country code more robustly
+    const countryCode =
+      countries.find(
+        (c) =>
+          c.name.toLowerCase() === user?.country?.toLowerCase() ||
+          c.code.toLowerCase() === user?.country?.toLowerCase(),
+      )?.code ||
+      user?.country ||
+      "";
+
+    console.log("[Paddle Checkout]", {
+      priceId,
+      email: user?.email,
+      country: user?.country,
+      countryCode,
+      customData,
+    });
+
     paddle?.Checkout.open({
       settings: {
         allowedPaymentMethods: [
@@ -106,13 +137,11 @@ export function PaymentDialog({
         theme: theme?.includes("dark") ? "dark" : "light",
       },
       items: [{ priceId }],
-      customData: data,
+      customData,
       customer: {
         email: user?.email,
         address: {
-          countryCode:
-            countries.find((c) => c.name.includes(user?.country))?.code ?? "",
-          // postalCode: "10021",
+          countryCode,
         },
       },
     });
@@ -160,23 +189,44 @@ export function PaymentDialog({
         return;
       }
 
-      if (!channel) return;
-      const priceId = channel?.monthlyPlanId!;
+      if (!channel?.monthlyPlanId) {
+        toast.error("Subscription plan is not available. Please try again.");
+        return;
+      }
+      const priceId = channel.monthlyPlanId;
       openCheckout(priceId, {});
+      return;
     }
 
     if (type?.includes("individual")) {
-      const priceId = data?.paddle_price_id?.trim();
+      // Validate price ID first
+      let priceId: string | undefined;
+
+      if (NODE_ENV === "dev") {
+        priceId = "pri_01k051ksx2kx847wq6y48kpfj5";
+      } else {
+        priceId = data?.paddle_price_id?.trim();
+      }
+
+      if (!priceId) {
+        toast.error(
+          `This ${data?.type ?? "item"} is not available for purchase right now. Please try again later.`,
+        );
+        console.error("[Paddle Payment] Missing price ID for:", {
+          type: data?.type,
+          id: data?.id,
+        });
+        return;
+      }
+
       const customData = {
         method: "individual",
         id: data?.id,
         type: data?.type ?? "course",
       };
 
-      const id =
-        NODE_ENV === "dev" ? "pri_01k051ksx2kx847wq6y48kpfj5" : priceId;
-
-      if (id) openCheckout(id, customData);
+      openCheckout(priceId, customData);
+      return;
     }
 
     if (type?.includes("mb")) {
@@ -259,10 +309,14 @@ export function PaymentDialog({
                   <CreditCard className="h-6 w-6 md:h-8 md:w-8 text-[#13AECE] flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm md:text-base">
-                      {data?.type === "bootcamp" ? "Enroll in Bootcamp" : "Buy This Course"}
+                      {data?.type === "bootcamp"
+                        ? "Enroll in Bootcamp"
+                        : "Buy This Course"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      {data?.type === "bootcamp" ? "One-time payment for bootcamp access" : "One-time purchase for lifetime access"}
+                      {data?.type === "bootcamp"
+                        ? "One-time payment for bootcamp access"
+                        : "One-time purchase for lifetime access"}
                     </p>
                   </div>
                   <div className="text-right">
