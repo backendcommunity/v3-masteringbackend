@@ -132,7 +132,9 @@ export function BootcampDetailPage({
         setShowPaymentDialog(true);
         return;
       }
-      toast.error(error?.response?.data?.message || "An error occurred. Please try again");
+      toast.error(
+        error?.response?.data?.message || "An error occurred. Please try again",
+      );
     }
   };
 
@@ -157,7 +159,9 @@ export function BootcampDetailPage({
             setBootcamp(updated);
             toast.success("You have successfully enrolled");
           } else {
-            toast.info("Enrollment processing... Please check back in a moment");
+            toast.info(
+              "Enrollment processing... Please check back in a moment",
+            );
           }
         } catch (error) {
           // Silently fail — user can refresh manually
@@ -680,7 +684,7 @@ export function BootcampDetailPage({
                   <Badge
                     className="text-sm"
                     variant={
-                      bootcamp?.userCohort?.cohort?.status === "OPEN"
+                      bootcamp?.cohort?.status === "OPEN"
                         ? "outline"
                         : started
                           ? "default"
@@ -689,8 +693,7 @@ export function BootcampDetailPage({
                   >
                     {started
                       ? "In Progress"
-                      : (bootcamp?.userCohort?.cohort?.status ??
-                        "Not enrolled")}
+                      : (bootcamp?.cohort?.status ?? "Not enrolled")}
                   </Badge>
                 </div>
               </div>
@@ -698,7 +701,7 @@ export function BootcampDetailPage({
             <CardContent className="space-y-4">
               <div className="text-center">
                 <div className="text-3xl font-bold">
-                  ${bootcamp?.cohort?.amount?.toLocaleString()}
+                  ${(bootcamp?.cohort?.amount / 100).toFixed(2)}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Full program cost
@@ -894,8 +897,9 @@ export function BootcampDetailPage({
           amount: bootcamp?.cohort?.amount,
           id: bootcamp?.cohort?.id,
           bootcampId: bootcampId,
+          paddle_price_id: bootcamp?.cohort?.paddle_price_id,
         }}
-        disableSubscription={!bootcamp?.cohort?.allowsSubscription}
+        disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
         onHandlePreview={() => {}}
         onHandlePurchase={(id: string, type: any, success: boolean) =>
           handlePurchase(id, type, success)
