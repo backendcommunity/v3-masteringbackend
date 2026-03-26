@@ -2,20 +2,16 @@
 
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { CourseDetailPage } from "@/components/pages/course-detail";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React from "react";
 
-interface CourseDetailPageRouteProps {
-  params: {
-    slug: string;
-  };
-}
+type CourseDetailPageRouteProps = {
+  slug: string;
+};
 
-export default function CourseDetailPageRoute({
-  params,
-}: CourseDetailPageRouteProps) {
+export default function CourseDetailPageRoute() {
   const router = useRouter();
-  const { slug } = React.use(params);
+  const { slug } = useParams() as CourseDetailPageRouteProps;
   const handleNavigate = (path: string) => {
     router.push(path);
   };

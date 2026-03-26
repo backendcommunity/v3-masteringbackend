@@ -112,14 +112,8 @@ export function BootcampDetailPage({
   const enrollInBootcamp = async (id: string, cohort: string) => {
     if (!cohort) return;
 
-    const isPremiumUser =
-      user?.isPremium && user?.subscription?.name === "Enterprise";
-
-    if (!isPremiumUser) {
-      setShowPaymentDialog(true);
-      return;
-    }
     try {
+      // Try to enroll directly - backend validates subscription/payment
       const userCohort = await store.enrollInBootcamp(id, cohort);
       if (!userCohort) {
         toast.warning("An error occurred. Please try again");
@@ -131,8 +125,16 @@ export function BootcampDetailPage({
         enrolled: true,
         userCohort,
       }));
-    } catch (error) {
-      toast.error("An unexpected error occurred. Please try again later.");
+      toast.success("You have successfully enrolled");
+    } catch (error: any) {
+      // Check if payment is required (402 status)
+      if (error?.response?.status === 402) {
+        setShowPaymentDialog(true);
+        return;
+      }
+      toast.error(
+        error?.response?.data?.message || "An error occurred. Please try again",
+      );
     }
   };
 
@@ -142,17 +144,47 @@ export function BootcampDetailPage({
 
   const handlePurchase = async (id: string, type: string, success: any) => {
     if (!success) return;
-    const userCohort = await store.enrollInBootcamp(bootcampId, id);
-    if (!userCohort) {
-      toast.warning("An error occurred. Please try again");
+
+    if (type === "individual") {
+      // Paddle payment — webhook will handle enrollment
+      // Show processing message and poll for enrollment status
+      toast.info("Payment received! Your enrollment is being processed...");
+      setShowPaymentDialog(false);
+
+      // Poll after 5s to refresh bootcamp data
+      setTimeout(async () => {
+        try {
+          const updated = await store.getBootcamp(bootcampId);
+          if (updated?.enrolled) {
+            setBootcamp(updated);
+            toast.success("You have successfully enrolled");
+          } else {
+            toast.info(
+              "Enrollment processing... Please check back in a moment",
+            );
+          }
+        } catch (error) {
+          // Silently fail — user can refresh manually
+        }
+      }, 5000);
       return;
     }
 
-    setBootcamp((prev: Bootcamp) => ({
-      ...prev,
-      enrolled: true,
-      userCohort,
-    }));
+    if (type === "mb") {
+      // MB payment — backend handles enrollment atomically
+      try {
+        const updated = await store.getBootcamp(bootcampId);
+        if (updated?.enrolled) {
+          setBootcamp(updated);
+          toast.success("You have successfully enrolled with MB points");
+        } else {
+          toast.error("Enrollment failed. Please try again.");
+        }
+      } catch (error) {
+        toast.error("An error occurred. Please try again.");
+      }
+      return;
+    }
   };
 
   const started =
@@ -652,7 +684,7 @@ export function BootcampDetailPage({
                   <Badge
                     className="text-sm"
                     variant={
-                      bootcamp?.userCohort?.cohort?.status === "OPEN"
+                      bootcamp?.cohort?.status === "OPEN"
                         ? "outline"
                         : started
                           ? "default"
@@ -661,8 +693,7 @@ export function BootcampDetailPage({
                   >
                     {started
                       ? "In Progress"
-                      : (bootcamp?.userCohort?.cohort?.status ??
-                        "Not enrolled")}
+                      : (bootcamp?.cohort?.status ?? "Not enrolled")}
                   </Badge>
                 </div>
               </div>
@@ -865,7 +896,10 @@ export function BootcampDetailPage({
           plan: "Enterprise",
           amount: bootcamp?.cohort?.amount,
           id: bootcamp?.cohort?.id,
+          bootcampId: bootcampId,
+          paddle_price_id: bootcamp?.cohort?.paddle_price_id,
         }}
+        disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
         onHandlePreview={() => {}}
         onHandlePurchase={(id: string, type: any, success: boolean) =>
           handlePurchase(id, type, success)

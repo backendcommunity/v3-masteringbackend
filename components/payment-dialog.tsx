@@ -133,11 +133,16 @@ export function PaymentDialog({
         return;
       }
 
-      const payload = {
+      const payload: any = {
         type: data.type,
         id: data.id,
         mb: xpCost,
       };
+
+      // For bootcamps, include bootcampId
+      if (data.type === "bootcamp" && data.bootcampId) {
+        payload.bootcampId = data.bootcampId;
+      }
 
       const purchased = await store.handleMBPayment(payload);
       return purchased;
@@ -196,7 +201,7 @@ export function PaymentDialog({
             <Card
               className={`border ${
                 disableSubscription
-                  ? "bg-muted/10"
+                  ? "bg-muted/10 opacity-50"
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
@@ -212,7 +217,9 @@ export function PaymentDialog({
                       Upgrade to {data?.plan ?? "Pro"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Get unlimited access to MB Platform
+                      {disableSubscription
+                        ? "Not available for this bootcamp"
+                        : "Get unlimited access to MB Platform"}
                     </p>
                   </div>
                   <div>
@@ -221,15 +228,17 @@ export function PaymentDialog({
                         ${channel?.originalMonthlyPrice}/mo
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Best value
+                        {disableSubscription ? "Disabled" : "Best value"}
                       </div>
                     </div>
-                    <Link
-                      href={"/subscription/plans"}
-                      className="text-xs text-primary z-10"
-                    >
-                      Choose another plan
-                    </Link>
+                    {!disableSubscription && (
+                      <Link
+                        href={"/subscription/plans"}
+                        className="text-xs text-primary z-10"
+                      >
+                        Choose another plan
+                      </Link>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -250,15 +259,15 @@ export function PaymentDialog({
                   <CreditCard className="h-6 w-6 md:h-8 md:w-8 text-[#13AECE] flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm md:text-base">
-                      Buy This Course
+                      {data?.type === "bootcamp" ? "Enroll in Bootcamp" : "Buy This Course"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      One-time purchase for lifetime access
+                      {data?.type === "bootcamp" ? "One-time payment for bootcamp access" : "One-time purchase for lifetime access"}
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-sm md:text-base">
-                      ${data?.amount}
+                      ${data?.amount?.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       One-time
