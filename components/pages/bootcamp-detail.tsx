@@ -701,7 +701,7 @@ export function BootcampDetailPage({
             <CardContent className="space-y-4">
               <div className="text-center">
                 <div className="text-3xl font-bold">
-                  ${(bootcamp?.cohort?.amount / 100).toFixed(2)}
+                  ${bootcamp?.cohort?.amount?.toLocaleString()}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Full program cost

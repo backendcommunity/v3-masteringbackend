@@ -263,7 +263,7 @@ export function PaymentDialog({
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-sm md:text-base">
-                      ${(data?.amount / 100).toFixed(2)}
+                      ${data?.amount?.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       One-time
