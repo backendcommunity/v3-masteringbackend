@@ -125,7 +125,10 @@ export function BootcampVideoWatchPage({
           return;
         }
 
-        const session = events.find((event: any) => event.lessonId === slug);
+        const session = events.find((event: any) => {
+          console.log("LessonId: ", event.lessonId, "Slug: ", slug);
+          return event.lessonId === slug;
+        });
 
         if (!session) {
           setCurrentLiveSession(null);
