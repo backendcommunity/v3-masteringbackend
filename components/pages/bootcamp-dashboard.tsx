@@ -558,8 +558,8 @@ export function BootcampDashboardPage({
                   onNavigate?.(
                     routes.bootcampLeaderboard(
                       bootcampId,
-                      userCohort?.cohortId || ""
-                    )
+                      userCohort?.cohortId + "",
+                    ),
                   )
                 }
               >

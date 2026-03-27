@@ -312,7 +312,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{getTotalEnrolled(bootcamp)} enrolled</span>
+                    <span>{bootcamp?.totalGraduates} graduates</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
