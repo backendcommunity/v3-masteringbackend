@@ -409,38 +409,39 @@ export function BootcampVideoWatchPage({
         </div>
       </div>
 
-      {currentLiveSession && currentLiveSession.meetingUrl && (
-        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                  🔴 Live Session in Progress
-                </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
-                  {currentLiveSession.title || "Join your instructor and classmates now"}
+      {/* {currentLiveSession && currentLiveSession.meetingUrl && ( */}
+      <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                🔴 Live Session in Progress
+              </h3>
+              <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                {currentLiveSession.title ||
+                  "Join your instructor and classmates now"}
+              </p>
+              {currentLiveSession.startTime && (
+                <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                  Started:{" "}
+                  {new Date(currentLiveSession.startTime).toLocaleTimeString()}
                 </p>
-                {currentLiveSession.startTime && (
-                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
-                    Started:{" "}
-                    {new Date(currentLiveSession.startTime).toLocaleTimeString()}
-                  </p>
-                )}
-              </div>
-              <Button
-                onClick={() => {
-                  if (currentLiveSession.meetingUrl) {
-                    window.open(currentLiveSession.meetingUrl, "_blank");
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
-              >
-                Join Now
-              </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <Button
+              onClick={() => {
+                if (currentLiveSession.meetingUrl) {
+                  window.open(currentLiveSession.meetingUrl, "_blank");
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+            >
+              Join Now
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {/* )} */}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Video Player */}
