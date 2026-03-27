@@ -125,15 +125,14 @@ export function BootcampVideoWatchPage({
           return;
         }
 
-        const session = events.find(
-          (event: any) => event.lessonId === currentLesson?.id,
-        );
+        const session = events.find((event: any) => event.lessonId === slug);
 
         if (!session) {
           setCurrentLiveSession(null);
           return;
         }
 
+        console.log(session, "Current Session", slug);
         setCurrentLiveSession(session);
       } catch (error) {
         console.error("Failed to load week events:", error);
