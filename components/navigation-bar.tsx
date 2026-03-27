@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Sparkles,
   Menu,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1095,6 +1096,15 @@ export function NavigationBar({
                   <span>Leaderboard</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
+                  <>
+                    <DropdownMenuItem onClick={() => onNavigate("/admin/assignments")}>
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      <span>Assignments</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={() => onNavigate(routes.subscriptionManagement)}
                 >

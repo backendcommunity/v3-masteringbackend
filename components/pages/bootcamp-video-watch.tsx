@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { VimeoPlayer } from "@/components/ui/vimeo-player";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { format } from "timeago.js";
 import {
   ArrowLeft,
@@ -67,6 +68,7 @@ export function BootcampVideoWatchPage({
   const [quizPassed, setQuizPassed] = useState(false);
   const [note, setNote] = useState("");
   const [showWeekComplete, setShowWeekComplete] = useState(false);
+  const [submissionUrl, setSubmissionUrl] = useState("");
   const path = usePathname();
 
   useEffect(() => {
@@ -252,6 +254,11 @@ export function BootcampVideoWatchPage({
       }
     }
 
+    if (currentLesson?.type === "ASSIGNMENT" && !submissionUrl.trim()) {
+      toast.warning("Please provide a submission URL for this assignment");
+      return;
+    }
+
     try {
       const completedLessons = [
         ...(userLessons?.filter(
@@ -267,11 +274,17 @@ export function BootcampVideoWatchPage({
 
       setUserLessons(completedLessons);
 
-      store.markLessonCompleted(id, cohort, weekId, currentLesson.id, {
+      const payload: any = {
         isWeekCompleted: isWeekCompleted(completedLessons),
         nextWeekId: week?.nextWeek?.id,
         nextLessonId: nextVideo?.id,
-      });
+      };
+
+      if (currentLesson?.type === "ASSIGNMENT") {
+        payload.submissionUrl = submissionUrl;
+      }
+
+      store.markLessonCompleted(id, cohort, weekId, currentLesson.id, payload);
 
       toast.success("You just earned some points!");
       setCelebration(true);
@@ -369,10 +382,10 @@ export function BootcampVideoWatchPage({
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="space-y-6">
                   {currentLesson?.description && (
-                    <CardContent>
-                      <div className="space-y-4  pt-4">
+                    <div>
+                      <div className="space-y-4">
                         <article
                           className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                           dangerouslySetInnerHTML={{
@@ -380,8 +393,21 @@ export function BootcampVideoWatchPage({
                           }}
                         ></article>
                       </div>
-                    </CardContent>
+                    </div>
                   )}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium">Submission URL</label>
+                    <Input
+                      placeholder="https://github.com/username/project"
+                      type="url"
+                      value={submissionUrl}
+                      onChange={(e) => setSubmissionUrl(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Paste the link to your GitHub repository or project URL
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -473,7 +499,13 @@ export function BootcampVideoWatchPage({
                         Completed
                       </Button>
                     ) : (
-                      <Button onClick={handleMarkComplete}>
+                      <Button
+                        onClick={handleMarkComplete}
+                        disabled={
+                          currentLesson.type === "ASSIGNMENT" &&
+                          !submissionUrl.trim()
+                        }
+                      >
                         <CheckCircle2 className="mr-2 h-4 w-4" />
                         Mark Complete
                       </Button>

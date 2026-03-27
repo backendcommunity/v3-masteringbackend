@@ -53,6 +53,7 @@ import {
 } from "./courses";
 import { api, socketAPI } from "./api";
 import { localDB } from "./localDB";
+import { analytics } from "./analytics";
 
 interface AppState {
   // Data getters
@@ -105,10 +106,15 @@ interface AppState {
   }) => Bootcamp[] | any;
   getBootcamp: (id: string) => Bootcamp | any;
   getBootcampBonuses: (id: string, cohort: string) => any;
+  getBootcampGraduates: (id: string) => Promise<any>;
+  getAdminAssignments: (filters?: any) => Promise<any>;
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
-  getBootcampLeaderboard: (bootcampId: string, cohortId: string) => Promise<any>;
+  getBootcampLeaderboard: (
+    bootcampId: string,
+    cohortId: string,
+  ) => Promise<any>;
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
@@ -281,6 +287,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.log(user);
       const res = await fetchUser();
       updateUserInStore(res.data);
+
+      // Identify user in analytics
+      analytics.identify(res.data.id, {
+        email: res.data.email,
+        name: res.data.name,
+        isPremium: res.data.isPremium,
+        country: res.data.country,
+        role: res.data.role,
+      });
+
       return res.data;
     } catch (error: any) {
       // Clear local storage on authentication errors
@@ -484,6 +500,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   getBootcampBonuses: async (id: string, cohort: string) => {
     const { data } = await api.get(
       `/bootcamps/${id}/cohorts/${cohort}/bonuses`,
+    );
+    return data?.data;
+  },
+
+  getBootcampGraduates: async (id: string) => {
+    const { data } = await api.get(`/bootcamps/${id}/graduates`);
+    return data?.data;
+  },
+
+  getAdminAssignments: async (filters?: { bootcampId?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.bootcampId) {
+      params.append("bootcampId", filters.bootcampId);
+    }
+    const { data } = await api.get(
+      `/bootcamps/admin/assignments${params.toString() ? `?${params}` : ""}`,
+    );
+    return data?.data;
+  },
+
+  initiateAsyncpayCheckout: async (bootcampId: string, cohortId: string) => {
+    const { data } = await api.post(
+      `/bootcamps/${bootcampId}/cohorts/${cohortId}/asyncpay/initiate`,
     );
     return data?.data;
   },

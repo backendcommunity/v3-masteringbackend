@@ -1,4 +1,4 @@
-import { CreditCard, Crown, Gift } from "lucide-react";
+import { CreditCard, Crown, Gift, Zap } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import {
   Dialog,
@@ -235,6 +235,38 @@ export function PaymentDialog({
     }
   };
 
+  const handleAsyncpayPayment = async () => {
+    try {
+      const res = await store.initiateAsyncpayCheckout(
+        data.bootcampId,
+        data.id
+      );
+      const { AsyncpayCheckout } = await import("@asyncpay/checkout");
+      AsyncpayCheckout({
+        publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
+        customer: {
+          firstName: user?.name?.split(" ")[0],
+          lastName: user?.name?.split(" ")[1],
+          email: user?.email,
+        },
+        subscriptionPlanUUID: res.asyncpay_plan_id,
+        onSuccess: () => {
+          onHandlePurchase(data.id, "asyncpay", true);
+        },
+        onClose: () => {
+          toast.info("Payment window closed");
+        },
+      });
+    } catch (error: any) {
+      const res = error?.response?.data ?? error;
+      toast.error(res?.message ?? "An error occurred");
+    }
+  };
+
+  const isNigerian =
+    user?.country?.toLowerCase() === "nigeria" ||
+    user?.country?.toLowerCase() === "ng";
+
   return (
     <div className="space-y-2">
       <Dialog open={open} onOpenChange={onClose}>
@@ -363,6 +395,35 @@ export function PaymentDialog({
                 </div>
               </CardContent>
             </Card>
+
+            {isNigerian && data.asyncpay_plan_id && (
+              <Card
+                className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
+                onClick={handleAsyncpayPayment}
+              >
+                <CardContent className="p-3 md:p-4">
+                  <div className="flex items-center gap-3">
+                    <Zap className="h-6 w-6 md:h-8 md:w-8 text-[#FFA500] flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm md:text-base">
+                        Pay with Paystack
+                      </h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        For Nigerian users — cards, bank transfer, USSD
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-sm md:text-base">
+                        ₦{data?.amount?.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        One-time
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </DialogContent>
       </Dialog>

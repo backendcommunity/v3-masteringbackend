@@ -5,6 +5,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { PostHogProviderComponent } from "@/components/posthog-provider";
+import { PostHogPageview } from "@/components/posthog-pageview";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,16 +29,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={false}
-          storageKey="masteringbackend-theme"
-        >
-          <Toaster />
-          <ErrorBoundary>{children}</ErrorBoundary>
-        </ThemeProvider>
+        <PostHogProviderComponent>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange={false}
+            storageKey="masteringbackend-theme"
+          >
+            <PostHogPageview />
+            <Toaster />
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </ThemeProvider>
+        </PostHogProviderComponent>
       </body>
     </html>
   );
