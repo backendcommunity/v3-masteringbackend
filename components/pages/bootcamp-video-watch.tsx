@@ -115,9 +115,9 @@ export function BootcampVideoWatchPage({
 
   useEffect(() => {
     const loadEvents = async () => {
+      console.log(currentLesson?.id, slug);
       try {
         const events = await store.getCurrentWeekEvents(id, weekId);
-        console.log("Loaded week events:", events);
 
         // Find live session for current lesson when events or lesson change
         if (!events?.length) {
@@ -125,17 +125,15 @@ export function BootcampVideoWatchPage({
           return;
         }
 
-        const session = events.find((event: any) => {
-          console.log("LessonId: ", event.lessonId, "Slug: ", slug);
-          return event.lessonId === slug;
-        });
+        const session = events.find(
+          (event: any) => event.lessonId === currentLesson?.id,
+        );
 
         if (!session) {
           setCurrentLiveSession(null);
           return;
         }
 
-        console.log(session, "Current Session", slug);
         setCurrentLiveSession(session);
       } catch (error) {
         console.error("Failed to load week events:", error);

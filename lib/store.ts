@@ -524,14 +524,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCurrentWeekEvents: async (id: string, weekId: string) => {
     try {
       const url = `/bootcamps/${id}/weeks/${weekId}/events`;
-      console.log(`Fetching week events from: ${url}`);
       const { data } = await api.get(url);
-      console.log("Week events response:", data);
       const events = data?.data || [];
-      console.log(`Found ${events.length} events:`, events);
       return events;
     } catch (error) {
-      console.error("Error fetching week events:", error);
       return [];
     }
   },
