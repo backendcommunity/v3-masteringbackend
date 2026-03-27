@@ -52,7 +52,6 @@ export function BootcampDetailPage({
   const [bootcamp, setBootcamp] = useState<Bootcamp | any>();
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [bonusCourses, setBonusCourses] = useState<any[]>([]);
-  const [graduates, setGraduates] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -93,27 +92,6 @@ export function BootcampDetailPage({
       cancelled = true;
     };
   }, [active, bootcamp?.cohort?.id, bootcampId, store]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (active !== "graduates") return;
-
-    const load = async () => {
-      try {
-        const grads = await store.getBootcampGraduates(bootcampId);
-        if (!cancelled) {
-          setGraduates(grads || []);
-        }
-      } catch (error) {}
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [active, bootcampId, store]);
 
   if (loading) return <Loader isLoader={false} />;
 
@@ -313,11 +291,10 @@ export function BootcampDetailPage({
 
           {/* Tabs */}
           <Tabs value={active} onValueChange={setActive} className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
               <TabsTrigger value="bonus">Bonuses</TabsTrigger>
-              <TabsTrigger value="graduates">Graduates</TabsTrigger>
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
 
@@ -663,69 +640,6 @@ export function BootcampDetailPage({
                         );
                     })}
                   </Accordion>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="graduates" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5" />
-                    Bootcamp Graduates
-                  </CardTitle>
-                  <CardDescription>
-                    Meet the talented developers who have completed this bootcamp
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {graduates.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No graduates yet</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {graduates.map((graduate: any) => (
-                        <Card
-                          key={graduate.id}
-                          className="overflow-hidden hover:shadow-lg transition-shadow"
-                        >
-                          <CardContent className="pt-6">
-                            <div className="flex flex-col items-center text-center space-y-4">
-                              {graduate.user?.avatar ? (
-                                <img
-                                  src={graduate.user.avatar}
-                                  alt={graduate.user.name}
-                                  className="w-16 h-16 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
-                                  {graduate.user?.name
-                                    ?.split(" ")
-                                    .map((n: string) => n[0])
-                                    .join("")
-                                    .toUpperCase()}
-                                </div>
-                              )}
-                              <div className="space-y-2 flex-1">
-                                <h4 className="font-semibold">
-                                  {graduate.user?.name}
-                                </h4>
-                                <div className="flex flex-wrap justify-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {graduate.cohort?.name}
-                                  </Badge>
-                                  <Badge className="bg-green-600 hover:bg-green-700 text-xs">
-                                    Graduated
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>

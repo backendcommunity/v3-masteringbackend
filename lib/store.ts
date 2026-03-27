@@ -106,7 +106,6 @@ interface AppState {
   }) => Bootcamp[] | any;
   getBootcamp: (id: string) => Bootcamp | any;
   getBootcampBonuses: (id: string, cohort: string) => any;
-  getBootcampGraduates: (id: string) => Promise<any>;
   getAdminAssignments: (filters?: any) => Promise<any>;
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
@@ -501,11 +500,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/bootcamps/${id}/cohorts/${cohort}/bonuses`,
     );
-    return data?.data;
-  },
-
-  getBootcampGraduates: async (id: string) => {
-    const { data } = await api.get(`/bootcamps/${id}/graduates`);
     return data?.data;
   },
 

@@ -69,6 +69,7 @@ export function BootcampVideoWatchPage({
   const [note, setNote] = useState("");
   const [showWeekComplete, setShowWeekComplete] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState("");
+  const [weekEvents, setWeekEvents] = useState<any[]>([]);
   const path = usePathname();
 
   useEffect(() => {
@@ -111,6 +112,28 @@ export function BootcampVideoWatchPage({
 
     loadNotes(lesson?.id!, slug!);
   }, [lesson, slug]);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const events = await store.getCurrentWeekEvents(id, weekId);
+        setWeekEvents(events || []);
+      } catch (error) {
+        console.error("Failed to load week events:", error);
+      }
+    };
+
+    if (weekId) {
+      loadEvents();
+    }
+  }, [weekId, id, store]);
+
+  const currentLiveSession = weekEvents?.find(
+    (event: any) =>
+      event.lessonId === currentLesson?.id &&
+      event.meetingUrl &&
+      (event.status === "SCHEDULED" || event.status === "IN_PROGRESS")
+  );
 
   if (loading) return <Loader isLoader={false} />;
 
@@ -333,6 +356,29 @@ export function BootcampVideoWatchPage({
         </div>
       </div>
 
+      {currentLiveSession && (
+        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  🔴 Live Session in Progress
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                  Join your instructor and classmates now
+                </p>
+              </div>
+              <Button
+                onClick={() => window.open(currentLiveSession.meetingUrl, "_blank")}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Join Live Session
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Video Player */}
         <div className="lg:col-span-2 space-y-4 flex flex-col">
@@ -395,15 +441,26 @@ export function BootcampVideoWatchPage({
                       </div>
                     </div>
                   )}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <label className="text-sm font-medium">Submission URL</label>
-                    <Input
-                      placeholder="https://github.com/username/project"
-                      type="url"
-                      value={submissionUrl}
-                      onChange={(e) => setSubmissionUrl(e.target.value)}
-                      className="w-full"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://github.com/username/project"
+                        type="url"
+                        value={submissionUrl}
+                        onChange={(e) => setSubmissionUrl(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleMarkComplete}
+                        disabled={!submissionUrl.trim()}
+                        size="sm"
+                        className="flex-shrink-0"
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Submit
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Paste the link to your GitHub repository or project URL
                     </p>
@@ -489,8 +546,7 @@ export function BootcampVideoWatchPage({
                       )
                     ))}
 
-                  {(currentLesson.type === "ASSIGNMENT" ||
-                    currentLesson.type === "EXERCISE" ||
+                  {(currentLesson.type === "EXERCISE" ||
                     currentLesson.type === "ARTICLE") &&
                     nextVideo &&
                     (isVideoCompleted(currentLesson.id) ? (
@@ -499,13 +555,7 @@ export function BootcampVideoWatchPage({
                         Completed
                       </Button>
                     ) : (
-                      <Button
-                        onClick={handleMarkComplete}
-                        disabled={
-                          currentLesson.type === "ASSIGNMENT" &&
-                          !submissionUrl.trim()
-                        }
-                      >
+                      <Button onClick={handleMarkComplete}>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
                         Mark Complete
                       </Button>
