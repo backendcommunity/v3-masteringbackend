@@ -1,30 +1,33 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Clock,
   BookOpen,
-  Code2,
-  Target,
   CheckCircle2,
-  Users,
-  Star,
+  Clock,
   Play,
+  Target,
 } from "lucide-react";
-import { useAppStore } from "@/lib/store";
-import { Course, Project, Roadmap } from "@/lib/data";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader } from "../ui/loader";
-import { useEffect, useState } from "react";
+import { Roadmap } from "@/lib/data";
+import { routes } from "@/lib/routes";
+import { useAppStore } from "@/lib/store";
+import {
+  getCourseRouteParam,
+  getCurrentTopic,
+  getPathDuration,
+  getPathProgress,
+  getPathSubtitle,
+  getPathTopics,
+  getPrimaryCourse,
+  stripHtml,
+} from "./path-flow-utils";
 
 interface LearningPathDetailPageProps {
   pathId: string;
@@ -38,22 +41,18 @@ export function LearningPathDetailPage({
   const store = useAppStore();
   const [path, setPath] = useState<Roadmap | null>(null);
   const [loading, setLoading] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const loadPath = async () => {
       setLoading(true);
       try {
         let roadmap = await store.getRoadmapBySlug(pathId);
-
         if (!roadmap) {
           const allRoadmaps = await store.getRoadmaps({ size: 20, skip: 0 });
-          roadmap = allRoadmaps.find(
-            (r: any) => r.slug === pathId || r.id === pathId,
-          );
+          roadmap = Array.isArray(allRoadmaps)
+            ? allRoadmaps.find((item: any) => item.slug === pathId || item.id === pathId)
+            : null;
         }
-
         setPath(roadmap || null);
       } catch (error) {
         console.error("Failed to load learning path detail:", error);
@@ -66,33 +65,20 @@ export function LearningPathDetailPage({
     loadPath();
   }, [pathId, store]);
 
-  useEffect(() => {
-    const loadAux = async () => {
-      try {
-        const loadedCourses = await store.getCourses({
-          page: "1",
-          size: "20",
-          filters: {},
-        } as any);
-        const normalizedCourses = Array.isArray(loadedCourses)
-          ? loadedCourses
-          : loadedCourses?.courses ?? [];
-        setCourses(normalizedCourses || []);
-      } catch {}
-      try {
-        const loadedProjects = await store.getProjects({
-          page: 1,
-          size: 20,
-          filters: {},
-        } as any);
-        const normalizedProjects = Array.isArray(loadedProjects)
-          ? loadedProjects
-          : loadedProjects?.projects ?? loadedProjects;
-        setProjects(normalizedProjects || []);
-      } catch {}
-    };
-    loadAux();
-  }, [store]);
+  const topics = useMemo(() => getPathTopics(path), [path]);
+  const currentTopic = useMemo(() => getCurrentTopic(path, topics), [path, topics]);
+  const currentCourse = useMemo(() => getPrimaryCourse(currentTopic), [currentTopic]);
+
+  const courseCount = useMemo(
+    () => topics.reduce((count, topic) => count + topic.courses.length, 0),
+    [topics],
+  );
+  const progress = getPathProgress(path);
+  const level =
+    path?.level ||
+    (typeof (path as any)?.difficulty === "string"
+      ? (path as any).difficulty
+      : "Beginner");
 
   if (loading) return <Loader isLoader={true} />;
 
@@ -100,8 +86,8 @@ export function LearningPathDetailPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Learning Path not found</h1>
-          <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
+          <h1 className="text-2xl font-bold text-white">Learning Path not found</h1>
+          <Button onClick={() => onNavigate?.(routes.paths)} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
           </Button>
@@ -110,330 +96,349 @@ export function LearningPathDetailPage({
     );
   }
 
-  const topicCourses = path.topics?.flatMap((topic: any) => topic.courses || []) || [];
-  const courseCount = topicCourses.length;
-  const projectCount = path.topics?.flatMap((topic: any) => topic.projects || [])?.length || 0;
-
   return (
     <div className="flex-1 space-y-6 text-slate-100">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">{path.title}</h1>
-            <p className="text-slate-300 max-w-2xl">{path.description}</p>
+      <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
+        {(path as any).banner && (
+          <div className="absolute inset-0">
+            <img
+              src={(path as any).banner}
+              alt={path.title}
+              className="h-full w-full object-cover opacity-25"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-900/50" />
           </div>
-          <Button variant="secondary" size="sm" onClick={() => onNavigate?.("/paths")}>
-            <ArrowLeft className="h-4 w-4" />
+        )}
+
+        <div className="relative z-10 p-6 md:p-8">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate?.(routes.paths)}
+            className="mb-4 pl-0 text-slate-300 hover:bg-transparent hover:text-white"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Paths
           </Button>
+
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+            {path.title}
+          </h1>
+          <p className="max-w-3xl text-slate-200">{getPathSubtitle(path)}</p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{level}</Badge>
+            <Badge variant="outline" className="border-slate-600 text-slate-200">
+              <Clock className="mr-1 h-3.5 w-3.5" />
+              {getPathDuration(path)}
+            </Badge>
+            <Badge variant="outline" className="border-slate-600 text-slate-200">
+              {topics.length} modules
+            </Badge>
+            <Badge variant="outline" className="border-slate-600 text-slate-200">
+              {courseCount} courses
+            </Badge>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Progress Card (if enrolled) */}
+        <div className="space-y-6 lg:col-span-2">
           {path.enrolled && (
-            <Card className="bg-slate-900 border border-slate-800 text-white">
+            <Card className="border border-slate-800 bg-slate-900 text-white">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+                  <Target className="h-5 w-5 text-cyan-300" />
                   Your Progress
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span>Overall Progress</span>
-                    <span>{path.progress}%</span>
-                  </div>
-                  <Progress value={path.progress} className="h-3" />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4" />
-                        <span className="text-sm">Courses</span>
-                      </div>
-                      <Progress value={Math.min(100, path.progress)} className="h-2" />
-                      <span className="text-xs text-slate-300">
-                        {Math.round(path.progress / 100 * courseCount)} of {courseCount} completed
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Code2 className="h-4 w-4" />
-                        <span className="text-sm">Projects</span>
-                      </div>
-                      <Progress value={Math.min(100, path.progress)} className="h-2" />
-                      <span className="text-xs text-slate-300">
-                        {Math.round((path.progress / 100) * projectCount)} of {projectCount} completed
-                      </span>
-                    </div>
-                  </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Overall completion</span>
+                  <span>{progress}%</span>
                 </div>
+                <Progress value={progress} className="h-2.5" />
+                {currentTopic && (
+                  <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-300">
+                      Current module
+                    </p>
+                    <p className="font-medium text-white">{currentTopic.title}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="projects">Projects</TabsTrigger>
-              <TabsTrigger value="community">Community</TabsTrigger>
+              <TabsTrigger value="skills">Skills & Prerequisites</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
-              <Card>
+              <Card className="border border-slate-800 bg-slate-900 text-white">
                 <CardHeader>
-                  <CardTitle>Learning Objectives</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    {[
-                      "Master backend development fundamentals",
-                      "Build scalable APIs and microservices",
-                      "Implement database design and optimization",
-                      "Deploy applications to cloud platforms",
-                      "Apply DevOps and CI/CD practices",
-                      "Develop production-ready applications",
-                    ].map((objective, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                        <span>{objective}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Path Statistics</CardTitle>
+                  <CardTitle>Path Details</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="text-center p-4 border rounded-lg bg-slate-800">
-                      <div className="text-2xl font-bold text-cyan-400">
-                        {courseCount}
-                      </div>
-                      <div className="text-sm text-slate-300">
-                        Courses
-                      </div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg bg-slate-800">
-                      <div className="text-2xl font-bold text-emerald-400">
-                        {projectCount}
-                      </div>
-                      <div className="text-sm text-slate-300">
-                        Projects
-                      </div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg bg-slate-800">
-                      <div className="text-2xl font-bold text-violet-400">
-                        {path.estimatedTime}
-                      </div>
-                      <div className="text-sm text-slate-300">
-                        Est. Time
-                      </div>
-                    </div>
-                  </div>
+                  <article
+                    className="prose prose-invert max-w-none text-slate-200 prose-headings:text-white prose-p:text-slate-200 prose-li:text-slate-300 [&_*]:break-words"
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        path.description ||
+                        path.summary ||
+                        "<p>No detailed description available yet.</p>",
+                    }}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="curriculum" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Courses ({courseCount})</CardTitle>
-                  <CardDescription>
-                    Core courses in this learning path
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {(topicCourses || []).map((course: any, index: number) => {
-                    const courseData = courses.find(
-                      (c: Course) => c.id === course.id,
-                    );
-                    const courseItem = courseData || course;
-                    if (!courseItem) return null;
+              {!topics.length ? (
+                <Card className="border border-slate-800 bg-slate-900 text-white">
+                  <CardContent className="py-8 text-center text-slate-300">
+                    No curriculum has been published for this path yet.
+                  </CardContent>
+                </Card>
+              ) : (
+                topics.map((topic, index) => {
+                  const isCurrent = currentTopic?.id === topic.id;
+                  const status = topic.completed
+                    ? "Completed"
+                    : isCurrent || topic.progress > 0
+                    ? "In progress"
+                    : "Upcoming";
 
-                    return (
-                      <div key={courseItem.id} className="border border-slate-700 bg-slate-900 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
+                  return (
+                    <Card
+                      key={topic.id}
+                      className="border border-slate-800 bg-slate-900 text-white"
+                    >
+                      <CardHeader className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-medium text-white">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold">
                               {index + 1}
                             </div>
                             <div>
-                              <h4 className="font-medium text-white">{courseItem.title}</h4>
+                              <CardTitle className="text-lg">{topic.title}</CardTitle>
                               <p className="text-sm text-slate-300">
-                                {courseItem.summary || courseItem.description}
+                                {stripHtml(topic.description || topic.summary) ||
+                                  "No module summary available."}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{courseItem?.level || "N/A"}</Badge>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                onNavigate?.(`/courses/${courseItem.id}`)
-                              }
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
+                          <Badge
+                            variant={topic.completed ? "default" : "outline"}
+                            className={
+                              topic.completed
+                                ? "bg-emerald-600 text-white"
+                                : isCurrent || topic.progress > 0
+                                ? "border-cyan-400 text-cyan-300"
+                                : "border-slate-600 text-slate-300"
+                            }
+                          >
+                            {status}
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-slate-300">
+                            <span>Module progress</span>
+                            <span>{topic.progress}%</span>
                           </div>
+                          <Progress value={topic.progress} className="h-1.5" />
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-slate-300">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-cyan-300" />
-                            {course.duration}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="h-4 w-4 text-cyan-300" />
-                            {course.chapters?.length || 0} lessons
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star className="h-4 w-4" />
-                            {course.rating}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3">
+                        {!topic.courses.length ? (
+                          <p className="text-sm text-slate-400">
+                            No courses assigned to this module yet.
+                          </p>
+                        ) : (
+                          topic.courses.map((course) => {
+                            const courseRouteParam = getCourseRouteParam(course);
+                            return (
+                              <div
+                                key={course.id}
+                                className="rounded-lg border border-slate-700 bg-slate-800/70 p-3"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-white">{course.title}</p>
+                                    <p className="mt-1 line-clamp-2 text-sm text-slate-300">
+                                      {stripHtml(course.summary || course.description) ||
+                                        "No course summary available."}
+                                    </p>
+                                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+                                      {course.type && (
+                                        <Badge
+                                          variant="outline"
+                                          className="border-slate-600 text-slate-200"
+                                        >
+                                          {course.type}
+                                        </Badge>
+                                      )}
+                                      <span>
+                                        {Array.isArray(course.chapters)
+                                          ? `${course.chapters.length} chapters`
+                                          : "Course content"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      courseRouteParam &&
+                                      onNavigate?.(routes.courseDetail(courseRouteParam))
+                                    }
+                                  >
+                                    <Play className="mr-2 h-4 w-4" />
+                                    Watch Content
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </TabsContent>
 
-            <TabsContent value="projects" className="space-y-4">
-              <Card>
+            <TabsContent value="skills" className="space-y-4">
+              <Card className="border border-slate-800 bg-slate-900 text-white">
                 <CardHeader>
-                  <CardTitle>
-                    Hands-on Projects ({projectCount})
-                  </CardTitle>
-                  <CardDescription>
-                    Build real-world applications
-                  </CardDescription>
+                  <CardTitle>Skills You Will Build</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {projectCount > 0 ? (
-                    (path.topics?.flatMap((topic: any) => topic.projects || []) || []).map((projectId: any, index: number) => {
-                      const project = projects.find((p) => p.id === projectId);
-                      if (!project) return null;
-
-                    return (
-                      <div key={projectId} className="border border-slate-700 bg-slate-900 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-medium text-white">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-white">{project.title}</h4>
-                              <p className="text-sm text-slate-300">
-                                {project.description}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-slate-300 border-slate-600">{project.difficulty}</Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {(project.technologies || []).map((tech, techIndex) => (
-                            <Badge
-                              key={techIndex}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {tech}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })
+                <CardContent className="flex flex-wrap gap-2">
+                  {(path.skills || []).length ? (
+                    (path.skills || []).map((skill) => (
+                      <Badge
+                        key={skill}
+                        variant="outline"
+                        className="border-slate-600 text-slate-200"
+                      >
+                        {skill}
+                      </Badge>
+                    ))
                   ) : (
-                    <div className="text-sm text-slate-300">
-                      No projects available in this path yet.
-                    </div>
+                    <p className="text-sm text-slate-300">No skills listed yet.</p>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="community" className="space-y-4">
-              <Card>
+              <Card className="border border-slate-800 bg-slate-900 text-white">
                 <CardHeader>
-                  <CardTitle>Learning Community</CardTitle>
-                  <CardDescription>
-                    Connect with fellow learners
-                  </CardDescription>
+                  <CardTitle>Prerequisites</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-slate-300">
-                    Community stats and discussions will appear here when available.
-                  </div>
+                <CardContent>
+                  {(path.prerequisites || []).length ? (
+                    <ul className="space-y-2 text-sm text-slate-300">
+                      {(path.prerequisites || []).map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-cyan-300" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-300">No prerequisites listed.</p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Enrollment Card */}
-          <Card>
+          <Card className="border border-slate-800 bg-slate-900 text-white">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant={
-                    path?.level === "Advanced" ? "destructive" : "default"
-                  }
-                >
-                  {path?.level}
-                </Badge>
-                <div className="flex items-center gap-1 text-slate-300">
-                  <Clock className="h-4 w-4 text-cyan-300" />
-                  <span className="text-sm">{path.estimatedTime}</span>
-                </div>
-              </div>
+              <CardTitle className="text-lg">Path Access</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {path.enrolled ? (
-                <div className="space-y-3">
-                  <Badge
-                    variant="outline"
-                    className="w-full justify-center bg-slate-800 text-emerald-300 border-slate-700"
-                  >
-                    Enrolled - {path.progress}% Complete
+                <>
+                  <Badge className="w-full justify-center bg-emerald-600 text-white">
+                    Enrolled - {progress}% complete
                   </Badge>
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(`/paths/${path.id}/continue`)}
+                    onClick={() =>
+                      onNavigate?.(routes.pathContinue(path.slug || path.id))
+                    }
                   >
-                    Continue Learning
+                    Continue Path
                   </Button>
-                  <Button variant="outline" className="w-full">
-                    View Certificate
-                  </Button>
-                </div>
+                </>
               ) : (
-                <div className="space-y-3">
-                  <Button
-                    className="w-full"
-                    onClick={() => store.enrollInPath(path.id)}
-                  >
-                    Start Learning Path
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    Add to Wishlist
-                  </Button>
-                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    const waitingLink = (path as any).waitingLink;
+                    if (typeof waitingLink === "string" && waitingLink) {
+                      window.open(waitingLink, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                >
+                  {(path as any).isPremium ? "View Enrollment Options" : "Start Learning"}
+                </Button>
               )}
             </CardContent>
           </Card>
+
+          <Card className="border border-slate-800 bg-slate-900 text-white">
+            <CardHeader>
+              <CardTitle className="text-lg">At a Glance</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Modules</span>
+                <span>{topics.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Courses</span>
+                <span>{courseCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Duration</span>
+                <span>{getPathDuration(path)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Progress</span>
+                <span>{progress}%</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {currentCourse && (
+            <Card className="border border-slate-800 bg-slate-900 text-white">
+              <CardHeader>
+                <CardTitle className="text-lg">Watch Next</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="font-medium">{currentCourse.title}</p>
+                <p className="line-clamp-3 text-sm text-slate-300">
+                  {stripHtml(currentCourse.summary || currentCourse.description) ||
+                    "Continue this course from your current module."}
+                </p>
+                <Button
+                  className="w-full"
+                  onClick={() =>
+                    onNavigate?.(routes.courseDetail(getCourseRouteParam(currentCourse)))
+                  }
+                >
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Watch Content
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

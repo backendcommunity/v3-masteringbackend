@@ -1,29 +1,33 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Clock,
   BookOpen,
-  Code2,
-  Target,
   CheckCircle2,
-  Play,
+  Clock,
   Lock,
+  Play,
+  Target,
   Trophy,
 } from "lucide-react";
-import { useAppStore } from "@/lib/store";
-import { Roadmap } from "@/lib/data";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Loader } from "../ui/loader";
-import { useEffect, useState } from "react";
+import { Roadmap } from "@/lib/data";
+import { routes } from "@/lib/routes";
+import { useAppStore } from "@/lib/store";
+import {
+  getCourseRouteParam,
+  getCurrentTopic,
+  getPathDuration,
+  getPathProgress,
+  getPathTopics,
+  getPrimaryCourse,
+  stripHtml,
+} from "./path-flow-utils";
 
 interface LearningPathContinuePageProps {
   pathId: string;
@@ -43,17 +47,15 @@ export function LearningPathContinuePage({
       setLoading(true);
       try {
         let roadmap = await store.getRoadmapBySlug(pathId);
-
         if (!roadmap) {
           const allRoadmaps = await store.getRoadmaps({ size: 20, skip: 0 });
-          roadmap = allRoadmaps.find(
-            (r: any) => r.slug === pathId || r.id === pathId,
-          );
+          roadmap = Array.isArray(allRoadmaps)
+            ? allRoadmaps.find((item: any) => item.slug === pathId || item.id === pathId)
+            : null;
         }
-
         setPath(roadmap || null);
       } catch (error) {
-        console.error("Failed to load learning path continue:", error);
+        console.error("Failed to load learning path progress:", error);
         setPath(null);
       } finally {
         setLoading(false);
@@ -63,17 +65,28 @@ export function LearningPathContinuePage({
     loadPath();
   }, [pathId, store]);
 
+  const topics = useMemo(() => getPathTopics(path), [path]);
+  const currentTopic = useMemo(() => getCurrentTopic(path, topics), [path, topics]);
+  const currentTopicIndex = useMemo(() => {
+    if (!currentTopic) return -1;
+    return topics.findIndex((topic) => topic.id === currentTopic.id);
+  }, [currentTopic, topics]);
+  const nextTopic =
+    currentTopicIndex >= 0 ? topics[currentTopicIndex + 1] || null : topics[0] || null;
+
+  const currentCourse = getPrimaryCourse(currentTopic);
+  const nextCourse = getPrimaryCourse(nextTopic);
+  const completedTopics = topics.filter((topic) => topic.completed);
+  const progress = getPathProgress(path);
+
   if (loading) return <Loader isLoader={true} />;
 
   if (!path) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Learning Path not found</h1>
-          <Button
-            onClick={() => onNavigate?.("learning-paths")}
-            className="mt-4"
-          >
+          <h1 className="text-2xl font-bold text-white">Learning Path not found</h1>
+          <Button onClick={() => onNavigate?.(routes.paths)} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
           </Button>
@@ -82,285 +95,254 @@ export function LearningPathContinuePage({
     );
   }
 
-  const milestones = (path as any).milestones || (path as any).topics || [];
-  const totalSteps = milestones?.length || 0;
-  const currentIndex =
-    typeof path.currentMilestone === "number" && path.currentMilestone >= 0
-      ? Math.min(path.currentMilestone, Math.max(0, totalSteps - 1))
-      : Math.max(0, milestones.findIndex((m: any) => !m.completed));
-  const currentMilestone =
-    totalSteps > 0 ? milestones[Math.max(0, currentIndex)] : null;
-  const completedMilestones = milestones.filter((m: any) => m.completed);
-  const upcomingMilestones =
-    totalSteps > 0 ? milestones.slice(currentIndex + 1, currentIndex + 4) : [];
-  const nextMilestone = upcomingMilestones[0] || null;
-
   return (
     <div className="flex-1 space-y-6 text-slate-100">
-      {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Continue: {path.title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            Continue: {path.title}
+          </h1>
           <p className="text-slate-300">
-            {totalSteps > 0
-              ? `Milestone ${Math.min(currentIndex + 1, totalSteps)} of ${totalSteps} • ${path.progress}% Complete`
-              : `${path.progress}% Complete`}
+            Module {Math.max(currentTopicIndex + 1, 1)} of {Math.max(topics.length, 1)} -
+            {" "}
+            {progress}% complete
           </p>
         </div>
-        <Button variant="secondary" className="h-10 px-4" onClick={() => onNavigate?.(`/paths/${path.id}`)}>
+        <Button
+          variant="secondary"
+          className="h-10 px-4"
+          onClick={() => onNavigate?.(routes.pathDetail(path.slug || path.id))}
+        >
           Back to path details
         </Button>
       </div>
 
-      {/* Progress Overview */}
-      <Card className="bg-slate-900 border border-slate-800 shadow-lg">
+      <Card className="border border-slate-800 bg-slate-900 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Target className="h-5 w-5 text-cyan-300" />
-            Your Learning Journey
+            Learning Progress
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span>Overall Progress</span>
-              <span>{path.progress}%</span>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between text-sm">
+            <span>Overall completion</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="h-2.5" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-center">
+              <div className="text-2xl font-bold">{completedTopics.length}</div>
+              <div className="text-xs text-slate-300">Completed modules</div>
             </div>
-            <Progress value={path.progress} className="h-3" />
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{completedMilestones.length}</div>
-                <div className="text-xs text-slate-300">Milestones Completed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{totalSteps}</div>
-                <div className="text-xs text-slate-300">Total Milestones</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{path.progress}%</div>
-                <div className="text-xs text-slate-300">Completion Rate</div>
-              </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-center">
+              <div className="text-2xl font-bold">{topics.length}</div>
+              <div className="text-xs text-slate-300">Total modules</div>
+            </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-center">
+              <div className="text-2xl font-bold">{getPathDuration(path)}</div>
+              <div className="text-xs text-slate-300">Estimated duration</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Current Step */}
+        <div className="space-y-6 lg:col-span-2">
           <Card className="border border-slate-800 bg-slate-900">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
-                  {Math.min(currentIndex + 1, Math.max(1, totalSteps))}
-                </div>
-                <div>
-                  <CardTitle className="text-lg">
-                    {currentMilestone ? `Current: ${currentMilestone.title}` : "Current Milestone"}
-                  </CardTitle>
-                  <CardDescription>
-                    {currentMilestone?.description || "Continue your learning journey"}
-                  </CardDescription>
-                </div>
-              </div>
+              <CardTitle className="text-white">
+                {currentTopic ? `Current Module: ${currentTopic.title}` : "Current Module"}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Milestone Progress</span>
-                  <span className="text-sm">{currentMilestone?.duration || "—"}</span>
-                </div>
-                <Progress value={currentMilestone?.progress ?? path.progress} className="h-2" />
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-300">
+                {stripHtml(currentTopic?.description || currentTopic?.summary) ||
+                  "Continue with your current module to keep moving through this path."}
+              </p>
 
-                <div className="flex gap-3">
-                  <Button className="flex-1" onClick={() => onNavigate?.(`/paths/${path.id}`)}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Continue Lesson
-                  </Button>
-                  <Button variant="outline">
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Resources
-                  </Button>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm text-slate-300">
+                  <span>Module progress</span>
+                  <span>{currentTopic?.progress ?? 0}%</span>
                 </div>
+                <Progress value={currentTopic?.progress ?? 0} className="h-2" />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  className="flex-1 min-w-[220px]"
+                  onClick={() => {
+                    const routeParam = getCourseRouteParam(currentCourse);
+                    if (routeParam) {
+                      onNavigate?.(routes.courseDetail(routeParam));
+                    }
+                  }}
+                  disabled={!currentCourse}
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  Watch Content
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 min-w-[220px]"
+                  onClick={() => onNavigate?.(routes.pathDetail(path.slug || path.id))}
+                >
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  View Path Details
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Learning Path Steps */}
-          <Card>
+          <Card className="border border-slate-800 bg-slate-900">
             <CardHeader>
-              <CardTitle>Learning Timeline</CardTitle>
-              <CardDescription>
-                Your progress through the learning path
-              </CardDescription>
+              <CardTitle className="text-white">Learning Timeline</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Completed Steps */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-green-600">✓ Completed</h4>
-                {completedMilestones.length === 0 ? (
-                  <div className="text-sm text-slate-300">No milestones completed yet.</div>
-                ) : (
-                  completedMilestones.map((m: any, index: number) => (
-                    <div
-                      key={m.id || index}
-                      className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg"
-                    >
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-violet-300" />
-                          <span className="font-medium text-white">{m.title}</span>
-                        </div>
-                        <span className="text-sm text-slate-300">
-                          {m.duration || "—"}
-                        </span>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="text-green-300 border-green-500"
-                      >
-                        Completed
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </div>
+            <CardContent className="space-y-3">
+              {!topics.length ? (
+                <p className="text-sm text-slate-300">No modules available yet.</p>
+              ) : (
+                topics.map((topic, index) => {
+                  const isCurrent = currentTopic?.id === topic.id;
+                  const icon = topic.completed ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                  ) : isCurrent || topic.progress > 0 ? (
+                    <Play className="h-5 w-5 text-cyan-300" />
+                  ) : (
+                    <Lock className="h-5 w-5 text-slate-400" />
+                  );
 
-              {/* Current Step */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-cyan-300">→ Current</h4>
-                <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg border border-slate-700">
-                  <Play className="h-5 w-5 text-blue-600" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-4 w-4 text-cyan-300" />
-                      <span className="font-medium">
-                        Advanced Node.js Concepts
-                      </span>
-                    </div>
-                    <span className="text-sm text-slate-300">
-                      8 hours • 3 of 8 lessons
-                    </span>
-                    <Progress value={37.5} className="h-1 mt-2" />
-                  </div>
-                  <Badge className="bg-blue-600">In Progress</Badge>
-                </div>
-              </div>
+                  const status = topic.completed
+                    ? "Completed"
+                    : isCurrent || topic.progress > 0
+                    ? "In progress"
+                    : "Upcoming";
 
-              {/* Upcoming Steps */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-slate-300">⏳ Upcoming</h4>
-                {upcomingMilestones.length === 0 ? (
-                  <div className="text-sm text-slate-300">No upcoming milestones.</div>
-                ) : (
-                  upcomingMilestones.map((m: any, index: number) => (
+                  const topicCourse = getPrimaryCourse(topic);
+                  const topicCourseRouteParam = getCourseRouteParam(topicCourse);
+
+                  return (
                     <div
-                      key={m.id || index}
-                      className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg"
+                      key={topic.id}
+                      className="rounded-lg border border-slate-700 bg-slate-800/60 p-3"
                     >
-                      <Lock className="h-5 w-5 text-gray-400" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium text-slate-200">
-                            {m.title}
-                          </span>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div className="mt-0.5">{icon}</div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-white">
+                              {index + 1}. {topic.title}
+                            </p>
+                            <p className="line-clamp-2 text-sm text-slate-300">
+                              {stripHtml(topic.summary || topic.description) ||
+                                "No summary available."}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-sm text-slate-300">
-                          {m.duration || "—"}
-                        </span>
+                        <Badge
+                          variant={topic.completed ? "default" : "outline"}
+                          className={
+                            topic.completed
+                              ? "bg-emerald-600 text-white"
+                              : isCurrent || topic.progress > 0
+                              ? "border-cyan-400 text-cyan-300"
+                              : "border-slate-600 text-slate-300"
+                          }
+                        >
+                          {status}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-slate-300 border-slate-600">
-                        Locked
-                      </Badge>
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{topic.progress}% complete</span>
+                        </div>
+                        {topicCourseRouteParam && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              onNavigate?.(routes.courseDetail(topicCourseRouteParam))
+                            }
+                          >
+                            Open Course
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Quick Stats */}
-          <Card>
+          <Card className="border border-slate-800 bg-slate-900">
             <CardHeader>
-              <CardTitle className="text-lg">Quick Stats</CardTitle>
+              <CardTitle className="text-lg text-white">Quick Stats</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Completion Rate</span>
-                  <span className="font-medium">{path.progress}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Milestones Completed</span>
-                  <span className="font-medium">{completedMilestones.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Est. Time</span>
-                  <span className="font-medium">{path.estimatedTime}</span>
-                </div>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Completion rate</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Completed modules</span>
+                <span>{completedTopics.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Current module</span>
+                <span>{Math.max(currentTopicIndex + 1, 1)}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Next Up */}
-          <Card>
+          <Card className="border border-slate-800 bg-slate-900">
             <CardHeader>
-              <CardTitle className="text-lg">Next Up</CardTitle>
+              <CardTitle className="text-lg text-white">Next Up</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-3 bg-slate-800 rounded-lg">
-                <h4 className="font-medium text-sm text-white">
-                  {nextMilestone ? nextMilestone.title : "You're on the final milestone"}
-                </h4>
-                <p className="text-xs text-slate-300">
-                  {nextMilestone?.description || "Keep going to complete the path"}
+              <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3">
+                <p className="font-medium text-white">
+                  {nextTopic ? nextTopic.title : "Final module in progress"}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Clock className="h-3 w-3 text-slate-300" />
-                  <span className="text-xs">{nextMilestone?.duration || "—"}</span>
-                </div>
+                <p className="line-clamp-3 text-sm text-slate-300">
+                  {stripHtml(nextTopic?.summary || nextTopic?.description) ||
+                    "Keep going to complete the full path."}
+                </p>
               </div>
-              <Button className="w-full" size="sm" onClick={() => onNavigate?.(`/paths/${path.id}`)}>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  const routeParam = getCourseRouteParam(nextCourse || currentCourse);
+                  if (routeParam) {
+                    onNavigate?.(routes.courseDetail(routeParam));
+                  }
+                }}
+                disabled={!nextCourse && !currentCourse}
+              >
                 <Play className="mr-2 h-4 w-4" />
-                Continue
+                Watch Next Content
               </Button>
             </CardContent>
           </Card>
 
-          {/* Achievement Preview */}
-          <Card>
+          <Card className="border border-slate-800 bg-slate-900">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                Path Completion Rewards
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <Trophy className="h-5 w-5 text-yellow-400" />
+                Completion Reward
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div className="text-center p-4 border border-slate-700 bg-slate-900 rounded-lg">
-                  <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                  <h3 className="font-medium text-white">Certificate</h3>
-                  <p className="text-sm text-slate-300">
-                    Industry-recognized completion certificate
-                  </p>
-                </div>
-                <div className="text-center p-4 border border-slate-700 bg-slate-900 rounded-lg">
-                  <div className="h-8 w-8 mx-auto mb-2 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-bold">
-                    MB
-                  </div>
-                  <h3 className="font-medium">MB Points</h3>
-                  <p className="text-sm text-slate-300">
-                    Earn experience points on completion
-                  </p>
-                </div>
-              </div>
+            <CardContent className="rounded-lg border border-slate-700 bg-slate-800/60 p-4 text-center">
+              <Trophy className="mx-auto mb-2 h-8 w-8 text-yellow-400" />
+              <p className="font-medium text-white">Path Certificate</p>
+              <p className="text-sm text-slate-300">
+                Finish all modules to unlock your completion certificate.
+              </p>
             </CardContent>
           </Card>
         </div>
