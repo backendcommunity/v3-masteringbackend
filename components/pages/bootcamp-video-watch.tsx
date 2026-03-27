@@ -69,7 +69,6 @@ export function BootcampVideoWatchPage({
   const [note, setNote] = useState("");
   const [showWeekComplete, setShowWeekComplete] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState("");
-  const [weekEvents, setWeekEvents] = useState<any[]>([]);
   const [currentLiveSession, setCurrentLiveSession] = useState<any>(null);
   const path = usePathname();
 
@@ -102,7 +101,7 @@ export function BootcampVideoWatchPage({
     return () => {
       cancelled = true;
     };
-  }, [slug, id, weekId, cohort, store]);
+  }, [slug, id, weekId, cohort]);
 
   useEffect(() => {
     async function loadNotes(lessonId: string, videoId: string) {
@@ -119,74 +118,31 @@ export function BootcampVideoWatchPage({
       try {
         const events = await store.getCurrentWeekEvents(id, weekId);
         console.log("Loaded week events:", events);
-        setWeekEvents(events || []);
+
+        // Find live session for current lesson when events or lesson change
+        if (events?.length || !currentLesson?.id) {
+          setCurrentLiveSession(null);
+          return;
+        }
+
+        const session = events.find(
+          (event: any) => event.lessonId === currentLesson?.id,
+        );
+
+        if (!session) {
+          setCurrentLiveSession(null);
+          return;
+        }
+
+        setCurrentLiveSession(session);
       } catch (error) {
         console.error("Failed to load week events:", error);
-        setWeekEvents([]);
       }
     };
-
     if (weekId && id) {
       loadEvents();
     }
-  }, [weekId, id, store]);
-
-  // Find live session for current lesson when events or lesson change
-  useEffect(() => {
-    if (!weekEvents?.length || !currentLesson?.id) {
-      console.log("No events or lesson available", {
-        eventsCount: weekEvents?.length,
-        lessonId: currentLesson?.id,
-      });
-      setCurrentLiveSession(null);
-      return;
-    }
-
-    const session = weekEvents.find((event: any) => {
-      console.log("Checking event:", {
-        eventId: event?.id,
-        eventLessonId: event?.lessonId,
-        currentLessonId: currentLesson?.id,
-        meetingUrl: event?.meetingUrl,
-        status: event?.status,
-      });
-
-      // Must have lessonId matching current lesson
-      if (!event?.lessonId || event.lessonId !== currentLesson.id) {
-        return false;
-      }
-
-      // Must have meeting URL
-      if (!event?.meetingUrl) {
-        return false;
-      }
-
-      // Filter out completed, cancelled, rescheduled events
-      if (
-        event.status === "COMPLETED" ||
-        event.status === "CANCELLED" ||
-        event.status === "RESCHEDULED"
-      ) {
-        return false;
-      }
-
-      // Accept SCHEDULED or IN_PROGRESS status
-      if (event.status === "SCHEDULED" || event.status === "IN_PROGRESS") {
-        console.log(`Found matching event with status: ${event.status}`);
-        return true;
-      }
-
-      return false;
-    });
-
-    if (session) {
-      console.log("Setting current live session:", session);
-      setCurrentLiveSession(session);
-    } else {
-      console.log("No matching live session found");
-      setCurrentLiveSession(null);
-    }
-  }, [weekEvents, currentLesson?.id]);
+  }, [weekId, id, currentLesson?.id]);
 
   if (loading) return <Loader isLoader={false} />;
 
@@ -409,39 +365,41 @@ export function BootcampVideoWatchPage({
         </div>
       </div>
 
-      {/* {currentLiveSession && currentLiveSession.meetingUrl && ( */}
-      <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                🔴 Live Session in Progress
-              </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
-                {currentLiveSession.title ||
-                  "Join your instructor and classmates now"}
-              </p>
-              {currentLiveSession.startTime && (
-                <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
-                  Started:{" "}
-                  {new Date(currentLiveSession.startTime).toLocaleTimeString()}
+      {currentLiveSession && currentLiveSession?.meetingUrl && (
+        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  🔴 Live Session in Progress
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                  {currentLiveSession?.title ||
+                    "Join your instructor and classmates now"}
                 </p>
-              )}
+                {currentLiveSession?.startTime && (
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                    Started:{" "}
+                    {new Date(
+                      currentLiveSession?.startTime,
+                    ).toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+              <Button
+                onClick={() => {
+                  if (currentLiveSession?.meetingUrl) {
+                    window.open(currentLiveSession?.meetingUrl, "_blank");
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+              >
+                Join Now
+              </Button>
             </div>
-            <Button
-              onClick={() => {
-                if (currentLiveSession.meetingUrl) {
-                  window.open(currentLiveSession.meetingUrl, "_blank");
-                }
-              }}
-              className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
-            >
-              Join Now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      {/* )} */}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Video Player */}
