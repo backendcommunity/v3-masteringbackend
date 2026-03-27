@@ -120,7 +120,7 @@ export function BootcampVideoWatchPage({
         console.log("Loaded week events:", events);
 
         // Find live session for current lesson when events or lesson change
-        if (events?.length || !currentLesson?.id) {
+        if (!events?.length) {
           setCurrentLiveSession(null);
           return;
         }
