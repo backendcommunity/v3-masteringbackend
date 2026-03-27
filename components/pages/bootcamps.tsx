@@ -47,6 +47,14 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
   const [meta, setMeta] = useState<Meta>();
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // Calculate total enrolled from all cohorts
+  const getTotalEnrolled = (bootcamp: any) => {
+    if (!bootcamp?.cohorts) return bootcamp?.totalEnrolled || 0;
+    return bootcamp.cohorts.reduce((total: number, cohort: any) => {
+      return total + (cohort?.userCohorts?.length || 0);
+    }, 0);
+  };
+
   const load = async () => {
     setLoading(true);
     const data = await store.getBootcamps({
@@ -304,7 +312,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{bootcamp.totalEnrolled} graduates</span>
+                    <span>{bootcamp?.totalGraduates} graduates</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />

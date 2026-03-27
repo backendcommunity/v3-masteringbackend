@@ -1,27 +1,20 @@
 /**
- * Analytics module for Segment integration
- * Currently a stub that safely no-ops analytics calls
- * When Segment is properly configured, replace with actual implementation
+ * Analytics module for PostHog integration
+ * Tracks user events, identifies users, and monitors page views
  */
+
+import posthog from "posthog-js";
 
 export const analytics = {
   /**
-   * Track analytics events (stub implementation)
+   * Track analytics events with PostHog
    * @param eventName - Name of the event to track
    * @param properties - Event properties/context
    */
   track: (eventName: string, properties?: Record<string, any>) => {
-    // Safe no-op that won't error if analytics service isn't available
     try {
-      // In development, you could log to console:
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Analytics] ${eventName}`, properties);
-      }
-
-      // When Segment is integrated, this should call:
-      // window.analytics?.track(eventName, properties);
+      posthog.capture(eventName, properties);
     } catch (error) {
-      // Silently ignore any analytics errors
       console.warn(`Analytics tracking failed: ${eventName}`, error);
     }
   },
@@ -33,10 +26,7 @@ export const analytics = {
    */
   identify: (userId: string, traits?: Record<string, any>) => {
     try {
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Analytics] Identify`, { userId, traits });
-      }
-      // window.analytics?.identify(userId, traits);
+      posthog.identify(userId, traits);
     } catch (error) {
       console.warn(`Analytics identify failed: ${userId}`, error);
     }
@@ -49,10 +39,10 @@ export const analytics = {
    */
   page: (name: string, properties?: Record<string, any>) => {
     try {
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Analytics] Page`, { name, properties });
-      }
-      // window.analytics?.page(name, properties);
+      posthog.capture("$pageview", {
+        page_name: name,
+        ...properties,
+      });
     } catch (error) {
       console.warn(`Analytics page tracking failed: ${name}`, error);
     }
