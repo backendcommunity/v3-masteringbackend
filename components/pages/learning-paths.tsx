@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +13,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Clock,
   BookOpen,
-  Code,
   Users,
   Star,
   Target,
@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { WIP } from "../WIP";
+import { stripHtmlTags } from "@/lib/html-utils";
+import { toast } from "sonner";
 
 interface LearningPathsPageProps {
   onNavigate?: (url: string) => void;
@@ -28,11 +29,100 @@ interface LearningPathsPageProps {
 
 export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const store = useAppStore();
-  const paths = store.getLearningPaths();
+  const [paths, setPaths] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPaths = async () => {
+      try {
+        setLoading(true);
+        const [roadmaps, userRoadmaps] = await Promise.all([
+          store.getRoadmaps({ skip: 0, size: 50 }),
+          store.getUserRoadmaps({ skip: 0, size: 50, filters: "" }),
+        ]);
+
+        const enrolledMap = new Map(
+          (userRoadmaps || []).map((ur: any) => [ur.roadmapId, ur])
+        );
+
+        const merged = (roadmaps || []).map((r: any) => {
+          const ur = enrolledMap.get(r.id);
+          const topics = r.topics || [];
+          const topicIndex = ur
+            ? topics.findIndex((t: any) => t.id === ur.currentTopicId)
+            : -1;
+          const progress =
+            ur?.isCompleted || ur?.isCompleted === true
+              ? 100
+              : topicIndex >= 0
+                ? Math.round((topicIndex / Math.max(1, topics.length)) * 100)
+                : 0;
+
+          // Count total enrolled users from userRoadmaps
+          const enrolledCount = (userRoadmaps || []).filter(
+            (ur: any) => ur.roadmapId === r.id
+          ).length;
+
+          return {
+            id: r.slug,
+            slug: r.slug,
+            title: r.title,
+            description: r.summary,
+            banner: r.banner,
+            level: topics[0]?.level || "Intermediate",
+            estimatedTime:
+              topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) >
+              0
+                ? `${Math.ceil(topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) / 4)} months`
+                : "Self-paced",
+            courses: topics.flatMap(
+              (t: any) => t.courses?.map((c: any) => c.id) || []
+            ),
+            projects: [],
+            topics,
+            progress,
+            enrolled: Boolean(ur),
+            enrolledCount,
+          };
+        });
+
+        setPaths(merged);
+      } catch (error) {
+        console.error("Failed to load learning paths:", error);
+        setPaths([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPaths();
+  }, [store]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 space-y-6">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading learning paths...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate stats from actual data
+  const activePaths = paths.filter((p) => p.enrolled).length;
+  const completedPaths = paths.filter((p) => p.progress === 100).length;
+  const totalHours = Math.round(
+    paths
+      .filter((p) => p.enrolled)
+      .reduce((sum, p) => {
+        const pathDuration = p.topics?.reduce((s: number, t: any) => s + (t.duration || 0), 0) || 0;
+        return sum + pathDuration;
+      }, 0)
+  );
+  const certificates = completedPaths;
 
   return (
     <div className="flex-1 space-y-6 relative">
-      <WIP />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -43,7 +133,10 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             expert
           </p>
         </div>
-        <Button>
+        <Button
+          onClick={() => toast.info("Custom path creation coming soon!")}
+          variant="outline"
+        >
           <Target className="mr-2 h-4 w-4" />
           Create Custom Path
         </Button>
@@ -58,7 +151,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {paths.filter((p) => p.enrolled).length}
+              {activePaths}
             </div>
             <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
@@ -69,7 +162,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{completedPaths}</div>
             <p className="text-xs text-muted-foreground">Paths completed</p>
           </CardContent>
         </Card>
@@ -79,7 +172,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             <Clock className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">156</div>
+            <div className="text-2xl font-bold">{totalHours}</div>
             <p className="text-xs text-muted-foreground">Learning time</p>
           </CardContent>
         </Card>
@@ -89,21 +182,40 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             <Star className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{certificates}</div>
             <p className="text-xs text-muted-foreground">Earned</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Learning Paths Grid */}
+      {paths.length === 0 ? (
+        <Card className="col-span-full">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Target className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Learning Paths Available</h3>
+            <p className="text-muted-foreground text-center max-w-md">
+              Check back soon! We're constantly adding new learning paths to help you grow your skills.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {paths.map((path) => (
           <Card key={path.id} className="overflow-hidden">
-            <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center">
-              <div className="text-center text-white">
-                <Target className="h-12 w-12 mx-auto mb-2" />
-                <h3 className="text-lg font-bold">Learning Path</h3>
-              </div>
+            <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center overflow-hidden">
+              {path.banner ? (
+                <img
+                  src={path.banner}
+                  alt={path.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-center text-white">
+                  <Target className="h-12 w-12 mx-auto mb-2" />
+                  <h3 className="text-lg font-bold">Learning Path</h3>
+                </div>
+              )}
             </div>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -124,8 +236,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                 </div>
               </div>
               <CardTitle className="line-clamp-2">{path.title}</CardTitle>
-              <CardDescription className="line-clamp-2">
-                {path.description}
+              <CardDescription className="line-clamp-3">
+                {stripHtmlTags(path.description || "")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -135,16 +247,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   <span>{path.courses.length} courses</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Code className="h-4 w-4 text-muted-foreground" />
-                  <span>{path.projects.length} projects</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>2.3k enrolled</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 text-muted-foreground" />
-                  <span>4.8 rating</span>
+                  <span>{path.enrolledCount.toLocaleString()} enrolled</span>
                 </div>
               </div>
 
@@ -159,7 +263,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(routes.pathContinue(path.id))}
+                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
                   >
                     Continue Learning
                   </Button>
@@ -176,7 +280,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(routes.pathDetail(path.id))}
+                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
                   >
                     Start Learning Path
                   </Button>
@@ -186,48 +290,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           </Card>
         ))}
       </div>
+      )}
 
-      {/* Featured Path */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
-        <CardHeader>
-          <CardTitle>🚀 Featured Path: Backend Engineer</CardTitle>
-          <CardDescription className="text-blue-100">
-            Our most comprehensive path covering everything from basics to
-            advanced backend development
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                <span className="font-medium">12 Courses</span>
-              </div>
-              <p className="text-sm text-blue-100">
-                From Node.js basics to advanced architecture
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Code className="h-5 w-5" />
-                <span className="font-medium">8 Projects</span>
-              </div>
-              <p className="text-sm text-blue-100">
-                Build real-world applications
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                <span className="font-medium">Certificate</span>
-              </div>
-              <p className="text-sm text-blue-100">
-                Industry-recognized completion
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
