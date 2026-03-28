@@ -17,6 +17,8 @@ import {
   Users,
   Star,
   Play,
+  BookOpen,
+  Code,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -343,6 +345,84 @@ export function LearningPathDetailPage({
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Learning Formats</CardTitle>
+                  <CardDescription>
+                    Diverse content types to match your learning style
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="px-3 py-1.5">
+                      <Play className="h-3 w-3 mr-1" />
+                      Video Lessons
+                    </Badge>
+                    <Badge variant="secondary" className="px-3 py-1.5">
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      Articles & Guides
+                    </Badge>
+                    <Badge variant="secondary" className="px-3 py-1.5">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Quizzes
+                    </Badge>
+                    <Badge variant="secondary" className="px-3 py-1.5">
+                      <Code className="h-3 w-3 mr-1" />
+                      Hands-on Projects
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Learner Reviews</CardTitle>
+                  <CardDescription>
+                    See what people are saying about this learning path
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[
+                    {
+                      name: "Alex Chen",
+                      role: "Backend Engineer",
+                      rating: 5,
+                      text: "This path completely transformed my backend skills. The practical projects were incredibly valuable.",
+                    },
+                    {
+                      name: "Maya Patel",
+                      role: "Software Developer",
+                      rating: 5,
+                      text: "Well-structured curriculum with clear progression. I went from beginner to confidently building APIs.",
+                    },
+                    {
+                      name: "James Wilson",
+                      role: "Full Stack Developer",
+                      rating: 4,
+                      text: "Excellent content and instructors. Wish there was more on DevOps, but overall highly recommend.",
+                    },
+                  ].map((review, idx) => (
+                    <div key={idx} className="border-t pt-4 first:border-t-0 first:pt-0">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-semibold">{review.name}</p>
+                          <p className="text-sm text-muted-foreground">{review.role}</p>
+                        </div>
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: review.rating }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className="h-4 w-4 text-yellow-500 fill-yellow-500"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{review.text}</p>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             </TabsContent>
