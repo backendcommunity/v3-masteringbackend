@@ -96,6 +96,17 @@ export const routes = {
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,
   pathContinue: (pathId: string) => `/paths/${pathId}/continue`,
+  pathVideoWatch: (
+    pathId: string,
+    topicId: string,
+    courseSlug: string,
+    chapterId: string,
+    videoId: string,
+  ) => `/paths/${pathId}/${topicId}/${courseSlug}/${chapterId}/${videoId}`,
+  pathExercise: (pathId: string, topicId: string, exerciseId: string) =>
+    `/paths/${pathId}/${topicId}/exercises/${exerciseId}`,
+  pathQuiz: (pathId: string, topicId: string, quizId: string) =>
+    `/paths/${pathId}/${topicId}/quizzes/${quizId}`,
   pathContentWatch: (pathId: string, stepId: string) =>
     `/paths/${pathId}/watch/${stepId}`,
 

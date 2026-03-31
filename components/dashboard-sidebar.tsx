@@ -54,13 +54,13 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    // {
-    //   title: "Learning Paths",
-    //   url: routes.paths,
-    //   icon: Target,
-    //   active: false,
-    //   beta: false,
-    // },
+    {
+      title: "Learning Paths",
+      url: routes.paths,
+      icon: Target,
+      active: true,
+      beta: false,
+    },
     {
       title: "Roadmaps",
       url: routes.roadmaps,
