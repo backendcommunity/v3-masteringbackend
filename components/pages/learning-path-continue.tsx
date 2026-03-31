@@ -57,153 +57,14 @@ interface ContentItem {
     cohortName?: string;
     xp?: number;
     students?: number;
+    slug?: string;
+    isOptional?: boolean;
+    topicId?: string;
   };
   progress?: number;
   completed?: boolean;
   locked?: boolean;
 }
-
-// Dummy topics data with all 7 content types
-const DEMO_TOPICS: Array<{
-  id: string;
-  title: string;
-  items: ContentItem[];
-}> = [
-  {
-    id: "1",
-    title: "Foundations",
-    items: [
-      {
-        id: "c1",
-        type: "course",
-        title: "Introduction to Node.js",
-        description: "Learn the basics of Node.js and event-driven architecture",
-        duration: "6h",
-        level: "Beginner",
-        meta: { chapters: 8 },
-        completed: true,
-      },
-      {
-        id: "q1",
-        type: "quiz",
-        title: "Node.js Fundamentals Quiz",
-        description: "Test your understanding of Node.js core concepts",
-        duration: "30m",
-        meta: { passingScore: 70 },
-        completed: true,
-      },
-      {
-        id: "e1",
-        type: "exercise",
-        title: "Write a Simple HTTP Server",
-        description: "Build your first Node.js HTTP server from scratch",
-        duration: "2h",
-        level: "Beginner",
-        meta: { language: "JavaScript", difficulty: "Easy" },
-        completed: true,
-      },
-      {
-        id: "l1",
-        type: "land",
-        title: "Foundations Land — Stage 1",
-        description: "Complete gamified challenges to master the basics",
-        duration: "4h",
-        meta: { xp: 500 },
-        completed: true,
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Backend APIs",
-    items: [
-      {
-        id: "c2",
-        type: "course",
-        title: "Building REST APIs",
-        description: "Design and build scalable REST APIs with Express.js",
-        duration: "8h",
-        level: "Intermediate",
-        meta: { chapters: 12 },
-        progress: 35,
-      },
-      {
-        id: "p1",
-        type: "project",
-        title: "URL Shortener API",
-        description: "Build a production-ready URL shortening service",
-        duration: "12h",
-        level: "Intermediate",
-        meta: { difficulty: "Medium" },
-      },
-      {
-        id: "e2",
-        type: "exercise",
-        title: "CRUD Operations",
-        description: "Implement Create, Read, Update, Delete operations",
-        duration: "3h",
-        level: "Intermediate",
-        meta: { language: "JavaScript", difficulty: "Medium" },
-        locked: true,
-      },
-      {
-        id: "q2",
-        type: "quiz",
-        title: "REST API Design Quiz",
-        description: "Validate your API design principles knowledge",
-        duration: "45m",
-        meta: { passingScore: 75 },
-        locked: true,
-      },
-    ],
-  },
-  {
-    id: "3",
-    title: "Advanced Patterns",
-    items: [
-      {
-        id: "c3",
-        type: "course",
-        title: "Microservices with Node.js",
-        description: "Build scalable systems using microservices architecture",
-        duration: "10h",
-        level: "Advanced",
-        meta: { chapters: 15 },
-        locked: true,
-      },
-      {
-        id: "b1",
-        type: "bootcamp",
-        title: "Microservices Bootcamp",
-        description: "Intensive live bootcamp on microservices patterns",
-        duration: "4 weeks",
-        level: "Advanced",
-        meta: { cohortName: "Cohort 2025-Q2", students: 24 },
-        locked: true,
-      },
-      {
-        id: "mi1",
-        type: "mock_interview",
-        title: "Backend Engineer Interview",
-        description: "Practice real-world backend engineering interview questions",
-        duration: "90m",
-        level: "Advanced",
-        meta: { company: "Tech Company", position: "Senior Backend Engineer" },
-        locked: true,
-      },
-      {
-        id: "p2",
-        type: "project",
-        title: "E-Commerce Backend",
-        description: "Build a complete e-commerce backend system",
-        duration: "20h",
-        level: "Advanced",
-        meta: { difficulty: "Hard" },
-        locked: true,
-      },
-    ],
-  },
-];
 
 // Helper function to get config for each content type
 function getContentTypeConfig(type: ContentItemType) {
@@ -254,9 +115,85 @@ function getContentTypeConfig(type: ContentItemType) {
   return configs[type];
 }
 
-// Helper function to get dummy items for a topic
-function getDummyItemsForTopic(topicIndex: number): ContentItem[] {
-  return DEMO_TOPICS[topicIndex]?.items || [];
+// Helper function to get non-course items for a topic (exercises, quizzes, projects, bootcamps, mock interviews)
+function getNonCourseItems(
+  topic: any,
+  isEnrolled: boolean = false
+): ContentItem[] {
+  const topicId: string = topic.id || "";
+  const items: ContentItem[] = [];
+
+  (topic.exercises || []).forEach((exerciseItem: any) => {
+    const exercise = exerciseItem.exercise || exerciseItem;
+    items.push({
+      id: exercise.id,
+      type: "exercise",
+      title: exercise.title,
+      description: exercise.summary || "",
+      meta: { difficulty: exercise.difficulty, language: exercise.language, topicId },
+      completed: exerciseItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.quizzes || []).forEach((quizItem: any) => {
+    const quiz = quizItem.quiz || quizItem;
+    items.push({
+      id: quiz.id,
+      type: "quiz",
+      title: quiz.title,
+      description: quiz.description || "",
+      duration: quiz.timeLimit ? `${quiz.timeLimit}m` : undefined,
+      meta: { passingScore: quiz.passingScore, topicId },
+      completed: quizItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.projects || []).forEach((projectItem: any) => {
+    const project = projectItem.project || projectItem;
+    items.push({
+      id: project.id,
+      type: "project",
+      title: project.title,
+      description: project.summary || "",
+      duration: project.timeframe,
+      meta: { difficulty: project.difficulty, slug: project.slug },
+      completed: projectItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.bootcamps || []).forEach((bootcampItem: any) => {
+    const bootcamp = bootcampItem.bootcamp || bootcampItem;
+    items.push({
+      id: bootcamp.id,
+      type: "bootcamp",
+      title: bootcamp.title,
+      description: bootcamp.description || "",
+      duration: bootcamp.duration,
+      level: bootcamp.level,
+      meta: { isOptional: bootcampItem.isOptional ?? false },
+      completed: bootcampItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.mockInterviews || []).forEach((miItem: any) => {
+    const mi = miItem.mockInterview || miItem;
+    items.push({
+      id: mi.id,
+      type: "mock_interview",
+      title: mi.title,
+      description: mi.description || "",
+      duration: mi.duration ? `${mi.duration}m` : undefined,
+      meta: { difficulty: mi.difficulty },
+      completed: miItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  return items;
 }
 
 interface LearningPathContinuePageProps {
@@ -274,7 +211,53 @@ export function LearningPathContinuePage({
   const [userRoadmap, setUserRoadmap] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Deep-link to the exact video where the user left off
+  const navigateToFirstUncompletedVideo = async (topicId: string, courses: any[]) => {
+    if (!onNavigate) return;
+    setNavigating(true);
+    try {
+      const milestone = await store.getMilestone(pathId, topicId);
+      const completedVideoIds = new Set(
+        (milestone?.userTopic?.completedItems ?? [])
+          .filter((ci: any) => ci.itemType === "VIDEO")
+          .map((ci: any) => ci.itemId)
+      );
+
+      for (const course of courses) {
+        const chapters: any[] = course.chapters ?? [];
+        for (const chapter of chapters) {
+          const videos: any[] = chapter.videos ?? [];
+          for (const video of videos) {
+            if (!completedVideoIds.has(video.id)) {
+              onNavigate(
+                routes.pathVideoWatch(pathId, topicId, course.slug, chapter.slug, video.slug)
+              );
+              return;
+            }
+          }
+        }
+      }
+
+      // All videos complete — land on the last video
+      const lastCourse = courses[courses.length - 1];
+      const lastChapter = lastCourse?.chapters?.[lastCourse.chapters.length - 1];
+      const lastVideo = lastChapter?.videos?.[lastChapter.videos.length - 1];
+      if (lastVideo) {
+        onNavigate(
+          routes.pathVideoWatch(pathId, topicId, lastCourse.slug, lastChapter.slug, lastVideo.slug)
+        );
+      } else {
+        onNavigate(routes.pathContinue(pathId));
+      }
+    } catch {
+      onNavigate(routes.pathContinue(pathId));
+    } finally {
+      setNavigating(false);
+    }
+  };
 
   // Renderer for content items (courses, projects, quizzes, etc.)
   const renderContentItem = (
@@ -375,7 +358,34 @@ export function LearningPathContinuePage({
             size="sm"
             className="w-full mt-3 h-8 text-xs"
             onClick={() => {
-              toast.info(`Opening ${config.label}...`);
+              const topicId = item.meta?.topicId || "";
+              switch (item.type) {
+                case "course":
+                  onNavigate?.(routes.roadmapCoursePreview(pathId, topicId, item.id));
+                  break;
+                case "exercise":
+                  onNavigate?.(routes.pathExercise(pathId, topicId, item.id));
+                  break;
+                case "quiz":
+                  onNavigate?.(routes.pathQuiz(pathId, topicId, item.id));
+                  break;
+                case "project":
+                  if (item.meta?.slug) {
+                    onNavigate?.(routes.projectDetail(item.meta.slug));
+                  }
+                  break;
+                case "bootcamp":
+                  onNavigate?.(routes.bootcampDetail(item.id));
+                  break;
+                case "mock_interview":
+                  onNavigate?.(routes.mockInterviewDetail(item.id));
+                  break;
+                case "land":
+                  onNavigate?.(routes.landDetail(item.id));
+                  break;
+                default:
+                  toast.info(`Opening ${config.label}...`);
+              }
             }}
           >
             <Play className="h-3 w-3 mr-1" />
@@ -764,8 +774,8 @@ export function LearningPathContinuePage({
                               </div>
                             );
                           })}
-                          {/* Dummy items (Projects, Quizzes, Exercises, etc.) */}
-                          {getDummyItemsForTopic(topicIndex).map((item) => {
+                          {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
+                          {getNonCourseItems(topic, false).map((item) => {
                             // For non-enrolled, make dummy items look like courses initially
                             const config = getContentTypeConfig(item.type);
                             const IconComponent = config.icon;
@@ -1070,18 +1080,17 @@ export function LearningPathContinuePage({
                   <div className="flex gap-3">
                     <Button
                       className="flex-1"
+                      disabled={navigating}
                       onClick={() => {
                         if (isEnrolled) {
-                          onNavigate?.(
-                            routes.roadmapWatch(pathId, currentTopic.id),
-                          );
+                          navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? []);
                         } else {
                           onNavigate?.(`/paths/${pathId}`);
                         }
                       }}
                     >
                       <Play className="mr-2 h-4 w-4" />
-                      {isEnrolled ? "Continue Topic" : "Enroll to Start"}
+                      {navigating ? "Loading…" : isEnrolled ? "Continue Topic" : "Enroll to Start"}
                     </Button>
                     {isEnrolled && (
                       <Button variant="outline">
@@ -1114,8 +1123,9 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-green-200">
-                    {completedTopics.map((topic: any, idx: number) => (
-                      <div key={topic.id} className="space-y-3">
+                    {completedTopics.map((topic: any, idx: number) => {
+                      const otherItems = getNonCourseItems(topic, isEnrolled);
+                      return (<div key={topic.id} className="space-y-3">
                         {/* Topic */}
                         <div className="flex items-start gap-3">
                           <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
@@ -1137,7 +1147,7 @@ export function LearningPathContinuePage({
                         </div>
 
                         {/* Learning Content (Courses, Projects, Quizzes, Exercises, etc.) */}
-                        {(topic.courses?.length > 0 || getDummyItemsForTopic(idx).length > 0) && (
+                        {(topic.courses?.length > 0 || otherItems.length > 0) && (
                           <div className="space-y-3 ml-0 mt-3">
                             <div className="flex flex-wrap gap-2">
                               {topic.courses && topic.courses.length > 0 && (
@@ -1145,10 +1155,9 @@ export function LearningPathContinuePage({
                                   {topic.courses.length} Course{topic.courses.length !== 1 ? "s" : ""}
                                 </Badge>
                               )}
-                              {getDummyItemsForTopic(idx).length > 0 && (
+                              {otherItems.length > 0 && (
                                 <Badge variant="outline" className="text-xs">
-                                  {getDummyItemsForTopic(idx).length} other item
-                                  {getDummyItemsForTopic(idx).length !== 1 ? "s" : ""}
+                                  {otherItems.length} other item{otherItems.length !== 1 ? "s" : ""}
                                 </Badge>
                               )}
                             </div>
@@ -1192,15 +1201,14 @@ export function LearningPathContinuePage({
                                   </div>
                                 );
                               })}
-                              {/* Dummy items (Projects, Quizzes, Exercises, etc.) */}
-                              {getDummyItemsForTopic(idx).map((item) =>
+                              {otherItems.map((item) =>
                                 renderContentItem(item, true, false, false, true)
                               )}
                             </div>
                           </div>
                         )}
                       </div>
-                    ))}
+                    );})}
                   </div>
                 </div>
               )}
@@ -1354,17 +1362,13 @@ export function LearningPathContinuePage({
                                         <Button
                                           size="sm"
                                           className="w-full mt-2 h-8 text-xs"
-                                          onClick={() => {
-                                            onNavigate?.(
-                                              routes.roadmapWatch(
-                                                pathId,
-                                                currentTopic.id
-                                              )
-                                            );
-                                          }}
+                                          disabled={navigating}
+                                          onClick={() =>
+                                            navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? [])
+                                          }
                                         >
                                           <Play className="h-3 w-3 mr-1" />
-                                          Resume Learning
+                                          {navigating ? "Loading…" : "Resume Learning"}
                                         </Button>
                                       )}
                                     </div>
@@ -1376,26 +1380,23 @@ export function LearningPathContinuePage({
                         </div>
                       )}
 
-                      {/* Dummy items (Projects, Quizzes, Exercises, etc.) */}
-                      {getDummyItemsForTopic(currentTopicIndex).length > 0 && (
+                      {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
+                      {(() => {
+                        const currentOtherItems = getNonCourseItems(currentTopic, isEnrolled);
+                        if (!currentOtherItems.length) return null;
+                        return (
                         <div className="space-y-3 ml-0 mt-3">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {getDummyItemsForTopic(currentTopicIndex).length} other item
-                            {getDummyItemsForTopic(currentTopicIndex).length !== 1 ? "s" : ""}
+                            {currentOtherItems.length} other item{currentOtherItems.length !== 1 ? "s" : ""}
                           </p>
                           <div className="space-y-2">
-                            {getDummyItemsForTopic(currentTopicIndex).map((item, itemIdx) =>
-                              renderContentItem(
-                                item,
-                                false,
-                                itemIdx > 0,
-                                itemIdx === 0,
-                                true
-                              )
+                            {currentOtherItems.map((item) =>
+                              renderContentItem(item, false, false, false, true)
                             )}
                           </div>
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1411,8 +1412,9 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-gray-200">
-                    {upcomingTopics.map((topic: any, idx: number) => (
-                      <div key={topic.id} className="space-y-3">
+                    {upcomingTopics.map((topic: any, idx: number) => {
+                      const otherItems = getNonCourseItems(topic, isEnrolled);
+                      return (<div key={topic.id} className="space-y-3">
                         {/* Topic */}
                         <div className="flex items-start gap-3 opacity-60">
                           <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
@@ -1437,7 +1439,7 @@ export function LearningPathContinuePage({
                         </div>
 
                         {/* Locked courses and other content in topic */}
-                        {(topic.courses?.length > 0 || getDummyItemsForTopic(currentTopicIndex + 1 + idx).length > 0) && (
+                        {(topic.courses?.length > 0 || otherItems.length > 0) && (
                           <div className="space-y-3 ml-0 opacity-75">
                             <div className="flex flex-wrap gap-2">
                               {topic.courses && topic.courses.length > 0 && (
@@ -1445,10 +1447,9 @@ export function LearningPathContinuePage({
                                   {topic.courses.length} Course{topic.courses.length !== 1 ? "s" : ""}
                                 </Badge>
                               )}
-                              {getDummyItemsForTopic(currentTopicIndex + 1 + idx).length > 0 && (
+                              {otherItems.length > 0 && (
                                 <Badge variant="outline" className="text-xs">
-                                  {getDummyItemsForTopic(currentTopicIndex + 1 + idx).length} other item
-                                  {getDummyItemsForTopic(currentTopicIndex + 1 + idx).length !== 1 ? "s" : ""}
+                                  {otherItems.length} other item{otherItems.length !== 1 ? "s" : ""}
                                 </Badge>
                               )}
                             </div>
@@ -1529,15 +1530,14 @@ export function LearningPathContinuePage({
                                   </div>
                                 );
                               })}
-                              {/* Dummy items (locked) */}
-                              {getDummyItemsForTopic(currentTopicIndex + 1 + idx).map((item) =>
+                              {otherItems.map((item) =>
                                 renderContentItem(item, false, true, false, true)
                               )}
                             </div>
                           </div>
                         )}
                       </div>
-                    ))}
+                    );})}
                   </div>
                 </div>
               )}
@@ -1599,18 +1599,17 @@ export function LearningPathContinuePage({
                 <Button
                   className="w-full"
                   size="sm"
+                  disabled={navigating}
                   onClick={() => {
                     if (isEnrolled) {
-                      onNavigate?.(
-                        routes.roadmapWatch(pathId, currentTopic.id),
-                      );
+                      navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? []);
                     } else {
                       onNavigate?.(`/paths/${pathId}`);
                     }
                   }}
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  {isEnrolled ? "Continue Learning" : "Enroll Now"}
+                  {navigating ? "Loading…" : isEnrolled ? "Continue Learning" : "Enroll Now"}
                 </Button>
               </CardContent>
             </Card>

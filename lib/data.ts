@@ -865,14 +865,17 @@ export interface UserLesson {
 
 export interface LearningPath {
   id: string;
+  slug?: string;
   title: string;
   description: string;
   courses: string[];
   projects: string[];
+  topics?: any[];
   estimatedTime: string;
   level: string;
   progress: number;
   enrolled: boolean;
+  isCompleted?: boolean;
 }
 
 export interface Roadmap {

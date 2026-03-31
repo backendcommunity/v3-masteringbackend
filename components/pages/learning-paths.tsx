@@ -36,33 +36,13 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     const loadPaths = async () => {
       try {
         setLoading(true);
-        const [roadmaps, userRoadmaps] = await Promise.all([
-          store.getRoadmaps({ skip: 0, size: 50 }),
-          store.getUserRoadmaps({ skip: 0, size: 50, filters: "" }),
-        ]);
-
-        const enrolledMap = new Map(
-          (userRoadmaps || []).map((ur: any) => [ur.roadmapId, ur])
-        );
+        // getRoadmaps runs resolveRoadmaps server-side: returns r.enrolled,
+        // r.progress (accurate completedTopics/total), r.students, r.userRoadmap
+        // No need for a separate getUserRoadmaps call.
+        const roadmaps = await store.getRoadmaps({ skip: 0, size: 50 });
 
         const merged = (roadmaps || []).map((r: any) => {
-          const ur = enrolledMap.get(r.id);
           const topics = r.topics || [];
-          const topicIndex = ur
-            ? topics.findIndex((t: any) => t.id === ur.currentTopicId)
-            : -1;
-          const progress =
-            ur?.isCompleted || ur?.isCompleted === true
-              ? 100
-              : topicIndex >= 0
-                ? Math.round((topicIndex / Math.max(1, topics.length)) * 100)
-                : 0;
-
-          // Count total enrolled users from userRoadmaps
-          const enrolledCount = (userRoadmaps || []).filter(
-            (ur: any) => ur.roadmapId === r.id
-          ).length;
-
           return {
             id: r.slug,
             slug: r.slug,
@@ -71,18 +51,17 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             banner: r.banner,
             level: topics[0]?.level || "Intermediate",
             estimatedTime:
-              topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) >
-              0
+              topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) > 0
                 ? `${Math.ceil(topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) / 4)} months`
                 : "Self-paced",
             courses: topics.flatMap(
               (t: any) => t.courses?.map((c: any) => c.id) || []
             ),
-            projects: [],
             topics,
-            progress,
-            enrolled: Boolean(ur),
-            enrolledCount,
+            // Backend-computed values from resolveRoadmaps:
+            progress: r.userRoadmap?.isCompleted ? 100 : (r.progress ?? 0),
+            enrolled: r.enrolled ?? false,
+            enrolledCount: r.students ?? 0,
           };
         });
 
@@ -96,7 +75,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     };
 
     loadPaths();
-  }, [store]);
+  }, []);
 
   if (loading) {
     return (
@@ -263,7 +242,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
+                    onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
                   >
                     Continue Learning
                   </Button>
@@ -280,7 +259,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
+                    onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
                   >
                     Start Learning Path
                   </Button>

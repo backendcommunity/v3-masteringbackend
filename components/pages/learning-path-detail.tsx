@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -10,23 +10,208 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
+  Clock,
+  BookOpen,
+  Code2,
+  Target,
   CheckCircle2,
+  Play,
+  Lock,
+  Trophy,
   Users,
   Star,
-  Play,
-  BookOpen,
-  Code,
+  Zap,
+  Brain,
+  FolderOpen,
+  Calendar,
+  Video,
+  RotateCcw,
+  Flame,
 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { toast } from "sonner";
 import { Loader } from "../ui/loader";
+import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PaymentDialog } from "../payment-dialog";
-import { stripHtmlTags } from "@/lib/html-utils";
+import { toast } from "sonner";
+import { analytics } from "@/lib/analytics";
+
+// Type definitions for multi-content timeline
+type ContentItemType =
+  | "course"
+  | "project"
+  | "quiz"
+  | "exercise"
+  | "mock_interview"
+  | "bootcamp"
+  | "land";
+
+interface ContentItem {
+  id: string;
+  type: ContentItemType;
+  title: string;
+  description?: string;
+  duration?: string;
+  level?: string;
+  meta?: {
+    chapters?: number;
+    difficulty?: string;
+    passingScore?: number;
+    language?: string;
+    company?: string;
+    position?: string;
+    cohortName?: string;
+    xp?: number;
+    students?: number;
+    slug?: string;
+    isOptional?: boolean;
+    topicId?: string;
+  };
+  progress?: number;
+  completed?: boolean;
+  locked?: boolean;
+}
+
+// Helper function to get config for each content type
+function getContentTypeConfig(type: ContentItemType) {
+  const configs: Record<
+    ContentItemType,
+    { icon: any; color: string; label: string; ctaLabel: string }
+  > = {
+    course: {
+      icon: BookOpen,
+      color: "text-blue-600",
+      label: "Video Course",
+      ctaLabel: "Resume Learning",
+    },
+    project: {
+      icon: FolderOpen,
+      color: "text-orange-600",
+      label: "Project",
+      ctaLabel: "Open Project",
+    },
+    quiz: {
+      icon: Brain,
+      color: "text-purple-600",
+      label: "Quiz",
+      ctaLabel: "Take Quiz",
+    },
+    exercise: {
+      icon: Code2,
+      color: "text-green-600",
+      label: "Coding Exercise",
+      ctaLabel: "Solve",
+    },
+    mock_interview: {
+      icon: Video,
+      color: "text-red-600",
+      label: "Mock Interview",
+      ctaLabel: "Start Interview",
+    },
+    bootcamp: {
+      icon: Calendar,
+      color: "text-yellow-600",
+      label: "Live Bootcamp",
+      ctaLabel: "Join Bootcamp",
+    },
+    land: {
+      icon: Trophy,
+      color: "text-amber-600",
+      label: "MB Land",
+      ctaLabel: "Enter Land",
+    },
+  };
+  return configs[type];
+}
+
+// Helper function to get non-course items for a topic (exercises, quizzes, projects, bootcamps, mock interviews)
+function getNonCourseItems(
+  topic: any,
+  isEnrolled: boolean = false,
+): ContentItem[] {
+  const topicId: string = topic.id || "";
+  const items: ContentItem[] = [];
+
+  (topic.exercises || []).forEach((exerciseItem: any) => {
+    const exercise = exerciseItem.exercise || exerciseItem;
+    items.push({
+      id: exercise.id,
+      type: "exercise",
+      title: exercise.title,
+      description: exercise.summary || "",
+      meta: {
+        difficulty: exercise.difficulty,
+        language: exercise.language,
+        topicId,
+      },
+      completed: exerciseItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.quizzes || []).forEach((quizItem: any) => {
+    const quiz = quizItem.quiz || quizItem;
+    items.push({
+      id: quiz.id,
+      type: "quiz",
+      title: quiz.title,
+      description: quiz.description || "",
+      duration: quiz.timeLimit ? `${quiz.timeLimit}m` : undefined,
+      meta: { passingScore: quiz.passingScore, topicId },
+      completed: quizItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.projects || []).forEach((projectItem: any) => {
+    const project = projectItem.project || projectItem;
+    items.push({
+      id: project.id,
+      type: "project",
+      title: project.title,
+      description: project.summary || "",
+      duration: project.timeframe,
+      meta: { difficulty: project.difficulty, slug: project.slug },
+      completed: projectItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.bootcamps || []).forEach((bootcampItem: any) => {
+    const bootcamp = bootcampItem.bootcamp || bootcampItem;
+    items.push({
+      id: bootcamp.id,
+      type: "bootcamp",
+      title: bootcamp.title,
+      description: bootcamp.description || "",
+      duration: bootcamp.duration,
+      level: bootcamp.level,
+      meta: { isOptional: bootcampItem.isOptional ?? false },
+      completed: bootcampItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.mockInterviews || []).forEach((miItem: any) => {
+    const mi = miItem.mockInterview || miItem;
+    items.push({
+      id: mi.id,
+      type: "mock_interview",
+      title: mi.title,
+      description: mi.description || "",
+      duration: mi.duration ? `${mi.duration}m` : undefined,
+      meta: { difficulty: mi.difficulty },
+      completed: miItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  return items;
+}
 
 interface LearningPathDetailPageProps {
   pathId: string;
@@ -43,41 +228,474 @@ export function LearningPathDetailPage({
   const [userRoadmap, setUserRoadmap] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [currentItem, setCurrentItem] = useState<{
+    type: string;
+    title: string;
+    chapterTitle?: string;
+    itemIndex: number;
+    totalItems: number;
+  } | null>(null);
+  // Cache milestone per topicId to avoid re-fetching when user clicks Continue
+  const milestoneCache = useRef<Record<string, any>>({});
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const roadmapData = await store.getRoadmapBySlug(pathId);
+
+      setRoadmap(roadmapData);
+      const ur = roadmapData?.userRoadmap ?? null;
+      setUserRoadmap(ur);
+
+      analytics.track("path_viewed", {
+        pathId,
+        pathTitle: roadmapData?.title,
+        isEnrolled: Boolean(ur),
+        progress: roadmapData?.progress ?? 0,
+      });
+
+      if (ur?.currentTopicId && roadmapData?.topics) {
+        const foundTopic = roadmapData.topics.find(
+          (t: any) => t.id === ur.currentTopicId,
+        );
+        if (foundTopic) {
+          try {
+            const milestone = await store.getMilestone(pathId, ur.currentTopicId);
+            milestoneCache.current[ur.currentTopicId] = milestone;
+            const completedIds = new Set(
+              (milestone?.userTopic?.completedItems ?? [])
+                .filter((ci: any) => ci.completed)
+                .map((ci: any) => ci.itemId),
+            );
+            const completedCount = (milestone?.userTopic?.completedItems ?? [])
+              .filter((ci: any) => ci.completed).length;
+            const totalTasks = milestone?.userTopic?.totalTasks ?? 0;
+
+            let found = false;
+            for (const course of foundTopic.courses ?? []) {
+              for (const chapter of course.chapters ?? []) {
+                for (const video of chapter.videos ?? []) {
+                  if (!completedIds.has(video.id)) {
+                    setCurrentItem({
+                      type: "video",
+                      title: video.title,
+                      chapterTitle: chapter.title,
+                      itemIndex: completedCount,
+                      totalItems: totalTasks,
+                    });
+                    found = true;
+                    break;
+                  }
+                }
+                if (found) break;
+              }
+              if (found) break;
+            }
+          } catch {
+            // Non-critical — page still works without resume point
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load learning path:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnroll = async () => {
+    analytics.track("path_enrollment_started", {
+      pathId,
+      pathTitle: roadmap?.title,
+      source: "enroll_button",
+    });
+
+    // Free roadmap or premium user → enroll directly without payment
+    if (!roadmap?.isPremium || user?.isPremium) {
+      setEnrolling(true);
+      try {
+        const enrollResult = await store.enrollInRoadmap(pathId);
+
+        if (!enrollResult) {
+          toast.error("Failed to enroll in path. Please try again.");
+          return;
+        }
+
+        analytics.track("path_enrolled", {
+          pathId,
+          pathTitle: roadmap?.title,
+          method: "direct",
+        });
+        toast.success("Successfully enrolled in path!");
+
+              const updated = await store.getRoadmapBySlug(pathId);
+        setRoadmap(updated);
+        setUserRoadmap(updated?.userRoadmap ?? null);
+      } catch (error: any) {
+        const errorMsg =
+          error?.response?.data?.message ||
+          error?.message ||
+          error?.toString?.() ||
+          "Failed to enroll in path";
+        toast.error(errorMsg);
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
+
+    // Premium roadmap, non-premium user → show payment dialog
+    analytics.track("path_payment_dialog_opened", {
+      pathId,
+      roadmapAmount: roadmap?.amount,
+    });
+    setShowPaymentDialog(true);
+  };
+
+  const handlePaymentComplete = async () => {
+    setShowPaymentDialog(false);
+    setEnrolling(true);
+    try {
+      const enrollResult = await store.enrollInRoadmap(pathId);
+
+      if (!enrollResult) {
+        toast.error("Failed to enroll in path. Please try again.");
+        return;
+      }
+
+      analytics.track("path_enrolled", {
+        pathId,
+        pathTitle: roadmap?.title,
+        method: "payment",
+      });
+      toast.success("Successfully enrolled in path!");
+
+      const updated = await store.getRoadmapBySlug(pathId);
+      setRoadmap(updated);
+      setUserRoadmap(updated?.userRoadmap ?? null);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to enroll in path");
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  // Deep-link to the exact video where the user left off
+  const navigateToFirstUncompletedVideo = async (
+    topicId: string,
+    courses: any[],
+  ) => {
+    if (!onNavigate) return;
+    setNavigating(true);
+    try {
+      const milestone =
+        milestoneCache.current[topicId] ??
+        await store.getMilestone(pathId, topicId);
+      milestoneCache.current[topicId] = milestone;
+      const completedVideoIds = new Set(
+        (milestone?.userTopic?.completedItems ?? [])
+          .filter((ci: any) => ci.itemType === "VIDEO")
+          .map((ci: any) => ci.itemId),
+      );
+
+      for (const course of courses) {
+        const chapters: any[] = course.chapters ?? [];
+        for (const chapter of chapters) {
+          const videos: any[] = chapter.videos ?? [];
+          for (const video of videos) {
+            if (!completedVideoIds.has(video.id)) {
+              onNavigate(
+                routes.pathVideoWatch(
+                  pathId,
+                  topicId,
+                  course.slug,
+                  chapter.slug,
+                  video.slug,
+                ),
+              );
+              return;
+            }
+          }
+        }
+      }
+
+      // All videos complete — land on the last video
+      const lastCourse = courses[courses.length - 1];
+      const lastChapter =
+        lastCourse?.chapters?.[lastCourse.chapters.length - 1];
+      const lastVideo = lastChapter?.videos?.[lastChapter.videos.length - 1];
+      if (lastVideo) {
+        onNavigate(
+          routes.pathVideoWatch(
+            pathId,
+            topicId,
+            lastCourse.slug,
+            lastChapter.slug,
+            lastVideo.slug,
+          ),
+        );
+      } else {
+        onNavigate(routes.pathDetail(pathId));
+      }
+    } catch {
+      onNavigate(routes.pathDetail(pathId));
+    } finally {
+      setNavigating(false);
+    }
+  };
+
+  // Renderer for content items (courses, projects, quizzes, etc.)
+  const renderContentItem = (
+    item: ContentItem,
+    isCompleted: boolean = false,
+    isLocked: boolean = false,
+    isCurrent: boolean = false,
+    isEnrolled: boolean = false,
+  ) => {
+    const config = getContentTypeConfig(item.type);
+    const IconComponent = config.icon;
+
+    const isAvailable = !isLocked && isEnrolled;
+    const status = isCompleted
+      ? "completed"
+      : isCurrent
+        ? "current"
+        : isLocked
+          ? "locked"
+          : "available";
+
+    const borderColor =
+      status === "completed"
+        ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
+        : status === "current"
+          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+          : "border-muted bg-muted/30";
+
+    const statusColor =
+      status === "completed"
+        ? "bg-green-600"
+        : status === "current"
+          ? "bg-blue-600"
+          : "bg-gray-400";
+
+    return (
+      <div
+        key={item.id}
+        className={`rounded-lg border ${borderColor} p-3 hover:shadow-sm transition-all`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <IconComponent
+              className={`h-4 w-4 ${config.color} flex-shrink-0 mt-0.5`}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm leading-tight">
+                {item.title}
+              </p>
+              {item.description && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                  {item.description}
+                </p>
+              )}
+              {(item.duration ||
+                item.meta?.chapters ||
+                item.meta?.difficulty) && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {item.meta?.chapters && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <BookOpen className="h-3 w-3" />
+                      {item.meta.chapters} chapters
+                    </span>
+                  )}
+                  {item.duration && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {item.duration}
+                    </span>
+                  )}
+                  {item.meta?.difficulty && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Zap className="h-3 w-3" />
+                      {item.meta.difficulty}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <Badge className={`${statusColor} text-xs flex-shrink-0 text-white`}>
+            {status === "completed"
+              ? "✓ Done"
+              : status === "current"
+                ? "In Progress"
+                : status === "locked"
+                  ? "Locked"
+                  : "Available"}
+          </Badge>
+        </div>
+        {status === "current" && item.progress !== undefined && (
+          <div className="space-y-1 pt-2 mt-2 border-t border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between text-xs">
+              <span>Progress</span>
+              <span className="font-semibold text-blue-600">
+                {item.progress}%
+              </span>
+            </div>
+            <Progress value={item.progress} className="h-1.5" />
+          </div>
+        )}
+        {(isAvailable || isCompleted) && (
+          <Button
+            size="sm"
+            variant={isCompleted ? "ghost" : "default"}
+            className={`w-full mt-3 h-8 text-xs ${isCompleted ? "text-muted-foreground hover:text-foreground" : ""}`}
+            onClick={() => {
+              const topicId = item.meta?.topicId || "";
+              analytics.track(isCompleted ? "path_completed_content_reviewed" : "path_content_clicked", {
+                pathId,
+                topicId,
+                contentType: item.type,
+                contentId: item.id,
+                contentTitle: item.title,
+              });
+              switch (item.type) {
+                case "course":
+                  onNavigate?.(
+                    routes.roadmapCoursePreview(pathId, topicId, item.id),
+                  );
+                  break;
+                case "exercise":
+                  onNavigate?.(routes.pathExercise(pathId, topicId, item.id));
+                  break;
+                case "quiz":
+                  onNavigate?.(routes.pathQuiz(pathId, topicId, item.id));
+                  break;
+                case "project":
+                  if (item.meta?.slug) {
+                    onNavigate?.(routes.projectDetail(item.meta.slug));
+                  }
+                  break;
+                case "bootcamp":
+                  onNavigate?.(routes.bootcampDetail(item.id));
+                  break;
+                case "mock_interview":
+                  onNavigate?.(routes.mockInterviewDetail(item.id));
+                  break;
+                case "land":
+                  onNavigate?.(routes.landDetail(item.id));
+                  break;
+                default:
+                  toast.info(`Opening ${config.label}...`);
+              }
+            }}
+          >
+            {isCompleted ? (
+              <><RotateCcw className="h-3 w-3 mr-1" />Review</>
+            ) : (
+              <><Play className="h-3 w-3 mr-1" />{config.ctaLabel}</>
+            )}
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [roadmapData, userRoadmapsData] = await Promise.all([
-          store.getRoadmapBySlug(pathId),
-          store.getUserRoadmaps({ skip: 0, size: 50, filters: "" }),
-        ]);
-
-        setRoadmap(roadmapData);
-        const ur = (userRoadmapsData || []).find(
-          (ur: any) =>
-            ur.roadmap?.slug === pathId || ur.roadmapId === roadmapData?.id,
-        );
-        setUserRoadmap(ur || null);
-      } catch (error) {
-        console.error("Failed to load learning path detail:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, [pathId, store]);
+  }, [pathId]);
+
+  // ALL derived state must be computed before any conditional returns (Rules of Hooks)
+  const topics: any[] = roadmap?.topics ?? [];
+  const isEnrolled = Boolean(userRoadmap);
+  const progress = userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
+
+  const completedTopics = useMemo(
+    () => topics.filter((t) => t.completed === true),
+    [topics],
+  );
+
+  const currentTopicId = userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
+  const currentTopic = useMemo(
+    () => topics.find((t) => t.id === currentTopicId) ?? null,
+    [topics, currentTopicId],
+  );
+  const currentTopicIndex = currentTopic ? topics.indexOf(currentTopic) : -1;
+
+  const upcomingTopics = useMemo(
+    () => topics.filter((t) => !t.completed && t.id !== currentTopicId),
+    [topics, currentTopicId],
+  );
+
+  // Pre-compute non-course items for every topic once; avoids repeated iteration in render
+  const nonCourseItemsByTopicId = useMemo(() => {
+    const map: Record<string, ContentItem[]> = {};
+    topics.forEach((t) => {
+      map[t.id] = getNonCourseItems(t, isEnrolled);
+    });
+    return map;
+  }, [topics, isEnrolled]);
 
   if (loading) return <Loader isLoader={false} />;
+
+  if (roadmap?.isWaiting) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-[60vh]">
+        <div className="max-w-lg w-full text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="p-5 rounded-full bg-blue-50 dark:bg-blue-950">
+              <Clock className="h-14 w-14 text-blue-600" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
+              Coming Soon
+            </Badge>
+            <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              {stripHtmlTags(roadmap.summary || "")}
+            </p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            This learning path is not yet available for enrollment. We're working hard to bring it to you. Join the waitlist to be notified when it launches.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {roadmap.waitingLink ? (
+              <Button
+                size="lg"
+                onClick={() => {
+                  analytics.track("path_waitlist_clicked", {
+                    pathId,
+                    waitingLink: roadmap.waitingLink,
+                  });
+                  window.open(roadmap.waitingLink, "_blank", "noopener,noreferrer");
+                }}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Join the Waitlist
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Contact us to join the waitlist
+              </p>
+            )}
+            <Button variant="outline" size="lg" onClick={() => onNavigate?.(routes.paths)}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Browse Other Paths
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!roadmap) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Learning Path not found</h1>
-          <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
+          <Button onClick={() => onNavigate?.(routes.paths)} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
           </Button>
@@ -86,448 +704,1332 @@ export function LearningPathDetailPage({
     );
   }
 
-  const topics = roadmap.topics || [];
-  const topicIndex = userRoadmap
-    ? topics.findIndex((t: any) => t.id === userRoadmap.currentTopicId)
-    : -1;
-  const progress =
-    userRoadmap?.isCompleted || userRoadmap?.isCompleted === true
-      ? 100
-      : topicIndex >= 0
-        ? Math.round((topicIndex / Math.max(1, topics?.length)) * 100)
-        : 0;
-  const enrolled = Boolean(userRoadmap);
+  // Non-enrolled: show sales/preview page
+  if (!isEnrolled) {
+    return (
+      <div className="flex-1 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button variant="outline" onClick={() => onNavigate?.(routes.paths)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            All Learning Paths
+          </Button>
+        </div>
 
-  const handleEnroll = async () => {
-    try {
-      // Check if user is premium
-      const isPremiumUser =
-        user?.isPremium && user?.subscription?.name === "Enterprise";
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Title and Description */}
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold tracking-tight">
+                {roadmap.title}
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                {stripHtmlTags(roadmap.summary || "")}
+              </p>
+            </div>
 
-      if (!isPremiumUser) {
-        setShowPaymentDialog(true);
-        return;
-      }
+            {/* Key Stats */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        Topics
+                      </div>
+                      <div className="text-2xl font-bold">{topics.length}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-      // User is premium, enroll immediately
-      setEnrolling(true);
-      const enrollResult = await store.enrollInRoadmap(pathId);
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                      <Clock className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        Duration
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {roadmap.timeframe || "Self-paced"}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-      if (!enrollResult) {
-        toast.error("Failed to enroll in path. Please try again.");
-        return;
-      }
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                      <Code2 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        Content Items
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {roadmap.totalContent || 0}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-      toast.success("Successfully enrolled in path!");
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                      <Users className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        Enrolled
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {(roadmap.students || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-      // Reload data
-      const updatedRoadmapsData = await store.getUserRoadmaps({
-        skip: 0,
-        size: 50,
-        filters: "",
-      });
-      const ur = (updatedRoadmapsData || []).find(
-        (ur: any) =>
-          ur.roadmap?.slug === pathId || ur.roadmapId === roadmap?.id,
-      );
-      setUserRoadmap(ur || null);
+            {/* Skills You'll Learn */}
+            {roadmap.skills && roadmap.skills.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Skills You'll Learn</CardTitle>
+                  <CardDescription>
+                    Master these essential technologies and concepts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {roadmap.skills.map((skill: string) => (
+                      <Badge key={skill} className="justify-center py-2">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-      // Navigate after short delay to show toast
-      setTimeout(() => {
-        onNavigate?.(`/paths/${pathId}/continue`);
-      }, 500);
-    } catch (error: any) {
-      console.error("Failed to enroll in roadmap:", error);
-      const errorMsg =
-        error?.response?.data?.message ||
-        error?.message ||
-        error?.toString?.() ||
-        "Failed to enroll in path";
-      toast.error(errorMsg);
-    } finally {
-      setEnrolling(false);
-    }
-  };
+            {/* Prerequisites */}
+            {roadmap.prerequisites && roadmap.prerequisites.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Prerequisites</CardTitle>
+                  <CardDescription>
+                    What you should know before starting
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {roadmap.prerequisites.map(
+                      (prerequisite: string, index: number) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-sm">{prerequisite}</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
 
-  const handlePaymentComplete = async () => {
-    setShowPaymentDialog(false);
-    // User is now premium, enroll them
-    try {
-      setEnrolling(true);
-      const enrollResult = await store.enrollInRoadmap(pathId);
+            {/* Curriculum Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Learning Path Curriculum</CardTitle>
+                <CardDescription>
+                  {topics.length} topics with{" "}
+                  {topics.reduce(
+                    (sum: number, t: any) => sum + (t.courses?.length || 0),
+                    0,
+                  )}{" "}
+                  professional courses
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {topics.map((topic: any, topicIndex: number) => (
+                  <div key={topic.id} className="space-y-4">
+                    {/* Topic Header */}
+                    <div className="pb-3 border-b">
+                      <div className="flex items-start gap-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
+                          {topicIndex + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-base">
+                              {topic.title}
+                            </h4>
+                            <Badge variant="outline" className="text-xs">
+                              {topic.level || "Intermediate"}
+                            </Badge>
+                            {topic.courses && topic.courses.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {topic.courses.length} course
+                                {topic.courses.length !== 1 ? "s" : ""}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {stripHtmlTags(topic.description || "")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-      if (!enrollResult) {
-        toast.error("Failed to enroll in path. Please try again.");
-        return;
-      }
+                    {/* Courses in Topic */}
+                    {topic.courses && topic.courses.length > 0 ? (
+                      <div className="space-y-3 ml-12">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Courses in this topic
+                        </p>
+                        <div className="space-y-3">
+                          {topic.courses.map((courseItem: any) => {
+                            const course = courseItem.course || courseItem;
+                            return (
+                              <div
+                                key={course.id}
+                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                              >
+                                <div className="space-y-3">
+                                  {/* Header */}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                      <div className="flex-1 min-w-0">
+                                        <h5 className="font-semibold text-sm leading-tight">
+                                          {course.title}
+                                        </h5>
+                                        <p className="text-xs text-blue-600 font-medium mt-1">
+                                          Master this course
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
+                                      Available
+                                    </Badge>
+                                  </div>
 
-      toast.success("Successfully enrolled in path!");
+                                  {/* Course Metadata */}
+                                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                    {course.chapters && (
+                                      <div className="flex items-center gap-1">
+                                        <BookOpen className="h-3 w-3" />
+                                        <span>
+                                          {course.chapters.length} chapter
+                                          {course.chapters.length !== 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {course.totalDuration && (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{course.totalDuration}h</span>
+                                      </div>
+                                    )}
+                                    {course.level && (
+                                      <div className="flex items-center gap-1">
+                                        <Zap className="h-3 w-3" />
+                                        <span className="capitalize">
+                                          {course.level}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
 
-      // Reload data
-      const updatedRoadmapsData = await store.getUserRoadmaps({
-        skip: 0,
-        size: 50,
-        filters: "",
-      });
-      const ur = (updatedRoadmapsData || []).find(
-        (ur: any) =>
-          ur.roadmap?.slug === pathId || ur.roadmapId === roadmap?.id,
-      );
-      setUserRoadmap(ur || null);
+                                  {/* Course Description */}
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {stripHtmlTags(
+                                      course.summary ||
+                                        course.description ||
+                                        "",
+                                    )}
+                                  </p>
 
-      // Navigate after short delay
-      setTimeout(() => {
-        onNavigate?.(`/paths/${pathId}/continue`);
-      }, 500);
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to enroll in path");
-    } finally {
-      setEnrolling(false);
-    }
-  };
+                                  {/* Course Structure Preview */}
+                                  {course.chapters &&
+                                    course.chapters.length > 0 && (
+                                      <div className="space-y-2 pt-2">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                          What you'll learn
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {course.chapters
+                                            .slice(0, 4)
+                                            .map(
+                                              (chapter: any, idx: number) => (
+                                                <div
+                                                  key={idx}
+                                                  className="flex items-start gap-2 text-xs"
+                                                >
+                                                  <CheckCircle2 className="h-3 w-3 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                  <span className="text-muted-foreground line-clamp-1">
+                                                    {chapter.title}
+                                                  </span>
+                                                </div>
+                                              ),
+                                            )}
+                                          {course.chapters.length > 4 && (
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground col-span-2">
+                                              <span>
+                                                +{course.chapters.length - 4}{" "}
+                                                more chapter
+                                                {course.chapters.length - 4 !==
+                                                1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
 
+                                  {/* Enrollment CTA */}
+                                  <Button
+                                    size="sm"
+                                    className="w-full mt-3 h-9 text-sm"
+                                    disabled={enrolling}
+                                    onClick={handleEnroll}
+                                  >
+                                    <Play className="h-4 w-4 mr-2" />
+                                    {enrolling
+                                      ? "Enrolling..."
+                                      : "Start This Course"}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
+                          {(nonCourseItemsByTopicId[topic.id] ?? []).map((item) => {
+                            const config = getContentTypeConfig(item.type);
+                            const IconComponent = config.icon;
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                              >
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <IconComponent
+                                        className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <h5 className="font-semibold text-sm leading-tight">
+                                          {item.title}
+                                        </h5>
+                                        <p className="text-xs text-blue-600 font-medium mt-1">
+                                          {config.label}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
+                                      Available
+                                    </Badge>
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                    {item.meta?.chapters && (
+                                      <div className="flex items-center gap-1">
+                                        <BookOpen className="h-3 w-3" />
+                                        <span>
+                                          {item.meta.chapters} chapter
+                                          {item.meta.chapters !== 1 ? "s" : ""}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {item.duration && (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{item.duration}</span>
+                                      </div>
+                                    )}
+                                    {(item.level || item.meta?.difficulty) && (
+                                      <div className="flex items-center gap-1">
+                                        <Zap className="h-3 w-3" />
+                                        <span className="capitalize">
+                                          {item.level || item.meta?.difficulty}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {item.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {item.description}
+                                    </p>
+                                  )}
+
+                                  <Button
+                                    size="sm"
+                                    className="w-full mt-3 h-9 text-sm"
+                                    disabled={enrolling}
+                                    onClick={handleEnroll}
+                                  >
+                                    <Play className="h-4 w-4 mr-2" />
+                                    {enrolling
+                                      ? "Enrolling..."
+                                      : config.ctaLabel}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ml-12 text-xs text-muted-foreground italic">
+                        No courses in this topic yet
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar CTA */}
+          <div className="space-y-6">
+            <Card className="border-2 border-blue-600 sticky top-6">
+              <CardHeader>
+                <CardTitle className="text-2xl">{roadmap.title}</CardTitle>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline">
+                    {roadmap.level || "Beginner to Advanced"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {roadmap.difficulty || "Progressive"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>{topics.length} Topics</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>{roadmap.totalContent || 0} Content Items</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>{roadmap.timeframe}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>Lifetime Access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span>Certificate Included</span>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={enrolling}
+                  onClick={handleEnroll}
+                >
+                  {enrolling ? "Enrolling..." : "Start Learning Path"}
+                </Button>
+
+                {roadmap?.isPremium && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Premium membership required
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Social Proof */}
+            {roadmap?.students > 0 && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold text-sm">
+                          Popular Path
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(roadmap?.students || 0).toLocaleString()} students
+                        enrolled
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Why Enroll */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Why Choose This?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Zap className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm">Structured Learning</p>
+                      <p className="text-xs text-muted-foreground">
+                        Proven curriculum from industry experts
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Target className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm">Career Growth</p>
+                      <p className="text-xs text-muted-foreground">
+                        Build skills employers want
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Trophy className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-sm">
+                        Recognized Credential
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Shareable certificate of completion
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <PaymentDialog
+          open={showPaymentDialog}
+          onClose={() => setShowPaymentDialog(false)}
+          onHandlePreview={() => {}}
+          onHandlePurchase={async (_, __, success) => {
+            if (success) {
+              await handlePaymentComplete();
+            }
+          }}
+          data={{ ...roadmap, type: "roadmap" }}
+          disableOnetime={!roadmap?.paddle_price_id}
+        />
+      </div>
+    );
+  }
+
+  // Enrolled: show progress timeline
   return (
     <div className="flex-1 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
-          <p className="text-muted-foreground">{stripHtmlTags(roadmap.summary || "")}</p>
+          <p className="text-muted-foreground">
+            {currentTopicIndex + 1} of {topics.length} • {progress}% Complete
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          {!enrolled ? (
-            <Button disabled={enrolling} onClick={handleEnroll}>
-              {enrolling ? "Enrolling..." : "Enroll in Path"}
-            </Button>
-          ) : (
-            <Button onClick={() => onNavigate?.(`/paths/${pathId}/continue`)}>
-              Continue Path
-            </Button>
-          )}
-        </div>
+        <Button variant="outline" onClick={() => onNavigate?.(routes.paths)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          All Paths
+        </Button>
       </div>
 
-      <div className="space-y-6">
-          {/* Progress Card (if enrolled) */}
-          {enrolled && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      Overall Progress
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={progress} className="h-2 flex-1" />
-                      <span className="text-sm font-medium">{progress}%</span>
-                    </div>
+      {/* Motivational Banner */}
+      {isEnrolled && currentTopic && (
+        <div className="rounded-lg bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-base">
+                {progress >= 75
+                  ? "🔥 Almost there! You're in the final stretch."
+                  : progress >= 50
+                    ? "💪 Past the halfway point — keep the momentum!"
+                    : progress >= 25
+                      ? "✅ Great start! You're building real momentum."
+                      : "🚀 Your journey begins. The best backend engineers started here."}
+              </p>
+              <p className="text-sm text-blue-100 mt-1">
+                {completedTopics.length} of {topics.length} topics complete
+              </p>
+            </div>
+            {user?.currentStreak && user.currentStreak > 1 && (
+              <div className="text-center ml-4 flex-shrink-0">
+                <div className="flex items-center gap-1">
+                  <Flame className="h-5 w-5 text-orange-300" />
+                  <div className="text-2xl font-bold">{user.currentStreak}</div>
+                </div>
+                <div className="text-xs text-blue-100">day streak</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Overview */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">
+                Overall Progress
+              </div>
+              <div className="flex items-center gap-2">
+                <Progress value={progress} className="h-2 flex-1" />
+                <span className="text-sm font-medium">{progress}%</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">
+                Topics Completed
+              </div>
+              <div className="text-2xl font-bold">{completedTopics.length}</div>
+              <div className="text-xs text-muted-foreground">
+                of {topics.length}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Current Topic</div>
+              <div className="text-2xl font-bold">
+                {currentTopic ? currentTopicIndex + 1 : 0}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">
+                Upcoming Topics
+              </div>
+              <div className="text-2xl font-bold">{upcomingTopics.length}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Current Step */}
+          {currentTopic && (
+            <Card className="border-2 border-blue-200">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                    {currentTopicIndex + 1}
                   </div>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      Topics Started
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {Math.max(0, topicIndex)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      of {topics?.length}
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">
+                      Current: {currentTopic.title}
+                    </CardTitle>
+                    <CardDescription>
+                      {stripHtmlTags(currentTopic.description || "")}
+                    </CardDescription>
                   </div>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Status</div>
-                    <div className="text-2xl font-bold">
-                      {progress === 100 ? "Complete" : "In Progress"}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {currentItem && (
+                    <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-3">
+                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
+                        ▶ Next Up
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Play className="h-4 w-4 text-blue-600 flex-shrink-0 animate-pulse" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm leading-tight line-clamp-1">
+                            {currentItem.title}
+                          </p>
+                          {currentItem.chapterTitle && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {currentItem.chapterTitle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Topic Progress</span>
+                      <span className="font-semibold text-blue-600">
+                        {currentTopic.progress ?? 0}%
+                        {currentItem && currentItem.totalItems > 0 && (
+                          <span className="text-muted-foreground font-normal ml-1">
+                            ({currentItem.itemIndex}/{currentItem.totalItems})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <Progress value={currentTopic.progress ?? 0} className="h-2" />
                   </div>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      Estimated Time Left
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {Math.ceil(
-                        topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) / 4 -
-                          (topicIndex / topics.length) *
-                            topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) /
-                            4
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">months</div>
-                  </div>
+
+                  <Button
+                    className="w-full"
+                    disabled={navigating}
+                    onClick={() => {
+                      analytics.track("path_continue_clicked", {
+                        pathId,
+                        topicId: currentTopic.id,
+                        topicTitle: currentTopic.title,
+                        source: "current_card",
+                      });
+                      navigateToFirstUncompletedVideo(
+                        currentTopic.id,
+                        currentTopic.courses ?? [],
+                      );
+                    }}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    {navigating ? "Loading…" : "Continue Learning"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Tabs */}
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="projects">Projects</TabsTrigger>
-              <TabsTrigger value="community">Community</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Learning Objectives</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    {[
-                      "Master backend development fundamentals",
-                      "Build scalable APIs and microservices",
-                      "Implement database design and optimization",
-                      "Deploy applications to cloud platforms",
-                      "Apply DevOps and CI/CD practices",
-                      "Develop production-ready applications",
-                    ].map((objective, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                        <span>{objective}</span>
-                      </div>
-                    ))}
+          {/* Learning Path Timeline */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Learning Timeline</CardTitle>
+              <CardDescription>
+                Your progress through topics and courses
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Completed Topics */}
+              {completedTopics.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <h4 className="font-semibold text-green-700">
+                      Completed ({completedTopics.length})
+                    </h4>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Path Statistics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {roadmap?.courses?.length}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Courses
-                      </div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {roadmap?.projects?.length}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Projects
-                      </div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {roadmap?.estimatedTime}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Est. Time
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>About the Path Creator</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl font-bold text-white">MB</span>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold">Mastering Backend Team</h4>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Expert backend engineers with 100+ years combined experience
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-medium">4.8/5 (1.2k reviews)</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Learning Formats</CardTitle>
-                  <CardDescription>
-                    Diverse content types to match your learning style
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="px-3 py-1.5">
-                      <Play className="h-3 w-3 mr-1" />
-                      Video Lessons
-                    </Badge>
-                    <Badge variant="secondary" className="px-3 py-1.5">
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      Articles & Guides
-                    </Badge>
-                    <Badge variant="secondary" className="px-3 py-1.5">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Quizzes
-                    </Badge>
-                    <Badge variant="secondary" className="px-3 py-1.5">
-                      <Code className="h-3 w-3 mr-1" />
-                      Hands-on Projects
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Learner Reviews</CardTitle>
-                  <CardDescription>
-                    See what people are saying about this learning path
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {[
-                    {
-                      name: "Alex Chen",
-                      role: "Backend Engineer",
-                      rating: 5,
-                      text: "This path completely transformed my backend skills. The practical projects were incredibly valuable.",
-                    },
-                    {
-                      name: "Maya Patel",
-                      role: "Software Developer",
-                      rating: 5,
-                      text: "Well-structured curriculum with clear progression. I went from beginner to confidently building APIs.",
-                    },
-                    {
-                      name: "James Wilson",
-                      role: "Full Stack Developer",
-                      rating: 4,
-                      text: "Excellent content and instructors. Wish there was more on DevOps, but overall highly recommend.",
-                    },
-                  ].map((review, idx) => (
-                    <div key={idx} className="border-t pt-4 first:border-t-0 first:pt-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold">{review.name}</p>
-                          <p className="text-sm text-muted-foreground">{review.role}</p>
-                        </div>
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: review.rating }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className="h-4 w-4 text-yellow-500 fill-yellow-500"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{review.text}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="curriculum" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Topics ({topics?.length})</CardTitle>
-                  <CardDescription>
-                    Core topics and courses in this learning path
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {topics.map((topic: any, index: number) => (
-                    <div key={topic.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-medium">{topic.title}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {stripHtmlTags(topic.description || "")}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">{topic.level}</Badge>
-                      </div>
-
-                      {/* Courses within this topic */}
-                      {topic.courses && topic.courses?.length > 0 && (
-                        <div className="ml-8 space-y-2">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Courses
-                          </p>
-                          {topic.courses.map((course: any) => (
-                            <div
-                              key={course.id}
-                              className="flex items-center justify-between p-2 bg-muted rounded text-sm"
-                            >
-                              <div>
-                                <p className="font-medium">{course.title}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {stripHtmlTags(course.summary || "")}
-                                </p>
-                              </div>
-                              <Button size="sm" variant="ghost">
-                                <Play className="h-4 w-4" />
-                              </Button>
+                  <div className="space-y-4 pl-7 border-l-2 border-green-200">
+                    {completedTopics.map((topic: any) => {
+                      const otherItems = nonCourseItemsByTopicId[topic.id] ?? [];
+                      return (
+                        <div key={topic.id} className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                              ✓
                             </div>
-                          ))}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-semibold text-sm">
+                                  {topic.title}
+                                </h5>
+                                <Badge variant="outline" className="text-xs">
+                                  {topic.level || "Intermediate"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {stripHtmlTags(topic.description || "")}
+                              </p>
+                            </div>
+                          </div>
+
+                          {(topic.courses?.length > 0 ||
+                            otherItems.length > 0) && (
+                            <div className="space-y-3 ml-0 mt-3">
+                              <div className="flex flex-wrap gap-2">
+                                {topic.courses && topic.courses.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {topic.courses.length} Course
+                                    {topic.courses.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                                {otherItems.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {otherItems.length} other item
+                                    {otherItems.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                {topic.courses?.map((courseItem: any) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className="group rounded-lg border border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20 p-3 hover:border-green-200 dark:hover:border-green-800 transition-colors"
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-sm leading-tight">
+                                              {course.title}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                              {course.chapters && (
+                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                  <BookOpen className="h-3 w-3" />
+                                                  {course.chapters.length}{" "}
+                                                  chapters
+                                                </span>
+                                              )}
+                                              {course.totalDuration && (
+                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                  <Clock className="h-3 w-3" />
+                                                  {course.totalDuration}h
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <Badge className="bg-green-600 text-xs flex-shrink-0">
+                                            ✓ Done
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 text-xs text-muted-foreground px-2"
+                                            onClick={() => {
+                                              analytics.track("path_completed_content_reviewed", {
+                                                pathId, contentType: "course", contentId: course.id, contentTitle: course.title,
+                                              });
+                                              onNavigate?.(routes.roadmapCoursePreview(pathId, topic.id, course.id));
+                                            }}
+                                          >
+                                            <RotateCcw className="h-3 w-3 mr-1" />
+                                            Review
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {otherItems.map((item) =>
+                                  renderContentItem(
+                                    item,
+                                    true,
+                                    false,
+                                    false,
+                                    true,
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Current Topic */}
+              {currentTopic && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Play className="h-5 w-5 text-blue-600" />
+                    <h4 className="font-semibold text-blue-700">In Progress</h4>
+                  </div>
+                  <div className="space-y-4 pl-7 border-l-2 border-blue-300">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                          {currentTopicIndex + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-semibold text-sm">
+                              {currentTopic.title}
+                            </h5>
+                            <Badge className="bg-blue-600 text-xs">
+                              {currentTopic.level || "Intermediate"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {stripHtmlTags(currentTopic.description || "")}
+                          </p>
+                          <Progress value={currentTopic.progress ?? 0} className="h-1 mt-3" />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {currentTopic.progress ?? 0}% complete
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Current Topic Courses */}
+                      {currentTopic.courses &&
+                        currentTopic.courses.length > 0 && (
+                          <div className="space-y-3 ml-0 mt-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {currentTopic.courses.length} Course
+                              {currentTopic.courses.length !== 1 ? "s" : ""}
+                            </p>
+                            <div className="space-y-2">
+                              {currentTopic.courses.map(
+                                (courseItem: any, idx: number) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  const isCurrent = idx === 0;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className={`rounded-lg border p-3 transition-colors ${
+                                        isCurrent
+                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+                                          : "border-muted bg-muted/30 hover:border-muted-foreground/30"
+                                      }`}
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            {isCurrent ? (
+                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                                            ) : (
+                                              <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                              <p className="font-semibold text-sm leading-tight">
+                                                {course.title}
+                                              </p>
+                                              {isCurrent && (
+                                                <p className="text-xs text-blue-600 font-medium mt-1">
+                                                  Currently learning
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <Badge
+                                            className={`text-xs flex-shrink-0 ${
+                                              isCurrent
+                                                ? "bg-blue-600"
+                                                : "bg-muted-foreground/20"
+                                            }`}
+                                          >
+                                            {isCurrent
+                                              ? "In Progress"
+                                              : "Upcoming"}
+                                          </Badge>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                          {course.chapters && (
+                                            <div className="flex items-center gap-1">
+                                              <BookOpen className="h-3 w-3" />
+                                              <span>
+                                                {course.chapters.length} chapter
+                                                {course.chapters.length !== 1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.totalDuration && (
+                                            <div className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              <span>
+                                                {course.totalDuration}h
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.level && (
+                                            <div className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              <span className="capitalize">
+                                                {course.level}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {isCurrent && (
+                                          <div className="space-y-1 pt-1">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-medium">
+                                                Progress
+                                              </span>
+                                              <span className="text-xs font-semibold text-blue-600">
+                                                {currentTopic.progress ?? 0}%
+                                              </span>
+                                            </div>
+                                            <Progress
+                                              value={currentTopic.progress ?? 0}
+                                              className="h-1.5"
+                                            />
+                                            {currentItem && currentItem.chapterTitle && (
+                                              <p className="text-xs text-muted-foreground">
+                                                {currentItem.chapterTitle}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {course.summary && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
+                                            {stripHtmlTags(course.summary)}
+                                          </p>
+                                        )}
+
+                                        {isCurrent && (
+                                          <Button
+                                            size="sm"
+                                            className="w-full mt-2 h-8 text-xs"
+                                            disabled={navigating}
+                                            onClick={() =>
+                                              navigateToFirstUncompletedVideo(
+                                                currentTopic.id,
+                                                currentTopic.courses ?? [],
+                                              )
+                                            }
+                                          >
+                                            <Play className="h-3 w-3 mr-1" />
+                                            {navigating
+                                              ? "Loading…"
+                                              : "Resume Learning"}
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                },
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Other content items */}
+                      {(() => {
+                        const currentOtherItems = nonCourseItemsByTopicId[currentTopic.id] ?? [];
+                        if (!currentOtherItems.length) return null;
+                        return (
+                          <div className="space-y-3 ml-0 mt-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {currentOtherItems.length} other item
+                              {currentOtherItems.length !== 1 ? "s" : ""}
+                            </p>
+                            <div className="space-y-2">
+                              {currentOtherItems.map((item) =>
+                                renderContentItem(
+                                  item,
+                                  false,
+                                  false,
+                                  false,
+                                  true,
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Topics */}
+              {upcomingTopics.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                    <h4 className="font-semibold text-gray-600">
+                      Upcoming ({upcomingTopics.length})
+                    </h4>
+                  </div>
+                  <div className="space-y-4 pl-7 border-l-2 border-gray-200">
+                    {upcomingTopics.map((topic: any) => {
+                      const otherItems = nonCourseItemsByTopicId[topic.id] ?? [];
+                      return (
+                        <div key={topic.id} className="space-y-3">
+                          <div className="flex items-start gap-3 opacity-60">
+                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                              🔒
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-semibold text-sm text-gray-600">
+                                  {topic.title}
+                                </h5>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-gray-500"
+                                >
+                                  {topic.level || "Intermediate"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {stripHtmlTags(topic.description || "")}
+                              </p>
+                            </div>
+                          </div>
+
+                          {(topic.courses?.length > 0 ||
+                            otherItems.length > 0) && (
+                            <div className="space-y-3 ml-0 opacity-75">
+                              <div className="flex flex-wrap gap-2">
+                                {topic.courses && topic.courses.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {topic.courses.length} Course
+                                    {topic.courses.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                                {otherItems.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {otherItems.length} other item
+                                    {otherItems.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                {topic.courses?.map((courseItem: any) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 p-3 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <Lock className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="font-semibold text-sm text-gray-700 dark:text-gray-300 leading-tight">
+                                                {course.title}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs flex-shrink-0 text-gray-500"
+                                          >
+                                            Locked
+                                          </Badge>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                          {course.chapters && (
+                                            <div className="flex items-center gap-1">
+                                              <BookOpen className="h-3 w-3" />
+                                              <span>
+                                                {course.chapters.length} chapter
+                                                {course.chapters.length !== 1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.totalDuration && (
+                                            <div className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              <span>
+                                                {course.totalDuration}h
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.level && (
+                                            <div className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              <span className="capitalize">
+                                                {course.level}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {course.summary && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2">
+                                            {stripHtmlTags(course.summary)}
+                                          </p>
+                                        )}
+
+                                        <div className="flex items-center gap-2 pt-1 text-xs text-gray-500">
+                                          <Lock className="h-3 w-3" />
+                                          <span>
+                                            Unlock after completing{" "}
+                                            {topic.title}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {otherItems.map((item) =>
+                                  renderContentItem(
+                                    item,
+                                    false,
+                                    true,
+                                    false,
+                                    true,
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Your Investment */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Your Investment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Topics completed</span>
+                  <span className="font-semibold">{completedTopics.length}/{topics.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Overall progress</span>
+                  <span className="font-semibold text-blue-600">{progress}%</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Current topic</span>
+                  <span className="font-semibold">{currentTopicIndex + 1} of {topics.length}</span>
+                </div>
+              </div>
+              {completedTopics.length > 0 && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Zap className="h-3 w-3" /> XP earned
+                    </span>
+                    <span className="font-semibold text-yellow-600">
+                      {completedTopics.length * 50} MB
+                    </span>
+                  </div>
+                </>
+              )}
+              {roadmap.students > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Learning Together</span>
+                    </div>
+                    <p className="text-xl font-bold">{(roadmap.students).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">learners enrolled</p>
+                    {progress > 0 && (
+                      <p className="text-xs text-green-600 mt-1 font-medium">
+                        You're ahead of {Math.round(progress * 0.6)}% of learners
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Current Topic Card */}
+          {currentTopic && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Continue Learning</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
+                    Current Topic
+                  </p>
+                  <h4 className="font-semibold text-sm">{currentTopic.title}</h4>
+                </div>
+                {currentItem && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-xs text-blue-600 font-semibold mb-1">▶ Next Up</p>
+                      <p className="text-sm font-medium line-clamp-2">{currentItem.title}</p>
+                      {currentItem.chapterTitle && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{currentItem.chapterTitle}</p>
+                      )}
+                      {currentItem.totalItems > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {currentItem.itemIndex} of {currentItem.totalItems} complete
+                        </p>
                       )}
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </>
+                )}
+                <Button
+                  className="w-full"
+                  size="sm"
+                  disabled={navigating}
+                  onClick={() => {
+                    analytics.track("path_continue_clicked", {
+                      pathId,
+                      topicId: currentTopic.id,
+                      topicTitle: currentTopic.title,
+                      source: "sidebar",
+                    });
+                    navigateToFirstUncompletedVideo(
+                      currentTopic.id,
+                      currentTopic.courses ?? [],
+                    );
+                  }}
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  {navigating ? "Loading…" : "Continue Learning"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-            <TabsContent value="projects" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Projects</CardTitle>
-                  <CardDescription>
-                    Build real-world applications
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">
-                    Projects are included within the course topics.
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="community" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Learning Community</CardTitle>
-                  <CardDescription>
-                    Connect with fellow learners
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="text-center p-4 border rounded-lg">
-                      <Users className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                      <div className="text-2xl font-bold">1,247</div>
-                      <div className="text-sm text-muted-foreground">
-                        Active learners
-                      </div>
-                    </div>
-                    <div className="text-center p-4 border rounded-lg">
-                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                      <div className="text-2xl font-bold">892</div>
-                      <div className="text-sm text-muted-foreground">
-                        Completed path
-                      </div>
-                    </div>
+          {/* Path Complete */}
+          {progress === 100 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-600" />
+                  Path Complete!
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <div className="text-center p-4 border rounded-lg bg-yellow-50">
+                    <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
+                    <h3 className="font-medium">Certificate</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Download your completion certificate
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                  <Button variant="outline" className="w-full">
+                    Download Certificate
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       <PaymentDialog
@@ -539,14 +2041,7 @@ export function LearningPathDetailPage({
             await handlePaymentComplete();
           }
         }}
-        data={{
-          id: roadmap?.id,
-          bootcampId: roadmap?.id,
-          title: roadmap?.title,
-          amount: roadmap?.amount || 0,
-          asyncpay_plan_id: roadmap?.asyncpay_plan_id,
-          type: "roadmap",
-        }}
+        data={{ ...roadmap, type: "roadmap" }}
       />
     </div>
   );
