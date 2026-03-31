@@ -22,6 +22,7 @@ import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { toast } from "sonner";
+import { Loader } from "@/components/ui/loader";
 
 interface LearningPathsPageProps {
   onNavigate?: (url: string) => void;
@@ -77,15 +78,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     loadPaths();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex-1 space-y-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading learning paths...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <Loader isLoader={false} />;
 
   // Calculate stats from actual data
   const activePaths = paths.filter((p) => p.enrolled).length;
@@ -248,22 +241,12 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="text-center">
-                    <span className="text-2xl font-bold text-green-600">
-                      Free
-                    </span>
-                    <p className="text-sm text-muted-foreground">
-                      Full access included
-                    </p>
-                  </div>
-                  <Button
-                    className="w-full"
-                    onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
-                  >
-                    Start Learning Path
-                  </Button>
-                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
+                >
+                  Start Learning Path
+                </Button>
               )}
             </CardContent>
           </Card>
