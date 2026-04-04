@@ -8,6 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -29,6 +36,7 @@ import {
   Video,
   RotateCcw,
   Flame,
+  Award,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
@@ -37,6 +45,13 @@ import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PaymentDialog } from "../payment-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
 
@@ -230,6 +245,8 @@ export function LearningPathDetailPage({
   const [enrolling, setEnrolling] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [certificate, setCertificate] = useState<any>(null);
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
     type: string;
     title: string;
@@ -248,6 +265,11 @@ export function LearningPathDetailPage({
       setRoadmap(roadmapData);
       const ur = roadmapData?.userRoadmap ?? null;
       setUserRoadmap(ur);
+
+      // Fetch certificate if path is completed
+      if (ur?.isCompleted) {
+        store.getRoadmapCertificate(pathId).then(setCertificate).catch(() => {});
+      }
 
       analytics.track("path_viewed", {
         pathId,
@@ -332,7 +354,7 @@ export function LearningPathDetailPage({
           pathTitle: roadmap?.title,
           method: "direct",
         });
-        toast.success("Successfully enrolled in path!");
+        setShowWelcomeDialog(true);
 
         const updated = await store.getRoadmapBySlug(pathId);
         setRoadmap(updated);
@@ -547,7 +569,7 @@ export function LearningPathDetailPage({
                 {item.progress}%
               </span>
             </div>
-            <Progress value={item.progress} className="h-1.5" />
+            <Progress value={item.progress} className="h-1.5" aria-label={`${item.title} progress: ${item.progress ?? 0}%`} aria-valuenow={item.progress} />
           </div>
         )}
         {(isAvailable || isCompleted) && (
@@ -652,7 +674,57 @@ export function LearningPathDetailPage({
     return map;
   }, [topics, isEnrolled]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) {
+    return (
+      <div className="flex-1 space-y-6">
+        {/* Breadcrumb skeleton */}
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-28" />
+          <span className="text-muted-foreground">/</span>
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Title */}
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-2/3" />
+            </div>
+            {/* Stats row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+            {/* Curriculum card */}
+            <div className="space-y-4 border rounded-lg p-6">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-64" />
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 py-3 border-b last:border-0">
+                  <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Sidebar */}
+          <div className="space-y-4">
+            <div className="border-2 rounded-lg p-6 space-y-4">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (roadmap?.isWaiting) {
     return (
@@ -735,13 +807,17 @@ export function LearningPathDetailPage({
   if (!isEnrolled) {
     return (
       <div className="flex-1 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => onNavigate?.(routes.paths)}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            All Learning Paths
-          </Button>
-        </div>
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button
+            onClick={() => onNavigate?.(routes.paths)}
+            className="hover:text-foreground transition-colors"
+          >
+            Learning Paths
+          </button>
+          <span>/</span>
+          <span className="text-foreground font-medium line-clamp-1 max-w-xs">{roadmap.title}</span>
+        </nav>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -886,12 +962,17 @@ export function LearningPathDetailPage({
                   professional courses
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="px-0 pt-0">
+                <Accordion
+                  type="single"
+                  collapsible
+                  defaultValue={topics[0]?.id}
+                  className="divide-y"
+                >
                 {topics.map((topic: any, topicIndex: number) => (
-                  <div key={topic.id} className="space-y-4">
-                    {/* Topic Header */}
-                    <div className="pb-3 border-b">
-                      <div className="flex items-start gap-4">
+                  <AccordionItem key={topic.id} value={topic.id} className="border-0">
+                    <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/40 [&[data-state=open]]:bg-muted/20">
+                      <div className="flex items-start gap-4 text-left w-full pr-2">
                         <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
                           {topicIndex + 1}
                         </div>
@@ -910,12 +991,14 @@ export function LearningPathDetailPage({
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-2">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {stripHtmlTags(topic.description || "")}
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-0">
+                    <div className="px-6 pb-4 space-y-4">
 
                     {/* Courses in Topic */}
                     {topic.courses && topic.courses.length > 0 ? (
@@ -1129,12 +1212,15 @@ export function LearningPathDetailPage({
                         </div>
                       </div>
                     ) : (
-                      <div className="ml-12 text-xs text-muted-foreground italic">
+                      <div className="text-xs text-muted-foreground italic">
                         No courses in this topic yet
                       </div>
                     )}
-                  </div>
+                    </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
+                </Accordion>
               </CardContent>
             </Card>
           </div>
@@ -1277,6 +1363,18 @@ export function LearningPathDetailPage({
   // Enrolled: show progress timeline
   return (
     <div className="flex-1 space-y-6">
+      {/* Breadcrumb */}
+      <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <button
+          onClick={() => onNavigate?.(routes.paths)}
+          className="hover:text-foreground transition-colors"
+        >
+          Learning Paths
+        </button>
+        <span>/</span>
+        <span className="text-foreground font-medium line-clamp-1 max-w-xs">{roadmap.title}</span>
+      </nav>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -1285,10 +1383,6 @@ export function LearningPathDetailPage({
             {currentTopicIndex + 1} of {topics.length} • {progress}% Complete
           </p>
         </div>
-        <Button variant="outline" onClick={() => onNavigate?.(routes.paths)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          All Paths
-        </Button>
       </div>
 
       {/* Motivational Banner */}
@@ -1331,7 +1425,7 @@ export function LearningPathDetailPage({
                 Overall Progress
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={progress} className="h-2 flex-1" />
+                <Progress value={progress} className="h-2 flex-1" aria-label={`Overall learning path progress: ${progress}%`} aria-valuenow={progress} />
                 <span className="text-sm font-medium">{progress}%</span>
               </div>
             </div>
@@ -2097,12 +2191,28 @@ export function LearningPathDetailPage({
                   <div className="text-center p-4 border rounded-lg bg-yellow-50">
                     <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
                     <h3 className="font-medium">Certificate</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Download your completion certificate
-                    </p>
+                    {certificate ? (
+                      <p className="text-sm text-muted-foreground">
+                        ID: <span className="font-mono font-medium">{certificate.code}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Your completion certificate is ready
+                      </p>
+                    )}
                   </div>
-                  <Button variant="outline" className="w-full">
-                    Download Certificate
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      if (certificate?.verifyUrl) {
+                        window.open(certificate.verifyUrl, "_blank");
+                      } else {
+                        toast.info("Certificate is being generated. Check your email shortly.");
+                      }
+                    }}
+                  >
+                    View Certificate
                   </Button>
                 </div>
               </CardContent>
@@ -2110,6 +2220,31 @@ export function LearningPathDetailPage({
           )}
         </div>
       </div>
+
+      {/* Mobile sticky CTA — only visible on small screens when not enrolled */}
+      {!isEnrolled && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-4 flex flex-col gap-2 shadow-lg">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="font-semibold text-sm line-clamp-1">{roadmap?.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {roadmap?.topics?.length ?? 0} topics · {roadmap?.isPremium ? "Premium" : "Free"}
+              </p>
+            </div>
+            {roadmap?.progress !== undefined && (
+              <span className="text-xs font-medium text-blue-600">{roadmap.progress}% complete</span>
+            )}
+          </div>
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={enrolling}
+            onClick={handleEnroll}
+          >
+            {enrolling ? "Enrolling..." : "Start Learning Path"}
+          </Button>
+        </div>
+      )}
 
       <PaymentDialog
         open={showPaymentDialog}
@@ -2122,6 +2257,48 @@ export function LearningPathDetailPage({
         }}
         data={{ ...roadmap, type: "roadmap" }}
       />
+
+      {/* Post-enrollment welcome dialog */}
+      <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <div className="flex justify-center mb-3">
+              <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+                <Target className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-xl">You&apos;re in! 🎉</DialogTitle>
+            <DialogDescription className="text-base mt-2">
+              Welcome to <strong>{roadmap?.title}</strong>. Your learning journey starts now.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-start gap-3 text-left p-3 bg-blue-50 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Progress is tracked automatically</p>
+                <p className="text-xs text-muted-foreground">Complete videos, quizzes, and projects to advance through topics.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 text-left p-3 bg-blue-50 rounded-lg">
+              <Award className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Earn a certificate on completion</p>
+                <p className="text-xs text-muted-foreground">Finish all topics to unlock your shareable certificate.</p>
+              </div>
+            </div>
+          </div>
+          <Button
+            className="w-full mt-2"
+            onClick={() => {
+              setShowWelcomeDialog(false);
+              if (onNavigate) onNavigate(routes.pathContinue(pathId));
+            }}
+          >
+            Start Learning →
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

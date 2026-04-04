@@ -17,11 +17,20 @@ import {
   Star,
   Target,
   CheckCircle2,
+  Search,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { stripHtmlTags } from "@/lib/html-utils";
-import { toast } from "sonner";
 import { Loader } from "@/components/ui/loader";
 
 interface LearningPathsPageProps {
@@ -32,6 +41,9 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const store = useAppStore();
   const [paths, setPaths] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     const loadPaths = async () => {
@@ -80,6 +92,28 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
 
   if (loading) return <Loader isLoader={false} />;
 
+  // Filter paths based on search + filters
+  const filteredPaths = paths.filter((p) => {
+    const matchesSearch =
+      !search ||
+      p.title?.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase());
+
+    const matchesLevel =
+      levelFilter === "all" ||
+      (p.topics?.[0]?.level || "Intermediate").toLowerCase() === levelFilter.toLowerCase();
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "enrolled" && p.enrolled && p.progress < 100) ||
+      (statusFilter === "completed" && p.progress === 100) ||
+      (statusFilter === "not_enrolled" && !p.enrolled);
+
+    return matchesSearch && matchesLevel && matchesStatus;
+  });
+
+  const hasActiveFilters = search || levelFilter !== "all" || statusFilter !== "all";
+
   // Calculate stats from actual data
   const activePaths = paths.filter((p) => p.enrolled).length;
   const completedPaths = paths.filter((p) => p.progress === 100).length;
@@ -105,13 +139,6 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             expert
           </p>
         </div>
-        <Button
-          onClick={() => toast.info("Custom path creation coming soon!")}
-          variant="outline"
-        >
-          <Target className="mr-2 h-4 w-4" />
-          Create Custom Path
-        </Button>
       </div>
 
       {/* Stats */}
@@ -160,6 +187,49 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         </Card>
       </div>
 
+      {/* Search + Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search learning paths..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Levels" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            <SelectItem value="Beginner">Beginner</SelectItem>
+            <SelectItem value="Intermediate">Intermediate</SelectItem>
+            <SelectItem value="Advanced">Advanced</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="enrolled">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="not_enrolled">Not Started</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Learning Paths Grid */}
       {paths.length === 0 ? (
         <Card className="col-span-full">
@@ -171,9 +241,25 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             </p>
           </CardContent>
         </Card>
+      ) : filteredPaths.length === 0 ? (
+        <Card className="col-span-full">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No paths match your filters</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-4">
+              Try adjusting your search or filters to find what you&apos;re looking for.
+            </p>
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={() => { setSearch(""); setLevelFilter("all"); setStatusFilter("all"); }}>
+                <X className="mr-2 h-4 w-4" />
+                Clear filters
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       ) : (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {paths.map((path) => (
+        {filteredPaths.map((path) => (
           <Card key={path.id} className="overflow-hidden">
             <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center overflow-hidden">
               {path.banner ? (
@@ -231,7 +317,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                       <span>Progress</span>
                       <span>{path.progress}%</span>
                     </div>
-                    <Progress value={path.progress} className="h-2" />
+                    <Progress value={path.progress} className="h-2" aria-label={`${path.title} progress: ${path.progress}%`} aria-valuenow={path.progress} />
                   </div>
                   <Button
                     className="w-full"
