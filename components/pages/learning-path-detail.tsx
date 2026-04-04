@@ -37,6 +37,7 @@ import {
   RotateCcw,
   Flame,
   Award,
+  DollarSign,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
@@ -247,6 +248,7 @@ export function LearningPathDetailPage({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
     type: string;
     title: string;
@@ -647,6 +649,12 @@ export function LearningPathDetailPage({
   const progress =
     userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
 
+  // Free preview course: first non-premium course in first topic (only relevant for premium roadmaps)
+  const freePreviewCourseId =
+    !isEnrolled && roadmap?.isPremium
+      ? topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null
+      : null;
+
   const completedTopics = useMemo(
     () => topics.filter((t) => t.completed === true),
     [topics],
@@ -832,7 +840,7 @@ export function LearningPathDetailPage({
             </div>
 
             {/* Key Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -860,7 +868,9 @@ export function LearningPathDetailPage({
                         Duration
                       </div>
                       <div className="text-2xl font-bold">
-                        {roadmap.timeframe || "Self-paced"}
+                        {roadmap.estimatedWeeks > 0
+                          ? `~${roadmap.estimatedWeeks} weeks at ${roadmap.hoursPerWeek}h/week`
+                          : roadmap.timeframe || "Self-paced"}
                       </div>
                     </div>
                   </div>
@@ -897,6 +907,32 @@ export function LearningPathDetailPage({
                       </div>
                       <div className="text-2xl font-bold">
                         {(roadmap.students || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
+                      <DollarSign className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">
+                        Access
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {roadmap.amount > 0 || roadmap.isPremium ? (
+                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-base font-bold px-2 py-0.5">
+                            {roadmap.amount > 0 ? `$${roadmap.amount}` : "Premium"}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-base font-bold px-2 py-0.5">
+                            Free
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1028,9 +1064,16 @@ export function LearningPathDetailPage({
                                         </p>
                                       </div>
                                     </div>
-                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
-                                      Available
-                                    </Badge>
+                                    {course.id === freePreviewCourseId ? (
+                                      <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
+                                        Free
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                        <Lock className="h-3 w-3" />
+                                        Locked
+                                      </Badge>
+                                    )}
                                   </div>
 
                                   {/* Course Metadata */}
@@ -1111,17 +1154,37 @@ export function LearningPathDetailPage({
                                     )}
 
                                   {/* Enrollment CTA */}
-                                  <Button
-                                    size="sm"
-                                    className="w-full mt-3 h-9 text-sm"
-                                    disabled={enrolling}
-                                    onClick={handleEnroll}
-                                  >
-                                    <Play className="h-4 w-4 mr-2" />
-                                    {enrolling
-                                      ? "Enrolling..."
-                                      : "Start This Course"}
-                                  </Button>
+                                  {course.id === freePreviewCourseId ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
+                                      onClick={() =>
+                                        onNavigate?.(
+                                          routes.pathCoursePreview(
+                                            pathId,
+                                            topics[0]?.id,
+                                            course.slug
+                                          )
+                                        )
+                                      }
+                                    >
+                                      <Play className="h-4 w-4 mr-2" />
+                                      Start Free Preview
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      className="w-full mt-3 h-9 text-sm"
+                                      disabled={enrolling}
+                                      onClick={handleEnroll}
+                                    >
+                                      <Play className="h-4 w-4 mr-2" />
+                                      {enrolling
+                                        ? "Enrolling..."
+                                        : "Start This Course"}
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1152,8 +1215,9 @@ export function LearningPathDetailPage({
                                           </p>
                                         </div>
                                       </div>
-                                      <Badge className="bg-blue-600 text-xs flex-shrink-0">
-                                        Available
+                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                        <Lock className="h-3 w-3" />
+                                        Locked
                                       </Badge>
                                     </div>
 
@@ -1263,6 +1327,43 @@ export function LearningPathDetailPage({
                   </div>
                 </div>
 
+                {roadmap.instructor && (
+                  <div className="flex items-center gap-3 py-3 border-t">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                      <BookOpen className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Created by</p>
+                      <p className="text-sm font-semibold">{roadmap.instructor}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(freePreviewCourseId || roadmap?.preview) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      if (freePreviewCourseId) {
+                        const previewCourse = topics[0]?.courses?.find(
+                          (c: any) => c.id === freePreviewCourseId
+                        );
+                        if (previewCourse?.slug) {
+                          onNavigate?.(
+                            routes.pathCoursePreview(pathId, topics[0].id, previewCourse.slug)
+                          );
+                          return;
+                        }
+                      }
+                      // Fallback: open video dialog for roadmap.preview URL
+                      setShowPreviewDialog(true);
+                    }}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Watch Preview
+                  </Button>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
@@ -1302,41 +1403,46 @@ export function LearningPathDetailPage({
               </Card>
             )}
 
-            {/* Why Enroll */}
+            {/* Path Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Why Choose This?</CardTitle>
+                <CardTitle className="text-lg">Path Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {roadmap.instructor && (
+                    <div className="flex gap-2">
+                      <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Created by</p>
+                        <p className="font-medium text-sm">{roadmap.instructor}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-2">
-                    <Zap className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <DollarSign className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium text-sm">Structured Learning</p>
-                      <p className="text-xs text-muted-foreground">
-                        Proven curriculum from industry experts
-                      </p>
+                      <p className="text-xs text-muted-foreground">Price</p>
+                      {roadmap.amount > 0 ? (
+                        <p className="font-medium text-sm">${roadmap.amount}</p>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">
+                          Free
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Target className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-sm">Career Growth</p>
-                      <p className="text-xs text-muted-foreground">
-                        Build skills employers want
-                      </p>
-                    </div>
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">Lifetime Access &middot; No expiry</p>
                   </div>
                   <div className="flex gap-2">
-                    <Trophy className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-sm">
-                        Recognized Credential
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Shareable certificate of completion
-                      </p>
-                    </div>
+                    <Award className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">Certificate of completion included</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">Free preview available</p>
                   </div>
                 </div>
               </CardContent>
@@ -1356,6 +1462,26 @@ export function LearningPathDetailPage({
           data={{ ...roadmap, type: "roadmap" }}
           disableOnetime={!roadmap?.paddle_price_id}
         />
+
+        {/* Watch Preview Dialog */}
+        <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Preview: {roadmap?.title}</DialogTitle>
+              <DialogDescription>
+                Watch a free preview of this learning path
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-2">
+              <iframe
+                src={roadmap?.preview}
+                className="w-full aspect-video rounded-md"
+                allowFullScreen
+                allow="autoplay; fullscreen"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -2267,38 +2393,51 @@ export function LearningPathDetailPage({
                 <Target className="h-8 w-8 text-blue-600" />
               </div>
             </div>
-            <DialogTitle className="text-xl">You&apos;re in! 🎉</DialogTitle>
+            <DialogTitle className="text-xl">You&apos;re in!</DialogTitle>
             <DialogDescription className="text-base mt-2">
               Welcome to <strong>{roadmap?.title}</strong>. Your learning journey starts now.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="flex items-start gap-3 text-left p-3 bg-blue-50 rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Progress is tracked automatically</p>
-                <p className="text-xs text-muted-foreground">Complete videos, quizzes, and projects to advance through topics.</p>
+            <h3 className="text-base font-semibold text-left">Your first lesson is ready</h3>
+            {topics?.[0] && (
+              <div className="text-left p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+                  <p className="text-sm font-medium">{topics[0].title}</p>
+                </div>
+                {topics[0].courses?.[0] && (
+                  <div className="flex items-center gap-2 ml-8">
+                    <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
+                    <p className="text-sm text-muted-foreground">
+                      {topics[0].courses[0].course?.title || topics[0].courses[0].title}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="flex items-start gap-3 text-left p-3 bg-blue-50 rounded-lg">
-              <Award className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Earn a certificate on completion</p>
-                <p className="text-xs text-muted-foreground">Finish all topics to unlock your shareable certificate.</p>
-              </div>
-            </div>
+            )}
           </div>
-          <Button
-            className="w-full mt-2"
-            onClick={() => {
-              setShowWelcomeDialog(false);
-              if (onNavigate) onNavigate(routes.pathContinue(pathId));
-            }}
-          >
-            Start Learning →
-          </Button>
+          <div className="flex flex-col gap-2 mt-2">
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowWelcomeDialog(false);
+                if (onNavigate) onNavigate(routes.pathContinue(pathId));
+              }}
+            >
+              Start Now &rarr;
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowWelcomeDialog(false)}
+            >
+              Explore Curriculum
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

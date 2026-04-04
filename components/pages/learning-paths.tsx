@@ -67,6 +67,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
               topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) > 0
                 ? `${Math.ceil(topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) / 4)} months`
                 : "Self-paced",
+            estimatedWeeks: r.estimatedWeeks ?? 0,
+            hoursPerWeek: r.hoursPerWeek ?? 0,
             courses: topics.flatMap(
               (t: any) => t.courses?.map((c: any) => c.id) || []
             ),
@@ -290,7 +292,11 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                 </Badge>
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{path.estimatedTime}</span>
+                  <span className="text-sm">
+                    {path.estimatedWeeks > 0
+                      ? `~${path.estimatedWeeks}w · ${path.hoursPerWeek}h/wk`
+                      : path.estimatedTime}
+                  </span>
                 </div>
               </div>
               <CardTitle className="line-clamp-2">{path.title}</CardTitle>
