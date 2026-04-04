@@ -95,7 +95,21 @@ export const routes = {
   // Learning Paths
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,
-  pathContinue: (pathId: string) => `/paths/${pathId}/continue`,
+  pathContinue: (pathId: string, topicId?: string) =>
+    topicId ? `/paths/${pathId}/continue#${topicId}` : `/paths/${pathId}/continue`,
+  pathCoursePreview: (pathId: string, topicId: string, courseSlug: string) =>
+    `/paths/${pathId}/${topicId}/${courseSlug}/preview`,
+  pathVideoWatch: (
+    pathId: string,
+    topicId: string,
+    courseSlug: string,
+    chapterId: string,
+    videoId: string,
+  ) => `/paths/${pathId}/${topicId}/${courseSlug}/${chapterId}/${videoId}`,
+  pathExercise: (pathId: string, topicId: string, exerciseId: string) =>
+    `/paths/${pathId}/${topicId}/exercises/${exerciseId}`,
+  pathQuiz: (pathId: string, topicId: string, quizId: string) =>
+    `/paths/${pathId}/${topicId}/quizzes/${quizId}`,
   pathContentWatch: (pathId: string, stepId: string) =>
     `/paths/${pathId}/watch/${stepId}`,
 

@@ -122,6 +122,7 @@ interface AppState {
   getRoadmapMilestones: (slug: string) => any;
   getMilestone: (slug: string, topicId: string) => Milestone | any;
   getRoadmapItems: (slug: string, topicId: string) => any;
+  getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
@@ -214,6 +215,7 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
+  enrollInRoadmap: (slug: string) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
@@ -719,6 +721,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  getRoadmapCertificate: async (slug: string) => {
+    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
+    return data?.data;
+  },
+
   getRoadmapMilestones: async (slug: string) => {
     const roadmap = await get().getRoadmapBySlug(slug);
     return roadmap ? roadmap.topics : [];
@@ -1057,6 +1064,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       path.enrolled = true;
       get().forceUpdate();
     }
+  },
+
+  enrollInRoadmap: async (slug) => {
+    const response = await api.post(`/roadmaps/${slug}`);
+    const { data } = response;
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to enroll in roadmap");
+    }
+    const enrollData = Array.isArray(data?.data) ? data?.data[0] : data?.data;
+    return enrollData;
   },
 
   completeChallenge: (challengeId) => {

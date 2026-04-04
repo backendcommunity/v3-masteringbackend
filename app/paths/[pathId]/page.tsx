@@ -2,24 +2,15 @@
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { LearningPathDetailPage } from "@/components/pages/learning-path-detail"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
-interface LearningPathDetailPageRouteProps {
-  params: {
-    pathId: string
-  }
-}
-
-export default function LearningPathDetailPageRoute({ params }: LearningPathDetailPageRouteProps) {
+export default function LearningPathDetailPageRoute() {
   const router = useRouter()
-
-  const handleNavigate = (path: string) => {
-    router.push(path)
-  }
+  const { pathId } = useParams() as { pathId: string }
 
   return (
     <DashboardLayout>
-      <LearningPathDetailPage pathId={params.pathId} onNavigate={handleNavigate} />
+      <LearningPathDetailPage pathId={pathId} onNavigate={(path) => router.push(path)} />
     </DashboardLayout>
   )
 }

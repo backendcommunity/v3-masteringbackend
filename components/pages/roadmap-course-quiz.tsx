@@ -20,7 +20,7 @@ import { routes } from "@/lib/routes";
 
 interface RoadmapCourseQuizProps {
   roadmapId: string;
-  courseId: string;
+  courseId?: string;
   quizId: string;
   showNav?: boolean;
   handleQuizSubmit: (passed: boolean) => void;
@@ -53,8 +53,10 @@ export function RoadmapCourseQuiz({
   async function loadData() {
     const roadmap = await store.getRoadmapBySlug(roadmapId);
     setRoadmap(roadmap);
-    const course = await store.getCourse(courseId);
-    setCourse(course);
+    if (courseId) {
+      const course = await store.getCourse(courseId);
+      setCourse(course);
+    }
 
     const quiz = await store.getQuiz(quizId);
 
@@ -121,7 +123,7 @@ export function RoadmapCourseQuiz({
     }
   }, [quizStarted, quizCompleted, timeLeft]);
 
-  if (!roadmap || !course || !quiz) {
+  if (!roadmap || (courseId && !course) || !quiz) {
     return <div>Quiz not found</div>;
   }
 
