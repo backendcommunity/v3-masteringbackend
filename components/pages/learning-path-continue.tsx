@@ -30,7 +30,14 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { Loader } from "../ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { toast } from "sonner";
 
@@ -208,6 +215,10 @@ export function LearningPathContinuePage({
   const [loading, setLoading] = useState(true);
   const [navigating, setNavigating] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebratedTopicTitle, setCelebratedTopicTitle] = useState("");
+  const [showEnrollPrompt, setShowEnrollPrompt] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
 
   // Deep-link to the exact video where the user left off
   const navigateToFirstUncompletedVideo = async (topicId: string, courses: any[]) => {
@@ -411,6 +422,15 @@ export function LearningPathContinuePage({
         if (ur?.isCompleted) {
           store.getRoadmapCertificate(pathId).then(setCertificate).catch(() => {});
         }
+
+        // Check if a topic was just completed (stored in sessionStorage by the video watch page)
+        const justCompletedKey = `path_topic_completed_${pathId}`;
+        const justCompletedTopicTitle = sessionStorage.getItem(justCompletedKey);
+        if (justCompletedTopicTitle) {
+          sessionStorage.removeItem(justCompletedKey);
+          setCelebratedTopicTitle(justCompletedTopicTitle);
+          setShowCelebration(true);
+        }
       } catch (error) {
         console.error("Failed to load learning path continue data:", error);
       } finally {
@@ -421,7 +441,35 @@ export function LearningPathContinuePage({
     loadData();
   }, [pathId, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) {
+    return (
+      <div className="flex-1 space-y-6">
+        {/* Breadcrumb skeleton */}
+        <Skeleton className="h-4 w-[200px]" />
+
+        {/* Progress cards skeleton */}
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+
+        {/* Topic timeline skeleton */}
+        <div className="space-y-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-start gap-4">
+              <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-3 w-full max-w-md" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!roadmap) {
     return (
@@ -459,6 +507,33 @@ export function LearningPathContinuePage({
         : 0;
   const isEnrolled = Boolean(userRoadmap);
 
+  // Free preview: first non-premium course in first topic (only for premium roadmaps)
+  const freePreviewCourse =
+    !isEnrolled && roadmap?.isPremium
+      ? topics[0]?.courses?.find((c: any) => !c.isPremium) ?? null
+      : null;
+  const isInFreePreview = !!freePreviewCourse;
+
+  // Auto-show enrollment prompt if user completed the free preview course
+  useEffect(() => {
+    if (freePreviewCourse?.isCompleted && !isEnrolled) {
+      setShowEnrollPrompt(true);
+    }
+  }, [freePreviewCourse?.isCompleted, isEnrolled]);
+
+  const handleEnroll = async () => {
+    setEnrolling(true);
+    try {
+      await store.enrollInRoadmap(pathId);
+      // Reload the page to reflect enrollment
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(err?.message || "Enrollment failed. Please try again.");
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   // For non-enrolled users, show details/sales page
   if (!isEnrolled) {
     return (
@@ -475,6 +550,26 @@ export function LearningPathContinuePage({
           <span>/</span>
           <span className="text-foreground font-medium">Preview</span>
         </nav>
+
+        {/* Free Preview Banner */}
+        {isInFreePreview && (
+          <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Play className="h-5 w-5 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-sm text-green-800 dark:text-green-300">
+                  Free Preview — {freePreviewCourse.title}
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-400">
+                  Enroll to unlock all {topics.length} topics and {roadmap.totalContent || 0} lessons
+                </p>
+              </div>
+            </div>
+            <Button size="sm" onClick={handleEnroll} disabled={enrolling} className="shrink-0">
+              {enrolling ? "Enrolling..." : "Enroll Now"}
+            </Button>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -679,9 +774,16 @@ export function LearningPathContinuePage({
                                         </p>
                                       </div>
                                     </div>
-                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
-                                      Available
-                                    </Badge>
+                                    {freePreviewCourse && course.id === freePreviewCourse.id ? (
+                                      <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
+                                        Free
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                        <Lock className="h-3 w-3" />
+                                        Locked
+                                      </Badge>
+                                    )}
                                   </div>
 
                                   {/* Course Metadata */}
@@ -762,16 +864,34 @@ export function LearningPathContinuePage({
                                     )}
 
                                   {/* Enrollment CTA */}
-                                  <Button
-                                    size="sm"
-                                    className="w-full mt-3 h-9 text-sm"
-                                    onClick={() =>
-                                      onNavigate?.(`/paths/${pathId}`)
-                                    }
-                                  >
-                                    <Play className="h-4 w-4 mr-2" />
-                                    Start This Course
-                                  </Button>
+                                  {freePreviewCourse && course.id === freePreviewCourse.id ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
+                                      onClick={() =>
+                                        onNavigate?.(
+                                          routes.pathCoursePreview(
+                                            pathId,
+                                            topics[0]?.id,
+                                            course.slug
+                                          )
+                                        )
+                                      }
+                                    >
+                                      <Play className="h-4 w-4 mr-2" />
+                                      Watch Free Preview
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      className="w-full mt-3 h-9 text-sm"
+                                      onClick={() => setShowEnrollPrompt(true)}
+                                    >
+                                      <Lock className="h-4 w-4 mr-2" />
+                                      Enroll to Unlock
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -801,8 +921,9 @@ export function LearningPathContinuePage({
                                         </p>
                                       </div>
                                     </div>
-                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
-                                      Available
+                                    <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                      <Lock className="h-3 w-3" />
+                                      Locked
                                     </Badge>
                                   </div>
 
@@ -844,12 +965,10 @@ export function LearningPathContinuePage({
                                   <Button
                                     size="sm"
                                     className="w-full mt-3 h-9 text-sm"
-                                    onClick={() =>
-                                      onNavigate?.(`/paths/${pathId}`)
-                                    }
+                                    onClick={() => setShowEnrollPrompt(true)}
                                   >
-                                    <Play className="h-4 w-4 mr-2" />
-                                    {config.ctaLabel}
+                                    <Lock className="h-4 w-4 mr-2" />
+                                    Enroll to Unlock
                                   </Button>
                                 </div>
                               </div>
@@ -909,14 +1028,17 @@ export function LearningPathContinuePage({
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={() => onNavigate?.(`/paths/${pathId}`)}
+                  disabled={enrolling}
+                  onClick={handleEnroll}
                 >
-                  Enroll Now
+                  {enrolling ? "Enrolling..." : "Enroll Now"}
                 </Button>
 
-                <p className="text-xs text-center text-muted-foreground">
-                  Premium membership required
-                </p>
+                {roadmap?.isPremium && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Premium membership required
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -983,6 +1105,32 @@ export function LearningPathContinuePage({
             </Card>
           </div>
         </div>
+
+        {/* Enrollment Prompt Dialog */}
+        <Dialog open={showEnrollPrompt} onOpenChange={setShowEnrollPrompt}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {freePreviewCourse?.isCompleted
+                  ? "You've completed the free preview!"
+                  : "Enroll to unlock this content"}
+              </DialogTitle>
+              <DialogDescription>
+                {freePreviewCourse?.isCompleted
+                  ? `You finished "${freePreviewCourse.title}". Enroll now to continue to the next topic and unlock everything.`
+                  : `Enroll in "${roadmap.title}" to access all ${topics.length} topics and ${roadmap.totalContent || 0} lessons.`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-2">
+              <Button className="flex-1" disabled={enrolling} onClick={handleEnroll}>
+                {enrolling ? "Enrolling..." : "Enroll Now →"}
+              </Button>
+              <Button variant="outline" onClick={() => setShowEnrollPrompt(false)}>
+                Back to Path
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1673,6 +1821,45 @@ export function LearningPathContinuePage({
           )}
         </div>
       </div>
+
+      {/* Topic Completion Celebration Dialog */}
+      <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Topic Completed!</DialogTitle>
+            <DialogDescription>
+              You finished: {celebratedTopicTitle}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            <div className="text-6xl mb-4">🎉</div>
+            <p className="text-muted-foreground">
+              {topics.filter((t: any) => t.isCompleted).length} topics down,{" "}
+              {topics.filter((t: any) => !t.isCompleted).length} to go.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            {upcomingTopics.length > 0 && (
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowCelebration(false);
+                  onNavigate?.(routes.pathContinue(pathId, upcomingTopics[0].id));
+                }}
+              >
+                Continue to Next Topic →
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className={upcomingTopics.length > 0 ? "" : "flex-1"}
+              onClick={() => setShowCelebration(false)}
+            >
+              Stay Here
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

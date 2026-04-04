@@ -95,7 +95,10 @@ export const routes = {
   // Learning Paths
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,
-  pathContinue: (pathId: string) => `/paths/${pathId}/continue`,
+  pathContinue: (pathId: string, topicId?: string) =>
+    topicId ? `/paths/${pathId}/continue#${topicId}` : `/paths/${pathId}/continue`,
+  pathCoursePreview: (pathId: string, topicId: string, courseSlug: string) =>
+    `/paths/${pathId}/${topicId}/${courseSlug}/preview`,
   pathVideoWatch: (
     pathId: string,
     topicId: string,
