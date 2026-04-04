@@ -20,7 +20,6 @@ import {
   Play,
   Lock,
   Trophy,
-  Award,
   Users,
   Star,
   Zap,
@@ -33,8 +32,6 @@ import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
-import { useUser } from "@/hooks/use-user";
-import { PaymentDialog } from "../payment-dialog";
 import { toast } from "sonner";
 
 // Type definitions for multi-content timeline
@@ -206,13 +203,11 @@ export function LearningPathContinuePage({
   onNavigate,
 }: LearningPathContinuePageProps) {
   const store = useAppStore();
-  const user = useUser();
   const [roadmap, setRoadmap] = useState<any>(null);
   const [userRoadmap, setUserRoadmap] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [enrolling, setEnrolling] = useState(false);
   const [navigating, setNavigating] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [certificate, setCertificate] = useState<any>(null);
 
   // Deep-link to the exact video where the user left off
   const navigateToFirstUncompletedVideo = async (topicId: string, courses: any[]) => {
@@ -350,7 +345,7 @@ export function LearningPathContinuePage({
               <span>Progress</span>
               <span className="font-semibold text-blue-600">{item.progress}%</span>
             </div>
-            <Progress value={item.progress} className="h-1.5" />
+            <Progress value={item.progress} className="h-1.5" aria-label={`${item.title} progress: ${item.progress ?? 0}%`} aria-valuenow={item.progress} />
           </div>
         )}
         {isAvailable && (
@@ -411,6 +406,11 @@ export function LearningPathContinuePage({
             ur.roadmap?.slug === pathId || ur.roadmapId === roadmapData?.id,
         );
         setUserRoadmap(ur || null);
+
+        // Fetch certificate if path is completed
+        if (ur?.isCompleted) {
+          store.getRoadmapCertificate(pathId).then(setCertificate).catch(() => {});
+        }
       } catch (error) {
         console.error("Failed to load learning path continue data:", error);
       } finally {
@@ -463,16 +463,18 @@ export function LearningPathContinuePage({
   if (!isEnrolled) {
     return (
       <div className="flex-1 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => onNavigate?.(`/paths/${pathId}`)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Path
-          </Button>
-        </div>
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button onClick={() => onNavigate?.(routes.paths)} className="hover:text-foreground transition-colors">
+            Learning Paths
+          </button>
+          <span>/</span>
+          <button onClick={() => onNavigate?.(`/paths/${pathId}`)} className="hover:text-foreground transition-colors">
+            {roadmap.title}
+          </button>
+          <span>/</span>
+          <span className="text-foreground font-medium">Preview</span>
+        </nav>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -988,6 +990,19 @@ export function LearningPathContinuePage({
   // For enrolled users, show progress timeline
   return (
     <div className="flex-1 space-y-6">
+      {/* Breadcrumb */}
+      <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <button onClick={() => onNavigate?.(routes.paths)} className="hover:text-foreground transition-colors">
+          Learning Paths
+        </button>
+        <span>/</span>
+        <button onClick={() => onNavigate?.(`/paths/${pathId}`)} className="hover:text-foreground transition-colors">
+          {roadmap.title}
+        </button>
+        <span>/</span>
+        <span className="text-foreground font-medium">Continue</span>
+      </nav>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -1017,7 +1032,7 @@ export function LearningPathContinuePage({
                 Overall Progress
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={progress} className="h-2 flex-1" />
+                <Progress value={progress} className="h-2 flex-1" aria-label={`Overall learning path progress: ${progress}%`} aria-valuenow={progress} />
                 <span className="text-sm font-medium">{progress}%</span>
               </div>
             </div>
@@ -1072,10 +1087,10 @@ export function LearningPathContinuePage({
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Topic Progress</span>
                     <span className="text-sm">
-                      {currentTopic.courses?.length || 0} courses
+                      {currentTopic.progress ?? 0}%
                     </span>
                   </div>
-                  <Progress value={50} className="h-2" />
+                  <Progress value={currentTopic.progress ?? 0} className="h-2" aria-label={`${currentTopic.title} topic progress: ${currentTopic.progress ?? 0}%`} aria-valuenow={currentTopic.progress ?? 0} />
 
                   <div className="flex gap-3">
                     <Button
@@ -1123,7 +1138,7 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-green-200">
-                    {completedTopics.map((topic: any, idx: number) => {
+                    {completedTopics.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
                       return (<div key={topic.id} className="space-y-3">
                         {/* Topic */}
@@ -1241,9 +1256,9 @@ export function LearningPathContinuePage({
                           <p className="text-xs text-muted-foreground mt-1">
                             {stripHtmlTags(currentTopic.description || "")}
                           </p>
-                          <Progress value={50} className="h-1 mt-3" />
+                          <Progress value={currentTopic.progress ?? 0} className="h-1 mt-3" aria-label={`${currentTopic.title} progress: ${currentTopic.progress ?? 0}%`} aria-valuenow={currentTopic.progress ?? 0} />
                           <p className="text-xs text-muted-foreground mt-2">
-                            50% complete
+                            {currentTopic.progress ?? 0}% complete
                           </p>
                         </div>
                       </div>
@@ -1412,7 +1427,7 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-gray-200">
-                    {upcomingTopics.map((topic: any, idx: number) => {
+                    {upcomingTopics.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
                       return (<div key={topic.id} className="space-y-3">
                         {/* Topic */}
@@ -1629,12 +1644,28 @@ export function LearningPathContinuePage({
                   <div className="text-center p-4 border rounded-lg bg-yellow-50">
                     <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
                     <h3 className="font-medium">Certificate</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Download your completion certificate
-                    </p>
+                    {certificate ? (
+                      <p className="text-sm text-muted-foreground">
+                        ID: <span className="font-mono font-medium">{certificate.code}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Your completion certificate is ready
+                      </p>
+                    )}
                   </div>
-                  <Button variant="outline" className="w-full">
-                    Download Certificate
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      if (certificate?.verifyUrl) {
+                        window.open(certificate.verifyUrl, "_blank");
+                      } else {
+                        toast.info("Certificate is being generated. Check your email shortly.");
+                      }
+                    }}
+                  >
+                    View Certificate
                   </Button>
                 </div>
               </CardContent>

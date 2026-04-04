@@ -122,6 +122,7 @@ interface AppState {
   getRoadmapMilestones: (slug: string) => any;
   getMilestone: (slug: string, topicId: string) => Milestone | any;
   getRoadmapItems: (slug: string, topicId: string) => any;
+  getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
@@ -717,6 +718,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getRoadmapBySlug: async (slug: string) => {
     const { data } = await api.get("/roadmaps/" + slug);
+    return data?.data;
+  },
+
+  getRoadmapCertificate: async (slug: string) => {
+    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
     return data?.data;
   },
 
