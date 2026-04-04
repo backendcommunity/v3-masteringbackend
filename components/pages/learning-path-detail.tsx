@@ -190,7 +190,7 @@ function getNonCourseItems(
       description: bootcamp.description || "",
       duration: bootcamp.duration,
       level: bootcamp.level,
-      meta: { isOptional: bootcampItem.isOptional ?? false },
+      meta: { isOptional: bootcampItem.isOptional ?? false, slug: bootcamp.slug },
       completed: bootcampItem.isCompleted ?? false,
       locked: !isEnrolled,
     });
@@ -262,15 +262,19 @@ export function LearningPathDetailPage({
         );
         if (foundTopic) {
           try {
-            const milestone = await store.getMilestone(pathId, ur.currentTopicId);
+            const milestone = await store.getMilestone(
+              pathId,
+              ur.currentTopicId,
+            );
             milestoneCache.current[ur.currentTopicId] = milestone;
             const completedIds = new Set(
               (milestone?.userTopic?.completedItems ?? [])
                 .filter((ci: any) => ci.completed)
                 .map((ci: any) => ci.itemId),
             );
-            const completedCount = (milestone?.userTopic?.completedItems ?? [])
-              .filter((ci: any) => ci.completed).length;
+            const completedCount = (
+              milestone?.userTopic?.completedItems ?? []
+            ).filter((ci: any) => ci.completed).length;
             const totalTasks = milestone?.userTopic?.totalTasks ?? 0;
 
             let found = false;
@@ -330,7 +334,7 @@ export function LearningPathDetailPage({
         });
         toast.success("Successfully enrolled in path!");
 
-              const updated = await store.getRoadmapBySlug(pathId);
+        const updated = await store.getRoadmapBySlug(pathId);
         setRoadmap(updated);
         setUserRoadmap(updated?.userRoadmap ?? null);
       } catch (error: any) {
@@ -392,7 +396,7 @@ export function LearningPathDetailPage({
     try {
       const milestone =
         milestoneCache.current[topicId] ??
-        await store.getMilestone(pathId, topicId);
+        (await store.getMilestone(pathId, topicId));
       milestoneCache.current[topicId] = milestone;
       const completedVideoIds = new Set(
         (milestone?.userTopic?.completedItems ?? [])
@@ -553,18 +557,21 @@ export function LearningPathDetailPage({
             className={`w-full mt-3 h-8 text-xs ${isCompleted ? "text-muted-foreground hover:text-foreground" : ""}`}
             onClick={() => {
               const topicId = item.meta?.topicId || "";
-              analytics.track(isCompleted ? "path_completed_content_reviewed" : "path_content_clicked", {
-                pathId,
-                topicId,
-                contentType: item.type,
-                contentId: item.id,
-                contentTitle: item.title,
-              });
+              analytics.track(
+                isCompleted
+                  ? "path_completed_content_reviewed"
+                  : "path_content_clicked",
+                {
+                  pathId,
+                  topicId,
+                  contentType: item.type,
+                  contentId: item.id,
+                  contentTitle: item.title,
+                },
+              );
               switch (item.type) {
                 case "course":
-                  onNavigate?.(
-                    routes.roadmapCoursePreview(pathId, topicId, item.id),
-                  );
+                  navigateToFirstUncompletedVideo(topicId, [item]);
                   break;
                 case "exercise":
                   onNavigate?.(routes.pathExercise(pathId, topicId, item.id));
@@ -592,9 +599,15 @@ export function LearningPathDetailPage({
             }}
           >
             {isCompleted ? (
-              <><RotateCcw className="h-3 w-3 mr-1" />Review</>
+              <>
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Review
+              </>
             ) : (
-              <><Play className="h-3 w-3 mr-1" />{config.ctaLabel}</>
+              <>
+                <Play className="h-3 w-3 mr-1" />
+                {config.ctaLabel}
+              </>
             )}
           </Button>
         )}
@@ -609,14 +622,16 @@ export function LearningPathDetailPage({
   // ALL derived state must be computed before any conditional returns (Rules of Hooks)
   const topics: any[] = roadmap?.topics ?? [];
   const isEnrolled = Boolean(userRoadmap);
-  const progress = userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
+  const progress =
+    userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
 
   const completedTopics = useMemo(
     () => topics.filter((t) => t.completed === true),
     [topics],
   );
 
-  const currentTopicId = userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
+  const currentTopicId =
+    userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
   const currentTopic = useMemo(
     () => topics.find((t) => t.id === currentTopicId) ?? null,
     [topics, currentTopicId],
@@ -652,13 +667,17 @@ export function LearningPathDetailPage({
             <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
               Coming Soon
             </Badge>
-            <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {roadmap.title}
+            </h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
               {stripHtmlTags(roadmap.summary || "")}
             </p>
           </div>
           <p className="text-sm text-muted-foreground">
-            This learning path is not yet available for enrollment. We're working hard to bring it to you. Join the waitlist to be notified when it launches.
+            This learning path is not yet available for enrollment. We're
+            working hard to bring it to you. Join the waitlist to be notified
+            when it launches.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {roadmap.waitingLink ? (
@@ -669,7 +688,11 @@ export function LearningPathDetailPage({
                     pathId,
                     waitingLink: roadmap.waitingLink,
                   });
-                  window.open(roadmap.waitingLink, "_blank", "noopener,noreferrer");
+                  window.open(
+                    roadmap.waitingLink,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
                 }}
               >
                 <Star className="mr-2 h-4 w-4" />
@@ -680,7 +703,11 @@ export function LearningPathDetailPage({
                 Contact us to join the waitlist
               </p>
             )}
-            <Button variant="outline" size="lg" onClick={() => onNavigate?.(routes.paths)}>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => onNavigate?.(routes.paths)}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Browse Other Paths
             </Button>
@@ -1017,82 +1044,88 @@ export function LearningPathDetailPage({
                             );
                           })}
                           {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
-                          {(nonCourseItemsByTopicId[topic.id] ?? []).map((item) => {
-                            const config = getContentTypeConfig(item.type);
-                            const IconComponent = config.icon;
+                          {(nonCourseItemsByTopicId[topic.id] ?? []).map(
+                            (item) => {
+                              const config = getContentTypeConfig(item.type);
+                              const IconComponent = config.icon;
 
-                            return (
-                              <div
-                                key={item.id}
-                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
-                              >
-                                <div className="space-y-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                                      <IconComponent
-                                        className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
-                                      />
-                                      <div className="flex-1 min-w-0">
-                                        <h5 className="font-semibold text-sm leading-tight">
-                                          {item.title}
-                                        </h5>
-                                        <p className="text-xs text-blue-600 font-medium mt-1">
-                                          {config.label}
-                                        </p>
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                                >
+                                  <div className="space-y-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        <IconComponent
+                                          className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <h5 className="font-semibold text-sm leading-tight">
+                                            {item.title}
+                                          </h5>
+                                          <p className="text-xs text-blue-600 font-medium mt-1">
+                                            {config.label}
+                                          </p>
+                                        </div>
                                       </div>
+                                      <Badge className="bg-blue-600 text-xs flex-shrink-0">
+                                        Available
+                                      </Badge>
                                     </div>
-                                    <Badge className="bg-blue-600 text-xs flex-shrink-0">
-                                      Available
-                                    </Badge>
+
+                                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                      {item.meta?.chapters && (
+                                        <div className="flex items-center gap-1">
+                                          <BookOpen className="h-3 w-3" />
+                                          <span>
+                                            {item.meta.chapters} chapter
+                                            {item.meta.chapters !== 1
+                                              ? "s"
+                                              : ""}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {item.duration && (
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          <span>{item.duration}</span>
+                                        </div>
+                                      )}
+                                      {(item.level ||
+                                        item.meta?.difficulty) && (
+                                        <div className="flex items-center gap-1">
+                                          <Zap className="h-3 w-3" />
+                                          <span className="capitalize">
+                                            {item.level ||
+                                              item.meta?.difficulty}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {item.description && (
+                                      <p className="text-xs text-muted-foreground line-clamp-2">
+                                        {item.description}
+                                      </p>
+                                    )}
+
+                                    <Button
+                                      size="sm"
+                                      className="w-full mt-3 h-9 text-sm"
+                                      disabled={enrolling}
+                                      onClick={handleEnroll}
+                                    >
+                                      <Play className="h-4 w-4 mr-2" />
+                                      {enrolling
+                                        ? "Enrolling..."
+                                        : config.ctaLabel}
+                                    </Button>
                                   </div>
-
-                                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                    {item.meta?.chapters && (
-                                      <div className="flex items-center gap-1">
-                                        <BookOpen className="h-3 w-3" />
-                                        <span>
-                                          {item.meta.chapters} chapter
-                                          {item.meta.chapters !== 1 ? "s" : ""}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {item.duration && (
-                                      <div className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{item.duration}</span>
-                                      </div>
-                                    )}
-                                    {(item.level || item.meta?.difficulty) && (
-                                      <div className="flex items-center gap-1">
-                                        <Zap className="h-3 w-3" />
-                                        <span className="capitalize">
-                                          {item.level || item.meta?.difficulty}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {item.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {item.description}
-                                    </p>
-                                  )}
-
-                                  <Button
-                                    size="sm"
-                                    className="w-full mt-3 h-9 text-sm"
-                                    disabled={enrolling}
-                                    onClick={handleEnroll}
-                                  >
-                                    <Play className="h-4 w-4 mr-2" />
-                                    {enrolling
-                                      ? "Enrolling..."
-                                      : config.ctaLabel}
-                                  </Button>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            },
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -1333,9 +1366,9 @@ export function LearningPathDetailPage({
           {/* Current Step */}
           {currentTopic && (
             <Card className="border-2 border-blue-200">
-              <CardHeader>
+              <CardHeader className="">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                  <div className="w-8 h-8 hidden md:flex rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
                     {currentTopicIndex + 1}
                   </div>
                   <div>
@@ -1383,7 +1416,10 @@ export function LearningPathDetailPage({
                         )}
                       </span>
                     </div>
-                    <Progress value={currentTopic.progress ?? 0} className="h-2" />
+                    <Progress
+                      value={currentTopic.progress ?? 0}
+                      className="h-2"
+                    />
                   </div>
 
                   <Button
@@ -1430,7 +1466,8 @@ export function LearningPathDetailPage({
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-green-200">
                     {completedTopics.map((topic: any) => {
-                      const otherItems = nonCourseItemsByTopicId[topic.id] ?? [];
+                      const otherItems =
+                        nonCourseItemsByTopicId[topic.id] ?? [];
                       return (
                         <div key={topic.id} className="space-y-3">
                           <div className="flex items-start gap-3">
@@ -1510,15 +1547,25 @@ export function LearningPathDetailPage({
                                             size="sm"
                                             variant="ghost"
                                             className="h-6 text-xs text-muted-foreground px-2"
+                                            disabled={navigating}
                                             onClick={() => {
-                                              analytics.track("path_completed_content_reviewed", {
-                                                pathId, contentType: "course", contentId: course.id, contentTitle: course.title,
-                                              });
-                                              onNavigate?.(routes.roadmapCoursePreview(pathId, topic.id, course.id));
+                                              analytics.track(
+                                                "path_completed_content_reviewed",
+                                                {
+                                                  pathId,
+                                                  contentType: "course",
+                                                  contentId: course.id,
+                                                  contentTitle: course.title,
+                                                },
+                                              );
+                                              navigateToFirstUncompletedVideo(
+                                                topic.id,
+                                                [course],
+                                              );
                                             }}
                                           >
                                             <RotateCcw className="h-3 w-3 mr-1" />
-                                            Review
+                                            {navigating ? "Loading…" : "Review"}
                                           </Button>
                                         </div>
                                       </div>
@@ -1569,7 +1616,10 @@ export function LearningPathDetailPage({
                           <p className="text-xs text-muted-foreground mt-1">
                             {stripHtmlTags(currentTopic.description || "")}
                           </p>
-                          <Progress value={currentTopic.progress ?? 0} className="h-1 mt-3" />
+                          <Progress
+                            value={currentTopic.progress ?? 0}
+                            className="h-1 mt-3"
+                          />
                           <p className="text-xs text-muted-foreground mt-2">
                             {currentTopic.progress ?? 0}% complete
                           </p>
@@ -1675,11 +1725,12 @@ export function LearningPathDetailPage({
                                               value={currentTopic.progress ?? 0}
                                               className="h-1.5"
                                             />
-                                            {currentItem && currentItem.chapterTitle && (
-                                              <p className="text-xs text-muted-foreground">
-                                                {currentItem.chapterTitle}
-                                              </p>
-                                            )}
+                                            {currentItem &&
+                                              currentItem.chapterTitle && (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {currentItem.chapterTitle}
+                                                </p>
+                                              )}
                                           </div>
                                         )}
 
@@ -1718,7 +1769,8 @@ export function LearningPathDetailPage({
 
                       {/* Other content items */}
                       {(() => {
-                        const currentOtherItems = nonCourseItemsByTopicId[currentTopic.id] ?? [];
+                        const currentOtherItems =
+                          nonCourseItemsByTopicId[currentTopic.id] ?? [];
                         if (!currentOtherItems.length) return null;
                         return (
                           <div className="space-y-3 ml-0 mt-3">
@@ -1756,7 +1808,8 @@ export function LearningPathDetailPage({
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-gray-200">
                     {upcomingTopics.map((topic: any) => {
-                      const otherItems = nonCourseItemsByTopicId[topic.id] ?? [];
+                      const otherItems =
+                        nonCourseItemsByTopicId[topic.id] ?? [];
                       return (
                         <div key={topic.id} className="space-y-3">
                           <div className="flex items-start gap-3 opacity-60">
@@ -1904,16 +1957,26 @@ export function LearningPathDetailPage({
             <CardContent className="space-y-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Topics completed</span>
-                  <span className="font-semibold">{completedTopics.length}/{topics.length}</span>
+                  <span className="text-muted-foreground">
+                    Topics completed
+                  </span>
+                  <span className="font-semibold">
+                    {completedTopics.length}/{topics.length}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Overall progress</span>
-                  <span className="font-semibold text-blue-600">{progress}%</span>
+                  <span className="text-muted-foreground">
+                    Overall progress
+                  </span>
+                  <span className="font-semibold text-blue-600">
+                    {progress}%
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Current topic</span>
-                  <span className="font-semibold">{currentTopicIndex + 1} of {topics.length}</span>
+                  <span className="font-semibold">
+                    {currentTopicIndex + 1} of {topics.length}
+                  </span>
                 </div>
               </div>
               {completedTopics.length > 0 && (
@@ -1935,13 +1998,20 @@ export function LearningPathDetailPage({
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Learning Together</span>
+                      <span className="text-sm text-muted-foreground">
+                        Learning Together
+                      </span>
                     </div>
-                    <p className="text-xl font-bold">{(roadmap.students).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">learners enrolled</p>
+                    <p className="text-xl font-bold">
+                      {roadmap.students.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      learners enrolled
+                    </p>
                     {progress > 0 && (
                       <p className="text-xs text-green-600 mt-1 font-medium">
-                        You're ahead of {Math.round(progress * 0.6)}% of learners
+                        You're ahead of {Math.round(progress * 0.6)}% of
+                        learners
                       </p>
                     )}
                   </div>
@@ -1961,20 +2031,29 @@ export function LearningPathDetailPage({
                   <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
                     Current Topic
                   </p>
-                  <h4 className="font-semibold text-sm">{currentTopic.title}</h4>
+                  <h4 className="font-semibold text-sm">
+                    {currentTopic.title}
+                  </h4>
                 </div>
                 {currentItem && (
                   <>
                     <Separator />
                     <div>
-                      <p className="text-xs text-blue-600 font-semibold mb-1">▶ Next Up</p>
-                      <p className="text-sm font-medium line-clamp-2">{currentItem.title}</p>
+                      <p className="text-xs text-blue-600 font-semibold mb-1">
+                        ▶ Next Up
+                      </p>
+                      <p className="text-sm font-medium line-clamp-2">
+                        {currentItem.title}
+                      </p>
                       {currentItem.chapterTitle && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{currentItem.chapterTitle}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {currentItem.chapterTitle}
+                        </p>
                       )}
                       {currentItem.totalItems > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {currentItem.itemIndex} of {currentItem.totalItems} complete
+                          {currentItem.itemIndex} of {currentItem.totalItems}{" "}
+                          complete
                         </p>
                       )}
                     </div>
