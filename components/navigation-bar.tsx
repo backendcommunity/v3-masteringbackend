@@ -868,9 +868,9 @@ export function NavigationBar({
               onClick={() => onNavigate(routes.subscriptionManagement)}
             >
               {!subscription?.name?.includes("Free") && (
-                <Crown className="h-4 w-4 mr-1" />
+                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
               )}
-              {subscription?.name}
+              {!isMobile && subscription?.name}
             </Button>
 
             {/* MB Balance - Compact on mobile */}
