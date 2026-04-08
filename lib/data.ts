@@ -316,6 +316,7 @@ export interface Note {
 export interface CoursesQuery {
   page?: string;
   size?: string;
+  skip?: string;
   filters?: CourseFilterOptions;
 }
 
