@@ -372,9 +372,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await fetchCourses(queries!);
 
-      if (queries?.filters!["tab"]?.includes("popular")) {
+      if (queries?.filters?.tab?.includes("popular")) {
         updatePopularCourses(res.data);
-        return res.data?.courses;
+        return res.data;
       }
       updateCourses(res.data);
       return res.data;
