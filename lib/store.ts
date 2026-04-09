@@ -273,6 +273,10 @@ interface AppState {
   // Force re-render trigger
   version: number;
   forceUpdate: () => void;
+
+  // Level-up celebration modal
+  levelUpModal: { oldLevel: number; newLevel: number } | null;
+  setLevelUpModal: (data: { oldLevel: number; newLevel: number } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -734,6 +738,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Force re-render system
   version: 0,
   forceUpdate: () => set((state) => ({ version: state.version + 1 })),
+
+  // Level-up celebration modal
+  levelUpModal: null,
+  setLevelUpModal: (data) => set({ levelUpModal: data }),
 
   // Actions
   startProject30: async (slug: string) => {
