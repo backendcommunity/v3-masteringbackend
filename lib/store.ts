@@ -273,6 +273,13 @@ interface AppState {
   // Force re-render trigger
   version: number;
   forceUpdate: () => void;
+
+  // Level-up celebration modal
+  levelUpModal: { oldLevel: number; newLevel: number } | null;
+  setLevelUpModal: (data: { oldLevel: number; newLevel: number } | null) => void;
+
+  // Sync user points/level from a mutation response without an extra API call
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -735,6 +742,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   version: 0,
   forceUpdate: () => set((state) => ({ version: state.version + 1 })),
 
+  // Level-up celebration modal
+  levelUpModal: null,
+  setLevelUpModal: (data) => set({ levelUpModal: data }),
+
+  // Sync user points/level from a mutation response — zero extra API calls
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => {
+    updateUserInStore({
+      points: snapshot.points,
+      level: snapshot.level,
+      ...(snapshot.currentStreak !== undefined ? { currentStreak: snapshot.currentStreak } : {}),
+    });
+    set((state) => ({ version: state.version + 1 }));
+  },
+
   // Actions
   startProject30: async (slug: string) => {
     const { data } = await api.post("/project30s/" + slug);
@@ -869,12 +890,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/roadmaps/${slug}/topics/${topicId}/video`,
       payload,
     );
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   markCourseCompleted: async (userCourseId: string) => {
     const { data } = await api.post(`/courses/${userCourseId}/completed`);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   createCustomMockInterview: async (interview: any) => {
@@ -964,7 +989,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   submitQuiz: async (id: string, questions: any) => {
     const { data } = await api.post("/quizzes/" + id + "/submit", questions);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
   updateUser: async (updates) => {
     const { data } = await api.put(`/users`, {
