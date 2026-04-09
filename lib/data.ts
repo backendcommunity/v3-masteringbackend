@@ -948,16 +948,16 @@ export interface RoadmapAssessment {
 // JSON Data Store - All data stored as simple JavaScript objects
 export const dataStore = {
   levels: [
-    { id: 1, name: "Code Squire", point: 1000 },
-    { id: 2, name: "API Tinkerer", point: 2500 },
-    { id: 3, name: "Logic Blacksmith", point: 5000 },
-    { id: 4, name: "Auth Alchemist", point: 8000 },
+    { id: 1, name: "Code Squire", point: 500 },
+    { id: 2, name: "API Tinkerer", point: 1500 },
+    { id: 3, name: "Logic Blacksmith", point: 3500 },
+    { id: 4, name: "Auth Alchemist", point: 7000 },
     { id: 5, name: "Database Cartographer", point: 12000 },
-    { id: 6, name: "Service Sorcerer", point: 17000 },
-    { id: 7, name: "Architect", point: 23000 },
-    { id: 8, name: "Performance Paladin", point: 30000 },
-    { id: 9, name: "DevOps Enchanter", point: 38000 },
-    { id: 10, name: "Backend Overlord", point: 47000 },
+    { id: 6, name: "Service Sorcerer", point: 20000 },
+    { id: 7, name: "Architect", point: 32000 },
+    { id: 8, name: "Performance Paladin", point: 50000 },
+    { id: 9, name: "DevOps Enchanter", point: 62000 },
+    { id: 10, name: "Backend Overlord", point: 75000 },
   ] as Level[],
 
   user: {
