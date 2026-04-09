@@ -184,6 +184,9 @@ export const routes = {
   checkout: (type: string, planId: string, cycle: string) =>
     `/checkout?type=${type}&plan=${planId}&cycle=${cycle}`,
 
+  // Levels
+  levels: "/levels",
+
   // MB Store & Redemption
   xpStore: "/xp-store",
   xpRedeem: (category: string, itemId: string) =>

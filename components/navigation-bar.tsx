@@ -100,6 +100,8 @@ export function NavigationBar({
                 oldLevel: parseInt(match[1]),
                 newLevel: parseInt(match[2]),
               });
+              // Mark as read immediately so modal never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
             }
           }
           if (activity.type === "ACHIEVEMENT_UNLOCKED" && activity.isNotification) {
@@ -109,6 +111,8 @@ export function NavigationBar({
                 description: "Keep going — you're building momentum!",
                 duration: 5000,
               });
+              // Mark as read immediately so toast never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
             }
           }
         }

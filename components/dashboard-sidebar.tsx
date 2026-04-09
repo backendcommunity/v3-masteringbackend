@@ -202,9 +202,12 @@ export function DashboardSidebar({
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="flex items-center gap-2 mb-2">
               <Star className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm font-medium">
+              <button
+                onClick={() => onNavigate(routes.levels)}
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
                 Level {user?.level} Engineer
-              </span>
+              </button>
               {user?.isPremium ? (
                 <Badge
                   variant="outline"
