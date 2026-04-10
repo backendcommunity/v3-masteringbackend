@@ -25,12 +25,12 @@ export const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
-      // Clear all local data on authentication errors
+    // 401 = session expired / invalid token → clear session and redirect to login
+    // 403 = authenticated but not authorized → do NOT clear session, let the page handle it
+    if (error?.response?.status === 401) {
       localDB.clear();
       deleteCookie("mb_token");
 
-      // Only redirect if we're in the browser and not already on login page
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.includes("/auth/")
