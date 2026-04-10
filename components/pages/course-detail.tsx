@@ -92,7 +92,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     });
   };
 
-  const handlePurchase = (
+  const handlePurchase = async (
     courseId: string,
     method: "subscription" | "individual" | "mb",
     success: boolean,
@@ -103,12 +103,24 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       case "subscription":
         onNavigate(routes.subscriptionPlans);
         break;
-      case "individual":
-        // onNavigate(routes.checkout("course", courseId));
+      case "individual": {
+        try {
+          await store.handleCourseEnrollment(courseId);
+        } catch {
+          // Webhook may have already enrolled; proceed regardless
+        }
+        setCourse((prev) => (prev ? { ...prev, enrolled: true } : prev));
+        const firstChapter = course.chapters?.[0];
+        const firstVideo = firstChapter?.videos?.[0];
+        if (firstChapter && firstVideo) {
+          toast.success("Payment successful! Taking you to your first lesson…");
+          onNavigate(routes.courseWatch(slug, firstChapter.slug, firstVideo.slug));
+          return;
+        }
         break;
+      }
       case "mb":
         setCourse((prev) => (prev ? { ...prev, enrolled: true } : prev));
-        // onNavigate(routes.xpRedeem("course", courseId));
         break;
     }
 
