@@ -81,20 +81,13 @@ export function AdminAssignmentsPage({
 
       const uniqueBootcamps = Array.from(
         new Map(
-          data
-            ?.flatMap((a: Assignment) =>
-              a.lesson?.week?.cohort?.bootcamp
-                ? [
-                    [
-                      a.lesson.week.cohort.bootcamp.id,
-                      a.lesson.week.cohort.bootcamp,
-                    ],
-                  ]
-                : [],
-            )
-            .entries() || [],
-        ).values(),
-      ) as Array<{ id: string; title: string }>;
+          (data?.flatMap((a: Assignment) =>
+            a.lesson?.week?.cohort?.bootcamp
+              ? [[a.lesson.week.cohort.bootcamp.id, a.lesson.week.cohort.bootcamp]]
+              : []
+          ) ?? []) as [string, { id: string; title: string }][]
+        ).values()
+      );
       setBootcamps(uniqueBootcamps);
     } catch (error) {
       console.error("Failed to load assignments", error);
