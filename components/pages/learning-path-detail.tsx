@@ -1059,9 +1059,6 @@ export function LearningPathDetailPage({
                                         <h5 className="font-semibold text-sm leading-tight">
                                           {course.title}
                                         </h5>
-                                        <p className="text-xs text-blue-600 font-medium mt-1">
-                                          Master this course
-                                        </p>
                                       </div>
                                     </div>
                                     {course.id === freePreviewCourseId ? (
@@ -1104,54 +1101,6 @@ export function LearningPathDetailPage({
                                       </div>
                                     )}
                                   </div>
-
-                                  {/* Course Description */}
-                                  <p className="text-sm text-muted-foreground leading-relaxed">
-                                    {stripHtmlTags(
-                                      course.summary ||
-                                        course.description ||
-                                        "",
-                                    )}
-                                  </p>
-
-                                  {/* Course Structure Preview */}
-                                  {course.chapters &&
-                                    course.chapters.length > 0 && (
-                                      <div className="space-y-2 pt-2">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                          What you'll learn
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                          {course.chapters
-                                            .slice(0, 4)
-                                            .map(
-                                              (chapter: any, idx: number) => (
-                                                <div
-                                                  key={idx}
-                                                  className="flex items-start gap-2 text-xs"
-                                                >
-                                                  <CheckCircle2 className="h-3 w-3 text-blue-600 flex-shrink-0 mt-0.5" />
-                                                  <span className="text-muted-foreground line-clamp-1">
-                                                    {chapter.title}
-                                                  </span>
-                                                </div>
-                                              ),
-                                            )}
-                                          {course.chapters.length > 4 && (
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground col-span-2">
-                                              <span>
-                                                +{course.chapters.length - 4}{" "}
-                                                more chapter
-                                                {course.chapters.length - 4 !==
-                                                1
-                                                  ? "s"
-                                                  : ""}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
 
                                   {/* Enrollment CTA */}
                                   {course.id === freePreviewCourseId ? (
@@ -1313,18 +1262,12 @@ export function LearningPathDetailPage({
                     <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <span>{roadmap.totalContent || 0} Content Items</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span>{roadmap.timeframe}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span>Lifetime Access</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span>Certificate Included</span>
-                  </div>
+                  {roadmap.timeframe && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span>{roadmap.timeframe}</span>
+                    </div>
+                  )}
                 </div>
 
                 {roadmap.instructor && (
@@ -1440,10 +1383,12 @@ export function LearningPathDetailPage({
                     <Award className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
                     <p className="text-sm">Certificate of completion included</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">Free preview available</p>
-                  </div>
+                  {(freePreviewCourseId || roadmap?.preview) && (
+                    <div className="flex gap-2">
+                      <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm">Free preview available</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1856,26 +1801,27 @@ export function LearningPathDetailPage({
                             </p>
                             <div className="space-y-2">
                               {currentTopic.courses.map(
-                                (courseItem: any, idx: number) => {
+                                (courseItem: any) => {
                                   const course =
                                     courseItem.course || courseItem;
-                                  const isCurrent = idx === 0;
+                                  const isCompleted = courseItem.isCompleted ?? false;
+                                  const isCurrent = !isCompleted;
                                   return (
                                     <div
                                       key={course.id}
                                       className={`rounded-lg border p-3 transition-colors ${
-                                        isCurrent
-                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
-                                          : "border-muted bg-muted/30 hover:border-muted-foreground/30"
+                                        isCompleted
+                                          ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
+                                          : "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
                                       }`}
                                     >
                                       <div className="space-y-2">
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            {isCurrent ? (
-                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                                            {isCompleted ? (
+                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                                             ) : (
-                                              <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
                                             )}
                                             <div className="flex-1 min-w-0">
                                               <p className="font-semibold text-sm leading-tight">
@@ -1890,14 +1836,14 @@ export function LearningPathDetailPage({
                                           </div>
                                           <Badge
                                             className={`text-xs flex-shrink-0 ${
-                                              isCurrent
-                                                ? "bg-blue-600"
-                                                : "bg-muted-foreground/20"
+                                              isCompleted
+                                                ? "bg-green-600"
+                                                : "bg-blue-600"
                                             }`}
                                           >
-                                            {isCurrent
-                                              ? "In Progress"
-                                              : "Upcoming"}
+                                            {isCompleted
+                                              ? "✓ Done"
+                                              : "In Progress"}
                                           </Badge>
                                         </div>
 
