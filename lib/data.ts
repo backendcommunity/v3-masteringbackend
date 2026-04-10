@@ -52,6 +52,8 @@ export interface User {
   openToWork?: boolean;
   twitter?: string;
   resume?: string;
+  // Access control
+  role?: "USER" | "ADMIN" | "INSTRUCTOR";
 }
 
 export interface Reward {
