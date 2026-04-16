@@ -114,7 +114,9 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         const firstVideo = firstChapter?.videos?.[0];
         if (firstChapter && firstVideo) {
           toast.success("Payment successful! Taking you to your first lesson…");
-          onNavigate(routes.courseWatch(slug, firstChapter.slug, firstVideo.slug));
+          onNavigate(
+            routes.courseWatch(slug, firstChapter.slug, firstVideo.slug),
+          );
           return;
         }
         break;

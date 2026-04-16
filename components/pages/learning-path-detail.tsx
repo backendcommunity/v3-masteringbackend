@@ -206,7 +206,10 @@ function getNonCourseItems(
       description: bootcamp.description || "",
       duration: bootcamp.duration,
       level: bootcamp.level,
-      meta: { isOptional: bootcampItem.isOptional ?? false, slug: bootcamp.slug },
+      meta: {
+        isOptional: bootcampItem.isOptional ?? false,
+        slug: bootcamp.slug,
+      },
       completed: bootcampItem.isCompleted ?? false,
       locked: !isEnrolled,
     });
@@ -270,7 +273,10 @@ export function LearningPathDetailPage({
 
       // Fetch certificate if path is completed
       if (ur?.isCompleted) {
-        store.getRoadmapCertificate(pathId).then(setCertificate).catch(() => {});
+        store
+          .getRoadmapCertificate(pathId)
+          .then(setCertificate)
+          .catch(() => {});
       }
 
       analytics.track("path_viewed", {
@@ -571,7 +577,12 @@ export function LearningPathDetailPage({
                 {item.progress}%
               </span>
             </div>
-            <Progress value={item.progress} className="h-1.5" aria-label={`${item.title} progress: ${item.progress ?? 0}%`} aria-valuenow={item.progress} />
+            <Progress
+              value={item.progress}
+              className="h-1.5"
+              aria-label={`${item.title} progress: ${item.progress ?? 0}%`}
+              aria-valuenow={item.progress}
+            />
           </div>
         )}
         {(isAvailable || isCompleted) && (
@@ -652,7 +663,7 @@ export function LearningPathDetailPage({
   // Free preview course: first non-premium course in first topic (only relevant for premium roadmaps)
   const freePreviewCourseId =
     !isEnrolled && roadmap?.isPremium
-      ? topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null
+      ? (topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null)
       : null;
 
   const completedTopics = useMemo(
@@ -710,7 +721,10 @@ export function LearningPathDetailPage({
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-64" />
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 py-3 border-b last:border-0">
+                <div
+                  key={i}
+                  className="flex items-center gap-4 py-3 border-b last:border-0"
+                >
                   <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-40" />
@@ -816,7 +830,10 @@ export function LearningPathDetailPage({
     return (
       <div className="flex-1 space-y-6">
         {/* Breadcrumb */}
-        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <nav
+          aria-label="breadcrumb"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+        >
           <button
             onClick={() => onNavigate?.(routes.paths)}
             className="hover:text-foreground transition-colors"
@@ -824,7 +841,9 @@ export function LearningPathDetailPage({
             Learning Paths
           </button>
           <span>/</span>
-          <span className="text-foreground font-medium line-clamp-1 max-w-xs">{roadmap.title}</span>
+          <span className="text-foreground font-medium line-clamp-1 max-w-xs">
+            {roadmap.title}
+          </span>
         </nav>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -926,7 +945,9 @@ export function LearningPathDetailPage({
                       <div className="text-2xl font-bold">
                         {roadmap.amount > 0 || roadmap.isPremium ? (
                           <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-base font-bold px-2 py-0.5">
-                            {roadmap.amount > 0 ? `$${roadmap.amount}` : "Premium"}
+                            {roadmap.amount > 0
+                              ? `$${roadmap.amount}`
+                              : "Premium"}
                           </Badge>
                         ) : (
                           <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-base font-bold px-2 py-0.5">
@@ -1005,234 +1026,245 @@ export function LearningPathDetailPage({
                   defaultValue={topics[0]?.id}
                   className="divide-y"
                 >
-                {topics.map((topic: any, topicIndex: number) => (
-                  <AccordionItem key={topic.id} value={topic.id} className="border-0">
-                    <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/40 [&[data-state=open]]:bg-muted/20">
-                      <div className="flex items-start gap-4 text-left w-full pr-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
-                          {topicIndex + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-bold text-base">
-                              {topic.title}
-                            </h4>
-                            <Badge variant="outline" className="text-xs">
-                              {topic.level || "Intermediate"}
-                            </Badge>
-                            {topic.courses && topic.courses.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {topic.courses.length} course
-                                {topic.courses.length !== 1 ? "s" : ""}
-                              </Badge>
-                            )}
+                  {topics.map((topic: any, topicIndex: number) => (
+                    <AccordionItem
+                      key={topic.id}
+                      value={topic.id}
+                      className="border-0"
+                    >
+                      <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/40 [&[data-state=open]]:bg-muted/20">
+                        <div className="flex items-start gap-4 text-left w-full pr-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
+                            {topicIndex + 1}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {stripHtmlTags(topic.description || "")}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-base">
+                                {topic.title}
+                              </h4>
+                              <Badge variant="outline" className="text-xs">
+                                {topic.level || "Intermediate"}
+                              </Badge>
+                              {topic.courses && topic.courses.length > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {topic.courses.length} course
+                                  {topic.courses.length !== 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {stripHtmlTags(topic.description || "")}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-0">
-                    <div className="px-6 pb-4 space-y-4">
-
-                    {/* Courses in Topic */}
-                    {topic.courses && topic.courses.length > 0 ? (
-                      <div className="space-y-3 ml-12">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          Courses in this topic
-                        </p>
-                        <div className="space-y-3">
-                          {topic.courses.map((courseItem: any) => {
-                            const course = courseItem.course || courseItem;
-                            return (
-                              <div
-                                key={course.id}
-                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
-                              >
-                                <div className="space-y-3">
-                                  {/* Header */}
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                                      <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                      <div className="flex-1 min-w-0">
-                                        <h5 className="font-semibold text-sm leading-tight">
-                                          {course.title}
-                                        </h5>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-0">
+                        <div className="px-6 pb-4 space-y-4">
+                          {/* Courses in Topic */}
+                          {/* {topic.courses && topic.courses.length > 0 ? ( */}
+                          <div className="space-y-3 ml-12">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Courses in this topic
+                            </p>
+                            <div className="space-y-3">
+                              {topic?.courses?.map((courseItem: any) => {
+                                const course = courseItem.course || courseItem;
+                                return (
+                                  <div
+                                    key={course.id}
+                                    className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                                  >
+                                    <div className="space-y-3">
+                                      {/* Header */}
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                          <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                          <div className="flex-1 min-w-0">
+                                            <h5 className="font-semibold text-sm leading-tight">
+                                              {course.title}
+                                            </h5>
+                                          </div>
+                                        </div>
+                                        {course.id === freePreviewCourseId ? (
+                                          <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
+                                            Free
+                                          </Badge>
+                                        ) : (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs flex items-center gap-1 flex-shrink-0"
+                                          >
+                                            <Lock className="h-3 w-3" />
+                                            Locked
+                                          </Badge>
+                                        )}
                                       </div>
+
+                                      {/* Course Metadata */}
+                                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                        {course.chapters && (
+                                          <div className="flex items-center gap-1">
+                                            <BookOpen className="h-3 w-3" />
+                                            <span>
+                                              {course.chapters.length} chapter
+                                              {course.chapters.length !== 1
+                                                ? "s"
+                                                : ""}
+                                            </span>
+                                          </div>
+                                        )}
+                                        {course.totalDuration && (
+                                          <div className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{course.totalDuration}h</span>
+                                          </div>
+                                        )}
+                                        {course.level && (
+                                          <div className="flex items-center gap-1">
+                                            <Zap className="h-3 w-3" />
+                                            <span className="capitalize">
+                                              {course.level}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Enrollment CTA */}
+                                      {course.id === freePreviewCourseId ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
+                                          onClick={() =>
+                                            onNavigate?.(
+                                              routes.pathCoursePreview(
+                                                pathId,
+                                                topics[0]?.id,
+                                                course.slug,
+                                              ),
+                                            )
+                                          }
+                                        >
+                                          <Play className="h-4 w-4 mr-2" />
+                                          Start Free Preview
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          className="w-full mt-3 h-9 text-sm"
+                                          disabled={enrolling}
+                                          onClick={handleEnroll}
+                                        >
+                                          <Play className="h-4 w-4 mr-2" />
+                                          {enrolling
+                                            ? "Enrolling..."
+                                            : "Start This Course"}
+                                        </Button>
+                                      )}
                                     </div>
-                                    {course.id === freePreviewCourseId ? (
-                                      <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
-                                        Free
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
-                                        <Lock className="h-3 w-3" />
-                                        Locked
-                                      </Badge>
-                                    )}
                                   </div>
+                                );
+                              })}
+                              {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
+                              {(nonCourseItemsByTopicId[topic.id] ?? []).map(
+                                (item) => {
+                                  const config = getContentTypeConfig(
+                                    item.type,
+                                  );
+                                  const IconComponent = config.icon;
 
-                                  {/* Course Metadata */}
-                                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                    {course.chapters && (
-                                      <div className="flex items-center gap-1">
-                                        <BookOpen className="h-3 w-3" />
-                                        <span>
-                                          {course.chapters.length} chapter
-                                          {course.chapters.length !== 1
-                                            ? "s"
-                                            : ""}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {course.totalDuration && (
-                                      <div className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{course.totalDuration}h</span>
-                                      </div>
-                                    )}
-                                    {course.level && (
-                                      <div className="flex items-center gap-1">
-                                        <Zap className="h-3 w-3" />
-                                        <span className="capitalize">
-                                          {course.level}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Enrollment CTA */}
-                                  {course.id === freePreviewCourseId ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
-                                      onClick={() =>
-                                        onNavigate?.(
-                                          routes.pathCoursePreview(
-                                            pathId,
-                                            topics[0]?.id,
-                                            course.slug
-                                          )
-                                        )
-                                      }
+                                  return (
+                                    <div
+                                      key={item.id}
+                                      className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
                                     >
-                                      <Play className="h-4 w-4 mr-2" />
-                                      Start Free Preview
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      className="w-full mt-3 h-9 text-sm"
-                                      disabled={enrolling}
-                                      onClick={handleEnroll}
-                                    >
-                                      <Play className="h-4 w-4 mr-2" />
-                                      {enrolling
-                                        ? "Enrolling..."
-                                        : "Start This Course"}
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
-                          {(nonCourseItemsByTopicId[topic.id] ?? []).map(
-                            (item) => {
-                              const config = getContentTypeConfig(item.type);
-                              const IconComponent = config.icon;
+                                      <div className="space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                                            <IconComponent
+                                              className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                              <h5 className="font-semibold text-sm leading-tight">
+                                                {item.title}
+                                              </h5>
+                                              <p className="text-xs text-blue-600 font-medium mt-1">
+                                                {config.label}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs flex items-center gap-1 flex-shrink-0"
+                                          >
+                                            <Lock className="h-3 w-3" />
+                                            Locked
+                                          </Badge>
+                                        </div>
 
-                              return (
-                                <div
-                                  key={item.id}
-                                  className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
-                                >
-                                  <div className="space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                                        <IconComponent
-                                          className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <h5 className="font-semibold text-sm leading-tight">
-                                            {item.title}
-                                          </h5>
-                                          <p className="text-xs text-blue-600 font-medium mt-1">
-                                            {config.label}
+                                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                                          {item.meta?.chapters && (
+                                            <div className="flex items-center gap-1">
+                                              <BookOpen className="h-3 w-3" />
+                                              <span>
+                                                {item.meta.chapters} chapter
+                                                {item.meta.chapters !== 1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {item.duration && (
+                                            <div className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              <span>{item.duration}</span>
+                                            </div>
+                                          )}
+                                          {(item.level ||
+                                            item.meta?.difficulty) && (
+                                            <div className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              <span className="capitalize">
+                                                {item.level ||
+                                                  item.meta?.difficulty}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {item.description && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2">
+                                            {item.description}
                                           </p>
-                                        </div>
+                                        )}
+
+                                        <Button
+                                          size="sm"
+                                          className="w-full mt-3 h-9 text-sm"
+                                          disabled={enrolling}
+                                          onClick={handleEnroll}
+                                        >
+                                          <Play className="h-4 w-4 mr-2" />
+                                          {enrolling
+                                            ? "Enrolling..."
+                                            : config.ctaLabel}
+                                        </Button>
                                       </div>
-                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
-                                        <Lock className="h-3 w-3" />
-                                        Locked
-                                      </Badge>
                                     </div>
-
-                                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                      {item.meta?.chapters && (
-                                        <div className="flex items-center gap-1">
-                                          <BookOpen className="h-3 w-3" />
-                                          <span>
-                                            {item.meta.chapters} chapter
-                                            {item.meta.chapters !== 1
-                                              ? "s"
-                                              : ""}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {item.duration && (
-                                        <div className="flex items-center gap-1">
-                                          <Clock className="h-3 w-3" />
-                                          <span>{item.duration}</span>
-                                        </div>
-                                      )}
-                                      {(item.level ||
-                                        item.meta?.difficulty) && (
-                                        <div className="flex items-center gap-1">
-                                          <Zap className="h-3 w-3" />
-                                          <span className="capitalize">
-                                            {item.level ||
-                                              item.meta?.difficulty}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {item.description && (
-                                      <p className="text-xs text-muted-foreground line-clamp-2">
-                                        {item.description}
-                                      </p>
-                                    )}
-
-                                    <Button
-                                      size="sm"
-                                      className="w-full mt-3 h-9 text-sm"
-                                      disabled={enrolling}
-                                      onClick={handleEnroll}
-                                    >
-                                      <Play className="h-4 w-4 mr-2" />
-                                      {enrolling
-                                        ? "Enrolling..."
-                                        : config.ctaLabel}
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            },
-                          )}
-                        </div>
-                      </div>
-                    ) : (
+                                  );
+                                },
+                              )}
+                            </div>
+                          </div>
+                          {/* ) : (
                       <div className="text-xs text-muted-foreground italic">
                         No courses in this topic yet
                       </div>
-                    )}
-                    </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                    )} */}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
                 </Accordion>
               </CardContent>
             </Card>
@@ -1276,8 +1308,12 @@ export function LearningPathDetailPage({
                       <BookOpen className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Created by</p>
-                      <p className="text-sm font-semibold">{roadmap.instructor}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Created by
+                      </p>
+                      <p className="text-sm font-semibold">
+                        {roadmap.instructor}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1289,11 +1325,15 @@ export function LearningPathDetailPage({
                     onClick={() => {
                       if (freePreviewCourseId) {
                         const previewCourse = topics[0]?.courses?.find(
-                          (c: any) => c.id === freePreviewCourseId
+                          (c: any) => c.id === freePreviewCourseId,
                         );
                         if (previewCourse?.slug) {
                           onNavigate?.(
-                            routes.pathCoursePreview(pathId, topics[0].id, previewCourse.slug)
+                            routes.pathCoursePreview(
+                              pathId,
+                              topics[0].id,
+                              previewCourse.slug,
+                            ),
                           );
                           return;
                         }
@@ -1357,8 +1397,12 @@ export function LearningPathDetailPage({
                     <div className="flex gap-2">
                       <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Created by</p>
-                        <p className="font-medium text-sm">{roadmap.instructor}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Created by
+                        </p>
+                        <p className="font-medium text-sm">
+                          {roadmap.instructor}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1377,11 +1421,15 @@ export function LearningPathDetailPage({
                   </div>
                   <div className="flex gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">Lifetime Access &middot; No expiry</p>
+                    <p className="text-sm">
+                      Lifetime Access &middot; No expiry
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <Award className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">Certificate of completion included</p>
+                    <p className="text-sm">
+                      Certificate of completion included
+                    </p>
                   </div>
                   {(freePreviewCourseId || roadmap?.preview) && (
                     <div className="flex gap-2">
@@ -1435,7 +1483,10 @@ export function LearningPathDetailPage({
   return (
     <div className="flex-1 space-y-6">
       {/* Breadcrumb */}
-      <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <nav
+        aria-label="breadcrumb"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
         <button
           onClick={() => onNavigate?.(routes.paths)}
           className="hover:text-foreground transition-colors"
@@ -1443,7 +1494,9 @@ export function LearningPathDetailPage({
           Learning Paths
         </button>
         <span>/</span>
-        <span className="text-foreground font-medium line-clamp-1 max-w-xs">{roadmap.title}</span>
+        <span className="text-foreground font-medium line-clamp-1 max-w-xs">
+          {roadmap.title}
+        </span>
       </nav>
 
       {/* Header */}
@@ -1496,7 +1549,12 @@ export function LearningPathDetailPage({
                 Overall Progress
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={progress} className="h-2 flex-1" aria-label={`Overall learning path progress: ${progress}%`} aria-valuenow={progress} />
+                <Progress
+                  value={progress}
+                  className="h-2 flex-1"
+                  aria-label={`Overall learning path progress: ${progress}%`}
+                  aria-valuenow={progress}
+                />
                 <span className="text-sm font-medium">{progress}%</span>
               </div>
             </div>
@@ -1800,135 +1858,131 @@ export function LearningPathDetailPage({
                               {currentTopic.courses.length !== 1 ? "s" : ""}
                             </p>
                             <div className="space-y-2">
-                              {currentTopic.courses.map(
-                                (courseItem: any) => {
-                                  const course =
-                                    courseItem.course || courseItem;
-                                  const isCompleted = courseItem.isCompleted ?? false;
-                                  const isCurrent = !isCompleted;
-                                  return (
-                                    <div
-                                      key={course.id}
-                                      className={`rounded-lg border p-3 transition-colors ${
-                                        isCompleted
-                                          ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
-                                          : "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
-                                      }`}
-                                    >
-                                      <div className="space-y-2">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            {isCompleted ? (
-                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                                            ) : (
-                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                              <p className="font-semibold text-sm leading-tight">
-                                                {course.title}
+                              {currentTopic.courses.map((courseItem: any) => {
+                                const course = courseItem.course || courseItem;
+                                const isCompleted =
+                                  courseItem.isCompleted ?? false;
+                                const isCurrent = !isCompleted;
+                                return (
+                                  <div
+                                    key={course.id}
+                                    className={`rounded-lg border p-3 transition-colors ${
+                                      isCompleted
+                                        ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
+                                        : "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+                                    }`}
+                                  >
+                                    <div className="space-y-2">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                          {isCompleted ? (
+                                            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                          ) : (
+                                            <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-sm leading-tight">
+                                              {course.title}
+                                            </p>
+                                            {isCurrent && (
+                                              <p className="text-xs text-blue-600 font-medium mt-1">
+                                                Currently learning
                                               </p>
-                                              {isCurrent && (
-                                                <p className="text-xs text-blue-600 font-medium mt-1">
-                                                  Currently learning
-                                                </p>
-                                              )}
-                                            </div>
+                                            )}
                                           </div>
-                                          <Badge
-                                            className={`text-xs flex-shrink-0 ${
-                                              isCompleted
-                                                ? "bg-green-600"
-                                                : "bg-blue-600"
-                                            }`}
-                                          >
-                                            {isCompleted
-                                              ? "✓ Done"
-                                              : "In Progress"}
-                                          </Badge>
                                         </div>
+                                        <Badge
+                                          className={`text-xs flex-shrink-0 ${
+                                            isCompleted
+                                              ? "bg-green-600"
+                                              : "bg-blue-600"
+                                          }`}
+                                        >
+                                          {isCompleted
+                                            ? "✓ Done"
+                                            : "In Progress"}
+                                        </Badge>
+                                      </div>
 
-                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                          {course.chapters && (
-                                            <div className="flex items-center gap-1">
-                                              <BookOpen className="h-3 w-3" />
-                                              <span>
-                                                {course.chapters.length} chapter
-                                                {course.chapters.length !== 1
-                                                  ? "s"
-                                                  : ""}
-                                              </span>
-                                            </div>
-                                          )}
-                                          {course.totalDuration && (
-                                            <div className="flex items-center gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              <span>
-                                                {course.totalDuration}h
-                                              </span>
-                                            </div>
-                                          )}
-                                          {course.level && (
-                                            <div className="flex items-center gap-1">
-                                              <Zap className="h-3 w-3" />
-                                              <span className="capitalize">
-                                                {course.level}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-
-                                        {isCurrent && (
-                                          <div className="space-y-1 pt-1">
-                                            <div className="flex items-center justify-between">
-                                              <span className="text-xs font-medium">
-                                                Progress
-                                              </span>
-                                              <span className="text-xs font-semibold text-blue-600">
-                                                {currentTopic.progress ?? 0}%
-                                              </span>
-                                            </div>
-                                            <Progress
-                                              value={currentTopic.progress ?? 0}
-                                              className="h-1.5"
-                                            />
-                                            {currentItem &&
-                                              currentItem.chapterTitle && (
-                                                <p className="text-xs text-muted-foreground">
-                                                  {currentItem.chapterTitle}
-                                                </p>
-                                              )}
+                                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                        {course.chapters && (
+                                          <div className="flex items-center gap-1">
+                                            <BookOpen className="h-3 w-3" />
+                                            <span>
+                                              {course.chapters.length} chapter
+                                              {course.chapters.length !== 1
+                                                ? "s"
+                                                : ""}
+                                            </span>
                                           </div>
                                         )}
-
-                                        {course.summary && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
-                                            {stripHtmlTags(course.summary)}
-                                          </p>
+                                        {course.totalDuration && (
+                                          <div className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{course.totalDuration}h</span>
+                                          </div>
                                         )}
-
-                                        {isCurrent && (
-                                          <Button
-                                            size="sm"
-                                            className="w-full mt-2 h-8 text-xs"
-                                            disabled={navigating}
-                                            onClick={() =>
-                                              navigateToFirstUncompletedVideo(
-                                                currentTopic.id,
-                                                currentTopic.courses ?? [],
-                                              )
-                                            }
-                                          >
-                                            <Play className="h-3 w-3 mr-1" />
-                                            {navigating
-                                              ? "Loading…"
-                                              : "Resume Learning"}
-                                          </Button>
+                                        {course.level && (
+                                          <div className="flex items-center gap-1">
+                                            <Zap className="h-3 w-3" />
+                                            <span className="capitalize">
+                                              {course.level}
+                                            </span>
+                                          </div>
                                         )}
                                       </div>
+
+                                      {isCurrent && (
+                                        <div className="space-y-1 pt-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs font-medium">
+                                              Progress
+                                            </span>
+                                            <span className="text-xs font-semibold text-blue-600">
+                                              {currentTopic.progress ?? 0}%
+                                            </span>
+                                          </div>
+                                          <Progress
+                                            value={currentTopic.progress ?? 0}
+                                            className="h-1.5"
+                                          />
+                                          {currentItem &&
+                                            currentItem.chapterTitle && (
+                                              <p className="text-xs text-muted-foreground">
+                                                {currentItem.chapterTitle}
+                                              </p>
+                                            )}
+                                        </div>
+                                      )}
+
+                                      {course.summary && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
+                                          {stripHtmlTags(course.summary)}
+                                        </p>
+                                      )}
+
+                                      {isCurrent && (
+                                        <Button
+                                          size="sm"
+                                          className="w-full mt-2 h-8 text-xs"
+                                          disabled={navigating}
+                                          onClick={() =>
+                                            navigateToFirstUncompletedVideo(
+                                              currentTopic.id,
+                                              currentTopic.courses ?? [],
+                                            )
+                                          }
+                                        >
+                                          <Play className="h-3 w-3 mr-1" />
+                                          {navigating
+                                            ? "Loading…"
+                                            : "Resume Learning"}
+                                        </Button>
+                                      )}
                                     </div>
-                                  );
-                                },
-                              )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -2265,7 +2319,10 @@ export function LearningPathDetailPage({
                     <h3 className="font-medium">Certificate</h3>
                     {certificate ? (
                       <p className="text-sm text-muted-foreground">
-                        ID: <span className="font-mono font-medium">{certificate.code}</span>
+                        ID:{" "}
+                        <span className="font-mono font-medium">
+                          {certificate.code}
+                        </span>
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -2280,7 +2337,9 @@ export function LearningPathDetailPage({
                       if (certificate?.verifyUrl) {
                         window.open(certificate.verifyUrl, "_blank");
                       } else {
-                        toast.info("Certificate is being generated. Check your email shortly.");
+                        toast.info(
+                          "Certificate is being generated. Check your email shortly.",
+                        );
                       }
                     }}
                   >
@@ -2298,13 +2357,18 @@ export function LearningPathDetailPage({
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-4 flex flex-col gap-2 shadow-lg">
           <div className="flex items-center justify-between mb-1">
             <div>
-              <p className="font-semibold text-sm line-clamp-1">{roadmap?.title}</p>
+              <p className="font-semibold text-sm line-clamp-1">
+                {roadmap?.title}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {roadmap?.topics?.length ?? 0} topics · {roadmap?.isPremium ? "Premium" : "Free"}
+                {roadmap?.topics?.length ?? 0} topics ·{" "}
+                {roadmap?.isPremium ? "Premium" : "Free"}
               </p>
             </div>
             {roadmap?.progress !== undefined && (
-              <span className="text-xs font-medium text-blue-600">{roadmap.progress}% complete</span>
+              <span className="text-xs font-medium text-blue-600">
+                {roadmap.progress}% complete
+              </span>
             )}
           </div>
           <Button
@@ -2341,22 +2405,28 @@ export function LearningPathDetailPage({
             </div>
             <DialogTitle className="text-xl">You&apos;re in!</DialogTitle>
             <DialogDescription className="text-base mt-2">
-              Welcome to <strong>{roadmap?.title}</strong>. Your learning journey starts now.
+              Welcome to <strong>{roadmap?.title}</strong>. Your learning
+              journey starts now.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <h3 className="text-base font-semibold text-left">Your first lesson is ready</h3>
+            <h3 className="text-base font-semibold text-left">
+              Your first lesson is ready
+            </h3>
             {topics?.[0] && (
               <div className="text-left p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                    1
+                  </div>
                   <p className="text-sm font-medium">{topics[0].title}</p>
                 </div>
                 {topics[0].courses?.[0] && (
                   <div className="flex items-center gap-2 ml-8">
                     <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
                     <p className="text-sm text-muted-foreground">
-                      {topics[0].courses[0].course?.title || topics[0].courses[0].title}
+                      {topics[0].courses[0].course?.title ||
+                        topics[0].courses[0].title}
                     </p>
                   </div>
                 )}
@@ -2383,7 +2453,6 @@ export function LearningPathDetailPage({
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
