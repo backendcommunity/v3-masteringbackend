@@ -25,6 +25,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { Bootcamp, Week } from "@/lib/data";
 import { Loader } from "../ui/loader";
@@ -62,6 +63,13 @@ export function BootcampDetailPage({
           ...bootcamp,
         });
         setLoading(false);
+        if (bootcamp) {
+          analytics.track("bootcamp_viewed", {
+            bootcampId,
+            bootcampTitle: bootcamp.title,
+            isEnrolled: bootcamp.enrolled ?? false,
+          });
+        }
       } catch (error) {
         setLoading(false);
       }
@@ -111,6 +119,12 @@ export function BootcampDetailPage({
 
   const enrollInBootcamp = async (id: string, cohort: string) => {
     if (!cohort) return;
+
+    analytics.track("bootcamp_enroll_clicked", {
+      bootcampId: id,
+      bootcampTitle: bootcamp?.title,
+      cohort,
+    });
 
     try {
       // Try to enroll directly - backend validates subscription/payment

@@ -14,6 +14,7 @@ import { useTheme } from "next-themes";
 import countries from "@/lib/countries.json";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 import { PaymentChannel, Plan } from "@/lib/data";
 
@@ -66,7 +67,11 @@ export function PaymentDialog({
             break;
           case "checkout.completed":
             const c_data = data?.custom_data;
-            // Track payment (GA or Google)
+            analytics.track("payment_completed", {
+              contentId: c_data?.id,
+              contentType: c_data?.type,
+              method: c_data?.method,
+            });
             onHandlePurchase(c_data.id, c_data.method, true);
             break;
         }
@@ -78,6 +83,17 @@ export function PaymentDialog({
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      analytics.track("payment_dialog_opened", {
+        contentId: data?.id,
+        contentType: data?.type,
+        contentTitle: data?.title,
+        plan: data?.plan ?? "Pro",
+      });
+    }
+  }, [open]);
 
   useEffect(() => {
     const load = async () => {
@@ -99,6 +115,14 @@ export function PaymentDialog({
       toast.error("Price ID is not available. Please refresh and try again.");
       return;
     }
+
+    analytics.track("checkout_initiated", {
+      contentId: data?.id,
+      contentType: data?.type,
+      contentTitle: data?.title,
+      priceId,
+      ...customData,
+    });
 
     if (!user?.email) {
       toast.error("Email is required to complete the purchase.");
@@ -287,8 +311,10 @@ export function PaymentDialog({
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableSubscription)
+                if (!disableSubscription) {
+                  analytics.track("payment_plan_selected", { plan: "subscription", contentId: data.id });
                   handlePayment(data.id, "subscription");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -333,7 +359,10 @@ export function PaymentDialog({
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableOnetime) handlePayment(data.id, "individual");
+                if (!disableOnetime) {
+                  analytics.track("payment_plan_selected", { plan: "individual", contentId: data.id });
+                  handlePayment(data.id, "individual");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -370,7 +399,10 @@ export function PaymentDialog({
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableMB) handlePayment(data.id, "mb");
+                if (!disableMB) {
+                  analytics.track("payment_plan_selected", { plan: "mb", contentId: data.id });
+                  handlePayment(data.id, "mb");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">

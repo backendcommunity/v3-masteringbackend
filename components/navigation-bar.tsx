@@ -119,13 +119,11 @@ export function NavigationBar({
         seenNotificationIds.add(activity.id);
       }
 
-      // Epic 5: Track notification panel view
-      // const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
-      // analytics.track("view_notification_bell", {
-      //   totalNotifications: activities.length,
-      //   unreadCount,
-      //   timestamp: new Date().toISOString(),
-      // });
+      const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
+      analytics.track("notification_bell_clicked", {
+        totalNotifications: activities.length,
+        unreadCount,
+      });
     } catch (error) {
     } finally {
       setIsActivitiesLoading(false);
@@ -161,9 +159,9 @@ export function NavigationBar({
         setIsExploreSearchLoading(true);
         const results = await store.search(exploreSearchQuery);
         setExploreSearchResults(results);
-        analytics.track("explore_search_results_shown", {
+        analytics.track("search_performed", {
           query: exploreSearchQuery,
-          totalResults: results?.total ?? 0,
+          resultsCount: results?.total ?? 0,
         });
       } catch {
         setExploreSearchResults(null);
@@ -637,6 +635,12 @@ export function NavigationBar({
                                 key={course.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "course",
+                                    resultId: course.id,
+                                    resultTitle: course.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(routes.courseDetail(course.slug));
@@ -678,6 +682,12 @@ export function NavigationBar({
                                 key={roadmap.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "roadmap",
+                                    resultId: roadmap.id,
+                                    resultTitle: roadmap.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -711,6 +721,12 @@ export function NavigationBar({
                                 key={project.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "project",
+                                    resultId: project.id,
+                                    resultTitle: project.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -749,6 +765,12 @@ export function NavigationBar({
                                 key={bootcamp.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "bootcamp",
+                                    resultId: bootcamp.id,
+                                    resultTitle: bootcamp.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(

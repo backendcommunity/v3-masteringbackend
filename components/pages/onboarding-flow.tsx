@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useAuth } from "@/store/auth";
+import { analytics } from "@/lib/analytics";
 
 import type {
   ExperienceLevel,
@@ -47,8 +48,9 @@ export function OnboardingFlow() {
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const goTo = useCallback((step: Step) => {
+    analytics.track("onboarding_step_viewed", { step, previousStep: currentStep });
     setCurrentStep(step);
-  }, []);
+  }, [currentStep]);
 
   const goBack = useCallback(() => {
     const idx = STEP_ORDER.indexOf(currentStep);
