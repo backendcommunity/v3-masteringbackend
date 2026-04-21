@@ -1,7 +1,5 @@
 "use client";
 
-import { localDB } from "./localDB";
-
 class SoundManager {
   private sounds: Map<string, HTMLAudioElement> = new Map();
   private isEnabled = true;
@@ -16,9 +14,9 @@ class SoundManager {
   }
 
   private checkUserPreferences() {
-    const soundEnabled = localDB.get("soundEnabled", "");
-    if (soundEnabled !== null) {
-      this.isEnabled = Boolean(soundEnabled);
+    const raw = localStorage.getItem("mb_soundEnabled");
+    if (raw !== null) {
+      this.isEnabled = JSON.parse(raw);
     }
   }
 
@@ -78,7 +76,7 @@ class SoundManager {
 
   setEnabled(enabled: boolean) {
     this.isEnabled = enabled;
-    localDB.set("soundEnabled", JSON.stringify(enabled));
+    localStorage.setItem("mb_soundEnabled", JSON.stringify(enabled));
   }
 
   setMasterVolume(volume: number) {

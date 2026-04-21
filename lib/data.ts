@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { fetchUser } from "./auth";
-import { localDB } from "./localDB";
+import { setStoredUser, getStoredUser } from "./user-store";
 
 export interface UserRoadmapFilters {
   skip?: number;
@@ -2247,13 +2247,19 @@ export const completeMilestone = (roadmapId: string, milestoneId: string) => {
   }
 };
 
-export const updateUser = (updates: Partial<User | null>) => {
-  localDB.set("user", JSON.stringify(updates));
+export const updateUser = (updates: Partial<User> | null) => {
+  if (!updates) {
+    setStoredUser(null);
+    return;
+  }
+  const current = getStoredUser();
+  const merged = current ? { ...current, ...updates } : { ...dataStore.user, ...updates };
+  setStoredUser(merged as User);
   Object.assign(dataStore.user, updates);
 };
 
-export const updateCourse = (slug: string, updates: Partial<Course>) => {
-  localDB.update(`course_${slug}`, updates);
+export const updateCourse = (_slug: string, _updates: Partial<Course>) => {
+  // Course state is managed server-side; API is the source of truth
 };
 
 export const updatePopularCourses = (
