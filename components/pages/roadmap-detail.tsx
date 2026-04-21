@@ -37,6 +37,7 @@ import {
 import { Course, enrollInRoadmap, Milestone, Roadmap } from "@/lib/data";
 import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
 import { useUser } from "@/hooks/use-user";
@@ -73,6 +74,13 @@ export function RoadmapDetailPage({
       setRoadmap(roadmap);
       setMilestones(roadmap?.topics || []);
       setLoading(false);
+      if (roadmap) {
+        analytics.track("roadmap_viewed", {
+          roadmapSlug: slug,
+          roadmapTitle: roadmap.title,
+          isEnrolled: roadmap.enrolled ?? false,
+        });
+      }
     }
     loadData();
   }, []);
@@ -90,6 +98,10 @@ export function RoadmapDetailPage({
   if (!roadmap) return <div className="p-6">Roadmap not found</div>;
 
   const handleEnroll = async () => {
+    analytics.track("roadmap_enroll_clicked", {
+      roadmapSlug: slug,
+      roadmapTitle: roadmap?.title,
+    });
     try {
       const isPremiumUser =
         user?.isPremium && user?.subscription?.name === "Enterprise";
@@ -331,7 +343,7 @@ export function RoadmapDetailPage({
                           <CheckCircle2 className="h-4 w-4 text-green-600" />
                           <span className="text-sm">{prerequisite}</span>
                         </li>
-                      )
+                      ),
                     )}
                   </ul>
                 </div>
@@ -448,8 +460,8 @@ export function RoadmapDetailPage({
                   isUpcoming
                     ? "opacity-60"
                     : isCompleted
-                    ? "border-green-600 bg-green-900/20"
-                    : ""
+                      ? "border-green-600 bg-green-900/20"
+                      : ""
                 }`}
               >
                 <CardHeader className="pb-3">
@@ -460,8 +472,8 @@ export function RoadmapDetailPage({
                           isCompleted
                             ? "bg-green-600 text-white"
                             : isEnrolled
-                            ? "bg-gray-200 text-white"
-                            : "bg-blue-600 text-gray-600"
+                              ? "bg-gray-200 text-white"
+                              : "bg-blue-600 text-gray-600"
                         }`}
                       >
                         {isCompleted ? (
@@ -490,22 +502,22 @@ export function RoadmapDetailPage({
                           isCompleted
                             ? "default"
                             : isEnrolled
-                            ? "secondary"
-                            : "outline"
+                              ? "secondary"
+                              : "outline"
                         }
                         className={
                           isCompleted
                             ? "bg-green-100 text-green-800 border-green-200"
                             : isEnrolled
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : ""
+                              ? "bg-blue-100 text-blue-800 border-blue-200"
+                              : ""
                         }
                       >
                         {isCompleted
                           ? "Completed"
                           : isEnrolled
-                          ? "In Progress"
-                          : "Upcoming"}
+                            ? "In Progress"
+                            : "Upcoming"}
                       </Badge>
 
                       <Badge variant={"default"}>{milestone?.level}</Badge>
@@ -551,8 +563,8 @@ export function RoadmapDetailPage({
                                 routes.roadmapCoursePreview(
                                   roadmap?.slug!,
                                   milestone.id,
-                                  course?.slug
-                                )
+                                  course?.slug,
+                                ),
                               );
                             }}
                           >
@@ -611,14 +623,14 @@ export function RoadmapDetailPage({
                                       roadmap?.slug!,
                                       milestone.id,
                                       assessment?.courseSlug,
-                                      assessment?.quizId
+                                      assessment?.quizId,
                                     )
                                   : routes.roadmapCourseExercise(
                                       roadmap?.slug!,
                                       milestone.id,
                                       assessment?.courseSlug,
-                                      assessment?.exerciseId
-                                    )
+                                      assessment?.exerciseId,
+                                    ),
                               );
                             }}
                             key={assessment.id}
@@ -761,8 +773,8 @@ export function RoadmapDetailPage({
                                             routes.roadmapCoursePreview(
                                               roadmap?.slug!,
                                               milestone.id,
-                                              course?.slug
-                                            )
+                                              course?.slug,
+                                            ),
                                           );
                                         }}
                                       >
@@ -836,7 +848,7 @@ export function RoadmapDetailPage({
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onNavigate?.(
-                                          routes.projectDetail(project.id)
+                                          routes.projectDetail(project.id),
                                         );
                                       }}
                                     >
@@ -1162,7 +1174,7 @@ export function RoadmapDetailPage({
                   <Certificate
                     courseName={roadmap.title}
                     type="Roadmap"
-                    studentName={user.name}
+                    studentName={user?.name!}
                     instructorName={roadmap?.instructor ?? "Solomon Eseme"}
                     completionDate={"December 8, 2024"}
                     course={roadmap}

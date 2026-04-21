@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useEffect, useState } from "react";
+import { analytics } from "@/lib/analytics";
 import {
   Eye,
   EyeOff,
@@ -94,6 +95,8 @@ export default function RegisterPage() {
 
       setIsLoading(true);
 
+      analytics.track("signup_attempted", { method: "email" });
+
       // Simulate API call
       const isRegistered = await auth.register({
         lastName: formData.lastName,
@@ -125,6 +128,7 @@ export default function RegisterPage() {
             encodeURIComponent(formData.email)
         );
 
+      analytics.track("signup_failed", { method: "email", reason: message });
       toast.error(message);
       setIsLoading(false);
     }
@@ -169,6 +173,7 @@ export default function RegisterPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${ref}&redirect=${redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => analytics.track("oauth_initiated", { provider: "github", page: "register" })}
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
