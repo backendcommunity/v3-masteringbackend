@@ -1,14 +1,6 @@
-import { dataStore, User } from "@/lib/data";
-import { localDB } from "@/lib/localDB";
+import { useUserStore } from "@/lib/user-store";
+import type { User } from "@/lib/data";
 
-export function useUser() {
-  let user: User | any = dataStore.user;
-
-  try {
-    const u = localDB.get("user", "");
-    if (!u?.includes("undefined")) user = JSON.parse(u!);
-    return user;
-  } catch (error) {
-    return user;
-  }
+export function useUser(): User | null {
+  return useUserStore((s) => s.user);
 }

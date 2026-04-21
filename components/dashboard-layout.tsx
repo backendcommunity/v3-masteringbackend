@@ -6,10 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { NavigationBar } from "@/components/navigation-bar";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useMobile } from "@/hooks/use-mobile";
-import { KapAIAssistant } from "./kap-ai-assistant";
-import { useAppStore } from "@/lib/store";
-import { updateUser, User } from "@/lib/data";
-import { Loader } from "./ui/loader";
+import { useUserStore } from "@/lib/user-store";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,37 +14,23 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isMobile = useMobile();
-  const store = useAppStore();
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user, setUser] = useState<User>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  // User is guaranteed to be loaded by AuthProvider before this renders
+  const user = useUserStore((s) => s.user);
 
   const handleNavigate = (path: string) => router.push(path);
-
-  async function load() {
-    setLoading(true);
-    const user = await store.getUser();
-    if (user) {
-      setUser(user);
-      updateUser(user);
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
 
   // Auto-close sidebar when navigating on mobile
   useEffect(() => {
     if (isMobile) setSidebarOpen(false);
 
-    if (pathname.includes("playground")) setIsCollapsed(true);
-    if (pathname.includes("videos")) setIsCollapsed(true);
-    if (pathname.includes("watch")) setIsCollapsed(true);
+    if (pathname?.includes("playground")) setIsCollapsed(true);
+    if (pathname?.includes("videos")) setIsCollapsed(true);
+    if (pathname?.includes("watch")) setIsCollapsed(true);
   }, [pathname, isMobile]);
 
   // Update sidebar when screen size changes
@@ -57,16 +40,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  if (loading || !user) return <Loader />;
-
-  // ═══ Onboarding Guard ═══════════════════════════════════════════════════
-  // Redirect unonboarded users to /onboarding
-  // This runs AFTER the user is loaded (no flash of dashboard content)
-  if (user.hasFinishedOnboarding === false) {
+  // Onboarding guard — runs only after user is loaded from AuthProvider
+  if (user?.hasFinishedOnboarding === false) {
     router.replace("/onboarding");
     return null;
   }
-  // ═══ END: Onboarding Guard ═════════════════════════════════════════════
 
   return (
     <>
@@ -92,7 +70,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <DashboardSidebar
             onCollapsed={setIsCollapsed}
-            currentPath={pathname}
+            currentPath={pathname ?? "/"}
             onNavigate={handleNavigate}
             isMobile={isMobile}
             isCollapsed={isCollapsed}

@@ -1,48 +1,66 @@
 import axios from "axios";
-import { localDB } from "./localDB";
-import { deleteCookie } from "cookies-next/client";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3",
-  withCredentials: true, // if you're using cookies
+  withCredentials: true,
 });
 
-// Request interceptor to add token to requests
-// api.interceptors.request.use(
-//   (config) => {
-//     const token = localDB.get("token", "");
-//     if (token && token !== "null") {
-//       config.headers.Authorization = `Bearer ${token}`;
-//     }
-//     return config;
-//   },
-//   (error) => {
-//     return Promise.reject(error);
-//   }
-// );
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
 
-// Response interceptor to handle authentication errors
+const processQueue = (error: any) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(undefined);
+  });
+  failedQueue = [];
+};
+
+const handleAuthFailure = () => {
+  if (typeof window !== "undefined" && !window.location.pathname.includes("/auth/")) {
+    window.location.href = "/auth/login";
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
-      // Clear all local data on authentication errors
-      localDB.clear();
-      deleteCookie("mb_token");
+  async (error) => {
+    const originalRequest = error.config;
 
-      // Only redirect if we're in the browser and not already on login page
-      if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.includes("/auth/")
-      ) {
-        window.location.href = "/auth/login";
+    const is401 = error?.response?.status === 401;
+    const isRefreshEndpoint = originalRequest?.url?.includes("/auth/refresh");
+    const isLoginEndpoint = originalRequest?.url?.includes("/auth/login");
+    const alreadyRetried = originalRequest?._retry;
+
+    if (is401 && !alreadyRetried && !isRefreshEndpoint && !isLoginEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post("/auth/refresh");
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        handleAuthFailure();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   }
 );
 
 export const socketAPI = axios.create({
   baseURL: process.env.NEXT_PUBLIC_WEBHOOK_URL || "http://localhost:8080",
-  // withCredentials: true, // if you're using cookies
 });

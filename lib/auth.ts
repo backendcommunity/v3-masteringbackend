@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { api } from "./api";
 import { NewUser } from "./data";
-import { localDB } from "./localDB";
-import { deleteCookie } from "cookies-next/client";
 
 export const login = async (email: string, password: string) => {
   const response = await api.post("/auth/login", { email, password });
@@ -23,11 +21,6 @@ export const logout = async () => {
     await api.post("/auth/logout");
   } catch (error: any) {
     console.log("Logout API error:", error.message);
-    // Don't throw error - let the calling function handle cleanup
-  } finally {
-    // Always clear local data regardless of API success/failure
-    localDB.clear();
-    deleteCookie("mb_token");
   }
 };
 
