@@ -34,7 +34,6 @@ export interface User {
   country?: string;
   settings: any;
   phone?: string;
-  role?: string;
   createdAt?: Date | string;
   githubInstallationId?: string;
   // Onboarding fields
@@ -952,43 +951,93 @@ export interface RoadmapAssessment {
 export const LEVEL_PERKS: Record<number, { perks: string[]; icon: string }> = {
   1: {
     icon: "⭐",
-    perks: ["Access to all free courses", "Basic progress tracking", "Public developer profile", "MB points system"],
+    perks: [
+      "Access to all free courses",
+      "Basic progress tracking",
+      "Public developer profile",
+      "MB points system",
+    ],
   },
   2: {
     icon: "🔧",
-    perks: ["Roadmap tracking unlocked", "Weekly progress digest email", "MB leaderboard visibility", "Streak tracking"],
+    perks: [
+      "Roadmap tracking unlocked",
+      "Weekly progress digest email",
+      "MB leaderboard visibility",
+      "Streak tracking",
+    ],
   },
   3: {
     icon: "⚡",
-    perks: ["Coding exercises unlocked", "Beginner project library access", "Logic Blacksmith profile badge", "Achievement system"],
+    perks: [
+      "Coding exercises unlocked",
+      "Beginner project library access",
+      "Logic Blacksmith profile badge",
+      "Achievement system",
+    ],
   },
   4: {
     icon: "🔐",
-    perks: ["Unlimited quiz retries", "Intermediate project library", "Auth Alchemist badge", "Priority course search ranking"],
+    perks: [
+      "Unlimited quiz retries",
+      "Intermediate project library",
+      "Auth Alchemist badge",
+      "Priority course search ranking",
+    ],
   },
   5: {
     icon: "🗄️",
-    perks: ["Mock interview scheduling", "Advanced course library", "Database Cartographer badge", "Portfolio showcase"],
+    perks: [
+      "Mock interview scheduling",
+      "Advanced course library",
+      "Database Cartographer badge",
+      "Portfolio showcase",
+    ],
   },
   6: {
     icon: "🧙",
-    perks: ["Early access to new courses", "Bootcamp priority registration", "Service Sorcerer badge", "10% MB bonus on all actions"],
+    perks: [
+      "Early access to new courses",
+      "Bootcamp priority registration",
+      "Service Sorcerer badge",
+      "10% MB bonus on all actions",
+    ],
   },
   7: {
     icon: "🏗️",
-    perks: ["Architect badge on portfolio", "Exclusive expert webinars", "Mentor match eligibility", "Custom roadmap creation"],
+    perks: [
+      "Architect badge on portfolio",
+      "Exclusive expert webinars",
+      "Mentor match eligibility",
+      "Custom roadmap creation",
+    ],
   },
   8: {
     icon: "⚔️",
-    perks: ["Performance analytics dashboard", "Full premium content library", "Performance Paladin badge", "Beta feature early access"],
+    perks: [
+      "Performance analytics dashboard",
+      "Full premium content library",
+      "Performance Paladin badge",
+      "Beta feature early access",
+    ],
   },
   9: {
     icon: "🚀",
-    perks: ["DevOps Enchanter badge", "Dedicated support channel", "Custom profile theme", "Exclusive community channels"],
+    perks: [
+      "DevOps Enchanter badge",
+      "Dedicated support channel",
+      "Custom profile theme",
+      "Exclusive community channels",
+    ],
   },
   10: {
     icon: "👑",
-    perks: ["Backend Overlord badge", "Hall of Fame listing", "Lifetime achievement certificate", "All platform perks unlocked"],
+    perks: [
+      "Backend Overlord badge",
+      "Hall of Fame listing",
+      "Lifetime achievement certificate",
+      "All platform perks unlocked",
+    ],
   },
 };
 
