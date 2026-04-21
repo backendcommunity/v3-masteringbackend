@@ -34,6 +34,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
@@ -97,6 +98,13 @@ export function ProjectDetailPage({
       setProject(project);
       setUserProject(project?.userProject);
       setLoading(false);
+      if (project) {
+        analytics.track("project_viewed", {
+          projectId: project.id,
+          projectTitle: project.title,
+          isStarted: !!project.userProject,
+        });
+      }
     }
     findProject(slug);
   }, [slug]);
@@ -171,7 +179,12 @@ export function ProjectDetailPage({
 
   const handleEnrollNow = async () => {
     try {
-      if (!user.isPremium) {
+      analytics.track("project_start_clicked", {
+        projectId: project?.id,
+        projectTitle: project?.title,
+        isPremium: !user?.isPremium,
+      });
+      if (!user?.isPremium) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
@@ -489,7 +502,7 @@ export function ProjectDetailPage({
                     Continue Building
                   </Button>
                 </div>
-              ) : user.isPremium ? (
+              ) : user?.isPremium ? (
                 <div className="space-y-3">
                   {/* <div className="pt-3">
                     <Label>Choose your preferred language</Label>
@@ -754,7 +767,7 @@ export function ProjectDetailPage({
                                   : "opacity-60"
                               }`}
                               onClick={() => {
-                                if (!user.isPremium && !project?.enrolled) {
+                                if (!user?.isPremium && !project?.enrolled) {
                                   setShowPaymentDialog(true);
                                 }
                               }}

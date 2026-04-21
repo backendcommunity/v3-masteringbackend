@@ -35,6 +35,7 @@ import {
   Crown,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
@@ -66,6 +67,13 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       const course = await store.getCourse(slug);
       setCourse(course);
       setLoading(false);
+      if (course) {
+        analytics.track("course_viewed", {
+          courseId: course.id,
+          courseTitle: course.title,
+          isEnrolled: course.enrolled ?? false,
+        });
+      }
     }
     findCourse(slug);
   }, [slug]);
@@ -136,7 +144,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
   const handleEnrollNow = async () => {
     try {
-      if (!user.isPremium && course?.isPremium) {
+      analytics.track("course_enroll_clicked", {
+        courseId: course?.id,
+        courseTitle: course?.title,
+        isPremium: course?.isPremium,
+      });
+      if (!user?.isPremium && course?.isPremium) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
@@ -424,7 +437,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {course?.isPremium && !user.isPremium && (
+                  {course?.isPremium && !user?.isPremium && (
                     <Badge
                       variant="outline"
                       className="bg-green-100 text-green-800 border-green-200 text-xs"

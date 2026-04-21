@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Github, ArrowLeft, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/store/auth";
+import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -46,6 +47,9 @@ export default function LoginPage() {
       setIsLoading(true);
 
       const { email, password } = formData;
+
+      analytics.track("login_attempted", { method: "email" });
+
       const user = await auth.login(email, password);
 
       if (!user) {
@@ -67,6 +71,7 @@ export default function LoginPage() {
         return;
       }
 
+      analytics.track("login_failed", { method: "email", reason: message });
       toast.error(message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -102,6 +107,7 @@ export default function LoginPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${query.ref}&redirect=${query.redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => analytics.track("oauth_initiated", { provider: "github", page: "login" })}
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

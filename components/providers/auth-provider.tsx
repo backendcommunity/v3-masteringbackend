@@ -40,9 +40,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         analytics.identify(res.data.id, {
           email: res.data.email,
           name: res.data.name,
+          username: res.data.username,
           isPremium: res.data.isPremium,
+          hasFinishedOnboarding: res.data.hasFinishedOnboarding,
+          signedUpThrough: res.data.signedUpThrough,
+          createdAt: res.data.createdAt,
           country: res.data.country,
           role: res.data.role,
+          plan: res.data.plan ?? null,
+          subscriptionStatus: res.data.subscriptionStatus ?? null,
+          experienceLevel: res.data.experienceLevel ?? null,
+          preferredLanguage: res.data.preferredLanguage ?? null,
         });
       })
       .catch(() => {
