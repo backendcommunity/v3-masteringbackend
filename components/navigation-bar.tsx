@@ -46,6 +46,7 @@ import { format } from "timeago.js";
 import { updateUser, type Activity, type SearchResults } from "@/lib/data";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
+import { toast } from "sonner";
 interface NavigationBarProps {
   onNavigate: (path: string) => void;
   onMenuToggle?: () => void;
@@ -70,6 +71,7 @@ export function NavigationBar({
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [notifications, setNotifications] = useState<Activity[]>([]);
+  const [seenNotificationIds] = useState(() => new Set<string>());
   const user = useUser();
 
   // Mock subscription data
@@ -86,6 +88,36 @@ export function NavigationBar({
         skip: 0,
       });
       setNotifications(activities);
+
+      // Detect new gamification events in background notifications
+      for (const activity of activities as Activity[]) {
+        if (seenNotificationIds.has(activity.id)) continue;
+        if (!activity.isRead) {
+          if (activity.type === "LEVEL_UP" && activity.isNotification) {
+            const match = activity.description?.match(/Level (\d+) to Level (\d+)/);
+            if (match) {
+              store.setLevelUpModal({
+                oldLevel: parseInt(match[1]),
+                newLevel: parseInt(match[2]),
+              });
+              // Mark as read immediately so modal never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
+            }
+          }
+          if (activity.type === "ACHIEVEMENT_UNLOCKED" && activity.isNotification) {
+            const titleMatch = activity.title?.match(/Achievement Unlocked: (.+)/);
+            if (titleMatch) {
+              toast.success(`Achievement Unlocked: ${titleMatch[1]}`, {
+                description: "Keep going — you're building momentum!",
+                duration: 5000,
+              });
+              // Mark as read immediately so toast never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
+            }
+          }
+        }
+        seenNotificationIds.add(activity.id);
+      }
 
       // Epic 5: Track notification panel view
       const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
@@ -868,9 +900,9 @@ export function NavigationBar({
               onClick={() => onNavigate(routes.subscriptionManagement)}
             >
               {!subscription?.name?.includes("Free") && (
-                <Crown className="h-4 w-4 mr-1" />
+                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
               )}
-              {subscription?.name}
+              {!isMobile && subscription?.name}
             </Button>
 
             {/* MB Balance - Compact on mobile */}
@@ -947,11 +979,15 @@ export function NavigationBar({
                               <div className="flex items-start space-x-3">
                                 <div
                                   className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
-                                    notification.type?.includes("COMPLETED")
-                                      ? "bg-green-500"
-                                      : notification.type?.includes("MILESTONE")
-                                        ? "bg-orange-500 animate-pulse"
-                                        : "bg-blue-500"
+                                    notification.type === "LEVEL_UP"
+                                      ? "bg-yellow-500 animate-pulse"
+                                      : notification.type === "ACHIEVEMENT_UNLOCKED"
+                                        ? "bg-purple-500 animate-pulse"
+                                        : notification.type?.includes("COMPLETED")
+                                          ? "bg-green-500"
+                                          : notification.type?.includes("MILESTONE")
+                                            ? "bg-orange-500 animate-pulse"
+                                            : "bg-blue-500"
                                   }`}
                                 />
                                 <div className="flex-1 min-w-0">

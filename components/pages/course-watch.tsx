@@ -173,9 +173,11 @@ export function CourseWatchPage({
       setUserChapters(userChapter);
 
       // Backend update with proper `isChapterCompleted`
-      await markVideoComplete(course.id, chapter.id, currentVideo.id, {
+      const result = await markVideoComplete(course.id, chapter.id, currentVideo.id, {
         isChapterCompleted,
       });
+      // Sync points/level to store without extra API call
+      if (result?.data?.user) store.syncUserSnapshot(result.data.user);
 
       toast.success("You just earned some points!");
       setCelebration(true);
