@@ -34,7 +34,16 @@ interface PortfolioHeroProps {
 }
 
 export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
-  const xpProgress = user.xpToNextLevel > 0 ? user.xp / user.xpToNextLevel : 0;
+  // xpToNextLevel is the remaining XP needed. Progress within current level span:
+  //   (xp / (xp + xpToNextLevel)) gives progress from 0 to the next threshold,
+  //   which is the correct fraction when the previous threshold is treated as 0.
+  //   Clamped to [0, 1] in case of stale data.
+  const xpProgress =
+    user.xpToNextLevel > 0
+      ? Math.min(1, user.xp / (user.xp + user.xpToNextLevel))
+      : user.level >= 10
+      ? 1
+      : 0;
   const circumference = 2 * Math.PI * 52; // radius=52 for the ring
   const strokeOffset = circumference * (1 - xpProgress);
 

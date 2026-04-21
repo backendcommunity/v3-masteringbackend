@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
+  Flame,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,13 +55,13 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    // {
-    //   title: "Learning Paths",
-    //   url: routes.paths,
-    //   icon: Target,
-    //   active: false,
-    //   beta: false,
-    // },
+    {
+      title: "Learning Paths",
+      url: routes.paths,
+      icon: Target,
+      active: true,
+      beta: false,
+    },
     {
       title: "Roadmaps",
       url: routes.roadmaps,
@@ -135,7 +136,7 @@ export function DashboardSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const user = useUser();
   const { theme } = useTheme();
-  const level = useLevel();
+  const { level, mbToNextLevel, progressPct } = useLevel();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setCollapsed(isCollapsed), [isCollapsed]);
@@ -201,9 +202,12 @@ export function DashboardSidebar({
           <div className="rounded-lg border border-border bg-card p-3">
             <div className="flex items-center gap-2 mb-2">
               <Star className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm font-medium">
+              <button
+                onClick={() => onNavigate(routes.levels)}
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
                 Level {user?.level} Engineer
-              </span>
+              </button>
               {user?.isPremium ? (
                 <Badge
                   variant="outline"
@@ -221,21 +225,32 @@ export function DashboardSidebar({
                 </Badge>
               )}
             </div>
-            <Progress
-              value={
-                ((user?.points ?? 0) /
-                  ((user?.points ?? 0) + (level?.mbToNextLevel ?? 1))) *
-                100
-              }
-              className="h-2 mb-1"
-            />
+            <Progress value={progressPct} className="h-2 mb-1" />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{user?.points?.toLocaleString()} MB</span>
               <span>
-                {level?.mbToNextLevel?.toLocaleString()} MB to Level{" "}
+                {mbToNextLevel?.toLocaleString()} MB to Level{" "}
                 {user?.level + 1}
               </span>
             </div>
+
+            {/* Streak display */}
+            {(user?.currentStreak ?? user?.streak ?? 0) > 0 && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs font-medium text-orange-500">
+                  {user?.currentStreak ?? user?.streak ?? 0}-day streak
+                </span>
+                {(user?.currentStreak ?? user?.streak ?? 0) >= 7 && (
+                  <span className="ml-auto text-xs font-bold text-orange-500 bg-orange-500/10 rounded px-1.5 py-0.5">
+                    {(user?.currentStreak ?? user?.streak ?? 0) >= 30
+                      ? "1.5×"
+                      : "1.25×"}{" "}
+                    MB
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-3">

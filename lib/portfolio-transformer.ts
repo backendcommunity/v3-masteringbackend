@@ -4,6 +4,19 @@ import type {
   SkillDomain,
 } from "./portfolio-types";
 import { LEVEL_NAMES } from "./portfolio-types";
+import { dataStore } from "./data";
+
+/**
+ * Computes how many XP points remain until the next level.
+ * Mirrors the logic in hooks/use-level.ts.
+ */
+function computeXpToNextLevel(level: number, xp: number): number {
+  const levels = dataStore.levels;
+  const currentIdx = Math.max(0, levels.findIndex((l) => l.id === level));
+  const nextLevel =
+    currentIdx < levels.length - 1 ? levels[currentIdx + 1] : null;
+  return nextLevel ? Math.max(0, nextLevel.point - xp) : 0;
+}
 
 /**
  * Completes Twitter URL if only username is provided
@@ -39,8 +52,11 @@ export function transformPortfolioResponse(
         response.user.levelName ||
         LEVEL_NAMES[response.user.level] ||
         "Developer",
-      xp: response.user.xp || 0, // ✅ From API (user.points)
-      xpToNextLevel: 0, // Not tracked on portfolio (use useLevel hook on dashboard)
+      xp: response.user.xp || response.user.points || 0,
+      xpToNextLevel: computeXpToNextLevel(
+        response.user.level,
+        response.user.xp || response.user.points || 0
+      ),
       points: response.user.points,
       streak: response.user.streak,
       isVerified: response.user.isVerified || false, // ✅ From API (emailConfirmed)

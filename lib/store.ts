@@ -108,6 +108,7 @@ interface AppState {
   getBootcamp: (id: string) => Bootcamp | any;
   getBootcampBonuses: (id: string, cohort: string) => any;
   getAdminAssignments: (filters?: any) => Promise<any>;
+  approveAssignment: (userLessonId: string) => Promise<any>;
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
@@ -123,6 +124,7 @@ interface AppState {
   getRoadmapMilestones: (slug: string) => any;
   getMilestone: (slug: string, topicId: string) => Milestone | any;
   getRoadmapItems: (slug: string, topicId: string) => any;
+  getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
@@ -215,6 +217,7 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
+  enrollInRoadmap: (slug: string) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
@@ -272,6 +275,13 @@ interface AppState {
   // Force re-render trigger
   version: number;
   forceUpdate: () => void;
+
+  // Level-up celebration modal
+  levelUpModal: { oldLevel: number; newLevel: number } | null;
+  setLevelUpModal: (data: { oldLevel: number; newLevel: number } | null) => void;
+
+  // Sync user points/level from a mutation response without an extra API call
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -368,9 +378,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await fetchCourses(queries!);
 
-      if (queries?.filters!["tab"]?.includes("popular")) {
+      if (queries?.filters?.tab?.includes("popular")) {
         updatePopularCourses(res.data);
-        return res.data?.courses;
+        return res.data;
       }
       updateCourses(res.data);
       return res.data;
@@ -510,6 +520,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/bootcamps/admin/assignments${params.toString() ? `?${params}` : ""}`,
     );
     return data?.data;
+  },
+
+  approveAssignment: async (userLessonId: string) => {
+    const { data } = await api.patch(
+      `/bootcamps/admin/assignments/${userLessonId}`,
+    );
+    return data;
   },
 
   initiateAsyncpayCheckout: async (bootcampId: string, cohortId: string) => {
@@ -717,6 +734,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  getRoadmapCertificate: async (slug: string) => {
+    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
+    return data?.data;
+  },
+
   getRoadmapMilestones: async (slug: string) => {
     const roadmap = await get().getRoadmapBySlug(slug);
     return roadmap ? roadmap.topics : [];
@@ -725,6 +747,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Force re-render system
   version: 0,
   forceUpdate: () => set((state) => ({ version: state.version + 1 })),
+
+  // Level-up celebration modal
+  levelUpModal: null,
+  setLevelUpModal: (data) => set({ levelUpModal: data }),
+
+  // Sync user points/level from a mutation response — zero extra API calls
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => {
+    updateUserInStore({
+      points: snapshot.points,
+      level: snapshot.level,
+      ...(snapshot.currentStreak !== undefined ? { currentStreak: snapshot.currentStreak } : {}),
+    });
+    set((state) => ({ version: state.version + 1 }));
+  },
 
   // Actions
   startProject30: async (slug: string) => {
@@ -860,12 +896,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/roadmaps/${slug}/topics/${topicId}/video`,
       payload,
     );
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   markCourseCompleted: async (userCourseId: string) => {
     const { data } = await api.post(`/courses/${userCourseId}/completed`);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   createCustomMockInterview: async (interview: any) => {
@@ -955,7 +995,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   submitQuiz: async (id: string, questions: any) => {
     const { data } = await api.post("/quizzes/" + id + "/submit", questions);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
   updateUser: async (updates) => {
     const { data } = await api.put(`/users`, {
@@ -1055,6 +1097,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       path.enrolled = true;
       get().forceUpdate();
     }
+  },
+
+  enrollInRoadmap: async (slug) => {
+    const response = await api.post(`/roadmaps/${slug}`);
+    const { data } = response;
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to enroll in roadmap");
+    }
+    const enrollData = Array.isArray(data?.data) ? data?.data[0] : data?.data;
+    return enrollData;
   },
 
   completeChallenge: (challengeId) => {

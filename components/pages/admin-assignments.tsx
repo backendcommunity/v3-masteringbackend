@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,11 +19,13 @@ import {
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { Loader } from "../ui/loader";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, CheckCircle2, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 interface Assignment {
   id: string;
   createdAt: string;
+  completed: boolean;
   submissionUrl?: string;
   user?: {
     id: string;
@@ -33,6 +36,7 @@ interface Assignment {
   lesson?: {
     id: string;
     title: string;
+    type?: string;
     week?: {
       id: string;
       title: string;
@@ -58,48 +62,64 @@ export function AdminAssignmentsPage({
   const store = useAppStore();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [selectedBootcamp, setSelectedBootcamp] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
   const [bootcamps, setBootcamps] = useState<
     Array<{ id: string; title: string }>
   >([]);
 
+  const loadAssignments = async () => {
+    try {
+      setLoading(true);
+      const data = await store.getAdminAssignments(
+        selectedBootcamp && selectedBootcamp !== "all"
+          ? { bootcampId: selectedBootcamp }
+          : undefined,
+      );
+      setAssignments(data || []);
+
+      const uniqueBootcamps = Array.from(
+        new Map(
+          (data?.flatMap((a: Assignment) =>
+            a.lesson?.week?.cohort?.bootcamp
+              ? [[a.lesson.week.cohort.bootcamp.id, a.lesson.week.cohort.bootcamp]]
+              : []
+          ) ?? []) as [string, { id: string; title: string }][]
+        ).values()
+      );
+      setBootcamps(uniqueBootcamps);
+    } catch (error) {
+      console.error("Failed to load assignments", error);
+      setAssignments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadAssignments = async () => {
-      try {
-        setLoading(true);
-        const data = await store.getAdminAssignments(
-          selectedBootcamp ? { bootcampId: selectedBootcamp } : undefined,
-        );
-        setAssignments(data || []);
-
-        // Extract unique bootcamps from data
-        const uniqueBootcamps = Array.from(
-          new Map(
-            data
-              ?.flatMap((a: Assignment) =>
-                a.lesson?.week?.cohort?.bootcamp
-                  ? [
-                      [
-                        a.lesson.week.cohort.bootcamp.id,
-                        a.lesson.week.cohort.bootcamp,
-                      ],
-                    ]
-                  : [],
-              )
-              .entries() || [],
-          ).values(),
-        ) as Array<{ id: string; title: string }>;
-        setBootcamps(uniqueBootcamps);
-      } catch (error) {
-        console.error("Failed to load assignments", error);
-        setAssignments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadAssignments();
-  }, [selectedBootcamp, store]);
+  }, [selectedBootcamp]);
+
+  const handleApprove = async (userLessonId: string) => {
+    setApprovingId(userLessonId);
+    try {
+      await store.approveAssignment(userLessonId);
+      toast.success("Submission approved and student notified.");
+      // Update local state immediately
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === userLessonId ? { ...a, completed: true } : a,
+        ),
+      );
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || "Failed to approve submission.",
+      );
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -111,16 +131,24 @@ export function AdminAssignmentsPage({
     });
   };
 
+  const filtered = assignments.filter((a) => {
+    if (statusFilter === "pending") return !a.completed;
+    if (statusFilter === "approved") return a.completed;
+    return true;
+  });
+
+  const pendingCount = assignments.filter((a) => !a.completed).length;
+
   if (loading) return <Loader isLoader={false} />;
 
   return (
     <div className="flex-1 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Student Assignments
+          Student Submissions
         </h1>
         <p className="text-muted-foreground mt-2">
-          Review and manage all bootcamp assignment submissions
+          Review and approve assignment, exercise, and project submissions
         </p>
       </div>
 
@@ -130,7 +158,7 @@ export function AdminAssignmentsPage({
           <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <div className="w-full max-w-xs">
               <Select
                 value={selectedBootcamp}
@@ -149,24 +177,48 @@ export function AdminAssignmentsPage({
                 </SelectContent>
               </Select>
             </div>
+            <div className="w-full max-w-xs">
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">
+                    Pending ({pendingCount})
+                  </SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Assignments Table */}
+      {/* Submissions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Submissions ({assignments.length})</CardTitle>
+          <CardTitle>
+            Submissions ({filtered.length})
+            {pendingCount > 0 && (
+              <Badge className="ml-2 bg-amber-500 text-white">
+                {pendingCount} pending
+              </Badge>
+            )}
+          </CardTitle>
           <CardDescription>
-            {selectedBootcamp
-              ? `Assignments for selected bootcamp`
-              : "All student assignment submissions"}
+            {selectedBootcamp && selectedBootcamp !== "all"
+              ? "Assignments for selected bootcamp"
+              : "All student submissions"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {assignments.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No assignments found</p>
+              <p className="text-muted-foreground">No submissions found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -179,16 +231,18 @@ export function AdminAssignmentsPage({
                     </th>
                     <th className="text-left py-3 px-4 font-medium">Cohort</th>
                     <th className="text-left py-3 px-4 font-medium">Lesson</th>
+                    <th className="text-left py-3 px-4 font-medium">Type</th>
                     <th className="text-left py-3 px-4 font-medium">
                       Submission
                     </th>
                     <th className="text-left py-3 px-4 font-medium">
                       Submitted At
                     </th>
+                    <th className="text-left py-3 px-4 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {assignments.map((assignment) => (
+                  {filtered.map((assignment) => (
                     <tr
                       key={assignment.id}
                       className="border-b hover:bg-muted/50 transition-colors"
@@ -222,6 +276,11 @@ export function AdminAssignmentsPage({
                         </div>
                       </td>
                       <td className="py-3 px-4">
+                        <Badge variant="secondary" className="capitalize text-xs">
+                          {assignment.lesson?.type?.toLowerCase() ?? "—"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
                         {assignment.submissionUrl ? (
                           <a
                             href={assignment.submissionUrl}
@@ -238,6 +297,27 @@ export function AdminAssignmentsPage({
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground">
                         {formatDate(assignment.createdAt)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {assignment.completed ? (
+                          <div className="flex items-center gap-1.5 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="text-xs font-medium">Approved</span>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            disabled={approvingId === assignment.id}
+                            onClick={() => handleApprove(assignment.id)}
+                          >
+                            <Clock className="h-3 w-3 mr-1" />
+                            {approvingId === assignment.id
+                              ? "Approving…"
+                              : "Mark Complete"}
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
