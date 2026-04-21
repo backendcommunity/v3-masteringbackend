@@ -52,8 +52,9 @@ import {
   loadVideoNotes,
 } from "./courses";
 import { api, socketAPI } from "./api";
-import { localDB } from "./localDB";
 import { analytics } from "./analytics";
+import { getStoredUser, patchStoredUser } from "./user-store";
+
 
 interface AppState {
   // Data getters
@@ -286,34 +287,19 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   // Data getters - always return current data from JSON store
   getUser: async () => {
-    try {
-      const user = localDB.get("user", "");
+    const cached = getStoredUser();
+    if (cached) return cached;
 
-      if (user && user !== "null") {
-        const pUser = JSON.parse(user);
-        if (pUser) return pUser;
-      }
-      console.log(user);
-      const res = await fetchUser();
-      updateUserInStore(res.data);
-
-      // Identify user in analytics
-      analytics.identify(res.data.id, {
-        email: res.data.email,
-        name: res.data.name,
-        isPremium: res.data.isPremium,
-        country: res.data.country,
-        role: res.data.role,
-      });
-
-      return res.data;
-    } catch (error: any) {
-      // Clear local storage on authentication errors
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        localDB.clear();
-      }
-      throw error;
-    }
+    const res = await fetchUser();
+    updateUserInStore(res.data);
+    analytics.identify(res.data.id, {
+      email: res.data.email,
+      name: res.data.name,
+      isPremium: res.data.isPremium,
+      country: res.data.country,
+      role: res.data.role,
+    });
+    return res.data;
   },
   getProject30Leaderboard: async (slug: string, filters?: any) => {
     const { data } = await api.get(
@@ -342,10 +328,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getPlan: async (name: string) => {
-    if (localDB.has(`plan_${name}`)) return localDB.get(`plan_${name}`, {});
+    const key = `mb_plan_${name}`;
+    const tsKey = `${key}_ts`;
+    const TTL = 60 * 60 * 1000; // 1 hour
+
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(key);
+      const ts = Number(localStorage.getItem(tsKey) || 0);
+      if (cached && Date.now() - ts < TTL) return JSON.parse(cached);
+    }
 
     const { data } = await api.get(`/plans/${name}`);
-    localDB.set(`plan_${name}`, data?.data);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(key, JSON.stringify(data?.data));
+      localStorage.setItem(tsKey, String(Date.now()));
+    }
 
     return data?.data;
   },
@@ -1120,21 +1118,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addXP: (amount) => {
-    const user = dataStore.user;
+    const user = getStoredUser() ?? dataStore.user;
     const newXP = user.xp + amount;
-    let newLevel = user?.level;
+    let newLevel = user.level;
     let newXPToNextLevel = user.xpToNextLevel;
 
-    // Simple level calculation - every 1000 MB is a new level
     while (newXP >= newXPToNextLevel) {
       newLevel++;
       newXPToNextLevel += 1000;
     }
 
-    user.xp = newXP;
-    user.level = newLevel;
-    user.xpToNextLevel = newXPToNextLevel;
-
-    get().forceUpdate();
+    patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+    Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
   },
 }));

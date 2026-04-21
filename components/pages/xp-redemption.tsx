@@ -220,21 +220,21 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
               <Loader isLoader={false} />
             ) : (
               <>
-                {achievements?.map(({ achievement, ...ach }) => (
-                  <Card key={achievement.id}>
+                {achievements?.map(({ achievement, ...ach }: any, index: number) => (
+                  <Card key={achievement?.id || index}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <h3 className="text-lg font-semibold">
-                              {achievement.name}
+                              {achievement?.name}
                             </h3>
-                            {achievement.unlocked && (
+                            {achievement?.unlocked && (
                               <CheckCircle className="h-5 w-5 text-green-500" />
                             )}
                           </div>
                           <p className="text-muted-foreground mb-3">
-                            {achievement.description}
+                            {achievement?.description}
                           </p>
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
@@ -261,7 +261,7 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
                               {ach?.xpReward ?? 0}
                             </span>
                           </div>
-                          {achievement.completed ? (
+                          {achievement?.completed ? (
                             <Badge variant="default">Completed</Badge>
                           ) : (
                             <Badge variant="outline">In Progress</Badge>

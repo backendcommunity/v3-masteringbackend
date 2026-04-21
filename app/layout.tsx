@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PostHogProviderComponent } from "@/components/posthog-provider";
 import { PostHogPageview } from "@/components/posthog-pageview";
+import { AuthProvider } from "@/components/providers/auth-provider";
 import { GamificationModals } from "@/components/gamification-modals";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -41,7 +42,9 @@ export default function RootLayout({
             <PostHogPageview />
             <Toaster />
             <GamificationModals />
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <ErrorBoundary>
+              <AuthProvider>{children}</AuthProvider>
+            </ErrorBoundary>
           </ThemeProvider>
         </PostHogProviderComponent>
       </body>
