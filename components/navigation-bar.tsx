@@ -94,7 +94,9 @@ export function NavigationBar({
         if (seenNotificationIds.has(activity.id)) continue;
         if (!activity.isRead) {
           if (activity.type === "LEVEL_UP" && activity.isNotification) {
-            const match = activity.description?.match(/Level (\d+) to Level (\d+)/);
+            const match = activity.description?.match(
+              /Level (\d+) to Level (\d+)/,
+            );
             if (match) {
               store.setLevelUpModal({
                 oldLevel: parseInt(match[1]),
@@ -104,8 +106,13 @@ export function NavigationBar({
               store.markActivityRead(activity.id).catch(() => {});
             }
           }
-          if (activity.type === "ACHIEVEMENT_UNLOCKED" && activity.isNotification) {
-            const titleMatch = activity.title?.match(/Achievement Unlocked: (.+)/);
+          if (
+            activity.type === "ACHIEVEMENT_UNLOCKED" &&
+            activity.isNotification
+          ) {
+            const titleMatch = activity.title?.match(
+              /Achievement Unlocked: (.+)/,
+            );
             if (titleMatch) {
               toast.success(`Achievement Unlocked: ${titleMatch[1]}`, {
                 description: "Keep going — you're building momentum!",
@@ -119,11 +126,11 @@ export function NavigationBar({
         seenNotificationIds.add(activity.id);
       }
 
-      const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
-      analytics.track("notification_bell_clicked", {
-        totalNotifications: activities.length,
-        unreadCount,
-      });
+      // const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
+      // analytics.track("notification_bell_clicked", {
+      //   totalNotifications: activities.length,
+      //   unreadCount,
+      // });
     } catch (error) {
     } finally {
       setIsActivitiesLoading(false);
@@ -1004,11 +1011,16 @@ export function NavigationBar({
                                   className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
                                     notification.type === "LEVEL_UP"
                                       ? "bg-yellow-500 animate-pulse"
-                                      : notification.type === "ACHIEVEMENT_UNLOCKED"
+                                      : notification.type ===
+                                          "ACHIEVEMENT_UNLOCKED"
                                         ? "bg-purple-500 animate-pulse"
-                                        : notification.type?.includes("COMPLETED")
+                                        : notification.type?.includes(
+                                              "COMPLETED",
+                                            )
                                           ? "bg-green-500"
-                                          : notification.type?.includes("MILESTONE")
+                                          : notification.type?.includes(
+                                                "MILESTONE",
+                                              )
                                             ? "bg-orange-500 animate-pulse"
                                             : "bg-blue-500"
                                   }`}
