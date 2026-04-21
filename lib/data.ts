@@ -34,6 +34,7 @@ export interface User {
   country?: string;
   settings: any;
   phone?: string;
+  role?: string;
   createdAt?: Date | string;
   githubInstallationId?: string;
   // Onboarding fields
@@ -2203,7 +2204,9 @@ export const updateUser = (updates: Partial<User> | null) => {
     return;
   }
   const current = getStoredUser();
-  const merged = current ? { ...current, ...updates } : { ...dataStore.user, ...updates };
+  const merged = current
+    ? { ...current, ...updates }
+    : { ...dataStore.user, ...updates };
   setStoredUser(merged as User);
   Object.assign(dataStore.user, updates);
 };

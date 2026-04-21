@@ -88,18 +88,19 @@ export function NavigationBar({
       setNotifications(activities);
 
       // Epic 5: Track notification panel view
-      const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
-      analytics.track("view_notification_bell", {
-        totalNotifications: activities.length,
-        unreadCount,
-        timestamp: new Date().toISOString(),
-      });
+      // const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
+      // analytics.track("view_notification_bell", {
+      //   totalNotifications: activities.length,
+      //   unreadCount,
+      //   timestamp: new Date().toISOString(),
+      // });
     } catch (error) {
     } finally {
       setIsActivitiesLoading(false);
     }
   }
 
+  // Change polling to real-time subscription when backend supports it (e.g., WebSocket, SSE)
   // Real-time notification polling (every 10 seconds)
   useEffect(() => {
     // Load notifications immediately
@@ -294,7 +295,7 @@ export function NavigationBar({
 
     updateUser({
       ...user,
-      totalNotifications: user.totalNotifications - ids.length,
+      totalNotifications: user?.totalNotifications! - ids.length,
     });
     setNotifications([]);
     setIsNotificationsOpen(false);
@@ -896,12 +897,12 @@ export function NavigationBar({
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {user?.totalNotifications > 0 && (
+                  {user?.totalNotifications! > 0 && (
                     <Badge
                       variant="destructive"
                       className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
                     >
-                      {user?.totalNotifications > 9
+                      {user?.totalNotifications! > 9
                         ? `${9}+`
                         : user?.totalNotifications}
                     </Badge>
@@ -1098,7 +1099,9 @@ export function NavigationBar({
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
                   <>
-                    <DropdownMenuItem onClick={() => onNavigate("/admin/assignments")}>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate("/admin/assignments")}
+                    >
                       <CheckSquare className="mr-2 h-4 w-4" />
                       <span>Assignments</span>
                     </DropdownMenuItem>
