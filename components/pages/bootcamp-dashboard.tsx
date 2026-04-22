@@ -548,8 +548,18 @@ export function BootcampDashboardPage({
                 </div>
               </div>
               <Button variant="outline" className="w-full">
-                <Users className="mr-2 h-4 w-4" />
-                Join Study Group
+                <a
+                  className="flex justify-between"
+                  href={
+                    bootcamp?.cohort?.studyGroupLink ||
+                    userCohort?.cohort?.studyGroupLink
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  Join Study Group
+                </a>
               </Button>
               <Button
                 variant="outline"
