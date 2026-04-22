@@ -35,6 +35,9 @@ export interface User {
   settings: any;
   phone?: string;
   createdAt?: Date | string;
+  lastMonthCompletedCourses?: number;
+  lastMonthCourses?: number;
+  averageCourseTime?: string;
   githubInstallationId?: string;
   // Onboarding fields
   hasFinishedOnboarding?: boolean;
@@ -778,8 +781,8 @@ export interface Bootcamp {
   rating: number;
   students: number;
   userCohort: any;
-  cohort: any;
-  cohorts: any[];
+  cohort: Cohort;
+  cohorts: Cohort[];
 }
 
 export interface Cohort {
@@ -795,6 +798,7 @@ export interface Cohort {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  studyGroupLink?: string;
   userCohorts: UserCohort[];
 }
 
