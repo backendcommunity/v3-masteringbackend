@@ -173,9 +173,14 @@ export function CourseWatchPage({
       setUserChapters(userChapter);
 
       // Backend update with proper `isChapterCompleted`
-      const result = await markVideoComplete(course.id, chapter.id, currentVideo.id, {
-        isChapterCompleted,
-      });
+      const result = await markVideoComplete(
+        course.id,
+        chapter.id,
+        currentVideo.id,
+        {
+          isChapterCompleted,
+        },
+      );
       // Sync points/level to store without extra API call
       if (result?.data?.user) store.syncUserSnapshot(result.data.user);
 
@@ -366,12 +371,12 @@ export function CourseWatchPage({
         <div className="lg:col-span-3 space-y-4 fle flex-col">
           <Card className="overflow-hidden">
             {/* Video Player */}
-            {currentVideo?.type === "VIDEO" && (
+            {["VIDEO", "WORKSHOP"].includes(currentVideo?.type as string) && (
               <Card className="overflow-hidden group relative">
                 <div className="aspect-video bg-black relative">
                   {/* Vimeo Player */}
                   <VimeoPlayer
-                    video={currentVideo}
+                    video={currentVideo!}
                     onEnded={async () => {
                       setTimeout(() => {
                         if (nextVideo) return handleVideoClick(nextVideo);
@@ -558,7 +563,9 @@ export function CourseWatchPage({
               <TabsList>
                 <div className="md:w-full w-[350px] flex overflow-y-auto no-scrollbar">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
-                  {currentVideo?.type === "VIDEO" && (
+                  {["VIDEO", "WORKSHOP"].includes(
+                    currentVideo?.type as string,
+                  ) && (
                     <>
                       <TabsTrigger value="code">Code Editor</TabsTrigger>
                       <TabsTrigger value="transcript">Transcript</TabsTrigger>
@@ -650,13 +657,13 @@ export function CourseWatchPage({
                             >
                               <div className="flex items-center gap-2 mb-2">
                                 <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-                                  {user.name
+                                  {user?.name
                                     .split(" ")
                                     .map((n: any) => n[0])
                                     .join("")}
                                 </div>
                                 <span className="font-medium text-sm">
-                                  {user.name}
+                                  {user?.name}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                   {format(note?.createdAt)}

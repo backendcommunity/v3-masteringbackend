@@ -99,7 +99,7 @@ export function CourseCertificatePage({
       {/* Certificate */}
       <Certificate
         courseName={course?.title!}
-        studentName={user.name}
+        studentName={user?.name!}
         type="course"
         instructorName={course?.instructor ?? "Solomon Eseme"}
         completionDate={"December 8, 2024"}
