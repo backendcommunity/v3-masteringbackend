@@ -33,7 +33,7 @@ type RecoveryStatus = "loading" | "success" | "error" | "invalid" | "idle";
 
 function RecoverAccountContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams?.get("token");
 
   const [status, setStatus] = useState<RecoveryStatus>("idle");
   const [loading, setLoading] = useState(false);
