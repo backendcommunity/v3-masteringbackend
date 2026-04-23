@@ -62,13 +62,13 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    {
-      title: "Roadmaps",
-      url: routes.roadmaps,
-      icon: TrendingUp,
-      active: true,
-      beta: false,
-    },
+    // {
+    //   title: "Roadmaps",
+    //   url: routes.roadmaps,
+    //   icon: TrendingUp,
+    //   active: false,
+    //   beta: false,
+    // },
   ],
   build: [
     {
@@ -230,7 +230,7 @@ export function DashboardSidebar({
               <span>{user?.points?.toLocaleString()} MB</span>
               <span>
                 {mbToNextLevel?.toLocaleString()} MB to Level{" "}
-                {user?.level + 1}
+                {(user?.level ?? 0) + 1}
               </span>
             </div>
 
