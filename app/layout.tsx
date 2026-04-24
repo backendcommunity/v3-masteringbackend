@@ -10,7 +10,6 @@ import { PostHogPageview } from "@/components/posthog-pageview";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { GamificationModals } from "@/components/gamification-modals";
 import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
-import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,25 +41,13 @@ export const metadata: Metadata = {
     telephone: false,
   },
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://masteringbackend.com",
+    process.env.NEXT_PUBLIC_SITE_URL || "https://app.masteringbackend.com",
   ),
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     title: "MasteringBackend - Learn Backend Engineering Practically",
     description:
       "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
-    url: "/",
     siteName: "MasteringBackend",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "MasteringBackend - Backend Development Learning Platform",
-      },
-    ],
     locale: "en_US",
     type: "website",
   },
@@ -69,7 +56,6 @@ export const metadata: Metadata = {
     title: "MasteringBackend - Learn Backend Engineering Practically",
     description:
       "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
-    images: ["/og-image.jpg"],
     creator: "@masteringbackend",
     site: "@masteringbackend",
   },
@@ -111,13 +97,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <Script
-          id="organization-structured-data"
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={siteStructuredData}
         />
-        <Script
-          id="website-structured-data"
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={websiteStructuredData}
         />

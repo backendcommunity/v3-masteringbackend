@@ -674,9 +674,7 @@ export function LearningPathDetailPage({
   const currentTopicId =
     userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
   const currentTopic = useMemo(
-    () =>
-      topics.find((t) => t.id === currentTopicId && t.completed === false) ??
-      null,
+    () => topics.find((t) => t.id === currentTopicId && !t.completed) ?? null,
     [topics, currentTopicId],
   );
   const currentTopicIndex = currentTopic ? topics.indexOf(currentTopic) : -1;
@@ -1529,7 +1527,7 @@ export function LearningPathDetailPage({
                 {completedTopics.length} of {topics.length} topics complete
               </p>
             </div>
-            {user?.currentStreak! > 1 && (
+            {(user?.currentStreak ?? 0) > 1 && (
               <div className="text-center ml-4 flex-shrink-0">
                 <div className="flex items-center gap-1">
                   <Flame className="h-5 w-5 text-orange-300" />
