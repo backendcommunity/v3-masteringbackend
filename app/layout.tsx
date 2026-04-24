@@ -9,18 +9,98 @@ import { PostHogProviderComponent } from "@/components/posthog-provider";
 import { PostHogPageview } from "@/components/posthog-pageview";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { GamificationModals } from "@/components/gamification-modals";
+import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Mastering Backend",
+  title: {
+    default: "MasteringBackend - Learn Backend Engineering Practically",
+    template: "%s | MasteringBackend",
+  },
   description:
-    "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
+    "Master backend development with comprehensive courses, hands-on projects, and structured learning paths. Build real-world applications with modern technologies.",
+  keywords: [
+    "backend development",
+    "programming courses",
+    "web development",
+    "Node.js",
+    "Python",
+    "API development",
+    "database design",
+    "full-stack development",
+    "coding tutorials",
+    "software engineering",
+  ],
+  authors: [{ name: "MasteringBackend Team" }],
+  creator: "MasteringBackend",
+  publisher: "MasteringBackend",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://masteringbackend.com",
+  ),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "MasteringBackend - Learn Backend Engineering Practically",
+    description:
+      "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
+    url: "/",
+    siteName: "MasteringBackend",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "MasteringBackend - Backend Development Learning Platform",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MasteringBackend - Learn Backend Engineering Practically",
+    description:
+      "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
+    images: ["/og-image.jpg"],
+    creator: "@masteringbackend",
+    site: "@masteringbackend",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
+    bing: process.env.NEXT_PUBLIC_BING_VERIFICATION,
+  },
+  category: "education",
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1.0,
+  maximumScale: 5.0,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
 
 export default function RootLayout({
@@ -30,6 +110,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          id="organization-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={siteStructuredData}
+        />
+        <Script
+          id="website-structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={websiteStructuredData}
+        />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <PostHogProviderComponent>
           <ThemeProvider

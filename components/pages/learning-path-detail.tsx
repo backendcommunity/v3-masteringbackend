@@ -674,7 +674,9 @@ export function LearningPathDetailPage({
   const currentTopicId =
     userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
   const currentTopic = useMemo(
-    () => topics.find((t) => t.id === currentTopicId) ?? null,
+    () =>
+      topics.find((t) => t.id === currentTopicId && t.completed === false) ??
+      null,
     [topics, currentTopicId],
   );
   const currentTopicIndex = currentTopic ? topics.indexOf(currentTopic) : -1;
@@ -1527,11 +1529,13 @@ export function LearningPathDetailPage({
                 {completedTopics.length} of {topics.length} topics complete
               </p>
             </div>
-            {user?.currentStreak && user.currentStreak > 1 && (
+            {user?.currentStreak! > 1 && (
               <div className="text-center ml-4 flex-shrink-0">
                 <div className="flex items-center gap-1">
                   <Flame className="h-5 w-5 text-orange-300" />
-                  <div className="text-2xl font-bold">{user.currentStreak}</div>
+                  <div className="text-2xl font-bold">
+                    {user?.currentStreak}
+                  </div>
                 </div>
                 <div className="text-xs text-blue-100">day streak</div>
               </div>
