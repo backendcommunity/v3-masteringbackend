@@ -50,6 +50,8 @@ import {
   Crown,
   AlertTriangle,
   Lock,
+  Wrench,
+  X,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -151,6 +153,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [interviewAccess, setInterviewAccess] =
     useState<InterviewAccess | null>(null);
 
+  const [showDevBanner, setShowDevBanner] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [creating, setCreating] = useState(false);
@@ -215,7 +218,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   // Handle interview booking from URL query parameter
   useEffect(() => {
-    const interviewId = searchParams.get("id");
+    const interviewId = searchParams?.get("id");
     if (!interviewId || templates.length === 0) return;
 
     // Find template with matching ID
@@ -624,14 +627,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             onOpenChange={setIsCreateInterviewDialogOpen}
           >
             <DialogTrigger asChild>
-              <Button
-                onClick={(e) => {
-                  if (!interviewAccess?.hasAccess) {
-                    e.preventDefault();
-                    setShowUpgradeDialog(true);
-                  }
-                }}
-              >
+              <Button disabled={true}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create from Job Description
               </Button>
@@ -1070,6 +1066,30 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Under Development Banner */}
+      {showDevBanner && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/8 px-4 py-3">
+          <Wrench className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              Mock Interview is actively being improved
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Some features are still in development. You can browse templates
+              and schedule interviews — full session support is coming very
+              soon.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowDevBanner(false)}
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Session Limit Reached Banner */}
       {interviewAccess && !interviewAccess.hasAccess && (
@@ -1558,15 +1578,17 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               {selectedTemplate?.name ||
                 `${selectedTemplate?.position} Interview`}
             </DialogTitle>
-            <DialogDescription>
-              Choose to start your interview immediately or schedule it for a
-              later time.
+            <DialogDescription className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Wrench className="h-3.5 w-3.5 flex-shrink-0" />
+              {/* Choose to start your interview immediately or schedule it for a later time. */}
+              Session booking is temporarily disabled while we finalize the
+              platform.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-6 py-4">
             {/* Start Now Option */}
-            <Card className="cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
+            <Card className="opacity-50 cursor-not-allowed">
               <CardContent className="flex items-center gap-4 p-6">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Play className="h-6 w-6 text-primary" />
@@ -1580,10 +1602,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 </div>
                 <Button
                   type="button"
-                  disabled={creating}
-                  onClick={() =>
-                    selectedTemplate && handleStartNow(selectedTemplate.id)
-                  }
+                  disabled={true}
+                  // onClick={() =>
+                  //   selectedTemplate && handleStartNow(selectedTemplate.id)
+                  // }
                 >
                   {creating ? (
                     <>
@@ -1613,7 +1635,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             </div>
 
             {/* Schedule Option */}
-            <Card className="border-dashed">
+            <Card className="border-dashed opacity-50">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -1652,11 +1674,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 <Button
                   className="w-full"
                   variant="outline"
-                  disabled={!scheduledDate || !scheduledTime || creating}
-                  onClick={() =>
-                    selectedTemplate &&
-                    handleScheduleInterview(selectedTemplate.id)
-                  }
+                  disabled={true}
+                  // onClick={() =>
+                  //   selectedTemplate &&
+                  //   handleScheduleInterview(selectedTemplate.id)
+                  // }
                 >
                   {creating ? (
                     <>

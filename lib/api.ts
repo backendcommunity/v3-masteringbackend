@@ -6,7 +6,10 @@ export const api = axios.create({
 });
 
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
+let failedQueue: Array<{
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
 
 const processQueue = (error: any) => {
   failedQueue.forEach(({ resolve, reject }) => {
@@ -17,7 +20,10 @@ const processQueue = (error: any) => {
 };
 
 const handleAuthFailure = () => {
-  if (typeof window !== "undefined" && !window.location.pathname.includes("/auth/")) {
+  if (
+    typeof window !== "undefined" &&
+    !window.location.pathname.includes("/auth/")
+  ) {
     window.location.href = "/auth/login";
   }
 };
@@ -54,12 +60,11 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
-
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export const socketAPI = axios.create({

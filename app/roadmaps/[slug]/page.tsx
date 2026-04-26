@@ -1,21 +1,13 @@
 "use client";
 
+import { useRouter, useParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { RoadmapDetailPage } from "@/components/pages/roadmap-detail";
-import { useParams, useRouter } from "next/navigation";
-import React from "react";
 
-interface RoadmapDetailPageRouteProps {
-  params: {
-    slug: string;
-  };
-}
-
-export default function RoadmapDetailPageRoute({
-  params,
-}: RoadmapDetailPageRouteProps) {
-  const { slug } = useParams() as { slug: string };
+export default function RoadmapDetailPageRoute() {
   const router = useRouter();
+  const params = useParams();
+  const slug = params?.slug as string;
 
   const handleNavigate = (path: string) => {
     router.push(path);

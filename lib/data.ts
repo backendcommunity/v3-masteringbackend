@@ -92,19 +92,20 @@ export interface StreakData {
   isStreakActiveToday: boolean;
 }
 
+export type ContentItemType =
+  | "course"
+  | "roadmap"
+  | "bootcamp"
+  | "project"
+  | "mock_interview";
+
 export interface ContinueLearningItem {
-  courseId: string;
+  type: ContentItemType;
+  id: string;
   title: string;
-  slug: string;
-  banner?: string;
-  resume: {
-    chapterId?: string | null;
-    chapterTitle?: string | null;
-    videoId?: string | null;
-    videoTitle?: string | null;
-    articleId?: string | null;
-    articleTitle?: string | null;
-  } | null;
+  banner?: string | null;
+  resumeLabel: string;
+  resumeUrl: string;
   lastActiveAt: string;
 }
 
