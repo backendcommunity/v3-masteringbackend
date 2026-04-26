@@ -133,9 +133,9 @@ export function RoadmapVideoWatchPage({
       setUserChapters(course?.userCourse?.userChapters);
       setUserVideos(userCourse?.userVideos);
 
-      const completed =
-        completedItems.find((c: any) => c.itemId === course.id)?.completed ??
-        false;
+      const completed = completedItems.find(
+        (c: any) => c.itemId === course.id,
+      )?.completed;
       setCompleted(completed);
 
       const chapter: Chapter | any = course?.chapters.find(
@@ -366,7 +366,10 @@ export function RoadmapVideoWatchPage({
   const totalCompletedTasks =
     completedItems?.filter(
       (ci: any) =>
-        ci.type !== "COURSE" && ci.type !== "CHAPTER" && !ci.completed,
+        ci.itemType !== "COURSE" &&
+        ci.itemType !== "WORKSHOP" &&
+        ci.itemType !== "CHAPTER" &&
+        ci.completed,
     )?.length ?? 0;
 
   const progress = Math.round(
@@ -652,13 +655,13 @@ export function RoadmapVideoWatchPage({
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-                              {user.name
+                              {user?.name
                                 .split(" ")
                                 .map((n: any) => n[0])
                                 .join("")}
                             </div>
                             <span className="font-medium text-sm">
-                              {user.name}
+                              {user?.name}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {format(note?.createdAt)}
