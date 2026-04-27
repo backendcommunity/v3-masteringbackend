@@ -548,7 +548,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   </div>
                 </div>
                 <Button
-                  onClick={() => onNavigate("/subscription-plans")}
+                  onClick={() => onNavigate(routes.subscriptionPlans)}
                   className="w-full md:w-auto"
                 >
                   Upgrade Now
