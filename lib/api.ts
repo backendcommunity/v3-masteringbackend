@@ -19,11 +19,19 @@ const processQueue = (error: any) => {
   failedQueue = [];
 };
 
-const handleAuthFailure = () => {
+const handleAuthFailure = async () => {
   if (
     typeof window !== "undefined" &&
     !window.location.pathname.includes("/auth/")
   ) {
+    // Call logout so the server clears the HttpOnly mb_token cookie.
+    // Fire-and-forget — don't let a network error block the redirect.
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // ignore — we're logging out regardless
+    }
+    localStorage.clear();
     window.location.href = "/auth/login";
   }
 };
@@ -56,7 +64,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        handleAuthFailure();
+        await handleAuthFailure();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
