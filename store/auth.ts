@@ -111,11 +111,8 @@ export const useAuth = create<AuthState>((set) => ({
     } catch (error) {
       console.error("Logout API error:", error);
     } finally {
-      // Clear plan cache from localStorage on logout
       if (typeof window !== "undefined") {
-        Object.keys(localStorage)
-          .filter((k) => k.startsWith("mb_plan_"))
-          .forEach((k) => localStorage.removeItem(k));
+        localStorage.clear();
       }
       set({ user: null, token: null });
       updateUser(null);
