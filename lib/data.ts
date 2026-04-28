@@ -14,6 +14,7 @@ export interface User {
   avatar: string;
   level: number;
   xp: number;
+  signedUpThrough?: string;
   xpToNextLevel: number;
   streak: number;
   title?: string;

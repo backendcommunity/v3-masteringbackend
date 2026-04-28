@@ -88,7 +88,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     setTwoFactorEnabled(value);
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         twoFactorEnabled: value,
       },
     });
@@ -101,7 +101,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
@@ -114,7 +114,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
@@ -126,7 +126,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
