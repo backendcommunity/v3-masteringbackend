@@ -768,7 +768,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   executeCode: async (payload: { language: string; code: string }) => {
-    const { data } = await socketAPI.post(`/projects/execute`, payload);
+    // Uses the main API instance instead of the socket instance
+    const { data } = await api.post(`/projects/execute`, payload);
     return data;
   },
   handleProjectEnrollment: async (slug: string) => {

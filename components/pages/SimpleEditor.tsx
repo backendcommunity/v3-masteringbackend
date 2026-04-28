@@ -115,31 +115,35 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
     setResult(null);
 
     try {
-      // Simulate code execution locally instead of API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Set 30-second timeout for code execution via API
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Code execution timed out (30s)")), 30000)
+      );
+      const executionPromise = store.executeCode({
+        language: language.code,
+        code: btoa(code),
+      });
 
-      // Mock execution based on language
-      let mockOutput = "";
+      const data = await Promise.race([executionPromise, timeoutPromise]);
       
-      if (language.code === "node" || language.code === "javascript") {
-        mockOutput = `Console Output:\n${code}`;
-      } else if (language.code === "python") {
-        mockOutput = `Python Output:\n${code}`;
-      } else if (language.code === "java") {
-        mockOutput = `Java Output:\n${code}`;
-      } else if (language.code === "cpp") {
-        mockOutput = `C++ Output:\n${code}`;
-      } else {
-        mockOutput = `${language?.label} Output:\n${code}`;
-      }
-
-      setResult(mockOutput);
+      // Parse output from the backend correctly
+      const result = data?.data?.stdout ?? data?.data?.stderr ?? data?.stdout ?? data?.stderr ?? "No output";
+      setResult(result);
       toast.success("Code executed successfully!");
     } catch (error: any) {
       console.error("Code execution error:", error);
       
-      const errorMsg = error?.message || "Code execution failed";
-      const htmlError = `<p class='text-red-500'>Error: ${errorMsg}</p>`;
+      let errorMsg = "Code execution failed";
+      
+      if (error?.response?.status === 404) {
+        errorMsg = "Execution endpoint not found on backend (404).";
+      } else if (error?.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      
+      const htmlError = `<div class='text-red-500 text-sm'><p><strong>Error:</strong> ${errorMsg}</p></div>`;
       setResult(htmlError);
       toast.error(`Execution failed: ${errorMsg}`);
     } finally {
