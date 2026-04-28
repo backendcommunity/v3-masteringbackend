@@ -312,7 +312,7 @@ export function CourseQuizPage({
                   className={`w-full text-left p-4 rounded-lg border transition-colors dark:text-white ${
                     answers[currentQuestion] === index.toString()
                       ? "bg-blue-100 border-blue-500 dark:bg-blue-900 dark:border-blue-400"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                      : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
                   {option}
