@@ -181,6 +181,23 @@ function CourseCard({
           >
             {course?.level}
           </Badge>
+
+          <Badge
+            className="uppercase text-xs"
+            variant={
+              course?.type === "WORKSHOP"
+                ? "purple"
+                : course?.type === "VIDEO"
+                  ? "default"
+                  : "success"
+            }
+          >
+            {course?.type === "WORKSHOP"
+              ? "Workshop"
+              : course?.type === "VIDEO"
+                ? "Course"
+                : "Tutorial"}
+          </Badge>
         </div>
         <CardTitle
           className="line-clamp-2 cursor-pointer hover:text-primary transition-colors text-sm md:text-base"
@@ -514,7 +531,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         </div>
 
         {/* Upgrade Banner */}
-        {!user.isPremium && (
+        {!user?.isPremium && (
           <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -531,7 +548,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   </div>
                 </div>
                 <Button
-                  onClick={() => onNavigate("/subscription-plans")}
+                  onClick={() => onNavigate(routes.subscriptionPlans)}
                   className="w-full md:w-auto"
                 >
                   Upgrade Now

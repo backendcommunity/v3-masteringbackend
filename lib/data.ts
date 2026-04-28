@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { fetchUser } from "./auth";
-import { localDB } from "./localDB";
+import { setStoredUser, getStoredUser } from "./user-store";
 
 export interface UserRoadmapFilters {
   skip?: number;
@@ -14,6 +14,7 @@ export interface User {
   avatar: string;
   level: number;
   xp: number;
+  signedUpThrough?: string;
   xpToNextLevel: number;
   streak: number;
   title?: string;
@@ -35,6 +36,9 @@ export interface User {
   settings: any;
   phone?: string;
   createdAt?: Date | string;
+  lastMonthCompletedCourses?: number;
+  lastMonthCourses?: number;
+  averageCourseTime?: string;
   githubInstallationId?: string;
   // Onboarding fields
   hasFinishedOnboarding?: boolean;
@@ -89,19 +93,20 @@ export interface StreakData {
   isStreakActiveToday: boolean;
 }
 
+export type ContentItemType =
+  | "course"
+  | "roadmap"
+  | "bootcamp"
+  | "project"
+  | "mock_interview";
+
 export interface ContinueLearningItem {
-  courseId: string;
+  type: ContentItemType;
+  id: string;
   title: string;
-  slug: string;
-  banner?: string;
-  resume: {
-    chapterId?: string | null;
-    chapterTitle?: string | null;
-    videoId?: string | null;
-    videoTitle?: string | null;
-    articleId?: string | null;
-    articleTitle?: string | null;
-  } | null;
+  banner?: string | null;
+  resumeLabel: string;
+  resumeUrl: string;
   lastActiveAt: string;
 }
 
@@ -778,8 +783,8 @@ export interface Bootcamp {
   rating: number;
   students: number;
   userCohort: any;
-  cohort: any;
-  cohorts: any[];
+  cohort: Cohort;
+  cohorts: Cohort[];
 }
 
 export interface Cohort {
@@ -795,6 +800,7 @@ export interface Cohort {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  studyGroupLink?: string;
   userCohorts: UserCohort[];
 }
 
@@ -951,43 +957,93 @@ export interface RoadmapAssessment {
 export const LEVEL_PERKS: Record<number, { perks: string[]; icon: string }> = {
   1: {
     icon: "⭐",
-    perks: ["Access to all free courses", "Basic progress tracking", "Public developer profile", "MB points system"],
+    perks: [
+      "Access to all free courses",
+      "Basic progress tracking",
+      "Public developer profile",
+      "MB points system",
+    ],
   },
   2: {
     icon: "🔧",
-    perks: ["Roadmap tracking unlocked", "Weekly progress digest email", "MB leaderboard visibility", "Streak tracking"],
+    perks: [
+      "Roadmap tracking unlocked",
+      "Weekly progress digest email",
+      "MB leaderboard visibility",
+      "Streak tracking",
+    ],
   },
   3: {
     icon: "⚡",
-    perks: ["Coding exercises unlocked", "Beginner project library access", "Logic Blacksmith profile badge", "Achievement system"],
+    perks: [
+      "Coding exercises unlocked",
+      "Beginner project library access",
+      "Logic Blacksmith profile badge",
+      "Achievement system",
+    ],
   },
   4: {
     icon: "🔐",
-    perks: ["Unlimited quiz retries", "Intermediate project library", "Auth Alchemist badge", "Priority course search ranking"],
+    perks: [
+      "Unlimited quiz retries",
+      "Intermediate project library",
+      "Auth Alchemist badge",
+      "Priority course search ranking",
+    ],
   },
   5: {
     icon: "🗄️",
-    perks: ["Mock interview scheduling", "Advanced course library", "Database Cartographer badge", "Portfolio showcase"],
+    perks: [
+      "Mock interview scheduling",
+      "Advanced course library",
+      "Database Cartographer badge",
+      "Portfolio showcase",
+    ],
   },
   6: {
     icon: "🧙",
-    perks: ["Early access to new courses", "Bootcamp priority registration", "Service Sorcerer badge", "10% MB bonus on all actions"],
+    perks: [
+      "Early access to new courses",
+      "Bootcamp priority registration",
+      "Service Sorcerer badge",
+      "10% MB bonus on all actions",
+    ],
   },
   7: {
     icon: "🏗️",
-    perks: ["Architect badge on portfolio", "Exclusive expert webinars", "Mentor match eligibility", "Custom roadmap creation"],
+    perks: [
+      "Architect badge on portfolio",
+      "Exclusive expert webinars",
+      "Mentor match eligibility",
+      "Custom roadmap creation",
+    ],
   },
   8: {
     icon: "⚔️",
-    perks: ["Performance analytics dashboard", "Full premium content library", "Performance Paladin badge", "Beta feature early access"],
+    perks: [
+      "Performance analytics dashboard",
+      "Full premium content library",
+      "Performance Paladin badge",
+      "Beta feature early access",
+    ],
   },
   9: {
     icon: "🚀",
-    perks: ["DevOps Enchanter badge", "Dedicated support channel", "Custom profile theme", "Exclusive community channels"],
+    perks: [
+      "DevOps Enchanter badge",
+      "Dedicated support channel",
+      "Custom profile theme",
+      "Exclusive community channels",
+    ],
   },
   10: {
     icon: "👑",
-    perks: ["Backend Overlord badge", "Hall of Fame listing", "Lifetime achievement certificate", "All platform perks unlocked"],
+    perks: [
+      "Backend Overlord badge",
+      "Hall of Fame listing",
+      "Lifetime achievement certificate",
+      "All platform perks unlocked",
+    ],
   },
 };
 
@@ -2247,13 +2303,21 @@ export const completeMilestone = (roadmapId: string, milestoneId: string) => {
   }
 };
 
-export const updateUser = (updates: Partial<User | null>) => {
-  localDB.set("user", JSON.stringify(updates));
+export const updateUser = (updates: Partial<User> | null) => {
+  if (!updates) {
+    setStoredUser(null);
+    return;
+  }
+  const current = getStoredUser();
+  const merged = current
+    ? { ...current, ...updates }
+    : { ...dataStore.user, ...updates };
+  setStoredUser(merged as User);
   Object.assign(dataStore.user, updates);
 };
 
-export const updateCourse = (slug: string, updates: Partial<Course>) => {
-  localDB.update(`course_${slug}`, updates);
+export const updateCourse = (_slug: string, _updates: Partial<Course>) => {
+  // Course state is managed server-side; API is the source of truth
 };
 
 export const updatePopularCourses = (

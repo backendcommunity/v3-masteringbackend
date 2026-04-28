@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { getStoredUser } from "@/lib/user-store";
 import { Loader } from "../ui/loader";
 import { routes } from "@/lib/routes";
 
@@ -75,8 +76,7 @@ export function BootcampLeaderboard({
         setLeaderboard(data);
         setTopUsers(data.slice(0, 3));
 
-        // Get the current user from store
-        const user = await store.getUser();
+        const user = getStoredUser();
         const current = data.find((entry) => entry.userId === user?.id);
         if (current) {
           setCurrentUser(current);

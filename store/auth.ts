@@ -12,9 +12,6 @@ import {
   completeOnboarding as completeOnboardingApi,
 } from "@/lib/auth";
 import { NewUser, updateUser, User, OnboardingInput } from "@/lib/data";
-import { localDB } from "@/lib/localDB";
-import { setCookie, deleteCookie } from "cookies-next/client";
-
 // interface User {
 //   id: string;
 //   email: string;
@@ -63,13 +60,7 @@ export const useAuth = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const { data } = await login(email, password);
-    localDB.set("token", data.token);
-    setCookie("mb_token", data.token, {
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
+    // The backend sets the HttpOnly mb_token cookie directly — no client-side cookie needed
     set({ user: data.user, token: data.token });
     updateUser(data.user);
     return data.user;
@@ -119,11 +110,10 @@ export const useAuth = create<AuthState>((set) => ({
       await logout();
     } catch (error) {
       console.error("Logout API error:", error);
-      // Continue with local cleanup even if API call fails
     } finally {
-      // Always clear local data regardless of API success/failure
-      localDB.clear(); // Clear all local data, not just token
-      deleteCookie("mb_token"); // Ensure cookie is deleted
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+      }
       set({ user: null, token: null });
       updateUser(null);
     }

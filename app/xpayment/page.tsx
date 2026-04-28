@@ -1,42 +1,25 @@
 "use client";
 
-import { useUser } from "@/hooks/use-user";
 import { useEffect, useState } from "react";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { useTheme } from "next-themes";
-import { useAppStore } from "@/lib/store";
-import { PaymentChannel } from "@/lib/data";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-interface PaymentDialogProps {
-  data: any;
-  disableMB?: boolean;
-  disableOnetime?: boolean;
-  disableSubscription?: boolean;
-  onHandlePreview: (id?: string) => void;
-  onHandlePurchase: (id: string, type: string, success: boolean) => void;
-  onClose: () => void;
-  open: boolean;
-}
-
-const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
 const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
 const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
-
 const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
+const DEFAULT_PRICE_ID = "pri_01kc68wvad2nfdd5a7s5zphemt";
 
-export default function XPayment({}) {
-  const user = useUser();
-  const store = useAppStore();
+export default function XPayment() {
   const { theme } = useTheme();
+  const searchParams = useSearchParams();
+  const priceId = searchParams?.get("priceid") || DEFAULT_PRICE_ID;
   const [paddle, setPaddle] = useState<Paddle>();
-  //   const [plan, setPlan] = useState<Plan>();
-  const [channel, setChannel] = useState<PaymentChannel>();
 
   useEffect(() => {
     initializePaddle({
       token: PADDLE_TOKEN,
-      // seller: SELLER_ID,
       eventCallback: function (data: any) {
         switch (data.name) {
           case "checkout.loaded":
@@ -46,8 +29,7 @@ export default function XPayment({}) {
             console.log("Checkout closed");
             break;
           case "checkout.completed":
-            const c_data = data?.custom_data;
-            // Track payment (GA or Google)
+            console.log("Checkout completed", data?.custom_data);
             break;
         }
       },
@@ -59,8 +41,14 @@ export default function XPayment({}) {
     });
   }, []);
 
-  // Callback to open a checkout
-  const openCheckout = (priceId: string, data: any) => {
+  // Auto-open checkout once Paddle is ready and priceId is present
+  useEffect(() => {
+    if (paddle && priceId) {
+      openCheckout(priceId);
+    }
+  }, [paddle, priceId]);
+
+  const openCheckout = (id: string) => {
     paddle?.Checkout.open({
       settings: {
         allowedPaymentMethods: [
@@ -75,19 +63,26 @@ export default function XPayment({}) {
         theme: theme?.includes("dark") ? "dark" : "light",
       },
       discountCode: "AIEARLYBIRD",
-      items: [{ priceId }],
-      customData: data,
+      items: [{ priceId: id }],
     });
   };
 
-  openCheckout("pri_01kc68wvad2nfdd5a7s5zphemt", {});
+  if (!priceId) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Unable to load payment. Please try again.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
       <Button
         variant="outline"
         className="w-full"
-        onClick={() => openCheckout("pri_01kc68wvad2nfdd5a7s5zphemt", {})}
+        onClick={() => openCheckout(priceId)}
       >
         Click here to proceed with payment
       </Button>

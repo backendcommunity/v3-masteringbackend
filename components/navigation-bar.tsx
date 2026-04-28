@@ -94,7 +94,9 @@ export function NavigationBar({
         if (seenNotificationIds.has(activity.id)) continue;
         if (!activity.isRead) {
           if (activity.type === "LEVEL_UP" && activity.isNotification) {
-            const match = activity.description?.match(/Level (\d+) to Level (\d+)/);
+            const match = activity.description?.match(
+              /Level (\d+) to Level (\d+)/,
+            );
             if (match) {
               store.setLevelUpModal({
                 oldLevel: parseInt(match[1]),
@@ -104,8 +106,13 @@ export function NavigationBar({
               store.markActivityRead(activity.id).catch(() => {});
             }
           }
-          if (activity.type === "ACHIEVEMENT_UNLOCKED" && activity.isNotification) {
-            const titleMatch = activity.title?.match(/Achievement Unlocked: (.+)/);
+          if (
+            activity.type === "ACHIEVEMENT_UNLOCKED" &&
+            activity.isNotification
+          ) {
+            const titleMatch = activity.title?.match(
+              /Achievement Unlocked: (.+)/,
+            );
             if (titleMatch) {
               toast.success(`Achievement Unlocked: ${titleMatch[1]}`, {
                 description: "Keep going — you're building momentum!",
@@ -119,19 +126,18 @@ export function NavigationBar({
         seenNotificationIds.add(activity.id);
       }
 
-      // Epic 5: Track notification panel view
-      const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
-      analytics.track("view_notification_bell", {
-        totalNotifications: activities.length,
-        unreadCount,
-        timestamp: new Date().toISOString(),
-      });
+      // const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
+      // analytics.track("notification_bell_clicked", {
+      //   totalNotifications: activities.length,
+      //   unreadCount,
+      // });
     } catch (error) {
     } finally {
       setIsActivitiesLoading(false);
     }
   }
 
+  // Change polling to real-time subscription when backend supports it (e.g., WebSocket, SSE)
   // Real-time notification polling (every 10 seconds)
   useEffect(() => {
     // Load notifications immediately
@@ -160,9 +166,9 @@ export function NavigationBar({
         setIsExploreSearchLoading(true);
         const results = await store.search(exploreSearchQuery);
         setExploreSearchResults(results);
-        analytics.track("explore_search_results_shown", {
+        analytics.track("search_performed", {
           query: exploreSearchQuery,
-          totalResults: results?.total ?? 0,
+          resultsCount: results?.total ?? 0,
         });
       } catch {
         setExploreSearchResults(null);
@@ -326,7 +332,7 @@ export function NavigationBar({
 
     updateUser({
       ...user,
-      totalNotifications: user.totalNotifications - ids.length,
+      totalNotifications: user?.totalNotifications! - ids.length,
     });
     setNotifications([]);
     setIsNotificationsOpen(false);
@@ -636,6 +642,12 @@ export function NavigationBar({
                                 key={course.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "course",
+                                    resultId: course.id,
+                                    resultTitle: course.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(routes.courseDetail(course.slug));
@@ -677,6 +689,12 @@ export function NavigationBar({
                                 key={roadmap.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "roadmap",
+                                    resultId: roadmap.id,
+                                    resultTitle: roadmap.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -710,6 +728,12 @@ export function NavigationBar({
                                 key={project.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "project",
+                                    resultId: project.id,
+                                    resultTitle: project.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -748,6 +772,12 @@ export function NavigationBar({
                                 key={bootcamp.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "bootcamp",
+                                    resultId: bootcamp.id,
+                                    resultTitle: bootcamp.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -928,12 +958,12 @@ export function NavigationBar({
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {user?.totalNotifications > 0 && (
+                  {user?.totalNotifications! > 0 && (
                     <Badge
                       variant="destructive"
                       className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
                     >
-                      {user?.totalNotifications > 9
+                      {user?.totalNotifications! > 9
                         ? `${9}+`
                         : user?.totalNotifications}
                     </Badge>
@@ -981,11 +1011,16 @@ export function NavigationBar({
                                   className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
                                     notification.type === "LEVEL_UP"
                                       ? "bg-yellow-500 animate-pulse"
-                                      : notification.type === "ACHIEVEMENT_UNLOCKED"
+                                      : notification.type ===
+                                          "ACHIEVEMENT_UNLOCKED"
                                         ? "bg-purple-500 animate-pulse"
-                                        : notification.type?.includes("COMPLETED")
+                                        : notification.type?.includes(
+                                              "COMPLETED",
+                                            )
                                           ? "bg-green-500"
-                                          : notification.type?.includes("MILESTONE")
+                                          : notification.type?.includes(
+                                                "MILESTONE",
+                                              )
                                             ? "bg-orange-500 animate-pulse"
                                             : "bg-blue-500"
                                   }`}
@@ -1134,7 +1169,9 @@ export function NavigationBar({
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
                   <>
-                    <DropdownMenuItem onClick={() => onNavigate("/admin/assignments")}>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate("/admin/assignments")}
+                    >
                       <CheckSquare className="mr-2 h-4 w-4" />
                       <span>Assignments</span>
                     </DropdownMenuItem>

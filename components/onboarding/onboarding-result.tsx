@@ -44,14 +44,12 @@ export function OnboardingResult({
     setIsLoading(true);
     try {
       // Track course start
-      if (analytics.track) {
-        analytics.track("Learning Path Started", {
-          type: "course",
-          courseId: course?.id,
-          courseName: course?.title,
-          learningGoal,
-        });
-      }
+      analytics.track("learning_path_started", {
+        type: "course",
+        courseId: course?.id,
+        courseName: course?.title,
+        learningGoal,
+      });
 
       if (course) {
         // Auto-enroll in recommended course
@@ -85,14 +83,12 @@ export function OnboardingResult({
     setIsLoading(true);
     try {
       // Track project start
-      if (analytics.track) {
-        analytics.track("Learning Path Started", {
-          type: "project",
-          projectId: project?.id,
-          projectName: project?.title,
-          learningGoal,
-        });
-      }
+      analytics.track("learning_path_started", {
+        type: "project",
+        projectId: project?.id,
+        projectName: project?.title,
+        learningGoal,
+      });
 
       if (project) {
         // Navigate to project detail
@@ -112,13 +108,11 @@ export function OnboardingResult({
     setIsLoading(true);
     try {
       // Track interview start
-      if (analytics.track) {
-        analytics.track("Learning Path Started", {
-          type: "interview",
-          hasInterviewPath: interviewRecommendation?.hasInterviewPath,
-          learningGoal,
-        });
-      }
+      analytics.track("learning_path_started", {
+        type: "interview",
+        hasInterviewPath: interviewRecommendation?.hasInterviewPath,
+        learningGoal,
+      });
 
       if (
         interviewRecommendation?.hasInterviewPath &&
@@ -147,12 +141,7 @@ export function OnboardingResult({
 
   // Handle dashboard navigation (skip)
   const handleGoToDashboard = () => {
-    // Track dashboard navigation
-    if (analytics.track) {
-      analytics.track("Onboarding Dashboard Skipped", {
-        learningGoal,
-      });
-    }
+    analytics.track("onboarding_skipped", { learningGoal });
     router.push(routes.dashboard);
   };
 
@@ -179,18 +168,25 @@ export function OnboardingResult({
 
   const buttonConfig = getButtonConfig();
 
-  // Track onboarding completion
   useEffect(() => {
-    if (analytics.track) {
-      analytics.track("Onboarding Completed", {
-        learningGoal,
-        hasRecommendedCourse: !!course,
-        hasRecommendedProject: !!project,
-        hasRecommendedRoadmap: !!roadmap,
-        hasInterviewPath: interviewRecommendation?.hasInterviewPath,
-        estimatedWeeks: stats.weeksToGoal,
-      });
-    }
+    analytics.track("onboarding_recommendation_viewed", {
+      hasCourse: !!course,
+      hasProject: !!project,
+      hasRoadmap: !!roadmap,
+      hasInterviewPath: interviewRecommendation?.hasInterviewPath,
+      learningGoal,
+    });
+  }, [course, project, roadmap, interviewRecommendation, learningGoal]);
+
+  useEffect(() => {
+    analytics.track("onboarding_completed", {
+      learningGoal,
+      hasRecommendedCourse: !!course,
+      hasRecommendedProject: !!project,
+      hasRecommendedRoadmap: !!roadmap,
+      hasInterviewPath: interviewRecommendation?.hasInterviewPath,
+      estimatedWeeks: stats.weeksToGoal,
+    });
   }, [
     learningGoal,
     course,
