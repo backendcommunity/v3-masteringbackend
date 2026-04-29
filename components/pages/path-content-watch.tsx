@@ -15,8 +15,10 @@ import {
   SkipForward,
   SkipBack,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
+import { Loader } from "@/components/ui/loader";
 
 interface PathContentWatchPageProps {
   pathId: string;
@@ -30,7 +32,42 @@ export function PathContentWatchPage({
   onNavigate,
 }: PathContentWatchPageProps) {
   const store = useAppStore();
-  const path = store.getLearningPaths().find((p) => p.id === pathId);
+  const [path, setPath] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPath = async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const roadmap = await store.getRoadmapBySlug(pathId);
+        if (!cancelled) {
+          setPath(roadmap ?? null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setPath(null);
+          setLoadError(
+            error?.response?.data?.message ||
+              error?.message ||
+              "Unable to load learning path."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPath();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathId, store]);
 
   // Mock step data
   const steps = [
@@ -70,11 +107,22 @@ export function PathContentWatchPage({
   const nextStep = steps[currentIndex + 1];
   const prevStep = steps[currentIndex - 1];
 
+  if (loading) {
+    return (
+      <div className="flex-1 p-6">
+        <Loader isLoader={false} />
+      </div>
+    );
+  }
+
   if (!path) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Learning path not found</h1>
+          {loadError && (
+            <p className="text-sm text-muted-foreground mt-2">{loadError}</p>
+          )}
           <Button
             onClick={() => onNavigate?.(routes.learningPaths)}
             className="mt-4"
