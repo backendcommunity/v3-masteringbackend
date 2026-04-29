@@ -13,23 +13,22 @@ export default function XPayment({
   coupon,
   refCode,
   from,
+  priceId,
 }: {
   coupon: string | null;
   refCode: string;
   from: string | null;
+  priceId?: string | null;
 }) {
   const { theme } = useTheme();
   const [paddle, setPaddle] = useState<Paddle>();
 
-  // const priceId =
-  //   coupon === "EARLYBIRD20"
-  //     ? "pri_01kh4061zp13hm9f4f4z4n8kwr"
-  //     : "pri_01kh40552sfyf8vz39pzb75je1";
-
-  const priceId =
+  const DEFAULT_PRICE_ID =
     from === "true"
       ? "pri_01kh40552sfyf8vz39pzb75je1"
       : "pri_01kh4061zp13hm9f4f4z4n8kwr";
+
+  const selectedPriceId = priceId?.trim() || DEFAULT_PRICE_ID;
 
   useEffect(() => {
     initializePaddle({
@@ -49,7 +48,7 @@ export default function XPayment({
         theme: theme?.includes("dark") ? "dark" : "light",
       },
       discountCode: coupon ? coupon : undefined,
-      items: [{ priceId }],
+      items: [{ priceId: selectedPriceId }],
       customData: { ref: refCode, from },
     });
   };
