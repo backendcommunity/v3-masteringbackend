@@ -52,7 +52,8 @@ import {
   loadVideoNotes,
 } from "./courses";
 import { api, socketAPI } from "./api";
-import { localDB } from "./localDB";
+import { analytics } from "./analytics";
+import { getStoredUser, patchStoredUser } from "./user-store";
 
 interface AppState {
   // Data getters
@@ -105,6 +106,8 @@ interface AppState {
   }) => Bootcamp[] | any;
   getBootcamp: (id: string) => Bootcamp | any;
   getBootcampBonuses: (id: string, cohort: string) => any;
+  getAdminAssignments: (filters?: any) => Promise<any>;
+  approveAssignment: (userLessonId: string) => Promise<any>;
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
@@ -112,10 +115,7 @@ interface AppState {
     bootcampId: string,
     cohortId: string,
   ) => Promise<any>;
-  getLearningPaths: (filters?: {
-    skip?: number;
-    size?: number;
-  }) => Promise<LearningPath[] | any>;
+  getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
   getQuiz: (id: string) => Quiz | any;
@@ -123,6 +123,7 @@ interface AppState {
   getRoadmapMilestones: (slug: string) => any;
   getMilestone: (slug: string, topicId: string) => Milestone | any;
   getRoadmapItems: (slug: string, topicId: string) => any;
+  getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
@@ -215,6 +216,7 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
+  enrollInRoadmap: (slug: string) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
@@ -272,29 +274,37 @@ interface AppState {
   // Force re-render trigger
   version: number;
   forceUpdate: () => void;
+
+  // Level-up celebration modal
+  levelUpModal: { oldLevel: number; newLevel: number } | null;
+  setLevelUpModal: (
+    data: { oldLevel: number; newLevel: number } | null,
+  ) => void;
+
+  // Sync user points/level from a mutation response without an extra API call
+  syncUserSnapshot: (snapshot: {
+    points: number;
+    level: number;
+    currentStreak?: number;
+  }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   // Data getters - always return current data from JSON store
   getUser: async () => {
-    try {
-      const user = localDB.get("user", "");
+    const cached = getStoredUser();
+    if (cached) return cached;
 
-      if (user && user !== "null") {
-        const pUser = JSON.parse(user);
-        if (pUser) return pUser;
-      }
-      console.log(user);
-      const res = await fetchUser();
-      updateUserInStore(res.data);
-      return res.data;
-    } catch (error: any) {
-      // Clear local storage on authentication errors
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        localDB.clear();
-      }
-      throw error;
-    }
+    const res = await fetchUser();
+    updateUserInStore(res.data);
+    analytics.identify(res.data.id, {
+      email: res.data.email,
+      name: res.data.name,
+      isPremium: res.data.isPremium,
+      country: res.data.country,
+      role: res.data.role,
+    });
+    return res.data;
   },
   getProject30Leaderboard: async (slug: string, filters?: any) => {
     const { data } = await api.get(
@@ -323,10 +333,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getPlan: async (name: string) => {
-    if (localDB.has(`plan_${name}`)) return localDB.get(`plan_${name}`, {});
+    const key = `mb_plan_${name}`;
+    const tsKey = `${key}_ts`;
+    const TTL = 60 * 60 * 1000; // 1 hour
+
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(key);
+      const ts = Number(localStorage.getItem(tsKey) || 0);
+      if (cached && Date.now() - ts < TTL) return JSON.parse(cached);
+    }
 
     const { data } = await api.get(`/plans/${name}`);
-    localDB.set(`plan_${name}`, data?.data);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(key, JSON.stringify(data?.data));
+      localStorage.setItem(tsKey, String(Date.now()));
+    }
 
     return data?.data;
   },
@@ -361,9 +383,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await fetchCourses(queries!);
 
-      if (queries?.filters!["tab"]?.includes("popular")) {
+      if (queries?.filters?.tab?.includes("popular")) {
         updatePopularCourses(res.data);
-        return res.data?.courses;
+        return res.data;
       }
       updateCourses(res.data);
       return res.data;
@@ -494,10 +516,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getCurrentWeekEvents: async (id: string, weekId: string) => {
-    console.log(`/bootcamps/${id}/weeks/${weekId}/events`);
-    const { data } = await api.get(`/bootcamps/${id}/weeks/${weekId}/events`);
+  getAdminAssignments: async (filters?: { bootcampId?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.bootcampId) {
+      params.append("bootcampId", filters.bootcampId);
+    }
+    const { data } = await api.get(
+      `/bootcamps/admin/assignments${params.toString() ? `?${params}` : ""}`,
+    );
     return data?.data;
+  },
+
+  approveAssignment: async (userLessonId: string) => {
+    const { data } = await api.patch(
+      `/bootcamps/admin/assignments/${userLessonId}`,
+    );
+    return data;
+  },
+
+  initiateAsyncpayCheckout: async (bootcampId: string, cohortId: string) => {
+    const { data } = await api.post(
+      `/bootcamps/${bootcampId}/cohorts/${cohortId}/asyncpay/initiate`,
+    );
+    return data?.data;
+  },
+
+  getCurrentWeekEvents: async (id: string, weekId: string) => {
+    try {
+      const url = `/bootcamps/${id}/weeks/${weekId}/events`;
+      const { data } = await api.get(url);
+      const events = data?.data || [];
+      return events;
+    } catch (error) {
+      return [];
+    }
   },
 
   async getMockInterviewSessionToken(id) {
@@ -687,6 +739,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  getRoadmapCertificate: async (slug: string) => {
+    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
+    return data?.data;
+  },
+
   getRoadmapMilestones: async (slug: string) => {
     const roadmap = await get().getRoadmapBySlug(slug);
     return roadmap ? roadmap.topics : [];
@@ -695,6 +752,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Force re-render system
   version: 0,
   forceUpdate: () => set((state) => ({ version: state.version + 1 })),
+
+  // Level-up celebration modal
+  levelUpModal: null,
+  setLevelUpModal: (data) => set({ levelUpModal: data }),
+
+  // Sync user points/level from a mutation response — zero extra API calls
+  syncUserSnapshot: (snapshot: {
+    points: number;
+    level: number;
+    currentStreak?: number;
+  }) => {
+    updateUserInStore({
+      points: snapshot.points,
+      level: snapshot.level,
+      ...(snapshot.currentStreak !== undefined
+        ? { currentStreak: snapshot.currentStreak }
+        : {}),
+    });
+    set((state) => ({ version: state.version + 1 }));
+  },
 
   // Actions
   startProject30: async (slug: string) => {
@@ -830,12 +907,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/roadmaps/${slug}/topics/${topicId}/video`,
       payload,
     );
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   markCourseCompleted: async (userCourseId: string) => {
     const { data } = await api.post(`/courses/${userCourseId}/completed`);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
 
   createCustomMockInterview: async (interview: any) => {
@@ -925,7 +1006,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   submitQuiz: async (id: string, questions: any) => {
     const { data } = await api.post("/quizzes/" + id + "/submit", questions);
-    return data?.data;
+    const result = data?.data;
+    if (result?.user) get().syncUserSnapshot(result.user);
+    return result;
   },
   updateUser: async (updates) => {
     const { data } = await api.put(`/users`, {
@@ -1027,6 +1110,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  enrollInRoadmap: async (slug) => {
+    const response = await api.post(`/roadmaps/${slug}`);
+    const { data } = response;
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to enroll in roadmap");
+    }
+    const enrollData = Array.isArray(data?.data) ? data?.data[0] : data?.data;
+    return enrollData;
+  },
+
   completeChallenge: (challengeId) => {
     const challenge = dataStore.challenges.find((c) => c.id === challengeId);
     if (challenge && !challenge.completed) {
@@ -1036,21 +1129,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addXP: (amount) => {
-    const user = dataStore.user;
+    const user = getStoredUser() ?? dataStore.user;
     const newXP = user.xp + amount;
-    let newLevel = user?.level;
+    let newLevel = user.level;
     let newXPToNextLevel = user.xpToNextLevel;
 
-    // Simple level calculation - every 1000 MB is a new level
     while (newXP >= newXPToNextLevel) {
       newLevel++;
       newXPToNextLevel += 1000;
     }
 
-    user.xp = newXP;
-    user.level = newLevel;
-    user.xpToNextLevel = newXPToNextLevel;
-
-    get().forceUpdate();
+    patchStoredUser({
+      xp: newXP,
+      level: newLevel,
+      xpToNextLevel: newXPToNextLevel,
+    });
+    Object.assign(dataStore.user, {
+      xp: newXP,
+      level: newLevel,
+      xpToNextLevel: newXPToNextLevel,
+    });
   },
 }));

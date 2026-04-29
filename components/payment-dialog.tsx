@@ -1,4 +1,4 @@
-import { CreditCard, Crown, Gift } from "lucide-react";
+import { CreditCard, Crown, Gift, Zap } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { useTheme } from "next-themes";
 import countries from "@/lib/countries.json";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 import { PaymentChannel, Plan } from "@/lib/data";
 
@@ -66,7 +67,11 @@ export function PaymentDialog({
             break;
           case "checkout.completed":
             const c_data = data?.custom_data;
-            // Track payment (GA or Google)
+            analytics.track("payment_completed", {
+              contentId: c_data?.id,
+              contentType: c_data?.type,
+              method: c_data?.method,
+            });
             onHandlePurchase(c_data.id, c_data.method, true);
             break;
         }
@@ -79,19 +84,69 @@ export function PaymentDialog({
     });
   }, []);
 
-  useMemo(async () => {
-    const plan = await store.getPlan(data?.plan ?? "Pro");
-    setPlan(plan);
+  useEffect(() => {
+    if (open) {
+      analytics.track("payment_dialog_opened", {
+        contentId: data?.id,
+        contentType: data?.type,
+        contentTitle: data?.title,
+        plan: data?.plan ?? "Pro",
+      });
+    }
+  }, [open]);
 
-    //TODO: Select channel based on user country
-    const paymentChannel = plan?.paymentChannels?.find(
-      (pp: any) => pp.channel === "PADDLE"
-    );
-    setChannel(paymentChannel);
+  useEffect(() => {
+    const load = async () => {
+      const plan = await store.getPlan(data?.plan ?? "Pro");
+      setPlan(plan);
+
+      //TODO: Select channel based on user country
+      const paymentChannel = plan?.paymentChannels?.find(
+        (pp: any) => pp.channel === "PADDLE",
+      );
+      setChannel(paymentChannel);
+    };
+    load();
   }, [data?.plan]);
 
   // Callback to open a checkout
-  const openCheckout = (priceId: string, data: any) => {
+  const openCheckout = (priceId: string, customData: any) => {
+    if (!priceId) {
+      toast.error("Price ID is not available. Please refresh and try again.");
+      return;
+    }
+
+    analytics.track("checkout_initiated", {
+      contentId: data?.id,
+      contentType: data?.type,
+      contentTitle: data?.title,
+      priceId,
+      ...customData,
+    });
+
+    if (!user?.email) {
+      toast.error("Email is required to complete the purchase.");
+      return;
+    }
+
+    // Find country code more robustly
+    const countryCode =
+      countries.find(
+        (c) =>
+          c.name.toLowerCase() === user?.country?.toLowerCase() ||
+          c.code.toLowerCase() === user?.country?.toLowerCase(),
+      )?.code ||
+      user?.country ||
+      "";
+
+    console.log("[Paddle Checkout]", {
+      priceId,
+      email: user?.email,
+      country: user?.country,
+      countryCode,
+      customData,
+    });
+
     paddle?.Checkout.open({
       settings: {
         allowedPaymentMethods: [
@@ -106,13 +161,11 @@ export function PaymentDialog({
         theme: theme?.includes("dark") ? "dark" : "light",
       },
       items: [{ priceId }],
-      customData: data,
+      customData,
       customer: {
         email: user?.email,
         address: {
-          countryCode:
-            countries.find((c) => c.name.includes(user?.country))?.code ?? "",
-          // postalCode: "10021",
+          countryCode,
         },
       },
     });
@@ -133,11 +186,16 @@ export function PaymentDialog({
         return;
       }
 
-      const payload = {
+      const payload: any = {
         type: data.type,
         id: data.id,
         mb: xpCost,
       };
+
+      // For bootcamps, include bootcampId
+      if (data.type === "bootcamp" && data.bootcampId) {
+        payload.bootcampId = data.bootcampId;
+      }
 
       const purchased = await store.handleMBPayment(payload);
       return purchased;
@@ -155,23 +213,44 @@ export function PaymentDialog({
         return;
       }
 
-      if (!channel) return;
-      const priceId = channel?.monthlyPlanId!;
+      if (!channel?.monthlyPlanId) {
+        toast.error("Subscription plan is not available. Please try again.");
+        return;
+      }
+      const priceId = channel.monthlyPlanId;
       openCheckout(priceId, {});
+      return;
     }
 
     if (type?.includes("individual")) {
-      const priceId = data?.paddle_price_id?.trim();
+      // Validate price ID first
+      let priceId: string | undefined;
+
+      if (NODE_ENV === "dev") {
+        priceId = "pri_01k051ksx2kx847wq6y48kpfj5";
+      } else {
+        priceId = data?.paddle_price_id?.trim();
+      }
+
+      if (!priceId) {
+        toast.error(
+          `This ${data?.type ?? "item"} is not available for purchase right now. Please try again later.`,
+        );
+        console.error("[Paddle Payment] Missing price ID for:", {
+          type: data?.type,
+          id: data?.id,
+        });
+        return;
+      }
+
       const customData = {
         method: "individual",
         id: data?.id,
         type: data?.type ?? "course",
       };
 
-      const id =
-        NODE_ENV === "dev" ? "pri_01k051ksx2kx847wq6y48kpfj5" : priceId;
-
-      if (id) openCheckout(id, customData);
+      openCheckout(priceId, customData);
+      return;
     }
 
     if (type?.includes("mb")) {
@@ -179,6 +258,38 @@ export function PaymentDialog({
       onHandlePurchase(id, type, purchased);
     }
   };
+
+  const handleAsyncpayPayment = async () => {
+    try {
+      const res = await store.initiateAsyncpayCheckout(
+        data.bootcampId,
+        data.id
+      );
+      const { AsyncpayCheckout } = await import("@asyncpay/checkout");
+      AsyncpayCheckout({
+        publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
+        customer: {
+          firstName: user?.name?.split(" ")[0],
+          lastName: user?.name?.split(" ")[1],
+          email: user?.email,
+        },
+        subscriptionPlanUUID: res.asyncpay_plan_id,
+        onSuccess: () => {
+          onHandlePurchase(data.id, "asyncpay", true);
+        },
+        onClose: () => {
+          toast.info("Payment window closed");
+        },
+      });
+    } catch (error: any) {
+      const res = error?.response?.data ?? error;
+      toast.error(res?.message ?? "An error occurred");
+    }
+  };
+
+  const isNigerian =
+    user?.country?.toLowerCase() === "nigeria" ||
+    user?.country?.toLowerCase() === "ng";
 
   return (
     <div className="space-y-2">
@@ -196,12 +307,14 @@ export function PaymentDialog({
             <Card
               className={`border ${
                 disableSubscription
-                  ? "bg-muted/10"
+                  ? "bg-muted/10 opacity-50"
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableSubscription)
+                if (!disableSubscription) {
+                  analytics.track("payment_plan_selected", { plan: "subscription", contentId: data.id });
                   handlePayment(data.id, "subscription");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -212,7 +325,9 @@ export function PaymentDialog({
                       Upgrade to {data?.plan ?? "Pro"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Get unlimited access to MB Platform
+                      {disableSubscription
+                        ? "Not available for this bootcamp"
+                        : "Get unlimited access to MB Platform"}
                     </p>
                   </div>
                   <div>
@@ -221,15 +336,17 @@ export function PaymentDialog({
                         ${channel?.originalMonthlyPrice}/mo
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Best value
+                        {disableSubscription ? "Disabled" : "Best value"}
                       </div>
                     </div>
-                    <Link
-                      href={"/subscription/plans"}
-                      className="text-xs text-primary z-10"
-                    >
-                      Choose another plan
-                    </Link>
+                    {!disableSubscription && (
+                      <Link
+                        href={"/subscription/plans"}
+                        className="text-xs text-primary z-10"
+                      >
+                        Choose another plan
+                      </Link>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -242,7 +359,10 @@ export function PaymentDialog({
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableOnetime) handlePayment(data.id, "individual");
+                if (!disableOnetime) {
+                  analytics.track("payment_plan_selected", { plan: "individual", contentId: data.id });
+                  handlePayment(data.id, "individual");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -250,15 +370,19 @@ export function PaymentDialog({
                   <CreditCard className="h-6 w-6 md:h-8 md:w-8 text-[#13AECE] flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm md:text-base">
-                      Buy This Course
+                      {data?.type === "bootcamp"
+                        ? "Enroll in Bootcamp"
+                        : "Buy This Course"}
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      One-time purchase for lifetime access
+                      {data?.type === "bootcamp"
+                        ? "One-time payment for bootcamp access"
+                        : "One-time purchase for lifetime access"}
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-sm md:text-base">
-                      ${data?.amount}
+                      ${data?.amount?.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       One-time
@@ -275,7 +399,10 @@ export function PaymentDialog({
                   : "hover:border-primary hover:bg-muted/50 cursor-pointer"
               }`}
               onClick={() => {
-                if (!disableMB) handlePayment(data.id, "mb");
+                if (!disableMB) {
+                  analytics.track("payment_plan_selected", { plan: "mb", contentId: data.id });
+                  handlePayment(data.id, "mb");
+                }
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -300,6 +427,35 @@ export function PaymentDialog({
                 </div>
               </CardContent>
             </Card>
+
+            {isNigerian && data.asyncpay_plan_id && (
+              <Card
+                className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
+                onClick={handleAsyncpayPayment}
+              >
+                <CardContent className="p-3 md:p-4">
+                  <div className="flex items-center gap-3">
+                    <Zap className="h-6 w-6 md:h-8 md:w-8 text-[#FFA500] flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm md:text-base">
+                        Pay with Paystack
+                      </h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        For Nigerian users — cards, bank transfer, USSD
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-sm md:text-base">
+                        ₦{data?.amount?.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        One-time
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </DialogContent>
       </Dialog>

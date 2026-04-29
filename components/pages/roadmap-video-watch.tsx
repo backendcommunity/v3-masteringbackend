@@ -52,6 +52,14 @@ interface RoadmapVideoWatchPageProps {
   courseId: string;
   chapterId: string;
   onNavigate?: (route: string) => void;
+  // Override the URL bar (pushState) route builder; defaults to roadmapVideoWatch
+  routeBuilder?: (
+    courseSlug: string,
+    chapterId: string,
+    videoSlug: string,
+  ) => string;
+  // Override the "back" URL shown in the video overlay and error states
+  backUrl?: string;
 }
 
 export function RoadmapVideoWatchPage({
@@ -61,10 +69,17 @@ export function RoadmapVideoWatchPage({
   chapterId,
   courseId,
   onNavigate,
+  routeBuilder,
+  backUrl,
 }: RoadmapVideoWatchPageProps) {
   const store = useAppStore();
   const user = useUser();
   const path = usePathname();
+
+  const buildWatchUrl =
+    routeBuilder ??
+    ((cs: string, ch: string, vs: string) =>
+      routes.roadmapVideoWatch(slug, topicId, cs, ch, vs));
 
   const [roadmap, setRoadmap] = useState<Roadmap>();
   const [userCourse, setUserCourse] = useState<UserCourse>();
@@ -118,13 +133,13 @@ export function RoadmapVideoWatchPage({
       setUserChapters(course?.userCourse?.userChapters);
       setUserVideos(userCourse?.userVideos);
 
-      const completed =
-        completedItems.find((c: any) => c.itemId === course.id)?.completed ??
-        false;
+      const completed = completedItems.find(
+        (c: any) => c.itemId === course.id,
+      )?.completed;
       setCompleted(completed);
 
       const chapter: Chapter | any = course?.chapters.find(
-        (ch: Chapter) => ch.slug === chapterId
+        (ch: Chapter) => ch.slug === chapterId,
       );
       setChapter(chapter);
 
@@ -176,7 +191,7 @@ export function RoadmapVideoWatchPage({
   const next = (chapter: Chapter) => {
     return chapter?.videos?.find((v: Video, index: number) => {
       const currentIndex = chapter.videos.findIndex(
-        (vid: Video) => vid.id === currentVideo?.id
+        (vid: Video) => vid.id === currentVideo?.id,
       );
       return index === currentIndex + 1;
     });
@@ -185,7 +200,7 @@ export function RoadmapVideoWatchPage({
   const prev = (chapter: Chapter) => {
     return chapter?.videos?.find((v: Video, index: number) => {
       const currentIndex = chapter.videos.findIndex(
-        (vid: Video) => vid.id === currentVideo?.id
+        (vid: Video) => vid.id === currentVideo?.id,
       );
       return index === currentIndex - 1;
     });
@@ -228,13 +243,7 @@ export function RoadmapVideoWatchPage({
     window.history.pushState(
       {},
       "",
-      `${routes.roadmapVideoWatch(
-        slug,
-        topicId,
-        course.slug,
-        chapter?.slug!,
-        vid.slug
-      )}?`
+      `${buildWatchUrl(course.slug, chapter?.slug!, vid.slug)}?`,
     );
   };
 
@@ -251,14 +260,7 @@ export function RoadmapVideoWatchPage({
     window.history.pushState(
       {},
       "",
-      `${routes.roadmapVideoWatch(
-        slug,
-        topicId,
-        course.slug,
-        chapter.slug,
-        nextVideo?.slug!
-        //chapter?.videos[chapter?.videos?.length - 1]?.slug
-      )}?`
+      `${buildWatchUrl(course.slug, chapter.slug, nextVideo?.slug!)}?`,
     );
   };
 
@@ -287,12 +289,14 @@ export function RoadmapVideoWatchPage({
     setIsMarking(true);
     // Combine completed videos + the one being marked now
     const completedVideoIds = new Set(
-      completedItems!?.filter((v: any) => v.completed).map((v: any) => v.itemId)
+      completedItems!
+        ?.filter((v: any) => v.completed)
+        .map((v: any) => v.itemId),
     );
     completedVideoIds.add(currentVideo.id); // include this one just marked
     // Check if all chapter videos are now complete
     const allVideosComplete = chapter.videos.every((v: Video) =>
-      completedVideoIds.has(v.id)
+      completedVideoIds.has(v.id),
     );
 
     // const hasOtherContent = chapter?.quizzes|| chapter?.exercises || chapter?.playgrounds;
@@ -362,11 +366,14 @@ export function RoadmapVideoWatchPage({
   const totalCompletedTasks =
     completedItems?.filter(
       (ci: any) =>
-        ci.type !== "COURSE" && ci.type !== "CHAPTER" && !ci.completed
+        ci.itemType !== "COURSE" &&
+        ci.itemType !== "WORKSHOP" &&
+        ci.itemType !== "CHAPTER" &&
+        ci.completed,
     )?.length ?? 0;
 
   const progress = Math.round(
-    (totalCompletedTasks / milestone?.userTopic?.totalTasks) * 100
+    (totalCompletedTasks / milestone?.userTopic?.totalTasks) * 100,
   );
   return (
     <div className="flex-1 space-y-6">
@@ -400,7 +407,8 @@ export function RoadmapVideoWatchPage({
                           variant="ghost"
                           onClick={() =>
                             onNavigate?.(
-                              `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`
+                              backUrl ??
+                                `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`,
                             )
                           }
                         >
@@ -410,7 +418,8 @@ export function RoadmapVideoWatchPage({
                           <a
                             onClick={() =>
                               onNavigate?.(
-                                `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`
+                                backUrl ??
+                                  `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`,
                               )
                             }
                             href={"#"}
@@ -430,7 +439,7 @@ export function RoadmapVideoWatchPage({
                         </Button>
                         <Button
                           onClick={() =>
-                            handleShare(currentVideo?.title!, path)
+                            handleShare(currentVideo?.title!, path!)
                           }
                           className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition pointer-events-auto"
                         >
@@ -646,13 +655,13 @@ export function RoadmapVideoWatchPage({
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-                              {user.name
+                              {user?.name
                                 .split(" ")
                                 .map((n: any) => n[0])
                                 .join("")}
                             </div>
                             <span className="font-medium text-sm">
-                              {user.name}
+                              {user?.name}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {format(note?.createdAt)}
@@ -696,7 +705,7 @@ export function RoadmapVideoWatchPage({
                             </a>
                           </Button>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </CardContent>

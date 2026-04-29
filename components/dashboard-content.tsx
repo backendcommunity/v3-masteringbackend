@@ -85,7 +85,7 @@ export function DashboardContent({ }: DashboardContentProps) {
   // Epic 5: Track streak badge view on dashboard load
   useEffect(() => {
     if (user?.currentStreak !== undefined || user?.streak !== undefined) {
-      analytics.track("view_streak_badge", {
+      analytics.track("streak_viewed", {
         currentStreak: user?.currentStreak ?? user?.streak ?? 0,
         longestStreak: user?.longestStreak,
         timestamp: new Date().toISOString(),

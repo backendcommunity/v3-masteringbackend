@@ -88,7 +88,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     setTwoFactorEnabled(value);
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         twoFactorEnabled: value,
       },
     });
@@ -101,7 +101,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
@@ -114,7 +114,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
@@ -126,7 +126,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
 
     await store.updateUser({
       settings: {
-        ...user.settings,
+        ...user?.settings,
         [key]: value,
       },
     });
@@ -662,10 +662,10 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
       </div>
 
       {/* Epic 4: Account Deletion Section */}
-      <div className="border-t pt-8">
+      {/* <div className="border-t pt-8">
         <h2 className="text-2xl font-bold mb-6">Danger Zone</h2>
         <DeleteAccountSection email={user?.email} />
-      </div>
+      </div> */}
     </div>
   );
 }

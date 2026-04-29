@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { fetchUser } from "./auth";
-import { localDB } from "./localDB";
+import { setStoredUser, getStoredUser } from "./user-store";
 
 export interface UserRoadmapFilters {
   skip?: number;
@@ -14,6 +14,7 @@ export interface User {
   avatar: string;
   level: number;
   xp: number;
+  signedUpThrough?: string;
   xpToNextLevel: number;
   streak: number;
   title?: string;
@@ -35,6 +36,9 @@ export interface User {
   settings: any;
   phone?: string;
   createdAt?: Date | string;
+  lastMonthCompletedCourses?: number;
+  lastMonthCourses?: number;
+  averageCourseTime?: string;
   githubInstallationId?: string;
   // Onboarding fields
   hasFinishedOnboarding?: boolean;
@@ -52,6 +56,8 @@ export interface User {
   openToWork?: boolean;
   twitter?: string;
   resume?: string;
+  // Access control
+  role?: "USER" | "ADMIN" | "INSTRUCTOR";
 }
 
 export interface Reward {
@@ -87,19 +93,20 @@ export interface StreakData {
   isStreakActiveToday: boolean;
 }
 
+export type ContentItemType =
+  | "course"
+  | "roadmap"
+  | "bootcamp"
+  | "project"
+  | "mock_interview";
+
 export interface ContinueLearningItem {
-  courseId: string;
+  type: ContentItemType;
+  id: string;
   title: string;
-  slug: string;
-  banner?: string;
-  resume: {
-    chapterId?: string | null;
-    chapterTitle?: string | null;
-    videoId?: string | null;
-    videoTitle?: string | null;
-    articleId?: string | null;
-    articleTitle?: string | null;
-  } | null;
+  banner?: string | null;
+  resumeLabel: string;
+  resumeUrl: string;
   lastActiveAt: string;
 }
 
@@ -316,6 +323,7 @@ export interface Note {
 export interface CoursesQuery {
   page?: string;
   size?: string;
+  skip?: string;
   filters?: CourseFilterOptions;
 }
 
@@ -775,8 +783,8 @@ export interface Bootcamp {
   rating: number;
   students: number;
   userCohort: any;
-  cohort: any;
-  cohorts: any[];
+  cohort: Cohort;
+  cohorts: Cohort[];
 }
 
 export interface Cohort {
@@ -792,6 +800,7 @@ export interface Cohort {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  studyGroupLink?: string;
   userCohorts: UserCohort[];
 }
 
@@ -865,14 +874,17 @@ export interface UserLesson {
 
 export interface LearningPath {
   id: string;
+  slug?: string;
   title: string;
   description: string;
   courses: string[];
   projects: string[];
+  topics?: any[];
   estimatedTime: string;
   level: string;
   progress: number;
   enrolled: boolean;
+  isCompleted?: boolean;
 }
 
 export interface Roadmap {
@@ -941,19 +953,113 @@ export interface RoadmapAssessment {
   interview?: Interview;
 }
 
+// Level perks — what each level unlocks
+export const LEVEL_PERKS: Record<number, { perks: string[]; icon: string }> = {
+  1: {
+    icon: "⭐",
+    perks: [
+      "Access to all free courses",
+      "Basic progress tracking",
+      "Public developer profile",
+      "MB points system",
+    ],
+  },
+  2: {
+    icon: "🔧",
+    perks: [
+      "Roadmap tracking unlocked",
+      "Weekly progress digest email",
+      "MB leaderboard visibility",
+      "Streak tracking",
+    ],
+  },
+  3: {
+    icon: "⚡",
+    perks: [
+      "Coding exercises unlocked",
+      "Beginner project library access",
+      "Logic Blacksmith profile badge",
+      "Achievement system",
+    ],
+  },
+  4: {
+    icon: "🔐",
+    perks: [
+      "Unlimited quiz retries",
+      "Intermediate project library",
+      "Auth Alchemist badge",
+      "Priority course search ranking",
+    ],
+  },
+  5: {
+    icon: "🗄️",
+    perks: [
+      "Mock interview scheduling",
+      "Advanced course library",
+      "Database Cartographer badge",
+      "Portfolio showcase",
+    ],
+  },
+  6: {
+    icon: "🧙",
+    perks: [
+      "Early access to new courses",
+      "Bootcamp priority registration",
+      "Service Sorcerer badge",
+      "10% MB bonus on all actions",
+    ],
+  },
+  7: {
+    icon: "🏗️",
+    perks: [
+      "Architect badge on portfolio",
+      "Exclusive expert webinars",
+      "Mentor match eligibility",
+      "Custom roadmap creation",
+    ],
+  },
+  8: {
+    icon: "⚔️",
+    perks: [
+      "Performance analytics dashboard",
+      "Full premium content library",
+      "Performance Paladin badge",
+      "Beta feature early access",
+    ],
+  },
+  9: {
+    icon: "🚀",
+    perks: [
+      "DevOps Enchanter badge",
+      "Dedicated support channel",
+      "Custom profile theme",
+      "Exclusive community channels",
+    ],
+  },
+  10: {
+    icon: "👑",
+    perks: [
+      "Backend Overlord badge",
+      "Hall of Fame listing",
+      "Lifetime achievement certificate",
+      "All platform perks unlocked",
+    ],
+  },
+};
+
 // JSON Data Store - All data stored as simple JavaScript objects
 export const dataStore = {
   levels: [
-    { id: 1, name: "Code Squire", point: 1000 },
-    { id: 2, name: "API Tinkerer", point: 2500 },
-    { id: 3, name: "Logic Blacksmith", point: 5000 },
-    { id: 4, name: "Auth Alchemist", point: 8000 },
+    { id: 1, name: "Code Squire", point: 500 },
+    { id: 2, name: "API Tinkerer", point: 1500 },
+    { id: 3, name: "Logic Blacksmith", point: 3500 },
+    { id: 4, name: "Auth Alchemist", point: 7000 },
     { id: 5, name: "Database Cartographer", point: 12000 },
-    { id: 6, name: "Service Sorcerer", point: 17000 },
-    { id: 7, name: "Architect", point: 23000 },
-    { id: 8, name: "Performance Paladin", point: 30000 },
-    { id: 9, name: "DevOps Enchanter", point: 38000 },
-    { id: 10, name: "Backend Overlord", point: 47000 },
+    { id: 6, name: "Service Sorcerer", point: 20000 },
+    { id: 7, name: "Architect", point: 32000 },
+    { id: 8, name: "Performance Paladin", point: 50000 },
+    { id: 9, name: "DevOps Enchanter", point: 62000 },
+    { id: 10, name: "Backend Overlord", point: 75000 },
   ] as Level[],
 
   user: {
@@ -2197,13 +2303,21 @@ export const completeMilestone = (roadmapId: string, milestoneId: string) => {
   }
 };
 
-export const updateUser = (updates: Partial<User | null>) => {
-  localDB.set("user", JSON.stringify(updates));
+export const updateUser = (updates: Partial<User> | null) => {
+  if (!updates) {
+    setStoredUser(null);
+    return;
+  }
+  const current = getStoredUser();
+  const merged = current
+    ? { ...current, ...updates }
+    : { ...dataStore.user, ...updates };
+  setStoredUser(merged as User);
   Object.assign(dataStore.user, updates);
 };
 
-export const updateCourse = (slug: string, updates: Partial<Course>) => {
-  localDB.update(`course_${slug}`, updates);
+export const updateCourse = (_slug: string, _updates: Partial<Course>) => {
+  // Course state is managed server-side; API is the source of truth
 };
 
 export const updatePopularCourses = (

@@ -46,7 +46,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const user = useUser();
   const [badges, setBadges] = useState<any[]>([]);
   const [achievements, setAchievements] = useState<any[]>([]);
-  const { level, mbToNextLevel } = useLevel();
+  const { level, mbToNextLevel, progressPct } = useLevel();
 
   // File input refs
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +79,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       const achievements = await store.getUserAchievement();
       if (!achievements?.length) return;
       if (!cancelled) {
-        setAchievements(achievements?.filter((ach: any) => ach?.completed));
+        // Show ALL achievements with progress, not just completed ones
+        setAchievements(achievements);
       }
     }
 
@@ -698,7 +699,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 </div>
               </div>
               <Progress
-                value={(user?.points / mbToNextLevel) * 100}
+                value={progressPct}
                 className="h-3"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -762,36 +763,70 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {achievements?.map(({ achievement, ...uAchievement }: any) => (
-              <div
-                key={uAchievement.id}
-                className={`p-4 rounded-lg border transition-colors ${
-                  uAchievement.completed
-                    ? "bg-primary/5 border-primary/20"
-                    : "bg-muted/50 border-border opacity-60"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{achievement?.icon ?? "🎓"}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{achievement.name}</h4>
-                      {uAchievement.completed && (
-                        <Badge
-                          variant="secondary"
-                          className="bg-primary/10 text-primary"
-                        >
-                          Earned
-                        </Badge>
+            {achievements?.map((ach: any) => {
+              const progress = ach.progress ?? 0;
+              const required = ach.required ?? Number(ach.condition?.required ?? 1);
+              const completed = ach.completed ?? false;
+              const pct = Math.min(100, Math.round((progress / required) * 100));
+              const started = progress > 0;
+              return (
+                <div
+                  key={ach.id}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    completed
+                      ? "bg-yellow-500/5 border-yellow-500/40"
+                      : started
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-muted/30 border-border"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`text-2xl ${!completed && !started ? "grayscale opacity-50" : ""}`}>
+                      {ach.icon ?? "🎓"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className={`font-medium text-sm ${!completed && !started ? "text-muted-foreground" : ""}`}>
+                          {ach.name}
+                        </h4>
+                        {completed && (
+                          <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs">
+                            Earned
+                          </Badge>
+                        )}
+                        {ach.mb > 0 && (
+                          <span className="text-xs text-muted-foreground">+{ach.mb} MB</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {ach.description}
+                      </p>
+                      {!completed && (
+                        <div className="mt-2">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>{progress} / {required}</span>
+                            <span>{pct}%</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                started ? "bg-primary" : "bg-muted-foreground/30"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {completed && ach.earnedAt && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Earned {new Date(ach.earnedAt).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {achievement.description}
-                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

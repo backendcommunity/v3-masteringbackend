@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Sparkles,
   Menu,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import { format } from "timeago.js";
 import { updateUser, type Activity, type SearchResults } from "@/lib/data";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
+import { toast } from "sonner";
 interface NavigationBarProps {
   onNavigate: (path: string) => void;
   onMenuToggle?: () => void;
@@ -69,6 +71,7 @@ export function NavigationBar({
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [notifications, setNotifications] = useState<Activity[]>([]);
+  const [seenNotificationIds] = useState(() => new Set<string>());
   const user = useUser();
 
   // Mock subscription data
@@ -86,19 +89,55 @@ export function NavigationBar({
       });
       setNotifications(activities);
 
-      // Epic 5: Track notification panel view
-      const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
-      analytics.track("view_notification_bell", {
-        totalNotifications: activities.length,
-        unreadCount,
-        timestamp: new Date().toISOString(),
-      });
+      // Detect new gamification events in background notifications
+      for (const activity of activities as Activity[]) {
+        if (seenNotificationIds.has(activity.id)) continue;
+        if (!activity.isRead) {
+          if (activity.type === "LEVEL_UP" && activity.isNotification) {
+            const match = activity.description?.match(
+              /Level (\d+) to Level (\d+)/,
+            );
+            if (match) {
+              store.setLevelUpModal({
+                oldLevel: parseInt(match[1]),
+                newLevel: parseInt(match[2]),
+              });
+              // Mark as read immediately so modal never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
+            }
+          }
+          if (
+            activity.type === "ACHIEVEMENT_UNLOCKED" &&
+            activity.isNotification
+          ) {
+            const titleMatch = activity.title?.match(
+              /Achievement Unlocked: (.+)/,
+            );
+            if (titleMatch) {
+              toast.success(`Achievement Unlocked: ${titleMatch[1]}`, {
+                description: "Keep going — you're building momentum!",
+                duration: 5000,
+              });
+              // Mark as read immediately so toast never re-fires on refresh
+              store.markActivityRead(activity.id).catch(() => {});
+            }
+          }
+        }
+        seenNotificationIds.add(activity.id);
+      }
+
+      // const unreadCount = activities.filter((a: Activity) => !a.isRead).length;
+      // analytics.track("notification_bell_clicked", {
+      //   totalNotifications: activities.length,
+      //   unreadCount,
+      // });
     } catch (error) {
     } finally {
       setIsActivitiesLoading(false);
     }
   }
 
+  // Change polling to real-time subscription when backend supports it (e.g., WebSocket, SSE)
   // Real-time notification polling (every 10 seconds)
   useEffect(() => {
     // Load notifications immediately
@@ -127,9 +166,9 @@ export function NavigationBar({
         setIsExploreSearchLoading(true);
         const results = await store.search(exploreSearchQuery);
         setExploreSearchResults(results);
-        analytics.track("explore_search_results_shown", {
+        analytics.track("search_performed", {
           query: exploreSearchQuery,
-          totalResults: results?.total ?? 0,
+          resultsCount: results?.total ?? 0,
         });
       } catch {
         setExploreSearchResults(null);
@@ -293,7 +332,7 @@ export function NavigationBar({
 
     updateUser({
       ...user,
-      totalNotifications: user.totalNotifications - ids.length,
+      totalNotifications: user?.totalNotifications! - ids.length,
     });
     setNotifications([]);
     setIsNotificationsOpen(false);
@@ -603,6 +642,12 @@ export function NavigationBar({
                                 key={course.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "course",
+                                    resultId: course.id,
+                                    resultTitle: course.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(routes.courseDetail(course.slug));
@@ -644,6 +689,12 @@ export function NavigationBar({
                                 key={roadmap.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "roadmap",
+                                    resultId: roadmap.id,
+                                    resultTitle: roadmap.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -677,6 +728,12 @@ export function NavigationBar({
                                 key={project.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "project",
+                                    resultId: project.id,
+                                    resultTitle: project.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -715,6 +772,12 @@ export function NavigationBar({
                                 key={bootcamp.id}
                                 className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
                                 onClick={() => {
+                                  analytics.track("search_result_clicked", {
+                                    resultType: "bootcamp",
+                                    resultId: bootcamp.id,
+                                    resultTitle: bootcamp.title,
+                                    query: exploreSearchQuery,
+                                  });
                                   setIsExploreOpen(false);
                                   setExploreSearchQuery("");
                                   onNavigate(
@@ -867,9 +930,9 @@ export function NavigationBar({
               onClick={() => onNavigate(routes.subscriptionManagement)}
             >
               {!subscription?.name?.includes("Free") && (
-                <Crown className="h-4 w-4 mr-1" />
+                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
               )}
-              {subscription?.name}
+              {!isMobile && subscription?.name}
             </Button>
 
             {/* MB Balance - Compact on mobile */}
@@ -895,12 +958,12 @@ export function NavigationBar({
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {user?.totalNotifications > 0 && (
+                  {user?.totalNotifications! > 0 && (
                     <Badge
                       variant="destructive"
                       className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
                     >
-                      {user?.totalNotifications > 9
+                      {user?.totalNotifications! > 9
                         ? `${9}+`
                         : user?.totalNotifications}
                     </Badge>
@@ -946,11 +1009,20 @@ export function NavigationBar({
                               <div className="flex items-start space-x-3">
                                 <div
                                   className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
-                                    notification.type?.includes("COMPLETED")
-                                      ? "bg-green-500"
-                                      : notification.type?.includes("MILESTONE")
-                                        ? "bg-orange-500 animate-pulse"
-                                        : "bg-blue-500"
+                                    notification.type === "LEVEL_UP"
+                                      ? "bg-yellow-500 animate-pulse"
+                                      : notification.type ===
+                                          "ACHIEVEMENT_UNLOCKED"
+                                        ? "bg-purple-500 animate-pulse"
+                                        : notification.type?.includes(
+                                              "COMPLETED",
+                                            )
+                                          ? "bg-green-500"
+                                          : notification.type?.includes(
+                                                "MILESTONE",
+                                              )
+                                            ? "bg-orange-500 animate-pulse"
+                                            : "bg-blue-500"
                                   }`}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -1095,6 +1167,17 @@ export function NavigationBar({
                   <span>Leaderboard</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate("/admin/assignments")}
+                    >
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      <span>Assignments</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={() => onNavigate(routes.subscriptionManagement)}
                 >

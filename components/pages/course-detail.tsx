@@ -35,6 +35,7 @@ import {
   Crown,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
@@ -66,6 +67,13 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       const course = await store.getCourse(slug);
       setCourse(course);
       setLoading(false);
+      if (course) {
+        analytics.track("course_viewed", {
+          courseId: course.id,
+          courseTitle: course.title,
+          isEnrolled: course.enrolled ?? false,
+        });
+      }
     }
     findCourse(slug);
   }, [slug]);
@@ -92,7 +100,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     });
   };
 
-  const handlePurchase = (
+  const handlePurchase = async (
     courseId: string,
     method: "subscription" | "individual" | "mb",
     success: boolean,
@@ -103,12 +111,26 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       case "subscription":
         onNavigate(routes.subscriptionPlans);
         break;
-      case "individual":
-        // onNavigate(routes.checkout("course", courseId));
+      case "individual": {
+        try {
+          await store.handleCourseEnrollment(courseId);
+        } catch {
+          // Webhook may have already enrolled; proceed regardless
+        }
+        setCourse((prev) => (prev ? { ...prev, enrolled: true } : prev));
+        const firstChapter = course.chapters?.[0];
+        const firstVideo = firstChapter?.videos?.[0];
+        if (firstChapter && firstVideo) {
+          toast.success("Payment successful! Taking you to your first lesson…");
+          onNavigate(
+            routes.courseWatch(slug, firstChapter.slug, firstVideo.slug),
+          );
+          return;
+        }
         break;
+      }
       case "mb":
         setCourse((prev) => (prev ? { ...prev, enrolled: true } : prev));
-        // onNavigate(routes.xpRedeem("course", courseId));
         break;
     }
 
@@ -122,7 +144,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
   const handleEnrollNow = async () => {
     try {
-      if (!user.isPremium) {
+      analytics.track("course_enroll_clicked", {
+        courseId: course?.id,
+        courseTitle: course?.title,
+        isPremium: course?.isPremium,
+      });
+      if (!user?.isPremium && course?.isPremium) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
@@ -408,24 +435,9 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     Continue Learning
                   </Button>
                 </div>
-              ) : user.isPremium ? (
-                <div className="space-y-3">
-                  <Button className="w-full" onClick={handleEnrollNow}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Learning
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handlePreviewCourse}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Preview Course
-                  </Button>
-                </div>
               ) : (
                 <div className="space-y-3">
-                  {course?.isPremium && (
+                  {course?.isPremium && !user?.isPremium && (
                     <Badge
                       variant="outline"
                       className="bg-green-100 text-green-800 border-green-200 text-xs"
@@ -435,6 +447,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     </Badge>
                   )}
                   <Button className="w-full" onClick={handleEnrollNow}>
+                    <Play className="mr-2 h-4 w-4" />
                     Start Learning
                   </Button>
                   <Button

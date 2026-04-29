@@ -1,21 +1,14 @@
 "use client";
 
+import { useRouter, useParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { CourseDetailPage } from "@/components/pages/course-detail";
-import { useRouter } from "next/navigation";
-import React from "react";
 
-interface CourseDetailPageRouteProps {
-  params: {
-    slug: string;
-  };
-}
-
-export default function CourseDetailPageRoute({
-  params,
-}: CourseDetailPageRouteProps) {
+export default function CourseDetailPageRoute() {
   const router = useRouter();
-  const { slug } = React.use(params);
+  const params = useParams();
+  const slug = params?.slug as string;
+
   const handleNavigate = (path: string) => {
     router.push(path);
   };

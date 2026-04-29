@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { VimeoPlayer } from "@/components/ui/vimeo-player";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { format } from "timeago.js";
 import {
   ArrowLeft,
@@ -67,6 +68,8 @@ export function BootcampVideoWatchPage({
   const [quizPassed, setQuizPassed] = useState(false);
   const [note, setNote] = useState("");
   const [showWeekComplete, setShowWeekComplete] = useState(false);
+  const [submissionUrl, setSubmissionUrl] = useState("");
+  const [currentLiveSession, setCurrentLiveSession] = useState<any>(null);
   const path = usePathname();
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export function BootcampVideoWatchPage({
     return () => {
       cancelled = true;
     };
-  }, [slug, id, weekId, cohort, store]);
+  }, [slug, id, weekId, cohort]);
 
   useEffect(() => {
     async function loadNotes(lessonId: string, videoId: string) {
@@ -109,6 +112,37 @@ export function BootcampVideoWatchPage({
 
     loadNotes(lesson?.id!, slug!);
   }, [lesson, slug]);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      console.log(currentLesson?.id, slug);
+      try {
+        const events = await store.getCurrentWeekEvents(id, weekId);
+
+        // Find live session for current lesson when events or lesson change
+        if (!events?.length) {
+          setCurrentLiveSession(null);
+          return;
+        }
+
+        const session = events.find(
+          (event: any) => event.lessonId === currentLesson?.id,
+        );
+
+        if (!session) {
+          setCurrentLiveSession(null);
+          return;
+        }
+
+        setCurrentLiveSession(session);
+      } catch (error) {
+        console.error("Failed to load week events:", error);
+      }
+    };
+    if (weekId && id) {
+      loadEvents();
+    }
+  }, [weekId, id, currentLesson?.id]);
 
   if (loading) return <Loader isLoader={false} />;
 
@@ -252,6 +286,11 @@ export function BootcampVideoWatchPage({
       }
     }
 
+    if (currentLesson?.type === "ASSIGNMENT" && !submissionUrl.trim()) {
+      toast.warning("Please provide a submission URL for this assignment");
+      return;
+    }
+
     try {
       const completedLessons = [
         ...(userLessons?.filter(
@@ -267,11 +306,17 @@ export function BootcampVideoWatchPage({
 
       setUserLessons(completedLessons);
 
-      store.markLessonCompleted(id, cohort, weekId, currentLesson.id, {
+      const payload: any = {
         isWeekCompleted: isWeekCompleted(completedLessons),
         nextWeekId: week?.nextWeek?.id,
         nextLessonId: nextVideo?.id,
-      });
+      };
+
+      if (currentLesson?.type === "ASSIGNMENT") {
+        payload.submissionUrl = submissionUrl;
+      }
+
+      store.markLessonCompleted(id, cohort, weekId, currentLesson.id, payload);
 
       toast.success("You just earned some points!");
       setCelebration(true);
@@ -319,6 +364,42 @@ export function BootcampVideoWatchPage({
           )}
         </div>
       </div>
+
+      {currentLiveSession && currentLiveSession?.meetingUrl && (
+        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  🔴 Live Session in Progress
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                  {currentLiveSession?.title ||
+                    "Join your instructor and classmates now"}
+                </p>
+                {currentLiveSession?.startTime && (
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                    Started:{" "}
+                    {new Date(
+                      currentLiveSession?.startTime,
+                    ).toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+              <Button
+                onClick={() => {
+                  if (currentLiveSession?.meetingUrl) {
+                    window.open(currentLiveSession?.meetingUrl, "_blank");
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+              >
+                Join Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Video Player */}
@@ -369,10 +450,10 @@ export function BootcampVideoWatchPage({
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="space-y-6">
                   {currentLesson?.description && (
-                    <CardContent>
-                      <div className="space-y-4  pt-4">
+                    <div>
+                      <div className="space-y-4">
                         <article
                           className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                           dangerouslySetInnerHTML={{
@@ -380,8 +461,34 @@ export function BootcampVideoWatchPage({
                           }}
                         ></article>
                       </div>
-                    </CardContent>
+                    </div>
                   )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Submission URL
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://github.com/username/project"
+                        type="url"
+                        value={submissionUrl}
+                        onChange={(e) => setSubmissionUrl(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleMarkComplete}
+                        disabled={!submissionUrl.trim()}
+                        size="sm"
+                        className="flex-shrink-0"
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Submit
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Paste the link to your GitHub repository or project URL
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -418,7 +525,7 @@ export function BootcampVideoWatchPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button
-                onClick={() => handleShare(currentLesson?.title!, path)}
+                onClick={() => handleShare(currentLesson?.title!, path!)}
                 variant="outline"
                 size="sm"
               >
@@ -463,8 +570,7 @@ export function BootcampVideoWatchPage({
                       )
                     ))}
 
-                  {(currentLesson.type === "ASSIGNMENT" ||
-                    currentLesson.type === "EXERCISE" ||
+                  {(currentLesson.type === "EXERCISE" ||
                     currentLesson.type === "ARTICLE") &&
                     nextVideo &&
                     (isVideoCompleted(currentLesson.id) ? (

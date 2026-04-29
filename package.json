@@ -73,6 +73,7 @@
     "next": "15.2.6",
     "next-navigation-guard": "^0.2.0",
     "next-themes": "latest",
+    "posthog-js": "^1.363.6",
     "react": "^19",
     "react-day-picker": "latest",
     "react-dom": "^19",

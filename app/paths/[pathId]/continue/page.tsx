@@ -1,30 +1,15 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { LearningPathContinuePage } from "@/components/pages/learning-path-continue";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-interface LearningPathContinuePageRouteProps {
-  params: {
-    pathId: string;
-  };
-}
-
-export default function LearningPathContinuePageRoute({
-  params,
-}: LearningPathContinuePageRouteProps) {
+export default function LearningPathContinueRedirect() {
   const router = useRouter();
+  const { pathId } = useParams() as { pathId: string };
 
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
+  useEffect(() => {
+    router.replace(`/paths/${pathId}`);
+  }, [pathId, router]);
 
-  return (
-    <DashboardLayout>
-      <LearningPathContinuePage
-        pathId={params.pathId}
-        onNavigate={handleNavigate}
-      />
-    </DashboardLayout>
-  );
+  return null;
 }
