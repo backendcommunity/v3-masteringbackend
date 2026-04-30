@@ -27,7 +27,10 @@ export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<
+    "google" | "github" | null
+  >(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(true);
   const [formData, setFormData] = useState({
@@ -93,7 +96,7 @@ export default function RegisterPage() {
         return;
       }
 
-      setIsLoading(true);
+      setEmailLoading(true);
 
       analytics.track("signup_attempted", { method: "email" });
 
@@ -112,7 +115,7 @@ export default function RegisterPage() {
           undefined,
       });
 
-      setIsLoading(false);
+      setEmailLoading(false);
       // Handle registration logic here
 
       if (isRegistered)
@@ -130,19 +133,11 @@ export default function RegisterPage() {
 
       analytics.track("signup_failed", { method: "email", reason: message });
       toast.error(message);
-      setIsLoading(false);
+      setEmailLoading(false);
     }
   };
 
-  const handleSocialRegister = async (provider: string) => {
-    setIsLoading(true);
-
-    // Simulate social registration
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsLoading(false);
-    // Handle social registration logic here
-  };
+  const isAuthLoading = emailLoading || oauthLoading !== null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-white to-[#97C3CC]/20 dark:from-[#0A0F1C] dark:via-[#1E293B] dark:to-[#0F172A] flex items-center justify-center p-4">
@@ -173,9 +168,17 @@ export default function RegisterPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${ref}&redirect=${redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => analytics.track("oauth_initiated", { provider: "github", page: "register" })}
+              aria-disabled={isAuthLoading}
+              onClick={(event) => {
+                if (isAuthLoading) {
+                  event.preventDefault();
+                  return;
+                }
+                setOauthLoading("github");
+                analytics.track("oauth_initiated", { provider: "github", page: "register" });
+              }}
             >
-              {isLoading ? (
+              {oauthLoading === "github" ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <Github className="w-5 h-5" />
@@ -186,8 +189,17 @@ export default function RegisterPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${ref}&redirect=${redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-disabled={isAuthLoading}
+              onClick={(event) => {
+                if (isAuthLoading) {
+                  event.preventDefault();
+                  return;
+                }
+                setOauthLoading("google");
+                analytics.track("oauth_initiated", { provider: "google", page: "register" });
+              }}
             >
-              {isLoading ? (
+              {oauthLoading === "google" ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -505,10 +517,10 @@ export default function RegisterPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading || !agreedToTerms}
+              disabled={isAuthLoading || !agreedToTerms}
               className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-              {isLoading ? (
+              {emailLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Creating account...</span>

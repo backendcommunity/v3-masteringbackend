@@ -23,7 +23,11 @@ import { Input } from "../ui/input";
 import { Playground } from "@/lib/data";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
-import { codeSample } from "@/lib/utils";
+import {
+  codeSample,
+  decodeBase64Utf8,
+  encodeBase64Utf8,
+} from "@/lib/utils";
 import { Label } from "../ui/label";
 
 interface EditorProps {
@@ -35,9 +39,9 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   const { theme } = useTheme();
   const store = useAppStore();
   const editorRef = useRef<any>(null);
-  const [language, setLanguage] = useState<any>({});
+  const [language, setLanguage] = useState<any>(null);
   const [code, setCode] = useState(
-    playground?.code ? atob(playground?.code) : codeSample
+    playground?.code ? decodeBase64Utf8(playground.code) : codeSample
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userInputOpen, setUserInputOpen] = useState(false);
@@ -69,16 +73,16 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   useEffect(() => {
     const lan = playground?.language ?? "node";
     const language = languages.find((l) => l.code === lan);
-    setLanguage(language);
+    setLanguage(language ?? null);
   }, [playground]);
 
   useEffect(() => {
-    setCode(language?.snippet);
+    setCode(language?.snippet ?? codeSample);
   }, [language]);
 
   async function saveCode() {
     try {
-      if (!language) {
+      if (!language?.code) {
         toast.error("Select a programming language to save with");
         return;
       }
@@ -89,7 +93,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
       }
 
       const playground = await store.savePlayground({
-        code: btoa(code),
+        code: encodeBase64Utf8(code),
         title,
         language: language.code,
       });
@@ -105,44 +109,43 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   async function runCode() {
     setDrawerOpen(true);
 
-    if (!language) {
-      setResult(
-        "<p class='text-red-500'>Please select a programming language</p>"
-      );
+    if (!language?.code) {
+      setResult("Please select a programming language before running code.");
       return;
     }
     setIsLoading(true);
     setResult(null);
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+
     try {
-      // Simulate code execution locally instead of API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const executionResult = await store.executeCode({
+        language: language.code,
+        code: encodeBase64Utf8(code),
+        signal: controller.signal,
+      });
 
-      // Mock execution based on language
-      let mockOutput = "";
-      
-      if (language.code === "node" || language.code === "javascript") {
-        mockOutput = `Console Output:\n${code}`;
-      } else if (language.code === "python") {
-        mockOutput = `Python Output:\n${code}`;
-      } else if (language.code === "java") {
-        mockOutput = `Java Output:\n${code}`;
-      } else if (language.code === "cpp") {
-        mockOutput = `C++ Output:\n${code}`;
-      } else {
-        mockOutput = `${language?.label} Output:\n${code}`;
-      }
-
-      setResult(mockOutput);
+      const output =
+        executionResult?.stdout ?? executionResult?.stderr ?? "No output";
+      setResult(String(output));
       toast.success("Code executed successfully!");
     } catch (error: any) {
       console.error("Code execution error:", error);
       
       const errorMsg = error?.message || "Code execution failed";
-      const htmlError = `<p class='text-red-500'>Error: ${errorMsg}</p>`;
-      setResult(htmlError);
+      if (controller.signal.aborted || error?.code === "ERR_CANCELED") {
+        setResult("Error: Code execution timed out after 30 seconds.");
+      } else if (error?.response?.status === 404) {
+        setResult("Error: Execution endpoint not found on backend (404).");
+      } else if (error?.response?.data?.message) {
+        setResult(`Error: ${error.response.data.message}`);
+      } else {
+        setResult(`Error: ${errorMsg}`);
+      }
       toast.error(`Execution failed: ${errorMsg}`);
     } finally {
+      window.clearTimeout(timeoutId);
       setIsLoading(false);
     }
   }
@@ -207,7 +210,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
               const playground = savedCodes.find(
                 (c: Playground) => c.id === id
               );
-              setCode(atob(playground?.code!));
+              setCode(decodeBase64Utf8(playground?.code!));
             }}
           >
             <SelectTrigger>
@@ -240,7 +243,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
           >
             <Editor
               height="100%"
-              language={language.code === "node" ? "javascript" : language.code}
+              language={language?.code === "node" ? "javascript" : language?.code}
               theme={theme?.includes("dark") ? "vs-dark" : "light"}
               value={code}
               onChange={(e) => setCode(e!)}
@@ -284,10 +287,9 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
                     Running code...
                   </div>
                 ) : result ? (
-                  <pre
-                    className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: result }}
-                  ></pre>
+                  <pre className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap break-words">
+                    {result}
+                  </pre>
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     Click "Run" to execute your code
