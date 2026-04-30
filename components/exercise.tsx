@@ -17,7 +17,6 @@ import { useAppStore } from "@/lib/store";
 import { Exercise } from "@/lib/data";
 import { Editor } from "@monaco-editor/react";
 import { useTheme } from "next-themes";
-import { encodeBase64Utf8 } from "@/lib/utils";
 
 interface CourseExercisePageProps {
   courseId: string;
@@ -53,7 +52,7 @@ export function ExercisePage({
 
       const data = await store.executeCode({
         language: "java",
-        code: encodeBase64Utf8(code),
+        code: btoa(code),
       });
 
       const result = data?.stdout ?? data?.stderr;

@@ -51,7 +51,7 @@ import {
   handleCourseEnrollment,
   loadVideoNotes,
 } from "./courses";
-import { api } from "./api";
+import { api, socketAPI } from "./api";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
@@ -251,11 +251,7 @@ interface AppState {
       chapter?: any;
     },
   ) => any;
-  executeCode: (payload: {
-    language: string;
-    code: string;
-    signal?: AbortSignal;
-  }) => any;
+  executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
 
   // Epic 5: Engagement features
@@ -768,23 +764,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Actions
   startProject30: async (slug: string) => {
-    try {
-      const { data } = await api.post(`/project30s/${slug}/start`);
-      return data?.data ?? data;
-    } catch (error: any) {
-      if (error?.response?.status !== 404) throw error;
-      const { data } = await api.post(`/project30s/${slug}`);
-      return data?.data ?? data;
-    }
+    const { data } = await api.post("/project30s/" + slug);
+    return data?.data;
   },
-  executeCode: async (payload: {
-    language: string;
-    code: string;
-    signal?: AbortSignal;
-  }) => {
-    const { signal, ...body } = payload;
-    const { data } = await api.post(`/projects/execute`, body, { signal });
-    return data?.data ?? data;
+  executeCode: async (payload: { language: string; code: string }) => {
+    const { data } = await socketAPI.post(`/projects/execute`, payload);
+    return data;
   },
   handleProjectEnrollment: async (slug: string) => {
     const { data } = await api.post(`/projects/${slug}`);

@@ -25,30 +25,6 @@ export function onNavigate(path: string) {
   // In a real app, this would use Next.js router or similar
   console.log(`Navigating to: ${path}`);
 }
-
-export function encodeBase64Utf8(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-
-  return typeof window !== "undefined" && typeof window.btoa === "function"
-    ? window.btoa(binary)
-    : Buffer.from(bytes).toString("base64");
-}
-
-export function decodeBase64Utf8(value: string) {
-  const binary =
-    typeof window !== "undefined" && typeof window.atob === "function"
-      ? window.atob(value)
-      : Buffer.from(value, "base64").toString("binary");
-
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
 export const terminalSample = [
   "Welcome to MB Projects Terminal",
   "$ npm install",
@@ -105,11 +81,13 @@ export const getLanguageFromFileName = (fileName: string): string => {
   }
 };
 
-export const codeSample = `
+export function codeSample() {
+  return `
   // Online Code Editor for free
   // Write, Edit and Run your code using Online Compiler
   // Select your programming language below
 `;
+}
 
 export const handleShare = (title: string, url: string) => {
   if (navigator.share) {

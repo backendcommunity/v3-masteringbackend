@@ -185,25 +185,15 @@ export function Project30Page({
   const handleStartChallenge = async (slug: string) => {
     try {
       setStarting(true);
-      const startProject30 = await store.startProject30(
-        project30?.slug ?? slug
-      );
-      if (!startProject30) {
-        toast.error("Unable to start Project30. Please try again.");
-        return;
-      }
+      const startProject30 = await store.startProject30(slug);
       setProject30({
         ...project30,
         userProject30: startProject30,
         isEnrolled: true,
       });
       setCelebration(true);
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Error occurred starting project30";
-      toast.error(message);
+    } catch (error) {
+      toast.error("Error occurred starting project30");
     } finally {
       setStarting(false);
     }

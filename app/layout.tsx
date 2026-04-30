@@ -9,7 +9,6 @@ import { PostHogProviderComponent } from "@/components/posthog-provider";
 import { PostHogPageview } from "@/components/posthog-pageview";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { GamificationModals } from "@/components/gamification-modals";
-import { ChunkReloadToast } from "@/components/chunk-reload-toast";
 import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -118,7 +117,6 @@ export default function RootLayout({
           >
             <PostHogPageview />
             <Toaster />
-            <ChunkReloadToast />
             <GamificationModals />
             <ErrorBoundary>
               <AuthProvider>{children}</AuthProvider>

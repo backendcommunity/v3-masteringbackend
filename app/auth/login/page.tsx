@@ -19,10 +19,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [query, setQuery] = useState<{ ref?: string; redirect?: string }>({});
   const [rememberMe, setRememberMe] = useState(false);
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<
-    "google" | "github" | null
-  >(null);
+  const [isLoading, setIsLoading] = useState(false);
   const auth = useAuth();
   const [formData, setFormData] = useState({
     email: "",
@@ -47,7 +44,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     try {
       e.preventDefault();
-      setEmailLoading(true);
+      setIsLoading(true);
 
       const { email, password } = formData;
 
@@ -77,11 +74,9 @@ export default function LoginPage() {
       analytics.track("login_failed", { method: "email", reason: message });
       toast.error(message || "Login failed. Please try again.");
     } finally {
-      setEmailLoading(false);
+      setIsLoading(false);
     }
   };
-
-  const isAuthLoading = emailLoading || oauthLoading !== null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-white to-[#97C3CC]/20 dark:from-[#0A0F1C] dark:via-[#1E293B] dark:to-[#0F172A] flex items-center justify-center p-4">
@@ -112,17 +107,9 @@ export default function LoginPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${query.ref}&redirect=${query.redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-disabled={isAuthLoading}
-              onClick={(event) => {
-                if (isAuthLoading) {
-                  event.preventDefault();
-                  return;
-                }
-                setOauthLoading("github");
-                analytics.track("oauth_initiated", { provider: "github", page: "login" });
-              }}
+              onClick={() => analytics.track("oauth_initiated", { provider: "github", page: "login" })}
             >
-              {oauthLoading === "github" ? (
+              {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <Github className="w-5 h-5" />
@@ -133,17 +120,8 @@ export default function LoginPage() {
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${query.ref}&redirect=${query.redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-disabled={isAuthLoading}
-              onClick={(event) => {
-                if (isAuthLoading) {
-                  event.preventDefault();
-                  return;
-                }
-                setOauthLoading("google");
-                analytics.track("oauth_initiated", { provider: "google", page: "login" });
-              }}
             >
-              {oauthLoading === "google" ? (
+              {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -260,10 +238,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isAuthLoading}
+              disabled={isLoading}
               className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-              {emailLoading ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Signing in...</span>
