@@ -1,8 +1,9 @@
 # Todo
 
-- [x] Inspect chunk-load error handling paths and where the error screen is rendered.
-- [x] Add chunk-load retry/refresh logic to the error boundary and global error handler.
-- [ ] Validate UX: single auto-retry, then clear guidance with manual refresh.
+- [x] Locate Project30 start challenge flow and error toast source.
+- [x] Verify correct API endpoint and payload for startProject30.
+- [x] Fix the start flow and ensure redirect to challenge workspace/day.
+- [ ] Verify on Project30 listing and detail flows.
 
 # Review
 
