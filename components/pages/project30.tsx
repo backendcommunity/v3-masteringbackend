@@ -186,7 +186,8 @@ export function Project30Page({
     try {
       setStarting(true);
       const startProject30 = await store.startProject30(
-        project30?.slug ?? slug
+        project30?.slug ?? slug,
+        project30?.id,
       );
       if (!startProject30) {
         toast.error("Unable to start Project30. Please try again.");

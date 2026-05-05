@@ -1,9 +1,12 @@
 # Todo
 
-- [x] Locate Project30 start challenge flow and error toast source.
-- [x] Verify correct API endpoint and payload for startProject30.
-- [x] Fix the start flow and ensure redirect to challenge workspace/day.
-- [ ] Verify on Project30 listing and detail flows.
+## Plan: Re-apply fixes on fresh branch
+
+- [x] Delete the recent `fix/path-preview-and-chunk-retry-v2` branch (local + remote).
+- [x] Create a fresh branch off `origin/staging`.
+- [x] Re-apply the fixes for Project30 start failure, chunk load retry, and dual Google auth loader.
+- [ ] Verify the change set builds/lints cleanly.
+- [ ] Push the new branch and provide the PR compare link.
 
 # Review
 
