@@ -764,8 +764,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Actions
   startProject30: async (slug: string) => {
-    const { data } = await api.post("/project30s/" + slug);
-    return data?.data;
+    try {
+      const { data } = await api.post(`/project30s/${slug}/start`);
+      return data?.data ?? data;
+    } catch (error: any) {
+      if (error?.response?.status !== 404) throw error;
+      const { data } = await api.post(`/project30s/${slug}`);
+      return data?.data ?? data;
+    }
   },
   executeCode: async (payload: { language: string; code: string }) => {
     const { data } = await socketAPI.post(`/projects/execute`, payload);
