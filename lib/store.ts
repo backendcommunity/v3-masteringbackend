@@ -166,7 +166,7 @@ interface AppState {
   getUploadUrl: (
     type: "avatar" | "resume",
   ) => Promise<{ signedUrl: string; publicUrl: string; key: string }>;
-  startProject30: (slug: string) => Project30 | any;
+  startProject30: (slug: string, id?: string) => Project30 | any;
   deleteAccount: (email: string) => Promise<any>;
   changePassword: (updates: {
     oldPassword: string;
@@ -763,14 +763,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Actions
-  startProject30: async (slug: string) => {
+  startProject30: async (slug: string, id?: string) => {
+    const startWithIdentifier = async (identifier: string) => {
+      try {
+        const { data } = await api.post(`/project30s/${identifier}/start`);
+        return data?.data ?? data;
+      } catch (error: any) {
+        if (error?.response?.status !== 404) throw error;
+        const { data } = await api.post(`/project30s/${identifier}`);
+        return data?.data ?? data;
+      }
+    };
+
     try {
-      const { data } = await api.post(`/project30s/${slug}/start`);
-      return data?.data ?? data;
+      return await startWithIdentifier(slug);
     } catch (error: any) {
-      if (error?.response?.status !== 404) throw error;
-      const { data } = await api.post(`/project30s/${slug}`);
-      return data?.data ?? data;
+      const status = error?.response?.status;
+      const shouldTryId = id && id !== slug && (status === 404 || status === 500);
+      if (!shouldTryId) throw error;
+      return await startWithIdentifier(id);
     }
   },
   executeCode: async (payload: { language: string; code: string }) => {
