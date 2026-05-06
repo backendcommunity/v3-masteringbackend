@@ -302,22 +302,25 @@ export function RoadmapVideoWatchPage({
     // const hasOtherContent = chapter?.quizzes|| chapter?.exercises || chapter?.playgrounds;
     const isChapterCompleted = !!allVideosComplete; //&& hasOtherContent?.length! < 1;
 
-    // Update Milestone locally
-    const completedItem = [
-      ...completedItems,
-      {
-        completed: true,
-        itemId: currentVideo.id,
-        itemType: "VIDEO",
-      },
-    ];
-    if (isChapterCompleted)
-      completedItem.push({
+    // Update milestone items locally without duplicating previously completed entries.
+    const completedItemMap = new Map(
+      (completedItems ?? []).map((item: any) => [item.itemId, item]),
+    );
+    completedItemMap.set(currentVideo.id, {
+      ...(completedItemMap.get(currentVideo.id) ?? {}),
+      completed: true,
+      itemId: currentVideo.id,
+      itemType: currentVideo.type ?? "VIDEO",
+    });
+    if (isChapterCompleted) {
+      completedItemMap.set(chapter.id, {
+        ...(completedItemMap.get(chapter.id) ?? {}),
         completed: true,
         itemId: chapter.id,
         itemType: "CHAPTER",
       });
-    setCompletedItems(completedItem);
+    }
+    setCompletedItems(Array.from(completedItemMap.values()));
 
     // Update UserChapter locally
     const userChapter = [
@@ -335,19 +338,24 @@ export function RoadmapVideoWatchPage({
 
     // Backend update with proper `isChapterCompleted`
 
-    store.markRoadmapVideoCompleted(slug, topicId, {
-      itemId: currentVideo.id,
-      type: "VIDEO",
-      isChapterCompleted,
-      chapter: {
-        itemId: chapter.id,
-      },
-      courseId: course.slug,
-    });
+    try {
+      await store.markRoadmapVideoCompleted(slug, topicId, {
+        itemId: currentVideo.id,
+        type: "VIDEO",
+        isChapterCompleted,
+        chapter: {
+          itemId: chapter.id,
+        },
+        courseId: course.slug,
+      });
 
-    toast.success("You just earned some points!");
-    setCelebration(true);
-    setIsMarking(false);
+      toast.success("You just earned some points!");
+      setCelebration(true);
+    } catch (error) {
+      toast.error("Unable to update video progress. Please try again.");
+    } finally {
+      setIsMarking(false);
+    }
   };
 
   const markQuizAsCompleted = async (isChapterCompleted?: boolean) => {
@@ -364,17 +372,28 @@ export function RoadmapVideoWatchPage({
   };
 
   const totalCompletedTasks =
-    completedItems?.filter(
-      (ci: any) =>
-        ci.itemType !== "COURSE" &&
-        ci.itemType !== "WORKSHOP" &&
-        ci.itemType !== "CHAPTER" &&
-        ci.completed,
-    )?.length ?? 0;
+    completedItems?.filter((ci: any) => {
+      const itemType = ci.itemType ?? ci.type;
+      return (
+        itemType !== "COURSE" &&
+        itemType !== "WORKSHOP" &&
+        itemType !== "CHAPTER" &&
+        ci.completed
+      );
+    })?.length ?? 0;
 
-  const progress = Math.round(
-    (totalCompletedTasks / milestone?.userTopic?.totalTasks) * 100,
+  const totalMilestoneTasksRaw = Number(
+    milestone?.userTopic?.totalTasks ?? milestone?.totalTasks ?? 0,
   );
+  const totalMilestoneTasks =
+    Number.isFinite(totalMilestoneTasksRaw) && totalMilestoneTasksRaw > 0
+      ? totalMilestoneTasksRaw
+      : 0;
+
+  const progress =
+    totalMilestoneTasks > 0
+      ? Math.round((totalCompletedTasks / totalMilestoneTasks) * 100)
+      : 0;
   return (
     <div className="flex-1 space-y-6">
       {/* Header */}
@@ -758,9 +777,8 @@ export function RoadmapVideoWatchPage({
                     <Progress value={progress ?? 0} className="h-2" />
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {totalCompletedTasks} of{" "}
-                    {milestone?.userTopic?.totalTasks ?? 0} videos watched in
-                    this milestone
+                    {totalCompletedTasks} of {totalMilestoneTasks} tasks
+                    completed in this milestone
                   </div>
                 </CardContent>
               </Card>

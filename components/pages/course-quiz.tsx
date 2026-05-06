@@ -215,10 +215,14 @@ export function CourseQuizPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">{quiz.title}</CardTitle>
-              <p className="text-gray-600">{quiz.description}</p>
+              <CardTitle className="text-2xl dark:text-white">
+                {quiz.title}
+              </CardTitle>
+              <p className="text-gray-600 dark:text-gray-300">
+                {quiz.description}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 dark:text-white">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600">Questions</p>
@@ -300,7 +304,9 @@ export function CourseQuizPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">{currentQ?.question}</CardTitle>
+              <CardTitle className="text-xl dark:text-white">
+                {currentQ?.question}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {currentQ?.options?.map((option, index) => (
@@ -309,10 +315,10 @@ export function CourseQuizPage({
                   onClick={() =>
                     handleAnswerSelect(currentQuestion, index.toString())
                   }
-                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                  className={`w-full text-left p-4 rounded-lg border transition-colors dark:text-white ${
                     answers[currentQuestion] === index.toString()
-                      ? "border-primary bg-primary text-white"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "bg-primary border-primary dark:bg-primary-900 dark:border-primary"
+                      : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
                   {option}
@@ -361,8 +367,8 @@ export function CourseQuizPage({
       score > 0
         ? score
         : quiz.enrolled
-        ? quiz.userQuiz.bestScore
-        : quiz.userQuiz?.score;
+          ? quiz.userQuiz.bestScore
+          : quiz.userQuiz?.score;
 
     const passed = _score >= (quiz.passingScore ?? 50);
     const questions = quiz.userQuiz?.items ?? quiz?.questions;
@@ -402,10 +408,10 @@ export function CourseQuizPage({
                   <XCircle className="h-16 w-16 text-red-600" />
                 )}
               </div>
-              <CardTitle className="text-2xl">
+              <CardTitle className="text-2xl dark:text-white">
                 {passed ? "Congratulations!" : "Quiz Complete"}
               </CardTitle>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 {passed
                   ? "You passed the quiz!"
                   : "You can retake the quiz to improve your score."}
@@ -426,9 +432,12 @@ export function CourseQuizPage({
               </div>
 
               <div className="space-y-4">
-                <h4 className="font-semibold">Quiz Review</h4>
+                <h4 className="font-semibold dark:text-white">Quiz Review</h4>
                 {questions?.map((question: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-4">
+                  <div
+                    key={index}
+                    className="border rounded-lg p-4 dark:border-gray-600 dark:bg-gray-900"
+                  >
                     <div className="flex items-start gap-2 mb-2">
                       {question?.passed ? (
                         <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
@@ -436,22 +445,24 @@ export function CourseQuizPage({
                         <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
                       )}
                       <div className="flex-1">
-                        <p className="font-medium">{question?.question}</p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="font-medium dark:text-white">
+                          {question?.question}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                           Your answer:{" "}
                           {question?.userAnswer
                             ? question.userAnswer
                             : question.passed
-                            ? question.correctAnswer
-                            : "Not answered"}
+                              ? question.correctAnswer
+                              : "Not answered"}
                         </p>
                         {!question.passed && (
-                          <p className="text-sm text-green-600 mt-1">
+                          <p className="text-sm text-green-600 dark:text-green-400 mt-1">
                             Correct answer: {question.correctAnswer}
                           </p>
                         )}
                         {question.explanation && (
-                          <p className="text-sm text-gray-500 mt-2">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                             {question.explanation}
                           </p>
                         )}
