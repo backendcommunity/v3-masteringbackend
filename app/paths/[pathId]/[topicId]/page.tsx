@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 interface LearningPathContentWatchPageRouteProps {
   params: {
     pathId: string;
-    stepId: string;
+    topicId: string;
   };
 }
 
@@ -24,7 +24,7 @@ export default function LearningPathContentWatchPageRoute({
     <DashboardLayout>
       <PathContentWatchPage
         pathId={params.pathId}
-        stepId={params.stepId}
+        stepId={params.topicId}
         onNavigate={handleNavigate}
       />
     </DashboardLayout>
