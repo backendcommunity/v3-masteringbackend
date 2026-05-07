@@ -237,6 +237,13 @@ interface LearningPathDetailPageProps {
   onNavigate?: (route: string) => void;
 }
 
+const getPreviewEmbedUrl = (preview?: string | null) => {
+  if (!preview) return "";
+  if (/^https?:\/\//i.test(preview)) return preview;
+  if (/^\d+$/.test(preview)) return `https://player.vimeo.com/video/${preview}`;
+  return preview;
+};
+
 export function LearningPathDetailPage({
   pathId,
   onNavigate,
@@ -1466,12 +1473,18 @@ export function LearningPathDetailPage({
               </DialogDescription>
             </DialogHeader>
             <div className="mt-2">
-              <iframe
-                src={roadmap?.preview}
-                className="w-full aspect-video rounded-md"
-                allowFullScreen
-                allow="autoplay; fullscreen"
-              />
+              {getPreviewEmbedUrl(roadmap?.preview) ? (
+                <iframe
+                  src={getPreviewEmbedUrl(roadmap?.preview)}
+                  className="w-full aspect-video rounded-md"
+                  allowFullScreen
+                  allow="autoplay; fullscreen"
+                />
+              ) : (
+                <div className="w-full aspect-video rounded-md bg-muted flex items-center justify-center text-sm text-muted-foreground">
+                  Preview not available
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

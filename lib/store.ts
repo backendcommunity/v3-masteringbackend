@@ -55,6 +55,36 @@ import { api, socketAPI } from "./api";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
+const ROADMAP_RESOLVE_PAGE_SIZE = 200;
+const roadmapSlugCache = new Map<string, string>();
+
+const isNumericIdentifier = (value: string) => /^\d+$/.test(value);
+
+const resolveRoadmapSlug = async (identifier: string) => {
+  if (!identifier || !isNumericIdentifier(identifier)) return identifier;
+
+  const cached = roadmapSlugCache.get(identifier);
+  if (cached) return cached;
+
+  try {
+    const { data } = await api.get(
+      `/roadmaps?page=0&size=${ROADMAP_RESOLVE_PAGE_SIZE}`,
+    );
+    const roadmaps = data?.data?.roadmaps ?? data?.data ?? [];
+    const match = roadmaps.find((roadmap: any) =>
+      String(roadmap?.id) === identifier,
+    );
+    if (match?.slug) {
+      roadmapSlugCache.set(identifier, match.slug);
+      return match.slug;
+    }
+  } catch {
+    // Fallback: keep original identifier when lookup fails.
+  }
+
+  return identifier;
+};
+
 
 interface AppState {
   // Data getters
@@ -358,7 +388,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getRoadmapItems: async (slug: string, topicId: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/topics/${topicId}/items`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/items`,
+    );
     return data?.data;
   },
 
@@ -452,7 +485,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getMilestone: async (slug: string, topicId: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/topics/${topicId}`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/roadmaps/${resolvedSlug}/topics/${topicId}`);
     return data?.data;
   },
   getProjects: async (queries?: Project30Query) => {
@@ -730,12 +764,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   getRoadmapBySlug: async (slug: string) => {
-    const { data } = await api.get("/roadmaps/" + slug);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get("/roadmaps/" + resolvedSlug);
     return data?.data;
   },
 
   getRoadmapCertificate: async (slug: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/roadmaps/${resolvedSlug}/certificate`);
     return data?.data;
   },
 
@@ -892,8 +928,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     courseId: string,
     input: any,
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
       input,
     );
     return data?.data;
@@ -909,8 +946,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       chapter?: any;
     },
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/video`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/video`,
       payload,
     );
     const result = data?.data;
@@ -998,8 +1036,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   startMilestone: async (slug: string, topicId: string, payload: any = {}) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}`,
       payload,
     );
     return data?.data;
@@ -1052,8 +1091,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     topicId: string,
     courseId: string,
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
     );
 
     return data;
@@ -1117,7 +1157,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   enrollInRoadmap: async (slug) => {
-    const response = await api.post(`/roadmaps/${slug}`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const response = await api.post(`/roadmaps/${resolvedSlug}`);
     const { data } = response;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to enroll in roadmap");
