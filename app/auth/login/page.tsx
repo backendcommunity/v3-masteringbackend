@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Eye, EyeOff, Github, ArrowLeft, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/store/auth";
@@ -12,12 +12,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
-    null
-  );
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [query, setQuery] = useState<{ ref?: string; redirect?: string }>({});
   const [rememberMe, setRememberMe] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<
@@ -29,20 +26,8 @@ export default function LoginPage() {
     password: "",
   });
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSearchParams(new URLSearchParams(window.location.search));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!searchParams) return;
-    const ref =
-      searchParams?.get("ref") ?? searchParams?.get("utm_source") ?? "";
-    const redirect = searchParams?.get("redirect") ?? "";
-
-    setQuery({ ref, redirect });
-  }, [searchParams]);
+  const ref = searchParams?.get("ref") ?? searchParams?.get("utm_source") ?? "";
+  const redirect = searchParams?.get("redirect") ?? "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     try {
@@ -64,7 +49,7 @@ export default function LoginPage() {
       toast.success("Login successful! Redirecting...");
 
       // Handle redirect logic
-      const redirectPath = query.redirect || "/";
+      const redirectPath = redirect || "/";
       await router.push(redirectPath);
     } catch (error: any) {
       const message = error?.response?.data?.message ?? error?.message;
@@ -110,7 +95,7 @@ export default function LoginPage() {
           {/* Social Login Buttons */}
           <div className="space-y-3 mb-6">
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${query.ref}&redirect=${query.redirect}`}
+              href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${ref}&redirect=${redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-disabled={isAuthLoading}
               onClick={(event) => {
@@ -131,7 +116,7 @@ export default function LoginPage() {
             </a>
 
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${query.ref}&redirect=${query.redirect}`}
+              href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${ref}&redirect=${redirect}`}
               className="w-full flex items-center justify-center space-x-3 bg-[#24292e] hover:bg-[#1a1e22] text-white py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-disabled={isAuthLoading}
               onClick={(event) => {
@@ -279,7 +264,7 @@ export default function LoginPage() {
             <p className="text-[#0E1F33]/70 dark:text-[#94A3B8]">
               Don't have an account?{" "}
               <a
-                href={query.redirect ? `/auth/register?redirect=${encodeURIComponent(query.redirect)}` : "/auth/register"}
+                href={redirect ? `/auth/register?redirect=${encodeURIComponent(redirect)}` : "/auth/register"}
                 className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign up

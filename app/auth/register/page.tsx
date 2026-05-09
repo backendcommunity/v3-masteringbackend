@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { analytics } from "@/lib/analytics";
 import {
   Eye,
@@ -20,9 +20,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
-    null
-  );
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -40,12 +38,6 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
   });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSearchParams(new URLSearchParams(window.location.search));
-    }
-  }, []);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {

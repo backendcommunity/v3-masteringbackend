@@ -46,6 +46,7 @@ import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PaymentDialog } from "../payment-dialog";
+import { PathPreviewDialog } from "../path-preview-dialog";
 import {
   Dialog,
   DialogContent,
@@ -1133,8 +1134,7 @@ export function LearningPathDetailPage({
                                       {course.id === freePreviewCourseId ? (
                                         <Button
                                           size="sm"
-                                          variant="outline"
-                                          className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
+                                          className="w-full mt-3 h-9 text-sm text-white bg-[#13AECE] hover:bg-[#0FA3C4] border-0"
                                           onClick={() =>
                                             onNavigate?.(
                                               routes.pathCoursePreview(
@@ -1323,23 +1323,23 @@ export function LearningPathDetailPage({
                     variant="outline"
                     className="w-full"
                     onClick={() => {
-                      if (freePreviewCourseId) {
-                        const previewCourse = topics[0]?.courses?.find(
-                          (c: any) => c.id === freePreviewCourseId,
-                        );
-                        if (previewCourse?.slug) {
-                          onNavigate?.(
-                            routes.pathCoursePreview(
-                              pathId,
-                              topics[0].id,
-                              previewCourse.slug,
-                            ),
-                          );
-                          return;
-                        }
+                      if (roadmap?.preview) {
+                        setShowPreviewDialog(true);
+                        return;
                       }
-                      // Fallback: open video dialog for roadmap.preview URL
-                      // setShowPreviewDialog(true);
+                      // No preview video — navigate directly to free course preview
+                      const previewCourse = topics[0]?.courses?.find(
+                        (c: any) => c.id === freePreviewCourseId,
+                      );
+                      if (previewCourse?.slug) {
+                        onNavigate?.(
+                          routes.pathCoursePreview(
+                            pathId,
+                            topics[0].id,
+                            previewCourse.slug,
+                          ),
+                        );
+                      }
                     }}
                   >
                     <Play className="h-4 w-4 mr-2" />
@@ -1456,25 +1456,15 @@ export function LearningPathDetailPage({
           disableOnetime={!roadmap?.paddle_price_id}
         />
 
-        {/* Watch Preview Dialog */}
-        <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Preview: {roadmap?.title}</DialogTitle>
-              <DialogDescription>
-                Watch a free preview of this learning path
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-2">
-              <iframe
-                src={roadmap?.preview}
-                className="w-full aspect-video rounded-md"
-                allowFullScreen
-                allow="autoplay; fullscreen"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PathPreviewDialog
+          open={showPreviewDialog}
+          onClose={() => setShowPreviewDialog(false)}
+          roadmap={roadmap}
+          topics={topics}
+          pathId={pathId}
+          freePreviewCourseId={freePreviewCourseId}
+          onNavigate={onNavigate}
+        />
       </div>
     );
   }

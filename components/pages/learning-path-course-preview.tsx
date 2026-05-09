@@ -16,7 +16,6 @@ import {
   Award,
   Target,
   CheckCircle2,
-  DollarSign,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -113,7 +112,7 @@ export function LearningPathCoursePreviewPage({
       }, 1500);
     } catch (err: any) {
       toast.error(
-        err?.response?.data?.message || err?.message || "Enrollment failed."
+        err?.response?.data?.message || err?.message || "Enrollment failed.",
       );
     } finally {
       setEnrolling(false);
@@ -181,10 +180,10 @@ export function LearningPathCoursePreviewPage({
   const enrollLabel = enrolling
     ? "Enrolling…"
     : isEnrolled
-    ? "Continue Learning Path"
-    : roadmap.isPremium && !user?.isPremium
-    ? `Enroll · $${roadmap.amount}`
-    : "Start Learning Path";
+      ? "Continue Learning Path"
+      : roadmap.isPremium && !user?.isPremium
+        ? `Enroll · $${roadmap.amount}`
+        : "Start Learning Path";
 
   return (
     <div className="flex-1 space-y-6">
@@ -217,7 +216,9 @@ export function LearningPathCoursePreviewPage({
             <Eye className="mr-1 h-3 w-3" />
             Free Preview
           </Badge>
-          <Badge variant="outline">{roadmap.level || "Beginner to Advanced"}</Badge>
+          <Badge variant="outline">
+            {roadmap.level || "Beginner to Advanced"}
+          </Badge>
           {roadmap.isPremium ? (
             <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
               Premium
@@ -295,7 +296,14 @@ export function LearningPathCoursePreviewPage({
                 available
               </span>
             </div>
-            <Button onClick={isEnrolled ? () => onNavigate?.(routes.pathContinue(pathId)) : handleEnroll} disabled={enrolling}>
+            <Button
+              onClick={
+                isEnrolled
+                  ? () => onNavigate?.(routes.pathContinue(pathId))
+                  : handleEnroll
+              }
+              disabled={enrolling}
+            >
               {enrollLabel}
             </Button>
           </div>
@@ -348,7 +356,7 @@ export function LearningPathCoursePreviewPage({
           )}
 
           {/* Full curriculum */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Course Curriculum</CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -397,7 +405,7 @@ export function LearningPathCoursePreviewPage({
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Sidebar — path info */}
@@ -414,7 +422,7 @@ export function LearningPathCoursePreviewPage({
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Price */}
-              <div className="flex items-center justify-between py-2 border-b">
+              {/* <div className="flex items-center justify-between py-2 border-b">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <DollarSign className="h-4 w-4" />
                   Price
@@ -426,7 +434,7 @@ export function LearningPathCoursePreviewPage({
                     Free
                   </Badge>
                 )}
-              </div>
+              </div> */}
 
               {/* Stats */}
               <div className="space-y-2.5 text-sm">
@@ -476,17 +484,18 @@ export function LearningPathCoursePreviewPage({
               </div>
 
               {/* Instructor */}
-              {roadmap.instructor && (
-                <div className="flex items-center gap-3 py-3 border-t">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Created by</p>
-                    <p className="text-sm font-semibold">{roadmap.instructor}</p>
-                  </div>
+
+              <div className="flex items-center gap-3 py-3 border-t">
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="h-4 w-4 text-blue-600" />
                 </div>
-              )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Created by</p>
+                  <p className="text-sm font-semibold">
+                    {roadmap?.instructor ?? "Mastering Backend Team"}
+                  </p>
+                </div>
+              </div>
 
               {/* CTA */}
               <Button
@@ -562,7 +571,9 @@ export function LearningPathCoursePreviewPage({
                     <div
                       key={topic.id}
                       className={`flex items-start gap-2.5 text-sm p-2 rounded-md ${
-                        topic.id === topicId ? "bg-blue-50 dark:bg-blue-950/30" : ""
+                        topic.id === topicId
+                          ? "bg-blue-50 dark:bg-blue-950/30"
+                          : ""
                       }`}
                     >
                       <div
