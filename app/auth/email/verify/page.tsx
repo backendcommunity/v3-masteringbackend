@@ -33,6 +33,8 @@ export default function VerifyEmailPage() {
     }
   }, []);
 
+  const redirect = searchParams?.get("redirect") ?? "";
+
   useEffect(() => {
     if (!searchParams) return;
     const emailParam = searchParams.get("email");
@@ -207,7 +209,7 @@ export default function VerifyEmailPage() {
               your account.
             </p>
             <Link
-              href="/auth/login"
+              href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
               className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               Continue to Login

@@ -279,7 +279,7 @@ export default function LoginPage() {
             <p className="text-[#0E1F33]/70 dark:text-[#94A3B8]">
               Don't have an account?{" "}
               <a
-                href="/auth/register"
+                href={query.redirect ? `/auth/register?redirect=${encodeURIComponent(query.redirect)}` : "/auth/register"}
                 className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign up

@@ -356,7 +356,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                     className="w-full"
                     onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
                   >
-                    Start Learning Path
+                    View Learning Path
                   </Button>
                 )}
               </CardContent>

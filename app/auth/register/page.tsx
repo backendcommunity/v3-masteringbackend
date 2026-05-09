@@ -120,15 +120,13 @@ export default function RegisterPage() {
 
       if (isRegistered)
         router.push(
-          "/auth/email/verify?sent=true&email=" +
-            encodeURIComponent(formData.email)
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
         );
     } catch (error: any) {
       const message = error?.response?.data?.message ?? error?.message;
       if (message.includes("verify email"))
         router.push(
-          "/auth/email/verify?sent=true&email=" +
-            encodeURIComponent(formData.email)
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
         );
 
       analytics.track("signup_failed", { method: "email", reason: message });
@@ -536,7 +534,7 @@ export default function RegisterPage() {
             <p className="text-[#0E1F33]/70 dark:text-[#94A3B8]">
               Already have an account?{" "}
               <a
-                href="/auth/login"
+                href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
                 className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign in

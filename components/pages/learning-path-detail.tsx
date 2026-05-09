@@ -846,7 +846,7 @@ export function LearningPathDetailPage({
           </span>
         </nav>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Title and Description */}
             <div className="space-y-4">
@@ -876,7 +876,7 @@ export function LearningPathDetailPage({
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
@@ -894,7 +894,7 @@ export function LearningPathDetailPage({
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardContent className="p-4">
@@ -931,7 +931,7 @@ export function LearningPathDetailPage({
                   </div>
                 </CardContent>
               </Card>
-
+              {/* 
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -958,7 +958,7 @@ export function LearningPathDetailPage({
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
 
             {/* Skills You'll Learn */}
@@ -1339,7 +1339,7 @@ export function LearningPathDetailPage({
                         }
                       }
                       // Fallback: open video dialog for roadmap.preview URL
-                      setShowPreviewDialog(true);
+                      // setShowPreviewDialog(true);
                     }}
                   >
                     <Play className="h-4 w-4 mr-2" />
