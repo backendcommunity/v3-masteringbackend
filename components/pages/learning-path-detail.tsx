@@ -1077,101 +1077,19 @@ export function LearningPathDetailPage({
                   return (
                     <div>
                       {topics.map((topic: any) => {
-                        type PreviewSubItem = {
-                          id: string;
-                          type: string;
-                          title: string;
-                          description?: string;
-                        };
-                        const topicItems: {
-                          id: string;
-                          type: string;
-                          title: string;
-                          description?: string;
-                          num?: number;
-                          subItems?: PreviewSubItem[];
-                        }[] = [];
+                        // Use pre-sorted flat contents from backend (same order as build-roadmap-response.ts)
+                        const rawContents: any[] = topic.sortedContents || [];
                         let courseNum = 0;
-                        (topic.courses || []).forEach((ci: any) => {
-                          const c = ci.course || ci;
-                          courseNum++;
-                          const isWorkshop = (c.type || "VIDEO") === "WORKSHOP";
-                          const subItems: PreviewSubItem[] = [
-                            ...(c.courseQuizzes || []).map((q: any) => ({
-                              id: q.id,
-                              type: "quiz",
-                              title: q.title,
-                              description: q.description,
-                            })),
-                            ...(c.courseExercises || []).map((e: any) => ({
-                              id: e.id,
-                              type: "exercise",
-                              title: e.title,
-                              description: e.description,
-                            })),
-                          ];
-                          topicItems.push({
-                            id: c.id,
-                            type: isWorkshop ? "workshop" : "course",
-                            title: c.title,
-                            description: c.summary || c.description,
-                            num: courseNum,
-                            subItems:
-                              subItems.length > 0 ? subItems : undefined,
-                          });
-                        });
-                        (topic.quizzes || []).forEach((qi: any) => {
-                          const q = qi.quiz || qi;
-                          topicItems.push({
-                            id: q.id,
-                            type: "quiz",
-                            title: q.title,
-                            description: q.description,
-                          });
-                        });
-                        (topic.projects || []).forEach((pi: any) => {
-                          const p = pi.project || pi;
-                          topicItems.push({
-                            id: p.id,
-                            type: "project",
-                            title: p.title,
-                            description: p.summary || p.description,
-                          });
-                        });
-                        (topic.exercises || []).forEach((ei: any) => {
-                          const e = ei.exercise || ei;
-                          topicItems.push({
-                            id: e.id,
-                            type: "exercise",
-                            title: e.title,
-                            description: e.summary,
-                          });
-                        });
-                        (topic.bootcamps || []).forEach((bi: any) => {
-                          const b = bi.bootcamp || bi;
-                          topicItems.push({
-                            id: b.id,
-                            type: "bootcamp",
-                            title: b.title,
-                            description: b.description,
-                          });
-                        });
-                        (topic.mockInterviews || []).forEach((mi: any) => {
-                          const m = mi.mockInterview || mi;
-                          topicItems.push({
-                            id: m.id,
-                            type: "mock_interview",
-                            title: m.title,
-                            description: m.description,
-                          });
-                        });
-                        (topic.resources || []).forEach((r: any) => {
-                          topicItems.push({
-                            id: r.id,
-                            type: "resource",
-                            title: r.title,
-                            description: r.description,
-                          });
+                        const topicItems = rawContents.map((item: any) => {
+                          const isCourseOrWorkshop = item.type === "course" || item.type === "workshop";
+                          if (isCourseOrWorkshop) courseNum++;
+                          return {
+                            id: item.id,
+                            type: item.type,
+                            title: item.title,
+                            description: item.summary || item.description || "",
+                            num: isCourseOrWorkshop ? courseNum : undefined,
+                          };
                         });
                         if (topicItems.length === 0) return null;
                         return (
@@ -1199,80 +1117,47 @@ export function LearningPathDetailPage({
                                   const cfg =
                                     typeConfig[item.type] ?? typeConfig.course;
                                   return (
-                                    <div key={item.id} className="space-y-2">
-                                      <AccordionItem
-                                        value={item.id}
-                                        className="border-0"
-                                      >
-                                        <div className="flex items-start gap-3">
-                                          {/* Timeline dot */}
-                                          <div
-                                            className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${cfg.dotCls}`}
-                                          />
-                                          {/* Card contains both trigger and content */}
-                                          <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
-                                            <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
-                                              <div className="space-y-1.5 text-left flex-1 pr-2">
-                                                <span
-                                                  className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
-                                                >
-                                                  {cfg.label}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                  {item.num !== undefined && (
-                                                    <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                                      {String(
-                                                        item.num,
-                                                      ).padStart(2, "0")}
-                                                    </span>
-                                                  )}
-                                                  <span className="font-bold text-sm leading-snug">
-                                                    {item.title}
-                                                  </span>
-                                                </div>
-                                              </div>
-                                            </AccordionTrigger>
-                                            {item.description && (
-                                              <AccordionContent className="px-4 pb-4 pt-0">
-                                                <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
-                                                  {stripHtmlTags(
-                                                    item.description,
-                                                  )}
-                                                </p>
-                                              </AccordionContent>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </AccordionItem>
-                                      {/* Sub-items: course-level quizzes and exercises */}
-                                      {(item.subItems ?? []).length > 0 && (
-                                        <div className="ml-6 space-y-1.5">
-                                          {(item.subItems ?? []).map((sub) => {
-                                            const subCfg =
-                                              typeConfig[sub.type] ??
-                                              typeConfig.quiz;
-                                            return (
-                                              <div
-                                                key={sub.id}
-                                                className="flex items-center gap-2 pl-4 border-l-2 border-dashed border-border"
+                                    <AccordionItem
+                                      key={item.id}
+                                      value={item.id}
+                                      className="border-0"
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        {/* Timeline dot */}
+                                        <div
+                                          className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${cfg.dotCls}`}
+                                        />
+                                        {/* Card */}
+                                        <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                                          <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                            <div className="space-y-1.5 text-left flex-1 pr-2">
+                                              <span
+                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
                                               >
-                                                <div
-                                                  className={`w-2 h-2 rounded-full flex-shrink-0 ${subCfg.dotCls}`}
-                                                />
-                                                <span
-                                                  className={`inline-block text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0 ${subCfg.badgeCls}`}
-                                                >
-                                                  {subCfg.label}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground truncate">
-                                                  {sub.title}
+                                                {cfg.label}
+                                              </span>
+                                              <div className="flex items-center gap-2">
+                                                {item.num !== undefined && (
+                                                  <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                                    {String(item.num).padStart(2, "0")}
+                                                  </span>
+                                                )}
+                                                <span className="font-bold text-sm leading-snug">
+                                                  {item.title}
                                                 </span>
                                               </div>
-                                            );
-                                          })}
+                                            </div>
+                                          </AccordionTrigger>
+                                          {item.description && (
+                                            <AccordionContent className="px-4 pb-4 pt-0">
+                                              <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
+                                                {stripHtmlTags(item.description)}
+                                              </p>
+                                            </AccordionContent>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
+                                      </div>
+                                    </AccordionItem>
                                   );
                                 })}
                               </Accordion>
@@ -1849,127 +1734,21 @@ export function LearningPathDetailPage({
                         !isTopicCompleted && !isTopicCurrent;
                       // && topicIndex > currentTopicIndex;
 
-                      type EnrolledSubItem = {
-                        id: string;
-                        type: string;
-                        title: string;
-                        description?: string;
-                        isCompleted: boolean;
-                        parentCourseId: string;
-                        parentCourseSlug?: string;
-                      };
-                      const topicItems: {
-                        id: string;
-                        type: string;
-                        title: string;
-                        description?: string;
-                        num?: number;
-                        isCompleted: boolean;
-                        isLocked: boolean;
-                        raw: any;
-                        subItems?: EnrolledSubItem[];
-                      }[] = [];
+                      // Use pre-sorted flat contents from backend (mirrors build-roadmap-response.ts order)
                       let courseNum = 0;
-                      (topic.courses || []).forEach((c: any) => {
-                        courseNum++;
-                        const isWorkshop = (c.type || "VIDEO") === "WORKSHOP";
-                        const subItems: EnrolledSubItem[] = [
-                          ...(c.courseQuizzes || []).map((q: any) => ({
-                            id: q.id,
-                            type: "quiz",
-                            title: q.title,
-                            description: q.description,
-                            isCompleted: false,
-                            parentCourseId: c.id,
-                            parentCourseSlug: c.slug,
-                          })),
-                          ...(c.courseExercises || []).map((e: any) => ({
-                            id: e.id,
-                            type: "exercise",
-                            title: e.title,
-                            description: e.description,
-                            isCompleted: false,
-                            parentCourseId: c.id,
-                            parentCourseSlug: c.slug,
-                          })),
-                        ];
-                        topicItems.push({
-                          id: c.id,
-                          type: isWorkshop ? "workshop" : "course",
-                          title: c.title,
-                          description: c.summary || c.description,
-                          num: courseNum,
-                          isCompleted: c.isCompleted ?? false,
+                      const topicItems = (topic.sortedContents || []).map((item: any) => {
+                        const isCourseOrWorkshop = item.type === "course" || item.type === "workshop";
+                        if (isCourseOrWorkshop) courseNum++;
+                        return {
+                          id: item.id,
+                          type: item.type,
+                          title: item.title,
+                          description: item.summary || item.description || "",
+                          num: isCourseOrWorkshop ? courseNum : undefined,
+                          isCompleted: item.isCompleted ?? false,
                           isLocked: isTopicLocked,
-                          raw: c,
-                          subItems: subItems.length > 0 ? subItems : undefined,
-                        });
-                      });
-                      (topic.quizzes || []).forEach((q: any) => {
-                        topicItems.push({
-                          id: q.id,
-                          type: "quiz",
-                          title: q.title,
-                          description: q.description,
-                          isCompleted: q.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: q,
-                        });
-                      });
-                      (topic.projects || []).forEach((p: any) => {
-                        topicItems.push({
-                          id: p.id,
-                          type: "project",
-                          title: p.title,
-                          description: p.summary || p.description,
-                          isCompleted: p.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: p,
-                        });
-                      });
-                      (topic.exercises || []).forEach((e: any) => {
-                        topicItems.push({
-                          id: e.id,
-                          type: "exercise",
-                          title: e.title,
-                          description: e.summary,
-                          isCompleted: e.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: e,
-                        });
-                      });
-                      (topic.bootcamps || []).forEach((b: any) => {
-                        topicItems.push({
-                          id: b.id,
-                          type: "bootcamp",
-                          title: b.title,
-                          description: b.description,
-                          isCompleted: b.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: b,
-                        });
-                      });
-                      (topic.mockInterviews || []).forEach((mi: any) => {
-                        topicItems.push({
-                          id: mi.id,
-                          type: "mock_interview",
-                          title: mi.title,
-                          description: mi.description,
-                          isCompleted: mi.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: mi,
-                        });
-                      });
-                      (topic.resources || []).forEach((r: any) => {
-                        topicItems.push({
-                          id: r.id,
-                          type: "resource",
-                          title: r.title,
-                          description: r.description,
-                          isCompleted: false,
-                          isLocked: isTopicLocked,
-                          raw: r,
-                        });
+                          raw: item,
+                        };
                       });
                       if (topicItems.length === 0) return null;
 
@@ -2022,7 +1801,7 @@ export function LearningPathDetailPage({
                               collapsible
                               className="space-y-3"
                             >
-                              {topicItems.map((item) => {
+                              {topicItems.map((item: any) => {
                                 const cfg =
                                   typeConfig[item.type] ?? typeConfig.course;
                                 const dotCls = item.isLocked
@@ -2037,10 +1816,10 @@ export function LearningPathDetailPage({
                                 const isResourceType = item.type === "resource";
                                 const hasAction = !item.isLocked;
                                 return (
-                                  <div key={item.id} className="space-y-2">
-                                    <AccordionItem
-                                      value={item.id}
-                                      className="border-0"
+                                  <AccordionItem
+                                    key={item.id}
+                                    value={item.id}
+                                    className="border-0"
                                     >
                                       <div className="flex items-start gap-3">
                                         <div
@@ -2152,22 +1931,18 @@ export function LearningPathDetailPage({
                                                           );
                                                           break;
                                                         case "quiz":
-                                                          onNavigate?.(
-                                                            routes.pathQuiz(
-                                                              pathId,
-                                                              topic.id,
-                                                              item.id,
-                                                            ),
-                                                          );
+                                                          if (item.raw?.parentCourseId) {
+                                                            onNavigate?.(routes.courseQuiz(item.raw.parentCourseId, item.id));
+                                                          } else {
+                                                            onNavigate?.(routes.pathQuiz(pathId, topic.id, item.id));
+                                                          }
                                                           break;
                                                         case "exercise":
-                                                          onNavigate?.(
-                                                            routes.pathExercise(
-                                                              pathId,
-                                                              topic.id,
-                                                              item.id,
-                                                            ),
-                                                          );
+                                                          if (item.raw?.parentCourseId) {
+                                                            onNavigate?.(routes.courseExercise(item.raw.parentCourseId, item.id));
+                                                          } else {
+                                                            onNavigate?.(routes.pathExercise(pathId, topic.id, item.id));
+                                                          }
                                                           break;
                                                         case "project":
                                                           if (item.raw?.slug)
@@ -2192,19 +1967,13 @@ export function LearningPathDetailPage({
                                                             ),
                                                           );
                                                           break;
-                                                        case "resource":
-                                                          if (
-                                                            item.raw?.link?.startsWith?.(
-                                                              "http",
-                                                            )
-                                                          ) {
-                                                            window.open(
-                                                              item.raw.link,
-                                                              "_blank",
-                                                              "noopener,noreferrer",
-                                                            );
+                                                        case "resource": {
+                                                          const url = item.raw?.link || item.raw?.content || "";
+                                                          if (url.startsWith("http")) {
+                                                            window.open(url, "_blank", "noopener,noreferrer");
                                                           }
                                                           break;
+                                                        }
                                                       }
                                                     };
                                                     const isCourseCompleted =
@@ -2326,76 +2095,7 @@ export function LearningPathDetailPage({
                                           )}
                                         </div>
                                       </div>
-                                    </AccordionItem>
-                                    {/* Course sub-items: course-level quizzes and exercises */}
-                                    {(item.subItems ?? []).length > 0 && (
-                                      <div className="ml-6 space-y-1.5">
-                                        {(item.subItems ?? []).map((sub) => {
-                                          const subCfg =
-                                            typeConfig[sub.type] ??
-                                            typeConfig.quiz;
-                                          const subDotCls = item.isLocked
-                                            ? "bg-muted-foreground/20"
-                                            : subCfg.dotCls;
-                                          const handleSubClick = () => {
-                                            if (item.isLocked) return;
-                                            analytics.track(
-                                              "path_content_clicked",
-                                              {
-                                                pathId,
-                                                topicId: topic.id,
-                                                contentType: sub.type,
-                                                contentId: sub.id,
-                                                contentTitle: sub.title,
-                                              },
-                                            );
-                                            if (sub.type === "quiz") {
-                                              onNavigate?.(
-                                                routes.courseQuiz(
-                                                  sub.parentCourseId,
-                                                  sub.id,
-                                                ),
-                                              );
-                                            } else if (
-                                              sub.type === "exercise"
-                                            ) {
-                                              onNavigate?.(
-                                                routes.courseExercise(
-                                                  sub.parentCourseId,
-                                                  sub.id,
-                                                ),
-                                              );
-                                            }
-                                          };
-                                          return (
-                                            <button
-                                              key={sub.id}
-                                              onClick={handleSubClick}
-                                              disabled={item.isLocked}
-                                              className={`w-full flex items-center gap-2 pl-4 border-l-2 border-dashed border-border rounded-r-lg py-1.5 pr-2 text-left transition-colors ${item.isLocked ? "opacity-60 cursor-not-allowed" : "hover:bg-muted/50 cursor-pointer"}`}
-                                            >
-                                              <div
-                                                className={`w-2 h-2 rounded-full flex-shrink-0 ${subDotCls}`}
-                                              />
-                                              <span
-                                                className={`inline-block text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0 ${subCfg.badgeCls}`}
-                                              >
-                                                {subCfg.label}
-                                              </span>
-                                              <span className="text-xs text-muted-foreground truncate flex-1">
-                                                {sub.title}
-                                              </span>
-                                              {sub.isCompleted ? (
-                                                <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
-                                              ) : !item.isLocked ? (
-                                                <Play className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                              ) : null}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
+                                  </AccordionItem>
                                 );
                               })}
                             </Accordion>
