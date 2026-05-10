@@ -216,7 +216,7 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
-  enrollInRoadmap: (slug: string) => Promise<any>;
+  enrollInRoadmap: (slug: string, isPreview?: boolean) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
@@ -790,7 +790,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return await startWithIdentifier(slug);
     } catch (error: any) {
       const status = error?.response?.status;
-      const shouldTryId = id && id !== slug && (status === 404 || status === 500);
+      const shouldTryId =
+        id && id !== slug && (status === 404 || status === 500);
       if (!shouldTryId) throw error;
       return await startWithIdentifier(id);
     }
@@ -1127,8 +1128,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  enrollInRoadmap: async (slug) => {
-    const response = await api.post(`/roadmaps/${slug}`);
+  enrollInRoadmap: async (slug, isPreview = false) => {
+    const response = await api.post(`/roadmaps/${slug}`, { isPreview });
     const { data } = response;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to enroll in roadmap");

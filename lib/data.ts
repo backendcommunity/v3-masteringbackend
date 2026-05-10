@@ -7,6 +7,18 @@ export interface UserRoadmapFilters {
   size?: number;
   filters?: any;
 }
+
+export interface UserRoadmap {
+  id: string;
+  userId: string;
+  roadmapId: string;
+  isPreview: boolean;
+  isCompleted: boolean;
+  currentTopicId?: string;
+  currentUserTopicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface User {
   id: string;
   name: string;
