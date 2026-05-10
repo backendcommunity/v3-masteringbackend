@@ -2193,17 +2193,13 @@ export function LearningPathDetailPage({
                                                           );
                                                           break;
                                                         case "resource":
-                                                          console.log(
-                                                            "Open resource:",
-                                                            item.raw,
-                                                          );
                                                           if (
-                                                            item.raw?.content?.startsWith?.(
+                                                            item.raw?.link?.startsWith?.(
                                                               "http",
                                                             )
                                                           ) {
                                                             window.open(
-                                                              item.raw.content,
+                                                              item.raw.link,
                                                               "_blank",
                                                               "noopener,noreferrer",
                                                             );
