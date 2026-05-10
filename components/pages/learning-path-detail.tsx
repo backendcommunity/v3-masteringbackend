@@ -612,15 +612,11 @@ export function LearningPathDetailPage({
               )}
             </div>
           </div>
-          <Badge className={`${statusColor} text-xs flex-shrink-0 text-white`}>
-            {status === "completed"
-              ? "✓ Done"
-              : status === "current"
-                ? "In Progress"
-                : status === "locked"
-                  ? "Locked"
-                  : "Available"}
-          </Badge>
+          {(status === "completed" || status === "current") && (
+            <Badge className={`${statusColor} text-xs flex-shrink-0 text-white`}>
+              {status === "completed" ? "✓ Done" : "In Progress"}
+            </Badge>
+          )}
         </div>
         {status === "current" && item.progress !== undefined && (
           <div className="space-y-1 pt-2 mt-2 border-t border-blue-200 dark:border-blue-800">
@@ -1344,7 +1340,8 @@ export function LearningPathDetailPage({
                     },
                     {
                       value: topics.reduce(
-                        (s: number, t: any) => s + (t.quizzes?.length || 0),
+                        (s: number, t: any) =>
+                          s + (t.sortedContents?.filter((i: any) => i.type === "quiz").length || 0),
                         0,
                       ),
                       label: "Quizzes",
@@ -1353,21 +1350,33 @@ export function LearningPathDetailPage({
                     },
                     {
                       value: topics.reduce(
-                        (s: number, t: any) => s + (t.bootcamps?.length || 0),
+                        (s: number, t: any) =>
+                          s + (t.sortedContents?.filter((i: any) => i.type === "workshop").length || 0),
                         0,
                       ),
                       label: "Live Workshops",
-                      icon: Calendar,
-                      color: "text-amber-600",
+                      icon: Wrench,
+                      color: "text-teal-600",
                     },
                     {
                       value: topics.reduce(
-                        (s: number, t: any) => s + (t.exercises?.length || 0),
+                        (s: number, t: any) =>
+                          s + (t.sortedContents?.filter((i: any) => i.type === "exercise").length || 0),
                         0,
                       ),
                       label: "Coding Exercises",
                       icon: Code2,
                       color: "text-green-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s + (t.sortedContents?.filter((i: any) => i.type === "resource").length || 0),
+                        0,
+                      ),
+                      label: "Resources",
+                      icon: Link2,
+                      color: "text-slate-600",
                     },
                   ].map(({ value, label, icon: Icon, color }) => (
                     <div key={label} className="flex items-center gap-2">
@@ -1848,11 +1857,6 @@ export function LearningPathDetailPage({
                                                       In Progress
                                                     </Badge>
                                                   )}
-                                                {item.isLocked && (
-                                                  <Badge className="bg-slate-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-slate-700">
-                                                    🔒 Locked
-                                                  </Badge>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-2">
                                                 {item.num !== undefined && (
