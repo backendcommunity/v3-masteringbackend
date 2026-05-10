@@ -37,6 +37,8 @@ import {
   RotateCcw,
   Flame,
   Award,
+  Wrench,
+  Link2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
@@ -59,11 +61,13 @@ import { analytics } from "@/lib/analytics";
 // Type definitions for multi-content timeline
 type ContentItemType =
   | "course"
+  | "workshop"
   | "project"
   | "quiz"
   | "exercise"
   | "mock_interview"
   | "bootcamp"
+  | "resource"
   | "land";
 
 interface ContentItem {
@@ -104,6 +108,12 @@ function getContentTypeConfig(type: ContentItemType) {
       label: "Video Course",
       ctaLabel: "Resume Learning",
     },
+    workshop: {
+      icon: Wrench,
+      color: "text-teal-600",
+      label: "Workshop",
+      ctaLabel: "Start Workshop",
+    },
     project: {
       icon: FolderOpen,
       color: "text-orange-600",
@@ -133,6 +143,12 @@ function getContentTypeConfig(type: ContentItemType) {
       color: "text-yellow-600",
       label: "Live Bootcamp",
       ctaLabel: "Join Bootcamp",
+    },
+    resource: {
+      icon: Link2,
+      color: "text-slate-600",
+      label: "Resource",
+      ctaLabel: "Open Resource",
     },
     land: {
       icon: Trophy,
@@ -225,6 +241,18 @@ function getNonCourseItems(
       duration: mi.duration ? `${mi.duration}m` : undefined,
       meta: { difficulty: mi.difficulty },
       completed: miItem.isCompleted ?? false,
+      locked: !isEnrolled,
+    });
+  });
+
+  (topic.resources || []).forEach((r: any) => {
+    items.push({
+      id: r.id,
+      type: "resource",
+      title: r.title,
+      description: r.description || "",
+      meta: { topicId },
+      completed: false,
       locked: !isEnrolled,
     });
   });
@@ -1003,6 +1031,12 @@ export function LearningPathDetailPage({
                         "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
                       dotCls: "bg-foreground",
                     },
+                    workshop: {
+                      label: "Workshop",
+                      badgeCls:
+                        "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
+                      dotCls: "bg-teal-500",
+                    },
                     quiz: {
                       label: "Skill Assessment",
                       badgeCls:
@@ -1033,27 +1067,57 @@ export function LearningPathDetailPage({
                         "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
                       dotCls: "bg-amber-500",
                     },
+                    resource: {
+                      label: "Resource",
+                      badgeCls:
+                        "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
+                      dotCls: "bg-slate-400",
+                    },
                   };
                   return (
                     <div>
                       {topics.map((topic: any) => {
+                        type PreviewSubItem = {
+                          id: string;
+                          type: string;
+                          title: string;
+                          description?: string;
+                        };
                         const topicItems: {
                           id: string;
                           type: string;
                           title: string;
                           description?: string;
                           num?: number;
+                          subItems?: PreviewSubItem[];
                         }[] = [];
                         let courseNum = 0;
                         (topic.courses || []).forEach((ci: any) => {
                           const c = ci.course || ci;
                           courseNum++;
+                          const isWorkshop = (c.type || "VIDEO") === "WORKSHOP";
+                          const subItems: PreviewSubItem[] = [
+                            ...(c.courseQuizzes || []).map((q: any) => ({
+                              id: q.id,
+                              type: "quiz",
+                              title: q.title,
+                              description: q.description,
+                            })),
+                            ...(c.courseExercises || []).map((e: any) => ({
+                              id: e.id,
+                              type: "exercise",
+                              title: e.title,
+                              description: e.description,
+                            })),
+                          ];
                           topicItems.push({
                             id: c.id,
-                            type: "course",
+                            type: isWorkshop ? "workshop" : "course",
                             title: c.title,
                             description: c.summary || c.description,
                             num: courseNum,
+                            subItems:
+                              subItems.length > 0 ? subItems : undefined,
                           });
                         });
                         (topic.quizzes || []).forEach((qi: any) => {
@@ -1101,6 +1165,14 @@ export function LearningPathDetailPage({
                             description: m.description,
                           });
                         });
+                        (topic.resources || []).forEach((r: any) => {
+                          topicItems.push({
+                            id: r.id,
+                            type: "resource",
+                            title: r.title,
+                            description: r.description,
+                          });
+                        });
                         if (topicItems.length === 0) return null;
                         return (
                           <div
@@ -1127,52 +1199,80 @@ export function LearningPathDetailPage({
                                   const cfg =
                                     typeConfig[item.type] ?? typeConfig.course;
                                   return (
-                                    <AccordionItem
-                                      key={item.id}
-                                      value={item.id}
-                                      className="border-0"
-                                    >
-                                      <div className="flex items-start gap-3">
-                                        {/* Timeline dot */}
-                                        <div
-                                          className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${cfg.dotCls}`}
-                                        />
-                                        {/* Card contains both trigger and content */}
-                                        <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
-                                          <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
-                                            <div className="space-y-1.5 text-left flex-1 pr-2">
-                                              <span
-                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
-                                              >
-                                                {cfg.label}
-                                              </span>
-                                              <div className="flex items-center gap-2">
-                                                {item.num !== undefined && (
-                                                  <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                                    {String(item.num).padStart(
-                                                      2,
-                                                      "0",
-                                                    )}
+                                    <div key={item.id} className="space-y-2">
+                                      <AccordionItem
+                                        value={item.id}
+                                        className="border-0"
+                                      >
+                                        <div className="flex items-start gap-3">
+                                          {/* Timeline dot */}
+                                          <div
+                                            className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${cfg.dotCls}`}
+                                          />
+                                          {/* Card contains both trigger and content */}
+                                          <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                                            <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                              <div className="space-y-1.5 text-left flex-1 pr-2">
+                                                <span
+                                                  className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
+                                                >
+                                                  {cfg.label}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                  {item.num !== undefined && (
+                                                    <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                                      {String(
+                                                        item.num,
+                                                      ).padStart(2, "0")}
+                                                    </span>
+                                                  )}
+                                                  <span className="font-bold text-sm leading-snug">
+                                                    {item.title}
                                                   </span>
-                                                )}
-                                                <span className="font-bold text-sm leading-snug">
-                                                  {item.title}
+                                                </div>
+                                              </div>
+                                            </AccordionTrigger>
+                                            {item.description && (
+                                              <AccordionContent className="px-4 pb-4 pt-0">
+                                                <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
+                                                  {stripHtmlTags(
+                                                    item.description,
+                                                  )}
+                                                </p>
+                                              </AccordionContent>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </AccordionItem>
+                                      {/* Sub-items: course-level quizzes and exercises */}
+                                      {(item.subItems ?? []).length > 0 && (
+                                        <div className="ml-6 space-y-1.5">
+                                          {(item.subItems ?? []).map((sub) => {
+                                            const subCfg =
+                                              typeConfig[sub.type] ??
+                                              typeConfig.quiz;
+                                            return (
+                                              <div
+                                                key={sub.id}
+                                                className="flex items-center gap-2 pl-4 border-l-2 border-dashed border-border"
+                                              >
+                                                <div
+                                                  className={`w-2 h-2 rounded-full flex-shrink-0 ${subCfg.dotCls}`}
+                                                />
+                                                <span
+                                                  className={`inline-block text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0 ${subCfg.badgeCls}`}
+                                                >
+                                                  {subCfg.label}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground truncate">
+                                                  {sub.title}
                                                 </span>
                                               </div>
-                                            </div>
-                                          </AccordionTrigger>
-                                          {item.description && (
-                                            <AccordionContent className="px-4 pb-4 pt-0">
-                                              <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
-                                                {stripHtmlTags(
-                                                  item.description,
-                                                )}
-                                              </p>
-                                            </AccordionContent>
-                                          )}
+                                            );
+                                          })}
                                         </div>
-                                      </div>
-                                    </AccordionItem>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </Accordion>
@@ -1697,6 +1797,12 @@ export function LearningPathDetailPage({
                       "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
                     dotCls: "bg-foreground",
                   },
+                  workshop: {
+                    label: "Workshop",
+                    badgeCls:
+                      "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
+                    dotCls: "bg-teal-500",
+                  },
                   quiz: {
                     label: "Skill Assessment",
                     badgeCls:
@@ -1727,6 +1833,12 @@ export function LearningPathDetailPage({
                       "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
                     dotCls: "bg-amber-500",
                   },
+                  resource: {
+                    label: "Resource",
+                    badgeCls:
+                      "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
+                    dotCls: "bg-slate-400",
+                  },
                 };
                 return (
                   <div>
@@ -1737,6 +1849,15 @@ export function LearningPathDetailPage({
                         !isTopicCompleted && !isTopicCurrent;
                       // && topicIndex > currentTopicIndex;
 
+                      type EnrolledSubItem = {
+                        id: string;
+                        type: string;
+                        title: string;
+                        description?: string;
+                        isCompleted: boolean;
+                        parentCourseId: string;
+                        parentCourseSlug?: string;
+                      };
                       const topicItems: {
                         id: string;
                         type: string;
@@ -1746,19 +1867,42 @@ export function LearningPathDetailPage({
                         isCompleted: boolean;
                         isLocked: boolean;
                         raw: any;
+                        subItems?: EnrolledSubItem[];
                       }[] = [];
                       let courseNum = 0;
                       (topic.courses || []).forEach((c: any) => {
                         courseNum++;
+                        const isWorkshop = (c.type || "VIDEO") === "WORKSHOP";
+                        const subItems: EnrolledSubItem[] = [
+                          ...(c.courseQuizzes || []).map((q: any) => ({
+                            id: q.id,
+                            type: "quiz",
+                            title: q.title,
+                            description: q.description,
+                            isCompleted: false,
+                            parentCourseId: c.id,
+                            parentCourseSlug: c.slug,
+                          })),
+                          ...(c.courseExercises || []).map((e: any) => ({
+                            id: e.id,
+                            type: "exercise",
+                            title: e.title,
+                            description: e.description,
+                            isCompleted: false,
+                            parentCourseId: c.id,
+                            parentCourseSlug: c.slug,
+                          })),
+                        ];
                         topicItems.push({
                           id: c.id,
-                          type: "course",
+                          type: isWorkshop ? "workshop" : "course",
                           title: c.title,
                           description: c.summary || c.description,
                           num: courseNum,
                           isCompleted: c.isCompleted ?? false,
                           isLocked: isTopicLocked,
                           raw: c,
+                          subItems: subItems.length > 0 ? subItems : undefined,
                         });
                       });
                       (topic.quizzes || []).forEach((q: any) => {
@@ -1816,6 +1960,17 @@ export function LearningPathDetailPage({
                           raw: mi,
                         });
                       });
+                      (topic.resources || []).forEach((r: any) => {
+                        topicItems.push({
+                          id: r.id,
+                          type: "resource",
+                          title: r.title,
+                          description: r.description,
+                          isCompleted: false,
+                          isLocked: isTopicLocked,
+                          raw: r,
+                        });
+                      });
                       if (topicItems.length === 0) return null;
 
                       return (
@@ -1870,152 +2025,381 @@ export function LearningPathDetailPage({
                               {topicItems.map((item) => {
                                 const cfg =
                                   typeConfig[item.type] ?? typeConfig.course;
-                                // Dot uses type color always; locked items get gray
                                 const dotCls = item.isLocked
                                   ? "bg-muted-foreground/30"
                                   : cfg.dotCls;
                                 const numBgCls = item.isCompleted
                                   ? "bg-green-600"
                                   : "bg-foreground";
-                                const hasAction =
-                                  !item.isLocked &&
-                                  (item.type === "course" || item.isCompleted);
+                                const isCourseType =
+                                  item.type === "course" ||
+                                  item.type === "workshop";
+                                const isResourceType = item.type === "resource";
+                                const hasAction = !item.isLocked;
                                 return (
-                                  <AccordionItem
-                                    key={item.id}
-                                    value={item.id}
-                                    className="border-0"
-                                  >
-                                    <div className="flex items-start gap-3">
-                                      <div
-                                        className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
-                                      />
-                                      <div
-                                        className={`flex-1 rounded-xl border bg-card shadow-sm overflow-hidden ${item.isLocked ? "border-dashed opacity-70" : ""}`}
-                                      >
-                                        <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
-                                          <div className="space-y-1.5 text-left flex-1 pr-2">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span
-                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
-                                              >
-                                                {cfg.label}
-                                              </span>
-                                              {item.isCompleted && (
-                                                <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
-                                                  ✓ Done
-                                                </Badge>
-                                              )}
-                                              {isTopicCurrent &&
-                                                !item.isCompleted &&
-                                                item.type === "course" && (
-                                                  <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
-                                                    In Progress
+                                  <div key={item.id} className="space-y-2">
+                                    <AccordionItem
+                                      value={item.id}
+                                      className="border-0"
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div
+                                          className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
+                                        />
+                                        <div
+                                          className={`flex-1 rounded-xl border bg-card shadow-sm overflow-hidden ${item.isLocked ? "border-dashed opacity-70" : ""}`}
+                                        >
+                                          <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                            <div className="space-y-1.5 text-left flex-1 pr-2">
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <span
+                                                  className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
+                                                >
+                                                  {cfg.label}
+                                                </span>
+                                                {item.isCompleted && (
+                                                  <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
+                                                    ✓ Done
                                                   </Badge>
                                                 )}
-                                              {item.isLocked && (
-                                                <Badge className="bg-slate-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-slate-700">
-                                                  🔒 Locked
-                                                </Badge>
-                                              )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              {item.num !== undefined && (
-                                                <span
-                                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
-                                                >
-                                                  {String(item.num).padStart(
-                                                    2,
-                                                    "0",
+                                                {isTopicCurrent &&
+                                                  !item.isCompleted &&
+                                                  isCourseType && (
+                                                    <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
+                                                      In Progress
+                                                    </Badge>
                                                   )}
+                                                {item.isLocked && (
+                                                  <Badge className="bg-slate-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-slate-700">
+                                                    🔒 Locked
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                {item.num !== undefined && (
+                                                  <span
+                                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                                  >
+                                                    {String(item.num).padStart(
+                                                      2,
+                                                      "0",
+                                                    )}
+                                                  </span>
+                                                )}
+                                                <span className="font-bold text-sm leading-snug">
+                                                  {item.title}
                                                 </span>
-                                              )}
-                                              <span className="font-bold text-sm leading-snug">
-                                                {item.title}
-                                              </span>
-                                            </div>
-                                            {isTopicCurrent &&
-                                              !item.isCompleted &&
-                                              item.type === "course" && (
-                                                <div className="space-y-1">
-                                                  <Progress
-                                                    value={topic.progress ?? 0}
-                                                    className="h-1.5"
-                                                  />
-                                                  <p className="text-xs text-blue-600 font-medium">
-                                                    {topic.progress ?? 0}%
-                                                    complete
-                                                  </p>
-                                                </div>
-                                              )}
-                                          </div>
-                                        </AccordionTrigger>
-                                        {(item.description || hasAction) && (
-                                          <AccordionContent className="px-4 pb-4 pt-0">
-                                            <div className="border-t pt-3 space-y-3">
-                                              {item.description && (
-                                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                                  {stripHtmlTags(
-                                                    item.description,
+                                                {isResourceType &&
+                                                  !item.isLocked && (
+                                                    <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                                                   )}
-                                                </p>
-                                              )}
-                                              {item.isCompleted &&
-                                                item.type === "course" && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-8 text-xs w-full"
-                                                    disabled={navigating}
-                                                    onClick={() => {
+                                              </div>
+                                              {isTopicCurrent &&
+                                                !item.isCompleted &&
+                                                isCourseType && (
+                                                  <div className="space-y-1">
+                                                    <Progress
+                                                      value={
+                                                        topic.progress ?? 0
+                                                      }
+                                                      className="h-1.5"
+                                                    />
+                                                    <p className="text-xs text-blue-600 font-medium">
+                                                      {topic.progress ?? 0}%
+                                                      complete
+                                                    </p>
+                                                  </div>
+                                                )}
+                                            </div>
+                                          </AccordionTrigger>
+                                          {(item.description || hasAction) && (
+                                            <AccordionContent className="px-4 pb-4 pt-0">
+                                              <div className="border-t pt-3 space-y-3">
+                                                {item.description && (
+                                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                                    {stripHtmlTags(
+                                                      item.description,
+                                                    )}
+                                                  </p>
+                                                )}
+                                                {/* CTA button per type */}
+                                                {hasAction &&
+                                                  (() => {
+                                                    const handleClick = () => {
                                                       analytics.track(
-                                                        "path_completed_content_reviewed",
+                                                        item.isCompleted
+                                                          ? "path_completed_content_reviewed"
+                                                          : "path_content_clicked",
                                                         {
                                                           pathId,
-                                                          contentType: "course",
+                                                          topicId: topic.id,
+                                                          contentType:
+                                                            item.type,
                                                           contentId: item.id,
                                                           contentTitle:
                                                             item.title,
                                                         },
                                                       );
-                                                      navigateToFirstUncompletedVideo(
-                                                        topic.id,
-                                                        [item.raw],
+                                                      switch (item.type) {
+                                                        case "course":
+                                                        case "workshop":
+                                                          navigateToFirstUncompletedVideo(
+                                                            topic.id,
+                                                            item.isCompleted
+                                                              ? [item.raw]
+                                                              : (topic.courses ??
+                                                                  []),
+                                                          );
+                                                          break;
+                                                        case "quiz":
+                                                          onNavigate?.(
+                                                            routes.pathQuiz(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                          break;
+                                                        case "exercise":
+                                                          onNavigate?.(
+                                                            routes.pathExercise(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                          break;
+                                                        case "project":
+                                                          if (item.raw?.slug)
+                                                            onNavigate?.(
+                                                              routes.projectDetail(
+                                                                item.raw.slug,
+                                                              ),
+                                                            );
+                                                          break;
+                                                        case "bootcamp":
+                                                          if (item.raw?.slug)
+                                                            onNavigate?.(
+                                                              routes.bootcampDetail(
+                                                                item.raw.slug,
+                                                              ),
+                                                            );
+                                                          break;
+                                                        case "mock_interview":
+                                                          onNavigate?.(
+                                                            routes.mockInterviewDetail(
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                          break;
+                                                        case "resource":
+                                                          console.log(
+                                                            "Open resource:",
+                                                            item.raw,
+                                                          );
+                                                          if (
+                                                            item.raw?.content?.startsWith?.(
+                                                              "http",
+                                                            )
+                                                          ) {
+                                                            window.open(
+                                                              item.raw.content,
+                                                              "_blank",
+                                                              "noopener,noreferrer",
+                                                            );
+                                                          }
+                                                          break;
+                                                      }
+                                                    };
+                                                    const isCourseCompleted =
+                                                      item.isCompleted &&
+                                                      isCourseType;
+                                                    const isCourseInProgress =
+                                                      isTopicCurrent &&
+                                                      !item.isCompleted &&
+                                                      isCourseType;
+                                                    if (isCourseCompleted) {
+                                                      return (
+                                                        <Button
+                                                          size="sm"
+                                                          variant="outline"
+                                                          className="h-8 text-xs w-full"
+                                                          disabled={navigating}
+                                                          onClick={handleClick}
+                                                        >
+                                                          <RotateCcw className="h-3 w-3 mr-1" />
+                                                          {navigating
+                                                            ? "Loading…"
+                                                            : "Review Course"}
+                                                        </Button>
                                                       );
-                                                    }}
-                                                  >
-                                                    <RotateCcw className="h-3 w-3 mr-1" />
-                                                    {navigating
-                                                      ? "Loading…"
-                                                      : "Review Course"}
-                                                  </Button>
-                                                )}
-                                              {isTopicCurrent &&
-                                                !item.isCompleted &&
-                                                item.type === "course" && (
-                                                  <Button
-                                                    size="sm"
-                                                    className="w-full h-8 text-xs"
-                                                    disabled={navigating}
-                                                    onClick={() =>
-                                                      navigateToFirstUncompletedVideo(
-                                                        topic.id,
-                                                        topic.courses ?? [],
-                                                      )
                                                     }
-                                                  >
-                                                    <Play className="h-3 w-3 mr-1" />
-                                                    {navigating
-                                                      ? "Loading…"
-                                                      : "Resume Learning"}
-                                                  </Button>
-                                                )}
-                                            </div>
-                                          </AccordionContent>
-                                        )}
+                                                    if (isCourseInProgress) {
+                                                      return (
+                                                        <Button
+                                                          size="sm"
+                                                          className="w-full h-8 text-xs"
+                                                          disabled={navigating}
+                                                          onClick={handleClick}
+                                                        >
+                                                          <Play className="h-3 w-3 mr-1" />
+                                                          {navigating
+                                                            ? "Loading…"
+                                                            : "Resume Learning"}
+                                                        </Button>
+                                                      );
+                                                    }
+                                                    if (isCourseType) {
+                                                      return (
+                                                        <Button
+                                                          size="sm"
+                                                          variant="outline"
+                                                          className="h-8 text-xs w-full"
+                                                          disabled={navigating}
+                                                          onClick={handleClick}
+                                                        >
+                                                          <Play className="h-3 w-3 mr-1" />
+                                                          {navigating
+                                                            ? "Loading…"
+                                                            : "Start Course"}
+                                                        </Button>
+                                                      );
+                                                    }
+                                                    const typeCtaLabel: Record<
+                                                      string,
+                                                      string
+                                                    > = {
+                                                      quiz: item.isCompleted
+                                                        ? "Retake Quiz"
+                                                        : "Take Quiz",
+                                                      exercise: item.isCompleted
+                                                        ? "Redo Exercise"
+                                                        : "Solve Exercise",
+                                                      project: item.isCompleted
+                                                        ? "View Project"
+                                                        : "Open Project",
+                                                      bootcamp: "Join Bootcamp",
+                                                      mock_interview:
+                                                        item.isCompleted
+                                                          ? "View Results"
+                                                          : "Start Interview",
+                                                      resource: "Open Resource",
+                                                    };
+                                                    const typeCtaIcon: Record<
+                                                      string,
+                                                      any
+                                                    > = {
+                                                      quiz: item.isCompleted
+                                                        ? RotateCcw
+                                                        : Brain,
+                                                      exercise: item.isCompleted
+                                                        ? RotateCcw
+                                                        : Code2,
+                                                      project: FolderOpen,
+                                                      bootcamp: Calendar,
+                                                      mock_interview:
+                                                        item.isCompleted
+                                                          ? RotateCcw
+                                                          : Video,
+                                                      resource: Link2,
+                                                    };
+                                                    const CtaIcon =
+                                                      typeCtaIcon[item.type] ??
+                                                      Play;
+                                                    const ctaLabel =
+                                                      typeCtaLabel[item.type] ??
+                                                      "Open";
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        variant={
+                                                          item.isCompleted
+                                                            ? "outline"
+                                                            : "default"
+                                                        }
+                                                        className="h-8 text-xs w-full"
+                                                        onClick={handleClick}
+                                                      >
+                                                        <CtaIcon className="h-3 w-3 mr-1" />
+                                                        {ctaLabel}
+                                                      </Button>
+                                                    );
+                                                  })()}
+                                              </div>
+                                            </AccordionContent>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  </AccordionItem>
+                                    </AccordionItem>
+                                    {/* Course sub-items: course-level quizzes and exercises */}
+                                    {(item.subItems ?? []).length > 0 && (
+                                      <div className="ml-6 space-y-1.5">
+                                        {(item.subItems ?? []).map((sub) => {
+                                          const subCfg =
+                                            typeConfig[sub.type] ??
+                                            typeConfig.quiz;
+                                          const subDotCls = item.isLocked
+                                            ? "bg-muted-foreground/20"
+                                            : subCfg.dotCls;
+                                          const handleSubClick = () => {
+                                            if (item.isLocked) return;
+                                            analytics.track(
+                                              "path_content_clicked",
+                                              {
+                                                pathId,
+                                                topicId: topic.id,
+                                                contentType: sub.type,
+                                                contentId: sub.id,
+                                                contentTitle: sub.title,
+                                              },
+                                            );
+                                            if (sub.type === "quiz") {
+                                              onNavigate?.(
+                                                routes.courseQuiz(
+                                                  sub.parentCourseId,
+                                                  sub.id,
+                                                ),
+                                              );
+                                            } else if (
+                                              sub.type === "exercise"
+                                            ) {
+                                              onNavigate?.(
+                                                routes.courseExercise(
+                                                  sub.parentCourseId,
+                                                  sub.id,
+                                                ),
+                                              );
+                                            }
+                                          };
+                                          return (
+                                            <button
+                                              key={sub.id}
+                                              onClick={handleSubClick}
+                                              disabled={item.isLocked}
+                                              className={`w-full flex items-center gap-2 pl-4 border-l-2 border-dashed border-border rounded-r-lg py-1.5 pr-2 text-left transition-colors ${item.isLocked ? "opacity-60 cursor-not-allowed" : "hover:bg-muted/50 cursor-pointer"}`}
+                                            >
+                                              <div
+                                                className={`w-2 h-2 rounded-full flex-shrink-0 ${subDotCls}`}
+                                              />
+                                              <span
+                                                className={`inline-block text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0 ${subCfg.badgeCls}`}
+                                              >
+                                                {subCfg.label}
+                                              </span>
+                                              <span className="text-xs text-muted-foreground truncate flex-1">
+                                                {sub.title}
+                                              </span>
+                                              {sub.isCompleted ? (
+                                                <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
+                                              ) : !item.isLocked ? (
+                                                <Play className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                              ) : null}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
                                 );
                               })}
                             </Accordion>
