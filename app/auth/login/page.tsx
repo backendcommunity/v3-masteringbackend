@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import type React from "react";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Eye, EyeOff, Github, ArrowLeft, Loader2 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/store/auth";
@@ -14,6 +14,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);

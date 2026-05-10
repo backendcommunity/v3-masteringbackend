@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import type React from "react";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { analytics } from "@/lib/analytics";
 import {
   Eye,
@@ -22,6 +22,14 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
   const searchParams = useSearchParams();
   const auth = useAuth();
   const router = useRouter();
