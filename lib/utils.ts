@@ -1,4 +1,3 @@
-import { useUser } from "@/hooks/use-user";
 import { clsx, type ClassValue } from "clsx";
 import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
@@ -104,17 +103,15 @@ export const handleShare = (title: string, url: string) => {
     const shareText = `I'm watching "${title}" on MasteringBackend. Check it out: ${url}`;
     navigator.clipboard.writeText(shareText);
     toast.success(
-      "Link copied to clipboard! You can now share it with your friends."
+      "Link copied to clipboard! You can now share it with your friends.",
     );
   }
 };
 
-export const formatDate = (date: string) => {
-  const user = useUser();
-
+export const formatDate = (date: string, dateFormat?: string) => {
   if (!date || date.includes("Free forever")) return date;
 
-  const format = user?.settings?.dateFormat ?? "mdy"; // Default to mdy if not set
+  const format = dateFormat ?? "mdy";
   const d = new Date(date);
   if (isNaN(d.getTime())) return date;
 
@@ -215,7 +212,7 @@ export function preprocessTerminalOutput(raw: string) {
 
 export function formatRelativeDate(
   dateString: string,
-  targetTimezone: string
+  targetTimezone: string,
 ): string {
   const now = new Date();
   const inputDate = new Date(dateString);
@@ -231,7 +228,7 @@ export function formatRelativeDate(
         hour: "numeric",
         minute: "numeric",
         second: "numeric",
-      }).format(d)
+      }).format(d),
     );
 
   const tzNow = convertToTZ(now);
@@ -240,7 +237,7 @@ export function formatRelativeDate(
   // Helpers
   const diffDays = Math.floor(
     (tzDate.getTime() - new Date(tzNow.toDateString()).getTime()) /
-      (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24),
   );
 
   const weekday = new Intl.DateTimeFormat("en-US", {

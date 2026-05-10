@@ -26,21 +26,26 @@ const VimeoPlayer = ({
   useEffect(() => {
     if (!playerRef.current) return;
 
-    // Create a new Vimeo player
+    // Guard: Vimeo SDK throws if id is missing/NaN
+    const videoId = Number(video.video);
+    if (!video.video || isNaN(videoId)) return;
+
+    // Reset per-video completion flag — useRef persists across renders
+    // so without this reset, subsequent videos never fire onComplete
+    completedRef.current = false;
+
     const player = new Player(playerRef.current, {
       autoplay: true,
-      id: Number(video.video),
+      id: videoId,
       byline: false,
       title: false,
       responsive: true,
-      // chromecast: false,
       muted: false,
       portrait: false,
     });
 
     player.play();
 
-    // Listen for events
     player.on("ended", () => {
       if (!completedRef.current) {
         completedRef.current = true;
@@ -49,26 +54,27 @@ const VimeoPlayer = ({
       onEnded?.();
     });
 
-    player.on("play", (s) => {
-      console.log("Video is playing");
+    player.on("play", () => {
       onPlay?.();
     });
 
     player.on("pause", () => {
-      console.log("Video is paused");
       onPause?.();
     });
 
     player.on("timeupdate", (data) => {
-      const progress = data.percent;
-      if (progress >= 0.9 && !completedRef.current) {
+      if (data.percent >= 0.9 && !completedRef.current) {
         completedRef.current = true;
         onComplete?.();
       }
     });
 
     return () => {
-      player.destroy(); // clean up
+      try {
+        player.destroy();
+      } catch {
+        // Vimeo SDK throws AbortError when destroying mid-operation — safe to ignore
+      }
     };
   }, [video]);
 
