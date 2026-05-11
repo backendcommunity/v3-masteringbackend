@@ -1603,9 +1603,6 @@ export function LearningPathDetailPage({
                     {topics.map((topic: any, topicIndex: number) => {
                       const isTopicCompleted = topic.completed === true;
                       const isTopicCurrent = topic.id === currentTopic?.id;
-                      const isTopicLocked =
-                        !isTopicCompleted && !isTopicCurrent;
-                      // && topicIndex > currentTopicIndex;
 
                       // Use pre-sorted flat contents from backend (mirrors build-roadmap-response.ts order)
                       let courseNum = 0;
@@ -1621,7 +1618,6 @@ export function LearningPathDetailPage({
                             description: item.summary || item.description || "",
                             num: isCourseOrWorkshop ? courseNum : undefined,
                             isCompleted: item.isCompleted ?? false,
-                            isLocked: isTopicLocked,
                             raw: item,
                           };
                         },
@@ -1642,7 +1638,7 @@ export function LearningPathDetailPage({
                             ) : isTopicCurrent ? (
                               <Play className="h-4 w-4 text-blue-600 flex-shrink-0" />
                             ) : (
-                              <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="h-4 w-4 rounded-full bg-muted-foreground/20 flex-shrink-0" />
                             )}
                             <p
                               className={`text-xs font-semibold uppercase tracking-wider flex-1 ${isTopicCompleted ? "text-green-700 dark:text-green-400" : isTopicCurrent ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground"}`}
@@ -1659,14 +1655,6 @@ export function LearningPathDetailPage({
                                 In Progress · {topic.progress ?? 0}%
                               </Badge>
                             )}
-                            {isTopicLocked && (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] text-muted-foreground"
-                              >
-                                Locked
-                              </Badge>
-                            )}
                           </div>
 
                           {/* Timeline items */}
@@ -1680,9 +1668,7 @@ export function LearningPathDetailPage({
                               {topicItems.map((item: any) => {
                                 const cfg =
                                   typeConfig[item.type] ?? typeConfig.course;
-                                const dotCls = item.isLocked
-                                  ? "bg-muted-foreground/30"
-                                  : cfg.dotCls;
+                                const dotCls = cfg.dotCls;
                                 const numBgCls = item.isCompleted
                                   ? "bg-green-600"
                                   : "bg-foreground";
@@ -1690,7 +1676,7 @@ export function LearningPathDetailPage({
                                   item.type === "course" ||
                                   item.type === "workshop";
                                 const isResourceType = item.type === "resource";
-                                const hasAction = !item.isLocked;
+                                const hasAction = true;
                                 return (
                                   <AccordionItem
                                     key={item.id}
@@ -1701,9 +1687,7 @@ export function LearningPathDetailPage({
                                       <div
                                         className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
                                       />
-                                      <div
-                                        className={`flex-1 rounded-xl border bg-card shadow-sm overflow-hidden ${item.isLocked ? "border-dashed opacity-70" : ""}`}
-                                      >
+                                      <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
                                         <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
                                           <div className="space-y-1.5 text-left flex-1 pr-2">
                                             <div className="flex items-center gap-2 flex-wrap">
