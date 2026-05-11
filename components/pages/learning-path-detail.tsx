@@ -1844,7 +1844,7 @@ export function LearningPathDetailPage({
                                                         break;
                                                       case "mock_interview":
                                                         onNavigate?.(
-                                                          routes.mockInterviewDetail(
+                                                          routes.mockInterviewBooking(
                                                             item.id,
                                                           ),
                                                         );
