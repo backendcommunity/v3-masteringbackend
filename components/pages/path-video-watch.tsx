@@ -345,7 +345,6 @@ export function RoadmapVideoWatchPage({
           courseId: course.slug,
         });
         toast.success("You just earned some points!");
-        setCelebration(true);
         return;
       }
 
@@ -360,7 +359,7 @@ export function RoadmapVideoWatchPage({
       });
 
       toast.success("You just earned some points!");
-      setCelebration(true);
+      // setCelebration(true);
     } catch (error) {
       toast.error("Unable to update video progress. Please try again.");
     } finally {
