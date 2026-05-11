@@ -291,6 +291,51 @@ export function LearningPathDetailPage({
   } | null>(null);
   // Cache milestone per topicId to avoid re-fetching when user clicks Continue
   const milestoneCache = useRef<Record<string, any>>({});
+  const typeConfig: Record<
+    string,
+    { label: string; badgeCls: string; dotCls: string }
+  > = {
+    course: {
+      label: "Course",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-foreground/20",
+    },
+    workshop: {
+      label: "Workshop",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    quiz: {
+      label: "Skill Assessment",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    project: {
+      label: "Project",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    exercise: {
+      label: "Coding Exercise",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    mock_interview: {
+      label: "Mock Interview",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    bootcamp: {
+      label: "Live Workshop",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    resource: {
+      label: "Resource",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+  };
 
   const loadData = async () => {
     try {
@@ -837,7 +882,7 @@ export function LearningPathDetailPage({
 
             {/* Curriculum Preview */}
             <Card>
-              <CardHeader>
+              {/* <CardHeader>
                 <CardTitle>Learning Path Curriculum</CardTitle>
                 <CardDescription>
                   {topics.reduce(
@@ -856,62 +901,62 @@ export function LearningPathDetailPage({
                   ) > 0 &&
                     ` · ${topics.reduce((s: number, t: any) => s + (t.projects?.length || 0), 0)} projects`}
                 </CardDescription>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent className="px-0 pt-0">
                 {(() => {
-                  const typeConfig: Record<
-                    string,
-                    { label: string; badgeCls: string; dotCls: string }
-                  > = {
-                    course: {
-                      label: "Course",
-                      badgeCls:
-                        "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
-                      dotCls: "bg-foreground",
-                    },
-                    workshop: {
-                      label: "Workshop",
-                      badgeCls:
-                        "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
-                      dotCls: "bg-teal-500",
-                    },
-                    quiz: {
-                      label: "Skill Assessment",
-                      badgeCls:
-                        "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
-                      dotCls: "bg-indigo-500",
-                    },
-                    project: {
-                      label: "Project",
-                      badgeCls:
-                        "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
-                      dotCls: "bg-green-500",
-                    },
-                    exercise: {
-                      label: "Coding Exercise",
-                      badgeCls:
-                        "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
-                      dotCls: "bg-emerald-500",
-                    },
-                    mock_interview: {
-                      label: "Mock Interview",
-                      badgeCls:
-                        "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300",
-                      dotCls: "bg-red-500",
-                    },
-                    bootcamp: {
-                      label: "Live Workshop",
-                      badgeCls:
-                        "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
-                      dotCls: "bg-amber-500",
-                    },
-                    resource: {
-                      label: "Resource",
-                      badgeCls:
-                        "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
-                      dotCls: "bg-slate-400",
-                    },
-                  };
+                  // const typeConfig: Record<
+                  //   string,
+                  //   { label: string; badgeCls: string; dotCls: string }
+                  // > = {
+                  //   course: {
+                  //     label: "Course",
+                  //     badgeCls:
+                  //       "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+                  //     dotCls: "bg-foreground",
+                  //   },
+                  //   workshop: {
+                  //     label: "Workshop",
+                  //     badgeCls:
+                  //       "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
+                  //     dotCls: "bg-teal-500",
+                  //   },
+                  //   quiz: {
+                  //     label: "Skill Assessment",
+                  //     badgeCls:
+                  //       "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
+                  //     dotCls: "bg-indigo-500",
+                  //   },
+                  //   project: {
+                  //     label: "Project",
+                  //     badgeCls:
+                  //       "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+                  //     dotCls: "bg-green-500",
+                  //   },
+                  //   exercise: {
+                  //     label: "Coding Exercise",
+                  //     badgeCls:
+                  //       "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+                  //     dotCls: "bg-emerald-500",
+                  //   },
+                  //   mock_interview: {
+                  //     label: "Mock Interview",
+                  //     badgeCls:
+                  //       "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300",
+                  //     dotCls: "bg-red-500",
+                  //   },
+                  //   bootcamp: {
+                  //     label: "Live Workshop",
+                  //     badgeCls:
+                  //       "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
+                  //     dotCls: "bg-amber-500",
+                  //   },
+                  //   resource: {
+                  //     label: "Resource",
+                  //     badgeCls:
+                  //       "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
+                  //     dotCls: "bg-slate-400",
+                  //   },
+                  // };
                   return (
                     <div>
                       {topics.map((topic: any) => {
@@ -1367,7 +1412,7 @@ export function LearningPathDetailPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
           <p className="text-muted-foreground">
-            {currentTopicIndex + 1} of {topics.length} • {progress}% Complete
+            {stripHtmlTags(roadmap.summary || "")}
           </p>
         </div>
       </div>
@@ -1536,92 +1581,52 @@ export function LearningPathDetailPage({
 
           {/* Learning Path Timeline */}
           <Card>
-            <CardHeader>
+            {/* <CardHeader>
               <CardTitle>Learning Timeline</CardTitle>
               <CardDescription>
                 Your progress through topics and courses
               </CardDescription>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent className="px-0 pt-0">
               {/* Unified topic-grouped learning timeline */}
               {(() => {
-                const typeConfig: Record<
-                  string,
-                  { label: string; badgeCls: string; dotCls: string }
-                > = {
-                  course: {
-                    label: "Course",
-                    badgeCls:
-                      "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
-                    dotCls: "bg-foreground",
-                  },
-                  workshop: {
-                    label: "Workshop",
-                    badgeCls:
-                      "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
-                    dotCls: "bg-teal-500",
-                  },
-                  quiz: {
-                    label: "Skill Assessment",
-                    badgeCls:
-                      "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
-                    dotCls: "bg-indigo-500",
-                  },
-                  project: {
-                    label: "Project",
-                    badgeCls:
-                      "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
-                    dotCls: "bg-green-500",
-                  },
-                  exercise: {
-                    label: "Coding Exercise",
-                    badgeCls:
-                      "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
-                    dotCls: "bg-emerald-500",
-                  },
-                  mock_interview: {
-                    label: "Mock Interview",
-                    badgeCls:
-                      "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300",
-                    dotCls: "bg-red-500",
-                  },
-                  bootcamp: {
-                    label: "Live Workshop",
-                    badgeCls:
-                      "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
-                    dotCls: "bg-amber-500",
-                  },
-                  resource: {
-                    label: "Resource",
-                    badgeCls:
-                      "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
-                    dotCls: "bg-slate-400",
-                  },
-                };
                 return (
                   <div>
-                    {topics.map((topic: any, topicIndex: number) => {
+                    {topics.map((topic: any) => {
                       const isTopicCompleted = topic.completed === true;
                       const isTopicCurrent = topic.id === currentTopic?.id;
 
                       // Use pre-sorted flat contents from backend (mirrors build-roadmap-response.ts order)
                       let courseNum = 0;
-                      const topicItems = (topic.sortedContents || []).map(
-                        (item: any) => {
-                          const isCourseOrWorkshop =
-                            item.type === "course" || item.type === "workshop";
-                          if (isCourseOrWorkshop) courseNum++;
-                          return {
-                            id: item.id,
-                            type: item.type,
-                            title: item.title,
-                            description: item.summary || item.description || "",
-                            num: isCourseOrWorkshop ? courseNum : undefined,
-                            isCompleted: item.isCompleted ?? false,
-                            raw: item,
-                          };
-                        },
-                      );
+                      const topicItems = [
+                        ...(topic.sortedContents || []),
+
+                        // FOr testing other content types without modifying backend data structure
+                        // {
+                        //   id: "asa",
+                        //   type: "resource",
+                        //   title: "Test",
+                        //   description: "Test description",
+                        //   num: undefined,
+                        //   isCompleted: false,
+                        //   raw: {},
+                        // },
+                      ].map((item: any) => {
+                        const isCourseOrWorkshop =
+                          item.type === "course" || item.type === "workshop";
+
+                        if (isCourseOrWorkshop) courseNum++;
+
+                        return {
+                          id: item.id,
+                          type: item.type,
+                          title: item.title,
+                          description: item.summary || item.description || "",
+                          num: isCourseOrWorkshop ? courseNum : undefined,
+                          isCompleted: item.isCompleted ?? false,
+                          raw: item,
+                        };
+                      });
                       if (topicItems.length === 0) return null;
 
                       return (
@@ -1650,11 +1655,11 @@ export function LearningPathDetailPage({
                                 Complete
                               </Badge>
                             )}
-                            {isTopicCurrent && (
+                            {/* {isTopicCurrent && (
                               <Badge className="bg-blue-600 text-[10px]">
                                 In Progress · {topic.progress ?? 0}%
                               </Badge>
-                            )}
+                            )} */}
                           </div>
 
                           {/* Timeline items */}
@@ -2124,11 +2129,8 @@ export function LearningPathDetailPage({
 
           {/* Your Investment */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Your Investment</CardTitle>
-            </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
                     Topics completed
@@ -2151,20 +2153,20 @@ export function LearningPathDetailPage({
                     {currentTopicIndex + 1} of {topics.length}
                   </span>
                 </div>
-              </div>
-              {completedTopics.length > 0 && (
-                <>
-                  <Separator />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Zap className="h-3 w-3" /> XP earned
-                    </span>
-                    <span className="font-semibold text-yellow-600">
-                      {completedTopics.length * 50} MB
-                    </span>
-                  </div>
-                </>
-              )}
+              </div> */}
+              {/* {completedTopics.length > 0 && (
+              <>
+                <Separator />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Zap className="h-3 w-3" /> XP earned
+                  </span>
+                  <span className="font-semibold text-yellow-600">
+                    {completedTopics.length * 50} MB
+                  </span>
+                </div>
+              </>
+               )} */}
               {roadmap.students > 0 && (
                 <>
                   <Separator />

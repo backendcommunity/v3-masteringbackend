@@ -133,14 +133,11 @@ export function PathPreviewDialog({
 
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-0">
-          <div className="flex items-center gap-2 mb-1">
+          {/* <div className="flex items-center gap-2 mb-1">
             <div className="w-6 h-6 rounded-md flex items-center justify-center bg-[#13AECE]/10">
               <Sparkles className="h-3.5 w-3.5 text-[#13AECE]" />
             </div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-[#13AECE]">
-              Free Preview
-            </span>
-          </div>
+          </div> */}
           <DialogTitle className="text-xl font-bold text-foreground leading-tight">
             {roadmap?.title}
           </DialogTitle>
