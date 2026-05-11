@@ -905,7 +905,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     input: any,
   ) => {
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}`,
+      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}/complete`,
       input,
     );
     return data?.data;

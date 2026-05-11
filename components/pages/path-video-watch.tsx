@@ -339,6 +339,16 @@ export function RoadmapVideoWatchPage({
     // Backend update with proper `isChapterCompleted`
 
     try {
+      if (isChapterCompleted) {
+        await store.markRoadmapItemCompleted(slug, topicId, course.slug, {
+          type: "COURSE",
+          courseId: course.slug,
+        });
+        toast.success("You just earned some points!");
+        setCelebration(true);
+        return;
+      }
+
       await store.markRoadmapVideoCompleted(slug, topicId, {
         itemId: currentVideo.id,
         type: "VIDEO",
