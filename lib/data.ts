@@ -15,6 +15,7 @@ export interface UserRoadmap {
   isPreview: boolean;
   isCompleted: boolean;
   currentTopicId?: string;
+  roadmap?: any;
   currentUserTopicId?: string;
   createdAt: string;
   updatedAt: string;

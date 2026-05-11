@@ -30,6 +30,7 @@ interface FreeItem {
 interface PathPreviewDialogProps {
   open: boolean;
   onClose: () => void;
+  onEnroll: () => void;
   roadmap: any;
   topics: any[];
   pathId: string;
@@ -40,6 +41,7 @@ interface PathPreviewDialogProps {
 export function PathPreviewDialog({
   open,
   onClose,
+  onEnroll,
   roadmap,
   topics,
   pathId,
@@ -282,7 +284,7 @@ export function PathPreviewDialog({
             </p>
             <Button
               className="w-full h-11 font-semibold text-sm text-white bg-[#13AECE] hover:bg-[#0FA3C4]"
-              onClick={onClose}
+              onClick={onEnroll}
             >
               Get Full Access
               <ArrowRight className="h-4 w-4 ml-2" />

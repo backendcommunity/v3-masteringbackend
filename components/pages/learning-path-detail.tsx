@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
+import ConfettiCelebration from "../confetti-celebration";
 
 // Type definitions for multi-content timeline
 type ContentItemType =
@@ -280,6 +281,7 @@ export function LearningPathDetailPage({
   const [certificate, setCertificate] = useState<any>(null);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [celebration, setCelebration] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
     type: string;
     title: string;
@@ -385,16 +387,23 @@ export function LearningPathDetailPage({
           return;
         }
 
+        // Just to make first start access faster
+        const userRoadmap = enrollResult?.userRoadmap;
+        milestoneCache.current[userRoadmap?.currentTopicId] =
+          userRoadmap?.currentTopic;
+
+        const updated = await store.getRoadmapBySlug(pathId);
+        setRoadmap(updated);
+        setUserRoadmap(updated?.userRoadmap ?? null);
+
+        setCelebration(true);
+        setShowWelcomeDialog(true);
+
         analytics.track("path_enrolled", {
           pathId,
           pathTitle: roadmap?.title,
           method: "direct",
         });
-        setShowWelcomeDialog(true);
-
-        const updated = await store.getRoadmapBySlug(pathId);
-        setRoadmap(updated);
-        setUserRoadmap(updated?.userRoadmap ?? null);
       } catch (error: any) {
         const errorMsg =
           error?.response?.data?.message ||
@@ -444,29 +453,37 @@ export function LearningPathDetailPage({
     }
   };
 
-  // Preview enrollment — enroll with isPreview:true then proceed (open dialog or navigate to free course)
-  const handlePreviewEnroll = async (afterEnroll: () => void) => {
+  // Preview enrollment — optimistically proceed immediately, enroll in background.
+  // The enrollment API is fire-and-forget for preview: user shouldn't wait for a
+  // DB write before seeing content they're already allowed to access.
+  const handlePreviewEnroll = (afterEnroll: () => void) => {
     if (isEnrolled) {
-      // Already enrolled (preview or full) — just proceed
       afterEnroll();
       return;
     }
-    setEnrolling(true);
-    try {
-      await store.enrollInRoadmap(pathId, true);
-      const updated = await store.getRoadmapBySlug(pathId);
-      setRoadmap(updated);
-      setUserRoadmap(updated?.userRoadmap ?? null);
-      afterEnroll();
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to start preview";
-      toast.error(msg);
-    } finally {
-      setEnrolling(false);
-    }
+
+    // Optimistically mark as preview-enrolled so derived state updates instantly
+    setUserRoadmap({ isPreview: true });
+    afterEnroll();
+
+    // Background enrollment — silent on success, subtle toast on failure
+    store
+      .enrollInRoadmap(pathId, true)
+      .then(() => {
+        store.getRoadmapBySlug(pathId).then((updated: any) => {
+          if (updated) {
+            setRoadmap(updated);
+            setUserRoadmap(updated?.userRoadmap ?? { isPreview: true });
+          }
+        });
+      })
+      .catch((error: any) => {
+        const msg =
+          error?.response?.data?.message === "You're already enrolled."
+            ? null // Not an error — concurrent click or page reload race
+            : "Failed to enroll in preview mode. Please refresh the page and try again.";
+        if (msg) toast.error(msg);
+      });
   };
 
   // Deep-link to the exact video where the user left off
@@ -613,7 +630,9 @@ export function LearningPathDetailPage({
             </div>
           </div>
           {(status === "completed" || status === "current") && (
-            <Badge className={`${statusColor} text-xs flex-shrink-0 text-white`}>
+            <Badge
+              className={`${statusColor} text-xs flex-shrink-0 text-white`}
+            >
               {status === "completed" ? "✓ Done" : "In Progress"}
             </Badge>
           )}
@@ -1077,7 +1096,8 @@ export function LearningPathDetailPage({
                         const rawContents: any[] = topic.sortedContents || [];
                         let courseNum = 0;
                         const topicItems = rawContents.map((item: any) => {
-                          const isCourseOrWorkshop = item.type === "course" || item.type === "workshop";
+                          const isCourseOrWorkshop =
+                            item.type === "course" || item.type === "workshop";
                           if (isCourseOrWorkshop) courseNum++;
                           return {
                             id: item.id,
@@ -1135,7 +1155,10 @@ export function LearningPathDetailPage({
                                               <div className="flex items-center gap-2">
                                                 {item.num !== undefined && (
                                                   <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                                    {String(item.num).padStart(2, "0")}
+                                                    {String(item.num).padStart(
+                                                      2,
+                                                      "0",
+                                                    )}
                                                   </span>
                                                 )}
                                                 <span className="font-bold text-sm leading-snug">
@@ -1147,7 +1170,9 @@ export function LearningPathDetailPage({
                                           {item.description && (
                                             <AccordionContent className="px-4 pb-4 pt-0">
                                               <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
-                                                {stripHtmlTags(item.description)}
+                                                {stripHtmlTags(
+                                                  item.description,
+                                                )}
                                               </p>
                                             </AccordionContent>
                                           )}
@@ -1341,7 +1366,10 @@ export function LearningPathDetailPage({
                     {
                       value: topics.reduce(
                         (s: number, t: any) =>
-                          s + (t.sortedContents?.filter((i: any) => i.type === "quiz").length || 0),
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "quiz",
+                          ).length || 0),
                         0,
                       ),
                       label: "Quizzes",
@@ -1351,7 +1379,10 @@ export function LearningPathDetailPage({
                     {
                       value: topics.reduce(
                         (s: number, t: any) =>
-                          s + (t.sortedContents?.filter((i: any) => i.type === "workshop").length || 0),
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "workshop",
+                          ).length || 0),
                         0,
                       ),
                       label: "Live Workshops",
@@ -1361,7 +1392,10 @@ export function LearningPathDetailPage({
                     {
                       value: topics.reduce(
                         (s: number, t: any) =>
-                          s + (t.sortedContents?.filter((i: any) => i.type === "exercise").length || 0),
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "exercise",
+                          ).length || 0),
                         0,
                       ),
                       label: "Coding Exercises",
@@ -1371,7 +1405,10 @@ export function LearningPathDetailPage({
                     {
                       value: topics.reduce(
                         (s: number, t: any) =>
-                          s + (t.sortedContents?.filter((i: any) => i.type === "resource").length || 0),
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "resource",
+                          ).length || 0),
                         0,
                       ),
                       label: "Resources",
@@ -1468,6 +1505,10 @@ export function LearningPathDetailPage({
         <PathPreviewDialog
           open={showPreviewDialog}
           onClose={() => setShowPreviewDialog(false)}
+          onEnroll={() => {
+            handleEnroll();
+            setShowPreviewDialog(false);
+          }}
           roadmap={roadmap}
           topics={topics}
           pathId={pathId}
@@ -1745,20 +1786,23 @@ export function LearningPathDetailPage({
 
                       // Use pre-sorted flat contents from backend (mirrors build-roadmap-response.ts order)
                       let courseNum = 0;
-                      const topicItems = (topic.sortedContents || []).map((item: any) => {
-                        const isCourseOrWorkshop = item.type === "course" || item.type === "workshop";
-                        if (isCourseOrWorkshop) courseNum++;
-                        return {
-                          id: item.id,
-                          type: item.type,
-                          title: item.title,
-                          description: item.summary || item.description || "",
-                          num: isCourseOrWorkshop ? courseNum : undefined,
-                          isCompleted: item.isCompleted ?? false,
-                          isLocked: isTopicLocked,
-                          raw: item,
-                        };
-                      });
+                      const topicItems = (topic.sortedContents || []).map(
+                        (item: any) => {
+                          const isCourseOrWorkshop =
+                            item.type === "course" || item.type === "workshop";
+                          if (isCourseOrWorkshop) courseNum++;
+                          return {
+                            id: item.id,
+                            type: item.type,
+                            title: item.title,
+                            description: item.summary || item.description || "",
+                            num: isCourseOrWorkshop ? courseNum : undefined,
+                            isCompleted: item.isCompleted ?? false,
+                            isLocked: isTopicLocked,
+                            raw: item,
+                          };
+                        },
+                      );
                       if (topicItems.length === 0) return null;
 
                       return (
@@ -1829,276 +1873,312 @@ export function LearningPathDetailPage({
                                     key={item.id}
                                     value={item.id}
                                     className="border-0"
-                                    >
-                                      <div className="flex items-start gap-3">
-                                        <div
-                                          className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
-                                        />
-                                        <div
-                                          className={`flex-1 rounded-xl border bg-card shadow-sm overflow-hidden ${item.isLocked ? "border-dashed opacity-70" : ""}`}
-                                        >
-                                          <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
-                                            <div className="space-y-1.5 text-left flex-1 pr-2">
-                                              <div className="flex items-center gap-2 flex-wrap">
-                                                <span
-                                                  className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
-                                                >
-                                                  {cfg.label}
-                                                </span>
-                                                {item.isCompleted && (
-                                                  <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
-                                                    ✓ Done
-                                                  </Badge>
-                                                )}
-                                                {isTopicCurrent &&
-                                                  !item.isCompleted &&
-                                                  isCourseType && (
-                                                    <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
-                                                      In Progress
-                                                    </Badge>
-                                                  )}
-                                              </div>
-                                              <div className="flex items-center gap-2">
-                                                {item.num !== undefined && (
-                                                  <span
-                                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
-                                                  >
-                                                    {String(item.num).padStart(
-                                                      2,
-                                                      "0",
-                                                    )}
-                                                  </span>
-                                                )}
-                                                <span className="font-bold text-sm leading-snug">
-                                                  {item.title}
-                                                </span>
-                                                {isResourceType &&
-                                                  !item.isLocked && (
-                                                    <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                                  )}
-                                              </div>
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div
+                                        className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
+                                      />
+                                      <div
+                                        className={`flex-1 rounded-xl border bg-card shadow-sm overflow-hidden ${item.isLocked ? "border-dashed opacity-70" : ""}`}
+                                      >
+                                        <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                          <div className="space-y-1.5 text-left flex-1 pr-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span
+                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
+                                              >
+                                                {cfg.label}
+                                              </span>
+                                              {item.isCompleted && (
+                                                <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
+                                                  ✓ Done
+                                                </Badge>
+                                              )}
                                               {isTopicCurrent &&
                                                 !item.isCompleted &&
                                                 isCourseType && (
-                                                  <div className="space-y-1">
-                                                    <Progress
-                                                      value={
-                                                        topic.progress ?? 0
-                                                      }
-                                                      className="h-1.5"
-                                                    />
-                                                    <p className="text-xs text-blue-600 font-medium">
-                                                      {topic.progress ?? 0}%
-                                                      complete
-                                                    </p>
-                                                  </div>
+                                                  <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
+                                                    In Progress
+                                                  </Badge>
                                                 )}
                                             </div>
-                                          </AccordionTrigger>
-                                          {(item.description || hasAction) && (
-                                            <AccordionContent className="px-4 pb-4 pt-0">
-                                              <div className="border-t pt-3 space-y-3">
-                                                {item.description && (
-                                                  <p className="text-sm text-muted-foreground leading-relaxed">
-                                                    {stripHtmlTags(
-                                                      item.description,
-                                                    )}
-                                                  </p>
+                                            <div className="flex items-center gap-2">
+                                              {item.num !== undefined && (
+                                                <span
+                                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                                >
+                                                  {String(item.num).padStart(
+                                                    2,
+                                                    "0",
+                                                  )}
+                                                </span>
+                                              )}
+                                              <span className="font-bold text-sm leading-snug">
+                                                {item.title}
+                                              </span>
+                                              {isResourceType &&
+                                                !item.isLocked && (
+                                                  <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                                                 )}
-                                                {/* CTA button per type */}
-                                                {hasAction &&
-                                                  (() => {
-                                                    const handleClick = () => {
-                                                      analytics.track(
-                                                        item.isCompleted
-                                                          ? "path_completed_content_reviewed"
-                                                          : "path_content_clicked",
-                                                        {
-                                                          pathId,
-                                                          topicId: topic.id,
-                                                          contentType:
-                                                            item.type,
-                                                          contentId: item.id,
-                                                          contentTitle:
-                                                            item.title,
-                                                        },
-                                                      );
-                                                      switch (item.type) {
-                                                        case "course":
-                                                        case "workshop":
-                                                          navigateToFirstUncompletedVideo(
-                                                            topic.id,
-                                                            item.isCompleted
-                                                              ? [item.raw]
-                                                              : (topic.courses ??
-                                                                  []),
-                                                          );
-                                                          break;
-                                                        case "quiz":
-                                                          if (item.raw?.parentCourseId) {
-                                                            onNavigate?.(routes.courseQuiz(item.raw.parentCourseId, item.id));
-                                                          } else {
-                                                            onNavigate?.(routes.pathQuiz(pathId, topic.id, item.id));
-                                                          }
-                                                          break;
-                                                        case "exercise":
-                                                          if (item.raw?.parentCourseId) {
-                                                            onNavigate?.(routes.courseExercise(item.raw.parentCourseId, item.id));
-                                                          } else {
-                                                            onNavigate?.(routes.pathExercise(pathId, topic.id, item.id));
-                                                          }
-                                                          break;
-                                                        case "project":
-                                                          if (item.raw?.slug)
-                                                            onNavigate?.(
-                                                              routes.projectDetail(
-                                                                item.raw.slug,
-                                                              ),
-                                                            );
-                                                          break;
-                                                        case "bootcamp":
-                                                          if (item.raw?.slug)
-                                                            onNavigate?.(
-                                                              routes.bootcampDetail(
-                                                                item.raw.slug,
-                                                              ),
-                                                            );
-                                                          break;
-                                                        case "mock_interview":
+                                            </div>
+                                            {isTopicCurrent &&
+                                              !item.isCompleted &&
+                                              isCourseType && (
+                                                <div className="space-y-1">
+                                                  <Progress
+                                                    value={topic.progress ?? 0}
+                                                    className="h-1.5"
+                                                  />
+                                                  <p className="text-xs text-blue-600 font-medium">
+                                                    {topic.progress ?? 0}%
+                                                    complete
+                                                  </p>
+                                                </div>
+                                              )}
+                                          </div>
+                                        </AccordionTrigger>
+                                        {(item.description || hasAction) && (
+                                          <AccordionContent className="px-4 pb-4 pt-0">
+                                            <div className="border-t pt-3 space-y-3">
+                                              {item.description && (
+                                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                                  {stripHtmlTags(
+                                                    item.description,
+                                                  )}
+                                                </p>
+                                              )}
+                                              {/* CTA button per type */}
+                                              {hasAction &&
+                                                (() => {
+                                                  const handleClick = () => {
+                                                    analytics.track(
+                                                      item.isCompleted
+                                                        ? "path_completed_content_reviewed"
+                                                        : "path_content_clicked",
+                                                      {
+                                                        pathId,
+                                                        topicId: topic.id,
+                                                        contentType: item.type,
+                                                        contentId: item.id,
+                                                        contentTitle:
+                                                          item.title,
+                                                      },
+                                                    );
+                                                    switch (item.type) {
+                                                      case "course":
+                                                      case "workshop":
+                                                        navigateToFirstUncompletedVideo(
+                                                          topic.id,
+                                                          item.isCompleted
+                                                            ? [item.raw]
+                                                            : (topic.courses ??
+                                                                []),
+                                                        );
+                                                        break;
+                                                      case "quiz":
+                                                        if (
+                                                          item.raw
+                                                            ?.parentCourseId
+                                                        ) {
                                                           onNavigate?.(
-                                                            routes.mockInterviewDetail(
+                                                            routes.courseQuiz(
+                                                              item.raw
+                                                                .parentCourseId,
                                                               item.id,
                                                             ),
                                                           );
-                                                          break;
-                                                        case "resource": {
-                                                          const url = item.raw?.link || item.raw?.content || "";
-                                                          if (url.startsWith("http")) {
-                                                            window.open(url, "_blank", "noopener,noreferrer");
-                                                          }
-                                                          break;
+                                                        } else {
+                                                          onNavigate?.(
+                                                            routes.pathQuiz(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
                                                         }
+                                                        break;
+                                                      case "exercise":
+                                                        if (
+                                                          item.raw
+                                                            ?.parentCourseId
+                                                        ) {
+                                                          onNavigate?.(
+                                                            routes.courseExercise(
+                                                              item.raw
+                                                                .parentCourseId,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          onNavigate?.(
+                                                            routes.pathExercise(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        }
+                                                        break;
+                                                      case "project":
+                                                        if (item.raw?.slug)
+                                                          onNavigate?.(
+                                                            routes.projectDetail(
+                                                              item.raw.slug,
+                                                            ),
+                                                          );
+                                                        break;
+                                                      case "bootcamp":
+                                                        if (item.raw?.slug)
+                                                          onNavigate?.(
+                                                            routes.bootcampDetail(
+                                                              item.raw.slug,
+                                                            ),
+                                                          );
+                                                        break;
+                                                      case "mock_interview":
+                                                        onNavigate?.(
+                                                          routes.mockInterviewDetail(
+                                                            item.id,
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "resource": {
+                                                        const url =
+                                                          item.raw?.link ||
+                                                          item.raw?.content ||
+                                                          "";
+                                                        if (
+                                                          url.startsWith("http")
+                                                        ) {
+                                                          window.open(
+                                                            url,
+                                                            "_blank",
+                                                            "noopener,noreferrer",
+                                                          );
+                                                        }
+                                                        break;
                                                       }
-                                                    };
-                                                    const isCourseCompleted =
-                                                      item.isCompleted &&
-                                                      isCourseType;
-                                                    const isCourseInProgress =
-                                                      isTopicCurrent &&
-                                                      !item.isCompleted &&
-                                                      isCourseType;
-                                                    if (isCourseCompleted) {
-                                                      return (
-                                                        <Button
-                                                          size="sm"
-                                                          variant="outline"
-                                                          className="h-8 text-xs w-full"
-                                                          disabled={navigating}
-                                                          onClick={handleClick}
-                                                        >
-                                                          <RotateCcw className="h-3 w-3 mr-1" />
-                                                          {navigating
-                                                            ? "Loading…"
-                                                            : "Review Course"}
-                                                        </Button>
-                                                      );
                                                     }
-                                                    if (isCourseInProgress) {
-                                                      return (
-                                                        <Button
-                                                          size="sm"
-                                                          className="w-full h-8 text-xs"
-                                                          disabled={navigating}
-                                                          onClick={handleClick}
-                                                        >
-                                                          <Play className="h-3 w-3 mr-1" />
-                                                          {navigating
-                                                            ? "Loading…"
-                                                            : "Resume Learning"}
-                                                        </Button>
-                                                      );
-                                                    }
-                                                    if (isCourseType) {
-                                                      return (
-                                                        <Button
-                                                          size="sm"
-                                                          variant="outline"
-                                                          className="h-8 text-xs w-full"
-                                                          disabled={navigating}
-                                                          onClick={handleClick}
-                                                        >
-                                                          <Play className="h-3 w-3 mr-1" />
-                                                          {navigating
-                                                            ? "Loading…"
-                                                            : "Start Course"}
-                                                        </Button>
-                                                      );
-                                                    }
-                                                    const typeCtaLabel: Record<
-                                                      string,
-                                                      string
-                                                    > = {
-                                                      quiz: item.isCompleted
-                                                        ? "Retake Quiz"
-                                                        : "Take Quiz",
-                                                      exercise: item.isCompleted
-                                                        ? "Redo Exercise"
-                                                        : "Solve Exercise",
-                                                      project: item.isCompleted
-                                                        ? "View Project"
-                                                        : "Open Project",
-                                                      bootcamp: "Join Bootcamp",
-                                                      mock_interview:
-                                                        item.isCompleted
-                                                          ? "View Results"
-                                                          : "Start Interview",
-                                                      resource: "Open Resource",
-                                                    };
-                                                    const typeCtaIcon: Record<
-                                                      string,
-                                                      any
-                                                    > = {
-                                                      quiz: item.isCompleted
-                                                        ? RotateCcw
-                                                        : Brain,
-                                                      exercise: item.isCompleted
-                                                        ? RotateCcw
-                                                        : Code2,
-                                                      project: FolderOpen,
-                                                      bootcamp: Calendar,
-                                                      mock_interview:
-                                                        item.isCompleted
-                                                          ? RotateCcw
-                                                          : Video,
-                                                      resource: Link2,
-                                                    };
-                                                    const CtaIcon =
-                                                      typeCtaIcon[item.type] ??
-                                                      Play;
-                                                    const ctaLabel =
-                                                      typeCtaLabel[item.type] ??
-                                                      "Open";
+                                                  };
+                                                  const isCourseCompleted =
+                                                    item.isCompleted &&
+                                                    isCourseType;
+                                                  const isCourseInProgress =
+                                                    isTopicCurrent &&
+                                                    !item.isCompleted &&
+                                                    isCourseType;
+                                                  if (isCourseCompleted) {
                                                     return (
                                                       <Button
                                                         size="sm"
-                                                        variant={
-                                                          item.isCompleted
-                                                            ? "outline"
-                                                            : "default"
-                                                        }
+                                                        variant="outline"
                                                         className="h-8 text-xs w-full"
+                                                        disabled={navigating}
                                                         onClick={handleClick}
                                                       >
-                                                        <CtaIcon className="h-3 w-3 mr-1" />
-                                                        {ctaLabel}
+                                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Review Course"}
                                                       </Button>
                                                     );
-                                                  })()}
-                                              </div>
-                                            </AccordionContent>
-                                          )}
-                                        </div>
+                                                  }
+                                                  if (isCourseInProgress) {
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        className="w-full h-8 text-xs"
+                                                        disabled={navigating}
+                                                        onClick={handleClick}
+                                                      >
+                                                        <Play className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Resume Learning"}
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  if (isCourseType) {
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 text-xs w-full"
+                                                        disabled={navigating}
+                                                        onClick={handleClick}
+                                                      >
+                                                        <Play className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Start Course"}
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  const typeCtaLabel: Record<
+                                                    string,
+                                                    string
+                                                  > = {
+                                                    quiz: item.isCompleted
+                                                      ? "Retake Quiz"
+                                                      : "Take Quiz",
+                                                    exercise: item.isCompleted
+                                                      ? "Redo Exercise"
+                                                      : "Solve Exercise",
+                                                    project: item.isCompleted
+                                                      ? "View Project"
+                                                      : "Open Project",
+                                                    bootcamp: "Join Bootcamp",
+                                                    mock_interview:
+                                                      item.isCompleted
+                                                        ? "View Results"
+                                                        : "Start Interview",
+                                                    resource: "Open Resource",
+                                                  };
+                                                  const typeCtaIcon: Record<
+                                                    string,
+                                                    any
+                                                  > = {
+                                                    quiz: item.isCompleted
+                                                      ? RotateCcw
+                                                      : Brain,
+                                                    exercise: item.isCompleted
+                                                      ? RotateCcw
+                                                      : Code2,
+                                                    project: FolderOpen,
+                                                    bootcamp: Calendar,
+                                                    mock_interview:
+                                                      item.isCompleted
+                                                        ? RotateCcw
+                                                        : Video,
+                                                    resource: Link2,
+                                                  };
+                                                  const CtaIcon =
+                                                    typeCtaIcon[item.type] ??
+                                                    Play;
+                                                  const ctaLabel =
+                                                    typeCtaLabel[item.type] ??
+                                                    "Open";
+                                                  return (
+                                                    <Button
+                                                      size="sm"
+                                                      variant={
+                                                        item.isCompleted
+                                                          ? "outline"
+                                                          : "default"
+                                                      }
+                                                      className="h-8 text-xs w-full"
+                                                      onClick={handleClick}
+                                                    >
+                                                      <CtaIcon className="h-3 w-3 mr-1" />
+                                                      {ctaLabel}
+                                                    </Button>
+                                                  );
+                                                })()}
+                                            </div>
+                                          </AccordionContent>
+                                        )}
                                       </div>
+                                    </div>
                                   </AccordionItem>
                                 );
                               })}
@@ -2350,6 +2430,13 @@ export function LearningPathDetailPage({
         data={{ ...roadmap, type: "roadmap" }}
       />
 
+      <ConfettiCelebration
+        onComplete={() => setCelebration(false)}
+        isVisible={celebration}
+        celebrationType="enrollment"
+        courseName={roadmap?.title!}
+      />
+
       {/* Post-enrollment welcome dialog */}
       <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
         <DialogContent className="max-w-md text-center">
@@ -2394,7 +2481,17 @@ export function LearningPathDetailPage({
               className="w-full"
               onClick={() => {
                 setShowWelcomeDialog(false);
-                if (onNavigate) onNavigate(routes.pathContinue(pathId));
+
+                analytics.track("path_continue_clicked", {
+                  pathId,
+                  topicId: topics[0].id,
+                  topicTitle: topics[0].title,
+                  source: "current_card",
+                });
+                navigateToFirstUncompletedVideo(
+                  topics[0].id,
+                  topics[0].courses ?? [],
+                );
               }}
             >
               Start Now &rarr;
