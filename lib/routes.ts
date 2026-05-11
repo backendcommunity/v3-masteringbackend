@@ -96,7 +96,9 @@ export const routes = {
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,
   pathContinue: (pathId: string, topicId?: string) =>
-    topicId ? `/paths/${pathId}/continue#${topicId}` : `/paths/${pathId}/continue`,
+    topicId
+      ? `/paths/${pathId}/continue#${topicId}`
+      : `/paths/${pathId}/continue`,
   pathCoursePreview: (pathId: string, topicId: string, courseSlug: string) =>
     `/paths/${pathId}/${topicId}/${courseSlug}/preview`,
   pathVideoWatch: (
@@ -166,6 +168,7 @@ export const routes = {
   // Mock Interviews
   mockInterviews: "/mock-interviews",
   mockInterviewDetail: (id: string) => `/mock-interviews/${id}`,
+  mockInterviewBooking: (id: string) => `/mock-interviews/?id=${id}`,
   mockInterviewResults: (id: string) => `/mock-interviews/${id}/results`,
 
   // Portfolio
