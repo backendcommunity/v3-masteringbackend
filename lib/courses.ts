@@ -1,6 +1,11 @@
 import { api } from "./api";
 import { CoursesQuery } from "./data";
 
+export const fetchCoursesFilters = async (): Promise<any> => {
+  const { data } = await api.get("/courses/filters");
+  return data;
+};
+
 export const fetchCourses = async (queries?: CoursesQuery): Promise<any> => {
   const { data } = await api.get("/courses", {
     params: queries,

@@ -40,12 +40,14 @@ import {
   Week,
   UserLesson,
   Playground,
+  CourseFiltersData,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
   fetchCourse,
   fetchCourseQuizzes,
   fetchCourses,
+  fetchCoursesFilters,
   fetchUserCourse,
   fetchUserCourses,
   handleCourseEnrollment,
@@ -60,6 +62,7 @@ interface AppState {
   getUser: () => User | any;
   getPlan: (name: string) => any;
   getCourses: (queries?: CoursesQuery) => Course[] | any;
+  getCoursesFilters: () => Promise<CourseFiltersData>;
   getProject30s: (queries?: Project30Query) => Project30[] | any;
   getProject30: (slug: string) => Project30 | any;
   loadMyProject30s: (queries?: Project30Query) => Project30[] | any;
@@ -393,6 +396,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw error;
     }
   },
+
+  getCoursesFilters: async (): Promise<CourseFiltersData> => {
+    try {
+      const res = await fetchCoursesFilters();
+      return res.data as CourseFiltersData;
+    } catch (error) {
+      throw error;
+    }
+  },
   getUserCourses: async (queries?: CoursesQuery) => {
     try {
       const res = await fetchUserCourses(queries!);
@@ -661,7 +673,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/roadmaps?page=${filters?.skip}&size=${filters?.size}`,
     );
-    return data?.data?.roadmaps;
+    return data?.data;
   },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const {

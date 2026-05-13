@@ -52,7 +52,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         // getRoadmaps runs resolveRoadmaps server-side: returns r.enrolled,
         // r.progress (accurate completedTopics/total), r.students, r.userRoadmap
         // No need for a separate getUserRoadmaps call.
-        const roadmaps = await store.getRoadmaps({ skip: 0, size: 50 });
+        const result = await store.getRoadmaps({ skip: 0, size: 50 });
+        const roadmaps = result?.roadmaps ?? result ?? [];
 
         const merged = (roadmaps || []).map((r: any) => {
           const topics = r.topics || [];

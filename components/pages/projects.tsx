@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,20 +14,20 @@ import {
 import {
   Code2,
   Clock,
-  Calendar,
   Search,
   Play,
   CheckCircle2,
-  Users,
   Trophy,
   DownloadCloud,
+  BarChart2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { WIP } from "../WIP";
 import { useEffect, useState } from "react";
-import { Meta, Project } from "@/lib/data";
+import { Meta, Project, StarterKitItem } from "@/lib/data";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Loader } from "../ui/loader";
+import { FreeStarterSection } from "@/components/free-starter-section";
+import { getTagIcon } from "@/lib/tag-icons";
 
 interface ProjectsPageProps {
   onNavigate: (path: string) => void;
@@ -49,6 +42,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [loading, setLoading] = useState(false);
+  const [freeStarters, setFreeStarters] = useState<StarterKitItem[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +93,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
       if (!cancelled) {
         setProjects(projects.projects);
         setMeta(projects.meta);
+        setFreeStarters((projects as any).freeStarters ?? []);
         setLoading(false);
       }
     }
@@ -128,8 +123,8 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            className="w-full md:w-auto" 
+          <Button
+            className="w-full md:w-auto"
             variant={"outline"}
             onClick={() => onNavigate("/projects/leaderboard")}
           >
@@ -137,7 +132,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
             Global Leaderboard
           </Button>
 
-          <Button 
+          <Button
             className="w-full md:w-auto"
             onClick={() => onNavigate("/projects/submissions")}
           >
@@ -186,7 +181,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
             <div className="text-lg md:text-2xl font-bold">
               {
                 projects?.filter(
-                  (p) => p?.userProject && !p?.userProject?.completed
+                  (p) => p?.userProject && !p?.userProject?.completed,
                 )?.length
               }
             </div>
@@ -244,107 +239,116 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
         </div>
       </div>
 
+      {/* Free Starter Section */}
+      {freeStarters.length > 0 && (
+        <>
+          <FreeStarterSection items={freeStarters} type="project" />
+          <div className="relative flex items-center gap-4">
+            <div className="flex-1 border-t" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+              All Projects
+            </span>
+            <div className="flex-1 border-t" />
+          </div>
+        </>
+      )}
+
       {/* Projects Grid */}
       <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {projects?.map((project) => (
-          <Card key={project.slug} className="overflow-hidden">
-            <div className="aspect-video bg-muted">
-              <img
-                src={project?.banner || "/placeholder.svg"}
-                alt={project.title}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <CardHeader className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Badge
-                  variant={
-                    project?.level === "advance"
-                      ? "destructive"
-                      : project?.level === "intermediate"
-                      ? "default"
-                      : "secondary"
-                  }
-                  className="text-xs capitalize"
-                >
-                  {project?.level}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`text-xs ${
-                    project?.userProject && project?.userProject?.completed
-                      ? "border-green-600 text-green-600"
-                      : !project?.userProject?.completed
-                      ? "border-blue-600 text-blue-600"
-                      : "border-gray-600 text-gray-600"
-                  }`}
-                >
-                  {!project?.userProject
-                    ? "Not Started"
-                    : project?.userProject?.completed
-                    ? "Completed"
-                    : "In Progress"}
-                </Badge>
-              </div>
-              <CardTitle className="line-clamp-2 text-sm md:text-base">
+          <Card
+            key={project.slug}
+            className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onNavigate(`/projects/${project.slug}`)}
+          >
+            <CardHeader className="p-4 pb-3 flex-1 space-y-3">
+              {/* Type label */}
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Project
+              </p>
+
+              {/* Title */}
+              <CardTitle className="text-base font-bold line-clamp-2 leading-snug">
                 {project.title}
               </CardTitle>
-              <CardDescription
-                dangerouslySetInnerHTML={{ __html: project.summary }}
-                className="line-clamp-2 text-xs md:text-sm [&>p>*>span]:text-muted-foreground"
-              ></CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 md:space-y-4 p-4 pt-0">
-              <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 md:h-4 md:w-4" />
-                  {project.timeframe}
-                </div>
 
-                <div className="flex items-center gap-1">
-                  <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-                  {project.students}
-                </div>
+              {/* Level */}
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <BarChart2 className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="capitalize">
+                  {project.level ?? "All levels"}
+                </span>
               </div>
 
-              {project.enrolled && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span>Progress</span>
-                    <span>{project.progress}%</span>
-                  </div>
-                  <Progress value={project.progress} className="h-2" />
-                </div>
-              )}
+              {/* Description */}
+              <p
+                className="text-sm text-muted-foreground line-clamp-3"
+                dangerouslySetInnerHTML={{
+                  __html: project.summary ?? project.description,
+                }}
+              />
 
-              <div className="flex flex-wrap gap-1">
-                {project?.technologies?.slice(0, 3).map((tech) => (
-                  <Badge key={tech} variant="outline" className="text-xs">
-                    {tech}
-                  </Badge>
-                ))}
-                {project?.technologies?.length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{project?.technologies?.length - 3}
-                  </Badge>
+              {/* Progress if enrolled */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {(project as any).industries?.[0] ?? "Backend"}
+                </span>
+                {project.userProject && (
+                  <span className="text-xs text-muted-foreground">
+                    {project.userProject.completed
+                      ? "Completed"
+                      : "In Progress"}
+                  </span>
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1 text-xs md:text-sm"
-                  onClick={() => onNavigate(`/projects/${project.slug}`)}
-                >
-                  {project.enrolled ? "Continue Project" : "Start Project"}
-                </Button>
-                <Button
+              {/* First technology tag */}
+              {project.technologies?.length > 0 && (
+                <Badge
                   variant="outline"
-                  size="sm"
-                  onClick={() => onNavigate(`/projects/${project.slug}/leaderboard`)}
-                  title="View Project Leaderboard"
+                  className="text-[10px] uppercase tracking-wide w-fit"
                 >
-                  <Trophy className="h-4 w-4" />
-                </Button>
+                  {project.technologies[0]}
+                </Badge>
+              )}
+            </CardHeader>
+
+            {/* Footer */}
+            <CardContent className="p-4 pt-3 border-t">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground flex-shrink-0">
+                    {(() => {
+                      const Icon = getTagIcon(project.technologies);
+                      return <Icon className="h-4 w-4 text-background" />;
+                    })()}
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {project.timeframe ?? project.duration}
+                  </span>
+                </div>
+                {project.userProject ? (
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate(`/projects/${project.slug}/tasks`);
+                    }}
+                  >
+                    Continue
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate(`/projects/${project.slug}`);
+                    }}
+                  >
+                    Start
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

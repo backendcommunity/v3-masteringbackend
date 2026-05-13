@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,22 +15,31 @@ import {
 } from "@/components/ui/select";
 
 import {
-  Clock,
-  Users,
   Search,
-  Play,
   Crown,
   Code2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  BarChart2,
+  Play,
+  Clock,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Course, CourseFilterOptions, Meta, UserCourse } from "@/lib/data";
+import {
+  Course,
+  CourseFilterOptions,
+  CourseFiltersData,
+  Meta,
+  StarterKitItem,
+  UserCourse,
+} from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { Loader } from "../ui/loader";
+import { FreeStarterSection } from "@/components/free-starter-section";
+import { getTagIcon } from "@/lib/tag-icons";
 
 interface CoursesPageProps {
   onNavigate: (path: string) => void;
@@ -44,6 +47,14 @@ interface CoursesPageProps {
 }
 
 const PAGE_SIZE = 9;
+
+function toEnrolledCourse(uc: UserCourse): Course {
+  return {
+    ...(uc.course as Course),
+    enrolled: true,
+    progress: uc.progress ?? 0,
+  };
+}
 
 // ─── Professional Pagination ─────────────────────────────────────────────────
 
@@ -154,128 +165,100 @@ function CourseCard({
   onPreview: (slug: string) => void;
   onContinue: (slug: string) => void;
 }) {
+  const TagIcon = getTagIcon(course.tags);
   return (
-    <Card className="overflow-hidden relative">
-      <div
-        className="aspect-video bg-muted cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={() => onViewDetails(course.slug)}
-      >
-        <img
-          src={course?.banner ?? "/placeholder.svg"}
-          alt={course.title}
-          className="h-full w-full object-cover"
-        />
-      </div>
+    <Card
+      className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => onViewDetails(course.slug)}
+    >
+      <CardHeader className="p-4 pb-3 flex-1 space-y-3">
+        {/* Type label */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          {course.type === "WORKSHOP"
+            ? "Workshop"
+            : course.type === "VIDEO"
+              ? "Course"
+              : "Tutorial"}
+        </p>
 
-      <CardHeader className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <Badge
-            variant={
-              course?.level === "Advanced"
-                ? "destructive"
-                : course?.level === "Intermediate"
-                  ? "default"
-                  : "secondary"
-            }
-            className="text-xs"
-          >
-            {course?.level}
-          </Badge>
-
-          <Badge
-            className="uppercase text-xs"
-            variant={
-              course?.type === "WORKSHOP"
-                ? "purple"
-                : course?.type === "VIDEO"
-                  ? "default"
-                  : "success"
-            }
-          >
-            {course?.type === "WORKSHOP"
-              ? "Workshop"
-              : course?.type === "VIDEO"
-                ? "Course"
-                : "Tutorial"}
-          </Badge>
-        </div>
-        <CardTitle
-          className="line-clamp-2 cursor-pointer hover:text-primary transition-colors text-sm md:text-base"
-          onClick={() => onViewDetails(course.slug)}
-        >
+        {/* Title */}
+        <CardTitle className="text-base font-bold line-clamp-2 leading-snug">
           {course.title}
         </CardTitle>
-        <CardDescription
-          dangerouslySetInnerHTML={{
-            __html: course?.summary ?? course?.description,
-          }}
-          className="line-clamp-2 text-xs md:text-sm [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-        />
-      </CardHeader>
 
-      <CardContent className="space-y-3 md:space-y-4 p-4 pt-0">
-        <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3 md:h-4 md:w-4" />
-            {course?.totalDuration} hour{course?.totalDuration > 1 ? "s" : ""}
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="h-3 w-3 md:h-4 md:w-4" />
-            {course?.students?.toLocaleString()}
-          </div>
+        {/* Level */}
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <BarChart2 className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>{course.level ?? "All levels"}</span>
         </div>
 
-        {course?.enrolled ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs md:text-sm">
-              <span>Progress</span>
-              <span>{Math.floor(course?.progress ?? 0)}%</span>
-            </div>
-            <Progress value={course?.progress ?? 0} className="h-2" />
-            <Button
-              className="w-full text-xs md:text-sm"
-              onClick={() => onContinue(course.slug)}
-            >
-              <Play className="mr-2 h-3 w-3 md:h-4 md:w-4" />
-              Continue Learning
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              {course.isPremium && (
-                <Badge
-                  variant="outline"
-                  className="bg-green-100 text-green-800 border-green-200 text-xs"
-                >
-                  <Crown className="mr-1 h-3 w-3" />
-                  Included in Pro
-                </Badge>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPreview(course.slug)}
-                className="text-xs"
-              >
-                Preview
-              </Button>
-            </div>
-            <Button
-              className="w-full text-xs md:text-sm"
-              onClick={() => onViewDetails(course.slug)}
-            >
-              Start Learning
-            </Button>
-          </div>
-        )}
+        {/* Description */}
+        <p
+          className="text-sm text-muted-foreground line-clamp-3 [&>*>span]:!text-muted-foreground [&>p]:text-muted-foreground"
+          dangerouslySetInnerHTML={{
+            __html: course.summary ?? course.description,
+          }}
+        />
 
-        <div className="flex flex-wrap gap-1">
-          {course?.tags?.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
+        {/* Category + progress if enrolled */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">
+            {course.category?.name ?? "Backend"}
+          </span>
+          {course.enrolled && (
+            <span className="text-xs text-muted-foreground">
+              {Math.floor(course.progress ?? 0)}%
+            </span>
+          )}
+        </div>
+
+        {/* First tag badge */}
+        {course.tags?.length > 0 && (
+          <Badge
+            variant="outline"
+            className="text-[10px] uppercase tracking-wide w-fit"
+          >
+            {course.tags[0]}
+          </Badge>
+        )}
+      </CardHeader>
+
+      {/* Footer */}
+      <CardContent className="p-4 pt-3 border-t space-y-2">
+        {course.enrolled && (
+          <Progress value={course.progress ?? 0} className="h-1" />
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground flex-shrink-0">
+              <TagIcon className="h-4 w-4 text-background" />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {course.totalDuration} hr
+            </span>
+          </div>
+          {course.enrolled ? (
+            <Button
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onContinue(course.slug);
+              }}
+            >
+              Continue
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewDetails(course.slug);
+              }}
+            >
+              Start
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -292,6 +275,11 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [level, setLevel] = useState("");
   const [category, setCategory] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
+  const [filterOptions, setFilterOptions] = useState<CourseFiltersData>({
+    categories: [],
+    tags: [],
+  });
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [tab, setTab] = useState("all-courses");
@@ -302,6 +290,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const [meta, setMeta] = useState<Meta>();
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
+  const [freeStarters, setFreeStarters] = useState<StarterKitItem[]>([]);
 
   // My courses
   const [userCourses, setUserCourses] = useState<UserCourse[]>([]);
@@ -329,25 +318,53 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     }
   }, []);
 
-  // Debounce search input — only update searchQuery (the API trigger) after 350ms
+  // Debounce search — reset all filterable tabs to page 0
   const handleSearchInput = (value: string) => {
     setSearchInput(value);
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => {
       setSearchQuery(value);
       setPage(0);
+      setUserPage(0);
     }, 350);
   };
 
-  // Reset page when level / category change
   const handleLevelChange = (v: string) => {
     setLevel(v);
     setPage(0);
+    setUserPage(0);
   };
   const handleCategoryChange = (v: string) => {
     setCategory(v);
     setPage(0);
+    setUserPage(0);
   };
+  const handleTagChange = (v: string) => {
+    setSelectedTag(v);
+    setPage(0);
+    setUserPage(0);
+  };
+
+  const handleTabChange = (newTab: string) => {
+    setTab(newTab);
+    if (newTab === "my-courses") setUserPage(0);
+    if (newTab === "popular") setPopularPage(0);
+    if (newTab === "new") setNewPage(0);
+    if (newTab === "all-courses") setPage(0);
+  };
+
+  // Load filter options (categories + tags) once on mount
+  useEffect(() => {
+    store
+      .getCoursesFilters()
+      .then((filters) => {
+        setFilterOptions(filters || { categories: [], tags: [] });
+      })
+      .catch((error) => {
+        console.error("Failed to load course filters:", error);
+        // Keep empty filters as fallback
+      });
+  }, [store]);
 
   // ── All courses ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -358,6 +375,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
       if (searchQuery) filters.terms = searchQuery;
       if (level && level !== "all") filters.level = level;
       if (category && category !== "all") filters.category = category;
+      if (selectedTag && selectedTag !== "all") filters.tag = selectedTag;
 
       const res = await store.getCourses({
         size: String(PAGE_SIZE),
@@ -367,6 +385,16 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
       if (!cancelled) {
         setCourses(res?.courses ?? []);
         setMeta(res?.meta);
+        const hasFilters =
+          searchQuery ||
+          (level && level !== "all") ||
+          (category && category !== "all") ||
+          (selectedTag && selectedTag !== "all");
+        if (page === 0 && !hasFilters) {
+          setFreeStarters((res as any)?.freeStarters ?? []);
+        } else if (hasFilters) {
+          setFreeStarters([]);
+        }
         setLoading(false);
       }
     }
@@ -374,7 +402,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, level, category]);
+  }, [page, searchQuery, level, category, selectedTag]);
 
   // ── My courses ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -382,9 +410,14 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     let cancelled = false;
     async function load() {
       setUserLoading(true);
+      const filters: CourseFilterOptions = {};
+      if (searchQuery) filters.terms = searchQuery;
+      if (level && level !== "all") filters.level = level;
+      if (category && category !== "all") filters.category = category;
       const res = await store.getUserCourses({
         size: String(PAGE_SIZE),
         skip: String(userPage * PAGE_SIZE),
+        ...(Object.keys(filters).length && { filters }),
       });
       if (!cancelled) {
         setUserCourses(res?.userCourses ?? []);
@@ -396,7 +429,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [tab, userPage]);
+  }, [tab, userPage, searchQuery, level, category]);
 
   // ── Popular ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -452,7 +485,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     onNavigate(routes.courseDetail(slug));
 
   return (
-    <Tabs className="space-y-4" value={tab} onValueChange={setTab}>
+    <Tabs className="space-y-4" value={tab} onValueChange={handleTabChange}>
       <div className="flex-1 space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -579,9 +612,9 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               className="pl-8"
             />
           </div>
-          <div className="flex gap-2 sm:gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Select value={level} onValueChange={handleLevelChange}>
-              <SelectTrigger className="w-full sm:w-[140px] md:w-[180px]">
+              <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
               <SelectContent>
@@ -592,14 +625,29 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               </SelectContent>
             </Select>
             <Select value={category} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-full sm:w-[140px] md:w-[180px]">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="nodejs">Node.js</SelectItem>
-                <SelectItem value="database">Database</SelectItem>
-                <SelectItem value="api">API Design</SelectItem>
+                {filterOptions.categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedTag} onValueChange={handleTagChange}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tags</SelectItem>
+                {filterOptions.tags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -611,6 +659,18 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <Loader isLoader={false} />
           ) : (
             <>
+              {freeStarters.length > 0 && (
+                <>
+                  <FreeStarterSection items={freeStarters} type="course" />
+                  <div className="relative flex items-center gap-4">
+                    <div className="flex-1 border-t" />
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                      All Courses
+                    </span>
+                    <div className="flex-1 border-t" />
+                  </div>
+                </>
+              )}
               <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => (
                   <CourseCard
@@ -635,97 +695,13 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <>
               <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {userCourses.map((userCourse: UserCourse) => (
-                  <Card
+                  <CourseCard
                     key={userCourse.id}
-                    className="overflow-hidden relative"
-                  >
-                    <div
-                      className="aspect-video bg-muted cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() =>
-                        handleViewDetails(userCourse?.course?.slug!)
-                      }
-                    >
-                      <img
-                        src={userCourse?.course?.banner ?? "/placeholder.svg"}
-                        alt={userCourse?.course?.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-
-                    <CardHeader className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge
-                          variant={
-                            userCourse?.course?.level === "Advanced"
-                              ? "destructive"
-                              : userCourse?.course?.level === "Intermediate"
-                                ? "default"
-                                : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {userCourse?.course?.level}
-                        </Badge>
-                      </div>
-                      <CardTitle
-                        className="line-clamp-2 cursor-pointer hover:text-primary transition-colors text-sm md:text-base"
-                        onClick={() =>
-                          handleViewDetails(userCourse?.course?.slug!)
-                        }
-                      >
-                        {userCourse?.course?.title}
-                      </CardTitle>
-                      <CardDescription
-                        dangerouslySetInnerHTML={{
-                          __html: userCourse?.course?.description!,
-                        }}
-                        className="line-clamp-2 text-xs md:text-sm [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                      />
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 md:space-y-4 p-4 pt-0">
-                      <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 md:h-4 md:w-4" />
-                          {userCourse?.course?.totalDuration}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-3 w-3 md:h-4 md:w-4" />
-                          {userCourse?.course?.students}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs md:text-sm">
-                          <span>Progress</span>
-                          <span>{userCourse?.progress ?? 0}%</span>
-                        </div>
-                        <Progress
-                          value={userCourse?.progress ?? 0}
-                          className="h-2"
-                        />
-                        <Button
-                          className="w-full text-xs md:text-sm"
-                          onClick={() =>
-                            handleContinue(userCourse?.course?.slug!)
-                          }
-                        >
-                          <Play className="mr-2 h-3 w-3 md:h-4 md:w-4" />
-                          Continue Learning
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {userCourse?.course?.tags?.slice(0, 3).map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className="text-xs"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    course={toEnrolledCourse(userCourse)}
+                    onViewDetails={handleViewDetails}
+                    onPreview={handlePreview}
+                    onContinue={handleContinue}
+                  />
                 ))}
               </div>
               <Pagination

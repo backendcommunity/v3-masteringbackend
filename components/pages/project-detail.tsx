@@ -726,17 +726,6 @@ export function ProjectDetailPage({
                           ></article>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge
-                            variant={"outline"}
-                            className={`text-xs ${
-                              !projectTask.isPremium
-                                ? "border-green-600 text-green-600"
-                                : "border-orange-600 text-orange-600"
-                            }`}
-                          >
-                            {projectTask?.isPremium ? "Premium" : "Free"}
-                          </Badge>
-
                           <Badge variant="outline" className="text-xs">
                             {projectTask.tasks?.length} Task{""}
                             {projectTask.tasks?.length > 1 ? "s" : ""}

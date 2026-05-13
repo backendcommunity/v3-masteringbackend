@@ -438,6 +438,12 @@ export interface CourseFilterOptions {
   category?: string;
   level?: string;
   tab?: string;
+  tag?: string;
+}
+
+export interface CourseFiltersData {
+  categories: Array<{ id: string; name: string }>;
+  tags: string[];
 }
 
 export interface NewUser {
@@ -448,6 +454,18 @@ export interface NewUser {
   subscribe: boolean;
   signedUpThrough: "MASTERINGBACKEND" | "GOOGLE" | "GITHUB";
   source?: string;
+}
+
+export interface StarterKitItem {
+  id: string;
+  title: string;
+  summary: string;
+  banner: string;
+  slug: string;
+  level?: string;
+  tags?: string[];
+  skills?: string[];
+  students: number;
 }
 
 export interface Course {
