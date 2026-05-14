@@ -36,9 +36,9 @@ import { useUser } from "@/hooks/use-user";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 
-interface DashboardContentProps { }
+interface DashboardContentProps {}
 
-export function DashboardContent({ }: DashboardContentProps) {
+export function DashboardContent({}: DashboardContentProps) {
   const router = useRouter();
   const user = useUser();
   const store = useAppStore();
@@ -168,8 +168,9 @@ export function DashboardContent({ }: DashboardContentProps) {
             </div>
             <Progress
               value={
-                (user?.numberOfCoursesCompleted ??
-                  0 / user?.numberOfCoursesInProgress!) * 100
+                ((user?.numberOfCoursesCompleted ?? 0) /
+                  user?.numberOfCoursesInProgress!) *
+                100
               }
               className="mt-2"
             />

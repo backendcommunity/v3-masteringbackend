@@ -27,7 +27,6 @@ import {
   Play,
   Lock,
   Trophy,
-  Users,
   Star,
   Zap,
   Brain,
@@ -47,7 +46,6 @@ import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PaymentDialog } from "../payment-dialog";
-import { PathPreviewDialog } from "../path-preview-dialog";
 import {
   Dialog,
   DialogContent,
@@ -280,7 +278,6 @@ export function LearningPathDetailPage({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
-  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [celebration, setCelebration] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
     type: string;
@@ -498,39 +495,6 @@ export function LearningPathDetailPage({
     }
   };
 
-  // Preview enrollment — optimistically proceed immediately, enroll in background.
-  // The enrollment API is fire-and-forget for preview: user shouldn't wait for a
-  // DB write before seeing content they're already allowed to access.
-  const handlePreviewEnroll = (afterEnroll: () => void) => {
-    if (isEnrolled) {
-      afterEnroll();
-      return;
-    }
-
-    // Optimistically mark as preview-enrolled so derived state updates instantly
-    setUserRoadmap({ isPreview: true });
-    afterEnroll();
-
-    // Background enrollment — silent on success, subtle toast on failure
-    store
-      .enrollInRoadmap(pathId, true)
-      .then(() => {
-        store.getRoadmapBySlug(pathId).then((updated: any) => {
-          if (updated) {
-            setRoadmap(updated);
-            setUserRoadmap(updated?.userRoadmap ?? { isPreview: true });
-          }
-        });
-      })
-      .catch((error: any) => {
-        const msg =
-          error?.response?.data?.message === "You're already enrolled."
-            ? null // Not an error — concurrent click or page reload race
-            : "Failed to enroll in preview mode. Please refresh the page and try again.";
-        if (msg) toast.error(msg);
-      });
-  };
-
   // Deep-link to the exact video where the user left off
   const navigateToFirstUncompletedVideo = async (
     topicId: string,
@@ -602,17 +566,8 @@ export function LearningPathDetailPage({
   // ALL derived state must be computed before any conditional returns (Rules of Hooks)
   const topics: any[] = roadmap?.topics ?? [];
   const isEnrolled = Boolean(userRoadmap);
-  const isPreviewMode = isEnrolled && userRoadmap?.isPreview === true;
-  const isFullAccess = isEnrolled && !isPreviewMode;
   const progress =
     userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
-
-  // Free preview course: first non-premium course in first topic
-  // Exposed for non-enrolled AND preview-enrolled users on premium roadmaps
-  const freePreviewCourseId =
-    !isFullAccess && roadmap?.isPremium
-      ? (topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null)
-      : null;
 
   const completedTopics = useMemo(
     () => topics.filter((t) => t.completed === true),
@@ -764,8 +719,8 @@ export function LearningPathDetailPage({
     );
   }
 
-  // Non-enrolled OR preview-enrolled: show sales/preview page
-  if (!isFullAccess) {
+  // Non-enrolled: show sales page
+  if (!isEnrolled) {
     return (
       <div className="flex-1 space-y-6">
         {/* Breadcrumb */}
@@ -1101,70 +1056,14 @@ export function LearningPathDetailPage({
                   </div>
                 )}
 
-                {isPreviewMode ? (
-                  <>
-                    <div className="rounded-lg border border-[#13AECE]/30 bg-[#13AECE]/5 px-4 py-3">
-                      <p className="text-xs font-semibold text-[#13AECE] mb-0.5">
-                        Preview mode active
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        You have access to free content. Upgrade for the full
-                        curriculum.
-                      </p>
-                    </div>
-                    <Button
-                      className="w-full text-white bg-[#13AECE] hover:bg-[#0FA3C4]"
-                      size="lg"
-                      disabled={enrolling}
-                      onClick={handleEnroll}
-                    >
-                      {enrolling ? "Enrolling..." : "Upgrade to Full Access"}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      disabled={enrolling}
-                      onClick={handleEnroll}
-                    >
-                      {enrolling ? "Enrolling..." : "Enrol Now"}
-                    </Button>
-                  </>
-                )}
-
-                {(freePreviewCourseId || roadmap?.preview) && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    disabled={enrolling}
-                    onClick={() => {
-                      if (roadmap?.preview) {
-                        handlePreviewEnroll(() => setShowPreviewDialog(true));
-                        return;
-                      }
-                      // No preview video — navigate directly to free course preview
-                      const previewCourse = topics[0]?.courses?.find(
-                        (c: any) => c.id === freePreviewCourseId,
-                      );
-                      if (previewCourse?.slug) {
-                        handlePreviewEnroll(() =>
-                          onNavigate?.(
-                            routes.pathCoursePreview(
-                              pathId,
-                              topics[0].id,
-                              previewCourse.slug,
-                            ),
-                          ),
-                        );
-                      }
-                    }}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    {enrolling ? "Starting..." : "Watch Preview"}
-                  </Button>
-                )}
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={enrolling}
+                  onClick={handleEnroll}
+                >
+                  {enrolling ? "Enrolling..." : "Enrol Now"}
+                </Button>
                 {roadmap?.isPremium && !user?.isPremium && (
                   <p className="text-xs text-center text-muted-foreground">
                     Premium membership required
@@ -1174,7 +1073,7 @@ export function LearningPathDetailPage({
             </Card>
 
             {/* Social Proof */}
-            {roadmap?.students > 0 && (
+            {/* {roadmap?.students > 0 && (
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -1193,7 +1092,7 @@ export function LearningPathDetailPage({
                   </div>
                 </CardContent>
               </Card>
-            )}
+            )} */}
 
             {/* Path Details */}
             <Card>
@@ -1312,12 +1211,6 @@ export function LearningPathDetailPage({
                       Certificate of completion included
                     </p>
                   </div>
-                  {(freePreviewCourseId || roadmap?.preview) && (
-                    <div className="flex gap-2">
-                      <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm">Free preview available</p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1370,19 +1263,6 @@ export function LearningPathDetailPage({
           disableOnetime={!roadmap?.paddle_price_id}
         />
 
-        <PathPreviewDialog
-          open={showPreviewDialog}
-          onClose={() => setShowPreviewDialog(false)}
-          onEnroll={() => {
-            handleEnroll();
-            setShowPreviewDialog(false);
-          }}
-          roadmap={roadmap}
-          topics={topics}
-          pathId={pathId}
-          freePreviewCourseId={freePreviewCourseId}
-          onNavigate={onNavigate}
-        />
       </div>
     );
   }
@@ -2167,31 +2047,6 @@ export function LearningPathDetailPage({
                 </div>
               </>
                )} */}
-              {roadmap.students > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Learning Together
-                      </span>
-                    </div>
-                    <p className="text-xl font-bold">
-                      {roadmap.students.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      learners enrolled
-                    </p>
-                    {progress > 0 && (
-                      <p className="text-xs text-green-600 mt-1 font-medium">
-                        You're ahead of {Math.round(progress * 0.6)}% of
-                        learners
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
         </div>

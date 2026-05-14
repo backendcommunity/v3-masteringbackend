@@ -157,12 +157,10 @@ function Pagination({
 function CourseCard({
   course,
   onViewDetails,
-  onPreview,
   onContinue,
 }: {
   course: Course;
   onViewDetails: (slug: string) => void;
-  onPreview: (slug: string) => void;
   onContinue: (slug: string) => void;
 }) {
   const TagIcon = getTagIcon(course.tags);
@@ -479,8 +477,6 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
 
   const handleViewDetails = (slug: string) =>
     onNavigate(routes.courseDetail(slug));
-  const handlePreview = (slug: string) =>
-    onNavigate(routes.coursePreview(slug));
   const handleContinue = (slug: string) =>
     onNavigate(routes.courseDetail(slug));
 
@@ -677,7 +673,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                     key={course.id}
                     course={course}
                     onViewDetails={handleViewDetails}
-                    onPreview={handlePreview}
+
                     onContinue={handleContinue}
                   />
                 ))}
@@ -699,7 +695,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                     key={userCourse.id}
                     course={toEnrolledCourse(userCourse)}
                     onViewDetails={handleViewDetails}
-                    onPreview={handlePreview}
+
                     onContinue={handleContinue}
                   />
                 ))}
@@ -726,7 +722,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                     key={course.id}
                     course={course}
                     onViewDetails={handleViewDetails}
-                    onPreview={handlePreview}
+
                     onContinue={handleContinue}
                   />
                 ))}
@@ -753,7 +749,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                     key={course.id}
                     course={course}
                     onViewDetails={handleViewDetails}
-                    onPreview={handlePreview}
+
                     onContinue={handleContinue}
                   />
                 ))}

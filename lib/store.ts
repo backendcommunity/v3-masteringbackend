@@ -223,7 +223,7 @@ interface AppState {
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
-  handleCourseEnrollment: (courseId: string) => UserCourse | any;
+  handleCourseEnrollment: (courseId: string, isPreview?: boolean) => Promise<UserCourse | any>;
   handleRoadmapCourseEnrollment: (
     slug: string,
     topicId: string,
@@ -258,7 +258,7 @@ interface AppState {
 
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
-  getContinueLearning: () => Promise<ContinueLearningItem[]>;
+  getContinueLearning: () => Promise<ContinueLearningItem | null>;
   markActivityRead: (id: string) => Promise<void>;
   markAllActivitiesRead: () => Promise<void>;
 
@@ -1066,8 +1066,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleCourseEnrollment: async (
     courseId: string,
+    isPreview = false,
   ): Promise<UserCourse | any> => {
-    const res = await handleCourseEnrollment(courseId);
+    const res = await handleCourseEnrollment(courseId, isPreview);
     return res.data;
   },
 

@@ -106,21 +106,14 @@ export interface StreakData {
   isStreakActiveToday: boolean;
 }
 
-export type ContentItemType =
-  | "course"
-  | "roadmap"
-  | "bootcamp"
-  | "project"
-  | "mock_interview";
-
 export interface ContinueLearningItem {
-  type: ContentItemType;
   id: string;
+  slug: string;
   title: string;
+  subtitle: string;
   banner?: string | null;
-  resumeLabel: string;
-  resumeUrl: string;
-  lastActiveAt: string;
+  progress: number;
+  currentTopicId: string | null;
 }
 
 // Epic 6: Global Search types

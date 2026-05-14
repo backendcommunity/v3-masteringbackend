@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Clock,
   BookOpen,
-  Users,
   Star,
   Target,
   CheckCircle2,
@@ -324,10 +323,6 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                   <div className="flex items-center gap-1">
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                     <span>{path.courses.length} courses</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{path.enrolledCount.toLocaleString()} enrolled</span>
                   </div>
                 </div>
 

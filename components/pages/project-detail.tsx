@@ -314,12 +314,6 @@ export function ProjectDetailPage({
             >
               {project?.level}
             </Badge>
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4 " />
-              <span className="text-sm text-muted-foreground">
-                {project?.students?.toLocaleString()} students
-              </span>
-            </div>
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight">

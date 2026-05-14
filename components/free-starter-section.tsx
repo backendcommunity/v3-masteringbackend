@@ -80,11 +80,6 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
                   >
                     Free
                   </Badge>
-                  {item.students > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {item.students.toLocaleString()} students
-                    </span>
-                  )}
                 </div>
                 <Button
                   size="sm"
