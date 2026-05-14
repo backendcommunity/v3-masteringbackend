@@ -233,7 +233,7 @@ export function DashboardContent({}: DashboardContentProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
+            {quickActions?.map((action, index) => (
               <Button
                 key={index}
                 variant="outline"
@@ -339,7 +339,7 @@ export function DashboardContent({}: DashboardContentProps) {
                   />
                 ) : (
                   <>
-                    {userRoadmaps.map((userRoadmap: any, i: number) => {
+                    {userRoadmaps?.map((userRoadmap: any, i: number) => {
                       return (
                         <div className="space-y-4" key={i}>
                           <div className="space-y-2">
