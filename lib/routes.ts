@@ -197,7 +197,7 @@ export const routes = {
   xpHistory: "/xp-store/history",
 
   // Auth
-  logout: "/auth/login",
+  logout: "/",
 };
 
 // Helper function to check if a path matches a route pattern
