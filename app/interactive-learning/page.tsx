@@ -8,24 +8,15 @@ import { LearningSidebar } from '@/components/interactive-learning/learning-side
 
 function InteractiveLearningContent() {
   const { hasCompletedOnboarding } = useLearning();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
 
   return (
     <>
-      {/* Onboarding Modal */}
-      <OnboardingModal isOpen={!hasCompletedOnboarding} />
+      {/* Onboarding Modal - Show while onboarding not complete */}
+      {!hasCompletedOnboarding && <OnboardingModal isOpen={true} />}
 
-      {/* Main Layout - Sidebar + Content */}
+      {/* Main Layout - Sidebar + Content - Show after onboarding complete */}
       {hasCompletedOnboarding && (
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen bg-gradient-to-br from-background to-muted">
           <LearningSidebar />
           <div className="flex-1 w-full">
             <LearningDashboard />

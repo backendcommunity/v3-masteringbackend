@@ -1,14 +1,1 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function HomePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.push('/interactive-learning');
-  }, [router]);
-
-  return null;
-}
+export { default } from './interactive-learning/page';
