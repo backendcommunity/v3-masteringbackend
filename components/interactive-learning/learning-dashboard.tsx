@@ -49,53 +49,65 @@ export function LearningDashboard() {
   const phaseProgress = getPhaseProgress(learningPath.currentPhase);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8 space-y-8">
+    <main className="min-h-screen bg-gradient-to-br from-background to-muted">
+      <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 lg:py-10 space-y-8">
         {/* Header */}
-        <div className="space-y-2">
+        <header className="space-y-2">
           <div className="flex items-center gap-2 md:gap-3">
-            <Target className="w-6 md:w-8 h-6 md:h-8 text-blue-600 flex-shrink-0" />
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">Your Learning Path</h1>
+            <Target className="w-7 md:w-8 h-7 md:h-8 text-primary flex-shrink-0" aria-hidden="true" />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">Your Learning Path</h1>
           </div>
-          <p className="text-base md:text-lg text-gray-600">{learningPath.goal}</p>
-        </div>
+          <p className="text-base md:text-lg text-muted-foreground">{learningPath.goal}</p>
+        </header>
 
-        {/* Overall Progress */}
-        <Card>
+        {/* Overall Progress Card */}
+        <Card className="border shadow-sm hover:shadow-md transition-shadow">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle>Overall Progress</CardTitle>
                 <CardDescription>
                   {learningPath.progress.completed} of {learningPath.progress.total} items completed
                 </CardDescription>
               </div>
-              <div className="text-4xl font-bold text-blue-600">
+              <div className="text-3xl md:text-4xl font-bold text-primary">
                 {learningPath.progress.percentage}%
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <Progress value={learningPath.progress.percentage} className="h-3" />
-            <div className="grid grid-cols-3 gap-4 mt-6">
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Progress value={learningPath.progress.percentage} className="h-3" />
+              <p className="text-xs text-muted-foreground">Measure of completion across all phases</p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(['learn', 'build', 'grow'] as LearningPhase[]).map((phase) => {
                 const progress = getPhaseProgress(phase);
                 const phaseInfo = PHASE_INFO[phase];
+                const isActive = phase === learningPath.currentPhase;
+                const percentage = (progress.completed / progress.total) * 100;
+                
                 return (
                   <div
                     key={phase}
-                    className={`p-4 rounded-lg border ${
-                      phase === learningPath.currentPhase ? phaseInfo.color : 'bg-gray-50 border-gray-200'
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      isActive
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-border bg-card hover:border-primary/50'
                     }`}
+                    role="region"
+                    aria-label={`${phase} phase progress`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">{phaseInfo.icon}</span>
-                      <span className="font-semibold capitalize text-sm">{phase}</span>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg" aria-hidden="true">{phaseInfo.icon}</span>
+                      <span className="font-semibold capitalize text-sm text-foreground">{phase}</span>
+                      {isActive && <Badge className="ml-auto text-xs">Current</Badge>}
                     </div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-2xl font-bold text-foreground mb-2">
                       {progress.completed}/{progress.total}
                     </div>
-                    <Progress value={(progress.completed / progress.total) * 100} className="h-2 mt-2" />
+                    <Progress value={percentage} className="h-2" />
                   </div>
                 );
               })}
@@ -104,17 +116,19 @@ export function LearningDashboard() {
         </Card>
 
         {/* Current Phase Section */}
-        <CurrentPhaseSection />
+        <section>
+          <CurrentPhaseSection />
+        </section>
 
         {/* Learning Path Roadmap */}
-        <div className="space-y-4">
+        <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <Zap className="w-6 h-6 text-amber-500" />
-            <h2 className="text-2xl font-bold text-gray-900">Your Complete Roadmap</h2>
+            <Zap className="w-6 h-6 text-primary" aria-hidden="true" />
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Your Complete Roadmap</h2>
           </div>
           <LearningPathRoadmap />
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

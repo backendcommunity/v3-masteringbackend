@@ -19,18 +19,20 @@ function InteractiveLearningContent() {
   }
 
   return (
-    <div>
+    <>
       {/* Onboarding Modal */}
       <OnboardingModal isOpen={!hasCompletedOnboarding} />
 
-      {/* Sidebar - Only show if onboarding completed */}
-      {hasCompletedOnboarding && <LearningSidebar />}
-
-      {/* Main Content */}
-      <div className={hasCompletedOnboarding ? 'lg:ml-64' : ''}>
-        {hasCompletedOnboarding && <LearningDashboard />}
-      </div>
-    </div>
+      {/* Main Layout - Sidebar + Content */}
+      {hasCompletedOnboarding && (
+        <div className="flex min-h-screen">
+          <LearningSidebar />
+          <div className="flex-1 w-full">
+            <LearningDashboard />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

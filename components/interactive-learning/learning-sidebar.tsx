@@ -50,9 +50,11 @@ export function LearningSidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white p-6 overflow-y-auto transition-transform lg:translate-x-0 z-30 ${
+        className={`fixed lg:relative left-0 top-0 h-screen w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white p-6 overflow-y-auto transition-transform duration-300 lg:translate-x-0 z-30 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        role="navigation"
+        aria-label="Learning path navigation"
       >
         {/* Close Button for Mobile */}
         <Button
@@ -194,9 +196,6 @@ export function LearningSidebar() {
           </div>
         </div>
       </aside>
-
-      {/* Main Content Spacer */}
-      <div className="hidden lg:block w-64" />
 
       {/* Mobile Overlay */}
       {isOpen && (

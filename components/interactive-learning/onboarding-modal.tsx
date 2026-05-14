@@ -98,16 +98,16 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle className="text-3xl">
-            {step === 'goal' ? 'What do you want to learn?' : 'What&apos;s your experience level?'}
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <Card className="w-full max-w-2xl shadow-2xl">
+        <CardHeader className="space-y-3">
+          <CardTitle className="text-3xl md:text-4xl font-bold">
+            {step === 'goal' ? 'Start Your Learning Journey' : 'Your Experience Level'}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-base">
             {step === 'goal'
-              ? 'Choose a learning path that matches your goals'
-              : 'We&apos;ll tailor the content to your experience'}
+              ? 'Choose a learning path that excites you'
+              : 'We&apos;ll personalize your experience'}
           </CardDescription>
         </CardHeader>
 
@@ -121,17 +121,19 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
                   <button
                     key={goal.id}
                     onClick={() => handleGoalSelect(goal.id)}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    className={`p-4 rounded-xl border-2 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                        ? 'border-primary bg-primary/5 shadow-md'
+                        : 'border-border hover:border-primary/50 hover:shadow-sm'
                     }`}
+                    aria-selected={isSelected}
+                    role="option"
                   >
                     <div className="flex items-start gap-3">
-                      <Icon className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{goal.title}</h3>
-                        <p className="text-sm text-gray-600">{goal.description}</p>
+                      <Icon className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{goal.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">{goal.description}</p>
                       </div>
                     </div>
                   </button>
@@ -141,33 +143,35 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
           )}
 
           {step === 'experience' && (
-            <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-3">
               {EXPERIENCE_LEVELS.map((level) => (
                 <button
                   key={level.value}
                   onClick={() => handleExperienceSelect(level.value)}
-                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                     selectedExperience === level.value
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-primary bg-primary/5 shadow-md'
+                      : 'border-border hover:border-primary/50 hover:shadow-sm'
                   }`}
+                  aria-selected={selectedExperience === level.value}
+                  role="option"
                 >
-                  <h3 className="font-semibold text-gray-900">{level.label}</h3>
-                  <p className="text-sm text-gray-600">{level.description}</p>
+                  <h3 className="font-semibold text-foreground">{level.label}</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">{level.description}</p>
                 </button>
               ))}
             </div>
           )}
 
-          <div className="flex gap-3 pt-6">
+          <div className="flex gap-3 pt-4 flex-col-reverse sm:flex-row">
             {step === 'experience' && (
               <Button
                 variant="outline"
                 onClick={() => setStep('goal')}
-                className="flex-1"
+                className="sm:flex-1"
                 disabled={isLoading}
               >
-                Back
+                ← Back
               </Button>
             )}
 
@@ -175,9 +179,9 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
               <Button
                 variant="outline"
                 onClick={handleSkip}
-                className="flex-1"
+                className="sm:flex-1"
               >
-                Skip for now
+                Skip for Now
               </Button>
             )}
 
@@ -188,9 +192,9 @@ export function OnboardingModal({ isOpen }: OnboardingModalProps) {
                 (step === 'experience' && !selectedExperience) ||
                 isLoading
               }
-              className="flex-1"
+              className="sm:flex-1"
             >
-              {isLoading ? 'Generating path...' : step === 'goal' ? 'Next' : 'Start Learning'}
+              {isLoading ? 'Generating...' : step === 'goal' ? 'Continue →' : 'Start Learning'}
             </Button>
           </div>
         </CardContent>
