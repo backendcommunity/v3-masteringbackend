@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { Certificate } from "../certificate";
 import { Loader } from "../ui/loader";
+import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface RoadmapDetailPageProps {
   slug: string;
@@ -196,6 +197,12 @@ export function RoadmapDetailPage({
           <Button variant="outline">Download Syllabus</Button>
         </div>
       </div>
+
+      {roadmap?.enrolled && roadmap?.userRoadmap?.id && (
+        <div className="max-w-md">
+          <ScheduleWidget roadmapId={roadmap.userRoadmap.id} />
+        </div>
+      )}
       {/* Progress Overview */}
       {roadmap?.enrolled && (
         <Card>

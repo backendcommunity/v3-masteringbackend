@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import ConfettiCelebration from "@/components/confetti-celebration";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
+import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface CourseDetailPageProps {
   slug: string;
@@ -487,6 +488,10 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               </div> */}
             </CardContent>
           </Card>
+
+          {course?.enrolled && course?.userCourse?.id && (
+            <ScheduleWidget courseId={course.userCourse.id} />
+          )}
 
           {/* Certification Card */}
           <Card
