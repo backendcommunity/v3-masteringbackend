@@ -226,7 +226,7 @@ export function DashboardContent({}: DashboardContentProps) {
       <ContinueLearningCard />
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Jump into your learning journey</CardDescription>
@@ -253,7 +253,7 @@ export function DashboardContent({}: DashboardContentProps) {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
 
