@@ -40,11 +40,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Onboarding guard — runs only after user is loaded from AuthProvider
-  if (user?.hasFinishedOnboarding === false) {
-    router.replace("/onboarding");
-    return null;
-  }
+  // Handle ?redirect= for OAuth existing users and post-onboarding navigation
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === "undefined") return;
+    const search = window.location.search;
+    const redirect = new URLSearchParams(search).get("redirect");
+
+    if (user.hasFinishedOnboarding === false) {
+      // Preserve redirect through onboarding for new users
+      const existingRedirect = redirect || pathname || "/";
+      router.replace(`/onboarding?redirect=${encodeURIComponent(existingRedirect)}`);
+      return;
+    }
+
+    // Existing onboarded user arriving via OAuth callback (/?redirect=X)
+    if (redirect) {
+      router.replace(redirect);
+    }
+  }, [user, pathname, router]);
+
+  // Prevent flash of dashboard content for new users before redirect fires
+  if (user?.hasFinishedOnboarding === false) return null;
 
   return (
     <>

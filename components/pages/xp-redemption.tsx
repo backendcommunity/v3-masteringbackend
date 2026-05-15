@@ -220,57 +220,65 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
               <Loader isLoader={false} />
             ) : (
               <>
-                {achievements?.map(({ achievement, ...ach }: any, index: number) => (
-                  <Card key={achievement?.id || index}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="text-lg font-semibold">
-                              {achievement?.name}
-                            </h3>
-                            {achievement?.unlocked && (
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                            )}
+                {achievements?.map((item: any, index: number) => {
+                  const achievement = item?.achievement ?? item;
+                  const progress = item?.progress ?? 0;
+                  const required = achievement?.condition?.required ?? 0;
+                  const completed =
+                    achievement?.completed ?? item?.completed ?? false;
+                  const percent = required
+                    ? Math.min(100, Math.round((progress / required) * 100))
+                    : 0;
+                  const title =
+                    achievement?.name ??
+                    achievement?.title ??
+                    item?.name ??
+                    item?.title;
+                  const description =
+                    achievement?.description ?? item?.description;
+
+                  return (
+                    <Card key={achievement?.id ?? item?.id ?? index}>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="text-lg font-semibold">{title}</h3>
+                              {achievement?.unlocked && (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              )}
+                            </div>
+                            <p className="text-muted-foreground mb-3">
+                              {description}
+                            </p>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span>Progress</span>
+                                <span>
+                                  {progress}/{required}
+                                </span>
+                              </div>
+                              <Progress value={percent} className="h-2" />
+                            </div>
                           </div>
-                          <p className="text-muted-foreground mb-3">
-                            {achievement?.description}
-                          </p>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>Progress</span>
-                              <span>
-                                {ach.progress}/
-                                {achievement?.condition?.required}
+                          <div className="text-right ml-4">
+                            <div className="flex items-center space-x-1 mb-2">
+                              <Zap className="h-4 w-4 text-yellow-500" />
+                              <span className="font-bold">
+                                {item?.xpReward ?? achievement?.xpReward ?? 0}
                               </span>
                             </div>
-                            <Progress
-                              value={
-                                (ach.progress /
-                                  achievement?.condition?.required) *
-                                100
-                              }
-                              className="h-2"
-                            />
+                            {completed ? (
+                              <Badge variant="default">Completed</Badge>
+                            ) : (
+                              <Badge variant="outline">In Progress</Badge>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right ml-4">
-                          <div className="flex items-center space-x-1 mb-2">
-                            <Zap className="h-4 w-4 text-yellow-500" />
-                            <span className="font-bold">
-                              {ach?.xpReward ?? 0}
-                            </span>
-                          </div>
-                          {achievement?.completed ? (
-                            <Badge variant="default">Completed</Badge>
-                          ) : (
-                            <Badge variant="outline">In Progress</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </>
             )}
           </div>

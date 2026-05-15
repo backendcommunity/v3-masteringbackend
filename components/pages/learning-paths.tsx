@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Clock,
   BookOpen,
-  Users,
   Star,
   Target,
   CheckCircle2,
@@ -52,7 +51,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         // getRoadmaps runs resolveRoadmaps server-side: returns r.enrolled,
         // r.progress (accurate completedTopics/total), r.students, r.userRoadmap
         // No need for a separate getUserRoadmaps call.
-        const roadmaps = await store.getRoadmaps({ skip: 0, size: 50 });
+        const result = await store.getRoadmaps({ skip: 0, size: 50 });
+        const roadmaps = result?.roadmaps ?? result ?? [];
 
         const merged = (roadmaps || []).map((r: any) => {
           const topics = r.topics || [];
@@ -70,7 +70,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             estimatedWeeks: r.estimatedWeeks ?? 0,
             hoursPerWeek: r.hoursPerWeek ?? 0,
             courses: topics.flatMap(
-              (t: any) => t.courses?.map((c: any) => c.id) || []
+              (t: any) => t.courses?.map((c: any) => c.id) || [],
             ),
             topics,
             // Backend-computed values from resolveRoadmaps:
@@ -103,7 +103,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
 
     const matchesLevel =
       levelFilter === "all" ||
-      (p.topics?.[0]?.level || "Intermediate").toLowerCase() === levelFilter.toLowerCase();
+      (p.topics?.[0]?.level || "Intermediate").toLowerCase() ===
+        levelFilter.toLowerCase();
 
     const matchesStatus =
       statusFilter === "all" ||
@@ -114,7 +115,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     return matchesSearch && matchesLevel && matchesStatus;
   });
 
-  const hasActiveFilters = search || levelFilter !== "all" || statusFilter !== "all";
+  const hasActiveFilters =
+    search || levelFilter !== "all" || statusFilter !== "all";
 
   // Calculate stats from actual data
   const activePaths = paths.filter((p) => p.enrolled).length;
@@ -123,15 +125,16 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     paths
       .filter((p) => p.enrolled)
       .reduce((sum, p) => {
-        const pathDuration = p.topics?.reduce((s: number, t: any) => s + (t.duration || 0), 0) || 0;
+        const pathDuration =
+          p.topics?.reduce((s: number, t: any) => s + (t.duration || 0), 0) ||
+          0;
         return sum + pathDuration;
-      }, 0)
+      }, 0),
   );
   const certificates = completedPaths;
 
   return (
     <div className="flex-1 space-y-6 relative">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -151,9 +154,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             <Target className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {activePaths}
-            </div>
+            <div className="text-2xl font-bold">{activePaths}</div>
             <p className="text-xs text-muted-foreground">Currently enrolled</p>
           </CardContent>
         </Card>
@@ -237,9 +238,12 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         <Card className="col-span-full">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Target className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Learning Paths Available</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              No Learning Paths Available
+            </h3>
             <p className="text-muted-foreground text-center max-w-md">
-              Check back soon! We're constantly adding new learning paths to help you grow your skills.
+              Check back soon! We're constantly adding new learning paths to
+              help you grow your skills.
             </p>
           </CardContent>
         </Card>
@@ -247,12 +251,22 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         <Card className="col-span-full">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Search className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No paths match your filters</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              No paths match your filters
+            </h3>
             <p className="text-muted-foreground text-center max-w-md mb-4">
-              Try adjusting your search or filters to find what you&apos;re looking for.
+              Try adjusting your search or filters to find what you&apos;re
+              looking for.
             </p>
             {hasActiveFilters && (
-              <Button variant="outline" onClick={() => { setSearch(""); setLevelFilter("all"); setStatusFilter("all"); }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearch("");
+                  setLevelFilter("all");
+                  setStatusFilter("all");
+                }}
+              >
                 <X className="mr-2 h-4 w-4" />
                 Clear filters
               </Button>
@@ -260,92 +274,92 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           </CardContent>
         </Card>
       ) : (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredPaths.map((path) => (
-          <Card key={path.id} className="overflow-hidden">
-            <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center overflow-hidden">
-              {path.banner ? (
-                <img
-                  src={path.banner}
-                  alt={path.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="text-center text-white">
-                  <Target className="h-12 w-12 mx-auto mb-2" />
-                  <h3 className="text-lg font-bold">Learning Path</h3>
-                </div>
-              )}
-            </div>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant={
-                    path?.level === "Advanced"
-                      ? "destructive"
-                      : path?.level === "Intermediate"
-                      ? "default"
-                      : "secondary"
-                  }
-                >
-                  {path?.level}
-                </Badge>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {path.estimatedWeeks > 0
-                      ? `~${path.estimatedWeeks}w · ${path.hoursPerWeek}h/wk`
-                      : path.estimatedTime}
-                  </span>
-                </div>
-              </div>
-              <CardTitle className="line-clamp-2">{path.title}</CardTitle>
-              <CardDescription className="line-clamp-3">
-                {stripHtmlTags(path.description || "")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-1">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <span>{path.courses.length} courses</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{path.enrolledCount.toLocaleString()} enrolled</span>
-                </div>
-              </div>
-
-              {path.enrolled ? (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{path.progress}%</span>
-                    </div>
-                    <Progress value={path.progress} className="h-2" aria-label={`${path.title} progress: ${path.progress}%`} aria-valuenow={path.progress} />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredPaths.map((path) => (
+            <Card key={path.id} className="overflow-hidden">
+              <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center overflow-hidden">
+                {path.banner ? (
+                  <img
+                    src={path.banner}
+                    alt={path.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center text-white">
+                    <Target className="h-12 w-12 mx-auto mb-2" />
+                    <h3 className="text-lg font-bold">Learning Path</h3>
                   </div>
+                )}
+              </div>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Badge
+                    variant={
+                      path?.level === "Advanced"
+                        ? "destructive"
+                        : path?.level === "Intermediate"
+                          ? "default"
+                          : "secondary"
+                    }
+                  >
+                    {path?.level}
+                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      {path.estimatedWeeks > 0
+                        ? `~${path.estimatedWeeks}w · ${path.hoursPerWeek}h/wk`
+                        : path.estimatedTime}
+                    </span>
+                  </div>
+                </div>
+                <CardTitle className="line-clamp-2">{path.title}</CardTitle>
+                <CardDescription className="line-clamp-3">
+                  {stripHtmlTags(path.description || "")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    <span>{path.courses.length} courses</span>
+                  </div>
+                </div>
+
+                {path.enrolled ? (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{path.progress}%</span>
+                      </div>
+                      <Progress
+                        value={path.progress}
+                        className="h-2"
+                        aria-label={`${path.title} progress: ${path.progress}%`}
+                        aria-valuenow={path.progress}
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
+                    >
+                      Continue Learning
+                    </Button>
+                  </div>
+                ) : (
                   <Button
                     className="w-full"
                     onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
                   >
-                    Continue Learning
+                    View Learning Path
                   </Button>
-                </div>
-              ) : (
-                <Button
-                  className="w-full"
-                  onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
-                >
-                  Start Learning Path
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
-
     </div>
   );
 }

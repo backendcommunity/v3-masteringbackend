@@ -166,7 +166,6 @@ export function RoadmapDetailPage({
     );
   }
 
-  const handleBackToCourse = () => {};
   const handleDownload = () => {};
   const handleShare = () => {};
 
@@ -836,14 +835,15 @@ export function RoadmapDetailPage({
                                   </div>
                                   <div className="mt-4 flex items-center justify-between">
                                     <div className="flex flex-wrap gap-2">
-                                      {project.technologies
+                                      {(project.technologies ?? [])
                                         .slice(0, 3)
                                         .map((tech: string, i: number) => (
                                           <Badge key={i} variant="secondary">
                                             {tech}
                                           </Badge>
                                         ))}
-                                      {project.technologies?.length > 3 && (
+                                      {(project.technologies?.length ?? 0) >
+                                        3 && (
                                         <Badge variant="secondary">
                                           +{project.technologies?.length - 3}{" "}
                                           more

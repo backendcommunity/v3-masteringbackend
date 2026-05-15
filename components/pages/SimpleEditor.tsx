@@ -37,7 +37,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   const editorRef = useRef<any>(null);
   const [language, setLanguage] = useState<any>({});
   const [code, setCode] = useState(
-    playground?.code ? atob(playground?.code) : codeSample
+    playground?.code ? atob(playground?.code) : codeSample,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userInputOpen, setUserInputOpen] = useState(false);
@@ -107,7 +107,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
 
     if (!language) {
       setResult(
-        "<p class='text-red-500'>Please select a programming language</p>"
+        "<p class='text-red-500'>Please select a programming language</p>",
       );
       return;
     }
@@ -115,12 +115,22 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
     setResult(null);
 
     try {
+      // setIsLoading(true);
+      // const data = await store.executeCode({
+      //   language: language.code,
+      //   code: btoa(code),
+      // });
+
+      // const result = data?.stdout ?? data?.stderr;
+      // setResult(result);
+      // setIsLoading(false);
+
       // Simulate code execution locally instead of API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Mock execution based on language
       let mockOutput = "";
-      
+
       if (language.code === "node" || language.code === "javascript") {
         mockOutput = `Console Output:\n${code}`;
       } else if (language.code === "python") {
@@ -137,7 +147,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
       toast.success("Code executed successfully!");
     } catch (error: any) {
       console.error("Code execution error:", error);
-      
+
       const errorMsg = error?.message || "Code execution failed";
       const htmlError = `<p class='text-red-500'>Error: ${errorMsg}</p>`;
       setResult(htmlError);
@@ -205,7 +215,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
           <Select
             onValueChange={(id) => {
               const playground = savedCodes.find(
-                (c: Playground) => c.id === id
+                (c: Playground) => c.id === id,
               );
               setCode(atob(playground?.code!));
             }}

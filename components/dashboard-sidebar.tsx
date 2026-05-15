@@ -56,7 +56,7 @@ const navigationData = {
       beta: false,
     },
     {
-      title: "Learning Paths",
+      title: "Paths",
       url: routes.paths,
       icon: Target,
       active: true,
@@ -66,7 +66,7 @@ const navigationData = {
     //   title: "Roadmaps",
     //   url: routes.roadmaps,
     //   icon: TrendingUp,
-    //   active: false,
+    //   active: true,
     //   beta: false,
     // },
   ],
@@ -75,7 +75,7 @@ const navigationData = {
       title: "MB Projects",
       url: routes.projects,
       icon: Code2,
-      active: false,
+      active: true,
       beta: false,
     },
     {

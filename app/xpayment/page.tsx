@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
@@ -12,6 +12,14 @@ const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
 const DEFAULT_PRICE_ID = "pri_01kc68wvad2nfdd5a7s5zphemt";
 
 export default function XPayment() {
+  return (
+    <Suspense>
+      <XPaymentContent />
+    </Suspense>
+  );
+}
+
+function XPaymentContent() {
   const { theme } = useTheme();
   const searchParams = useSearchParams();
   const priceId = searchParams?.get("priceid") || DEFAULT_PRICE_ID;

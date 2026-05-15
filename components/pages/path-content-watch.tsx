@@ -53,7 +53,7 @@ export function PathContentWatchPage({
           setLoadError(
             error?.response?.data?.message ||
               error?.message ||
-              "Unable to load learning path."
+              "Unable to load learning path.",
           );
         }
       } finally {
@@ -123,10 +123,7 @@ export function PathContentWatchPage({
           {loadError && (
             <p className="text-sm text-muted-foreground mt-2">{loadError}</p>
           )}
-          <Button
-            onClick={() => onNavigate?.(routes.learningPaths)}
-            className="mt-4"
-          >
+          <Button onClick={() => onNavigate?.(routes.paths)} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
           </Button>
@@ -141,7 +138,7 @@ export function PathContentWatchPage({
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
-          onClick={() => onNavigate?.(routes.learningPathContinue(pathId))}
+          onClick={() => onNavigate?.(routes.pathContinue(pathId))}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

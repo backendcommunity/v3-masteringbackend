@@ -13,11 +13,13 @@ import { routes } from "@/lib/routes";
 interface OnboardingResultProps {
   recommendation: OnboardingRecommendation;
   learningGoal?: string | null;
+  redirect?: string;
 }
 
 export function OnboardingResult({
   recommendation,
   learningGoal,
+  redirect,
 }: OnboardingResultProps) {
   const router = useRouter();
   const store = useAppStore();
@@ -142,7 +144,7 @@ export function OnboardingResult({
   // Handle dashboard navigation (skip)
   const handleGoToDashboard = () => {
     analytics.track("onboarding_skipped", { learningGoal });
-    router.push(routes.dashboard);
+    router.push(redirect || routes.dashboard);
   };
 
   // Dynamic button text and action based on learning goal

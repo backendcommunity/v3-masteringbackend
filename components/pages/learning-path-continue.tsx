@@ -20,7 +20,6 @@ import {
   Play,
   Lock,
   Trophy,
-  Users,
   Star,
   Zap,
   Brain,
@@ -42,7 +41,14 @@ import { stripHtmlTags } from "@/lib/html-utils";
 import { toast } from "sonner";
 
 // Type definitions for multi-content timeline
-type ContentItemType = "course" | "project" | "quiz" | "exercise" | "mock_interview" | "bootcamp" | "land";
+type ContentItemType =
+  | "course"
+  | "project"
+  | "quiz"
+  | "exercise"
+  | "mock_interview"
+  | "bootcamp"
+  | "land";
 
 interface ContentItem {
   id: string;
@@ -72,7 +78,10 @@ interface ContentItem {
 
 // Helper function to get config for each content type
 function getContentTypeConfig(type: ContentItemType) {
-  const configs: Record<ContentItemType, { icon: any; color: string; label: string; ctaLabel: string }> = {
+  const configs: Record<
+    ContentItemType,
+    { icon: any; color: string; label: string; ctaLabel: string }
+  > = {
     course: {
       icon: BookOpen,
       color: "text-blue-600",
@@ -122,7 +131,7 @@ function getContentTypeConfig(type: ContentItemType) {
 // Helper function to get non-course items for a topic (exercises, quizzes, projects, bootcamps, mock interviews)
 function getNonCourseItems(
   topic: any,
-  isEnrolled: boolean = false
+  isEnrolled: boolean = false,
 ): ContentItem[] {
   const topicId: string = topic.id || "";
   const items: ContentItem[] = [];
@@ -134,7 +143,11 @@ function getNonCourseItems(
       type: "exercise",
       title: exercise.title,
       description: exercise.summary || "",
-      meta: { difficulty: exercise.difficulty, language: exercise.language, topicId },
+      meta: {
+        difficulty: exercise.difficulty,
+        language: exercise.language,
+        topicId,
+      },
       completed: exerciseItem.isCompleted ?? false,
       locked: !isEnrolled,
     });
@@ -221,7 +234,10 @@ export function LearningPathContinuePage({
   const [enrolling, setEnrolling] = useState(false);
 
   // Deep-link to the exact video where the user left off
-  const navigateToFirstUncompletedVideo = async (topicId: string, courses: any[]) => {
+  const navigateToFirstUncompletedVideo = async (
+    topicId: string,
+    courses: any[],
+  ) => {
     if (!onNavigate) return;
     setNavigating(true);
     try {
@@ -229,7 +245,7 @@ export function LearningPathContinuePage({
       const completedVideoIds = new Set(
         (milestone?.userTopic?.completedItems ?? [])
           .filter((ci: any) => ci.itemType === "VIDEO")
-          .map((ci: any) => ci.itemId)
+          .map((ci: any) => ci.itemId),
       );
 
       for (const course of courses) {
@@ -239,7 +255,13 @@ export function LearningPathContinuePage({
           for (const video of videos) {
             if (!completedVideoIds.has(video.id)) {
               onNavigate(
-                routes.pathVideoWatch(pathId, topicId, course.slug, chapter.slug, video.slug)
+                routes.pathVideoWatch(
+                  pathId,
+                  topicId,
+                  course.slug,
+                  chapter.slug,
+                  video.slug,
+                ),
               );
               return;
             }
@@ -249,11 +271,18 @@ export function LearningPathContinuePage({
 
       // All videos complete — land on the last video
       const lastCourse = courses[courses.length - 1];
-      const lastChapter = lastCourse?.chapters?.[lastCourse.chapters.length - 1];
+      const lastChapter =
+        lastCourse?.chapters?.[lastCourse.chapters.length - 1];
       const lastVideo = lastChapter?.videos?.[lastChapter.videos.length - 1];
       if (lastVideo) {
         onNavigate(
-          routes.pathVideoWatch(pathId, topicId, lastCourse.slug, lastChapter.slug, lastVideo.slug)
+          routes.pathVideoWatch(
+            pathId,
+            topicId,
+            lastCourse.slug,
+            lastChapter.slug,
+            lastVideo.slug,
+          ),
         );
       } else {
         onNavigate(routes.pathContinue(pathId));
@@ -271,7 +300,7 @@ export function LearningPathContinuePage({
     isCompleted: boolean = false,
     isLocked: boolean = false,
     isCurrent: boolean = false,
-    isEnrolled: boolean = false
+    isEnrolled: boolean = false,
   ) => {
     const config = getContentTypeConfig(item.type);
     const IconComponent = config.icon;
@@ -282,11 +311,8 @@ export function LearningPathContinuePage({
       ? "completed"
       : isCurrent
         ? "current"
-        : isLocked
-          ? "locked"
-          : "available";
+        : "available";
 
-    // Determine styles based on status
     const borderColor =
       status === "completed"
         ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
@@ -308,15 +334,21 @@ export function LearningPathContinuePage({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2 flex-1 min-w-0">
-            <IconComponent className={`h-4 w-4 ${config.color} flex-shrink-0 mt-0.5`} />
+            <IconComponent
+              className={`h-4 w-4 ${config.color} flex-shrink-0 mt-0.5`}
+            />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm leading-tight">{item.title}</p>
+              <p className="font-semibold text-sm leading-tight">
+                {item.title}
+              </p>
               {item.description && (
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                   {item.description}
                 </p>
               )}
-              {(item.duration || item.meta?.chapters || item.meta?.difficulty) && (
+              {(item.duration ||
+                item.meta?.chapters ||
+                item.meta?.difficulty) && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {item.meta?.chapters && (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -345,18 +377,23 @@ export function LearningPathContinuePage({
               ? "✓ Done"
               : status === "current"
                 ? "In Progress"
-                : status === "locked"
-                  ? "Locked"
-                  : "Available"}
+                : "Available"}
           </Badge>
         </div>
         {status === "current" && item.progress !== undefined && (
           <div className="space-y-1 pt-2 mt-2 border-t border-blue-200 dark:border-blue-800">
             <div className="flex items-center justify-between text-xs">
               <span>Progress</span>
-              <span className="font-semibold text-blue-600">{item.progress}%</span>
+              <span className="font-semibold text-blue-600">
+                {item.progress}%
+              </span>
             </div>
-            <Progress value={item.progress} className="h-1.5" aria-label={`${item.title} progress: ${item.progress ?? 0}%`} aria-valuenow={item.progress} />
+            <Progress
+              value={item.progress}
+              className="h-1.5"
+              aria-label={`${item.title} progress: ${item.progress ?? 0}%`}
+              aria-valuenow={item.progress}
+            />
           </div>
         )}
         {isAvailable && (
@@ -367,7 +404,9 @@ export function LearningPathContinuePage({
               const topicId = item.meta?.topicId || "";
               switch (item.type) {
                 case "course":
-                  onNavigate?.(routes.roadmapCoursePreview(pathId, topicId, item.id));
+                  onNavigate?.(
+                    routes.roadmapCoursePreview(pathId, topicId, item.id),
+                  );
                   break;
                 case "exercise":
                   onNavigate?.(routes.pathExercise(pathId, topicId, item.id));
@@ -420,12 +459,16 @@ export function LearningPathContinuePage({
 
         // Fetch certificate if path is completed
         if (ur?.isCompleted) {
-          store.getRoadmapCertificate(pathId).then(setCertificate).catch(() => {});
+          store
+            .getRoadmapCertificate(pathId)
+            .then(setCertificate)
+            .catch(() => {});
         }
 
         // Check if a topic was just completed (stored in sessionStorage by the video watch page)
         const justCompletedKey = `path_topic_completed_${pathId}`;
-        const justCompletedTopicTitle = sessionStorage.getItem(justCompletedKey);
+        const justCompletedTopicTitle =
+          sessionStorage.getItem(justCompletedKey);
         if (justCompletedTopicTitle) {
           sessionStorage.removeItem(justCompletedKey);
           setCelebratedTopicTitle(justCompletedTopicTitle);
@@ -510,7 +553,7 @@ export function LearningPathContinuePage({
   // Free preview: first non-premium course in first topic (only for premium roadmaps)
   const freePreviewCourse =
     !isEnrolled && roadmap?.isPremium
-      ? topics[0]?.courses?.find((c: any) => !c.isPremium) ?? null
+      ? (topics[0]?.courses?.find((c: any) => !c.isPremium) ?? null)
       : null;
   const isInFreePreview = !!freePreviewCourse;
 
@@ -539,12 +582,21 @@ export function LearningPathContinuePage({
     return (
       <div className="flex-1 space-y-6">
         {/* Breadcrumb */}
-        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <button onClick={() => onNavigate?.(routes.paths)} className="hover:text-foreground transition-colors">
+        <nav
+          aria-label="breadcrumb"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <button
+            onClick={() => onNavigate?.(routes.paths)}
+            className="hover:text-foreground transition-colors"
+          >
             Learning Paths
           </button>
           <span>/</span>
-          <button onClick={() => onNavigate?.(`/paths/${pathId}`)} className="hover:text-foreground transition-colors">
+          <button
+            onClick={() => onNavigate?.(`/paths/${pathId}`)}
+            className="hover:text-foreground transition-colors"
+          >
             {roadmap.title}
           </button>
           <span>/</span>
@@ -561,11 +613,17 @@ export function LearningPathContinuePage({
                   Free Preview — {freePreviewCourse.title}
                 </p>
                 <p className="text-xs text-green-700 dark:text-green-400">
-                  Enroll to unlock all {topics.length} topics and {roadmap.totalContent || 0} lessons
+                  Enroll to unlock all {topics.length} topics and{" "}
+                  {roadmap.totalContent || 0} lessons
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={handleEnroll} disabled={enrolling} className="shrink-0">
+            <Button
+              size="sm"
+              onClick={handleEnroll}
+              disabled={enrolling}
+              className="shrink-0"
+            >
               {enrolling ? "Enrolling..." : "Enroll Now"}
             </Button>
           </div>
@@ -637,23 +695,6 @@ export function LearningPathContinuePage({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                      <Users className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Enrolled
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {(roadmap.students || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Skills You'll Learn */}
@@ -709,7 +750,7 @@ export function LearningPathContinuePage({
                   {topics.length} topics with{" "}
                   {topics.reduce(
                     (sum: number, t: any) => sum + (t.courses?.length || 0),
-                    0
+                    0,
                   )}{" "}
                   professional courses
                 </CardDescription>
@@ -753,8 +794,7 @@ export function LearningPathContinuePage({
                         </p>
                         <div className="space-y-3">
                           {topic.courses.map((courseItem: any) => {
-                            const course =
-                              courseItem.course || courseItem;
+                            const course = courseItem.course || courseItem;
                             return (
                               <div
                                 key={course.id}
@@ -774,12 +814,16 @@ export function LearningPathContinuePage({
                                         </p>
                                       </div>
                                     </div>
-                                    {freePreviewCourse && course.id === freePreviewCourse.id ? (
+                                    {freePreviewCourse &&
+                                    course.id === freePreviewCourse.id ? (
                                       <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
                                         Free
                                       </Badge>
                                     ) : (
-                                      <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs flex items-center gap-1 flex-shrink-0"
+                                      >
                                         <Lock className="h-3 w-3" />
                                         Locked
                                       </Badge>
@@ -820,7 +864,7 @@ export function LearningPathContinuePage({
                                     {stripHtmlTags(
                                       course.summary ||
                                         course.description ||
-                                        ""
+                                        "",
                                     )}
                                   </p>
 
@@ -845,7 +889,7 @@ export function LearningPathContinuePage({
                                                     {chapter.title}
                                                   </span>
                                                 </div>
-                                              )
+                                              ),
                                             )}
                                           {course.chapters.length > 4 && (
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground col-span-2">
@@ -864,7 +908,8 @@ export function LearningPathContinuePage({
                                     )}
 
                                   {/* Enrollment CTA */}
-                                  {freePreviewCourse && course.id === freePreviewCourse.id ? (
+                                  {freePreviewCourse &&
+                                  course.id === freePreviewCourse.id ? (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -874,8 +919,8 @@ export function LearningPathContinuePage({
                                           routes.pathCoursePreview(
                                             pathId,
                                             topics[0]?.id,
-                                            course.slug
-                                          )
+                                            course.slug,
+                                          ),
                                         )
                                       }
                                     >
@@ -911,7 +956,9 @@ export function LearningPathContinuePage({
                                   {/* Header */}
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-3 flex-1 min-w-0">
-                                      <IconComponent className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`} />
+                                      <IconComponent
+                                        className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
+                                      />
                                       <div className="flex-1 min-w-0">
                                         <h5 className="font-semibold text-sm leading-tight">
                                           {item.title}
@@ -921,7 +968,10 @@ export function LearningPathContinuePage({
                                         </p>
                                       </div>
                                     </div>
-                                    <Badge variant="outline" className="text-xs flex items-center gap-1 flex-shrink-0">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs flex items-center gap-1 flex-shrink-0"
+                                    >
                                       <Lock className="h-3 w-3" />
                                       Locked
                                     </Badge>
@@ -1043,7 +1093,7 @@ export function LearningPathContinuePage({
             </Card>
 
             {/* Social Proof */}
-            {roadmap?.students?.length && (
+            {/* {roadmap?.students?.length && (
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -1062,7 +1112,7 @@ export function LearningPathContinuePage({
                   </div>
                 </CardContent>
               </Card>
-            )}
+            )} */}
 
             {/* Why Enroll */}
             <Card>
@@ -1122,10 +1172,17 @@ export function LearningPathContinuePage({
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-3 mt-2">
-              <Button className="flex-1" disabled={enrolling} onClick={handleEnroll}>
+              <Button
+                className="flex-1"
+                disabled={enrolling}
+                onClick={handleEnroll}
+              >
                 {enrolling ? "Enrolling..." : "Enroll Now →"}
               </Button>
-              <Button variant="outline" onClick={() => setShowEnrollPrompt(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowEnrollPrompt(false)}
+              >
                 Back to Path
               </Button>
             </div>
@@ -1139,12 +1196,21 @@ export function LearningPathContinuePage({
   return (
     <div className="flex-1 space-y-6">
       {/* Breadcrumb */}
-      <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <button onClick={() => onNavigate?.(routes.paths)} className="hover:text-foreground transition-colors">
+      <nav
+        aria-label="breadcrumb"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <button
+          onClick={() => onNavigate?.(routes.paths)}
+          className="hover:text-foreground transition-colors"
+        >
           Learning Paths
         </button>
         <span>/</span>
-        <button onClick={() => onNavigate?.(`/paths/${pathId}`)} className="hover:text-foreground transition-colors">
+        <button
+          onClick={() => onNavigate?.(`/paths/${pathId}`)}
+          className="hover:text-foreground transition-colors"
+        >
           {roadmap.title}
         </button>
         <span>/</span>
@@ -1180,7 +1246,12 @@ export function LearningPathContinuePage({
                 Overall Progress
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={progress} className="h-2 flex-1" aria-label={`Overall learning path progress: ${progress}%`} aria-valuenow={progress} />
+                <Progress
+                  value={progress}
+                  className="h-2 flex-1"
+                  aria-label={`Overall learning path progress: ${progress}%`}
+                  aria-valuenow={progress}
+                />
                 <span className="text-sm font-medium">{progress}%</span>
               </div>
             </div>
@@ -1238,7 +1309,12 @@ export function LearningPathContinuePage({
                       {currentTopic.progress ?? 0}%
                     </span>
                   </div>
-                  <Progress value={currentTopic.progress ?? 0} className="h-2" aria-label={`${currentTopic.title} topic progress: ${currentTopic.progress ?? 0}%`} aria-valuenow={currentTopic.progress ?? 0} />
+                  <Progress
+                    value={currentTopic.progress ?? 0}
+                    className="h-2"
+                    aria-label={`${currentTopic.title} topic progress: ${currentTopic.progress ?? 0}%`}
+                    aria-valuenow={currentTopic.progress ?? 0}
+                  />
 
                   <div className="flex gap-3">
                     <Button
@@ -1246,14 +1322,21 @@ export function LearningPathContinuePage({
                       disabled={navigating}
                       onClick={() => {
                         if (isEnrolled) {
-                          navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? []);
+                          navigateToFirstUncompletedVideo(
+                            currentTopic.id,
+                            currentTopic.courses ?? [],
+                          );
                         } else {
                           onNavigate?.(`/paths/${pathId}`);
                         }
                       }}
                     >
                       <Play className="mr-2 h-4 w-4" />
-                      {navigating ? "Loading…" : isEnrolled ? "Continue Topic" : "Enroll to Start"}
+                      {navigating
+                        ? "Loading…"
+                        : isEnrolled
+                          ? "Continue Topic"
+                          : "Enroll to Start"}
                     </Button>
                     {isEnrolled && (
                       <Button variant="outline">
@@ -1288,90 +1371,102 @@ export function LearningPathContinuePage({
                   <div className="space-y-4 pl-7 border-l-2 border-green-200">
                     {completedTopics.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
-                      return (<div key={topic.id} className="space-y-3">
-                        {/* Topic */}
-                        <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
-                            ✓
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-semibold text-sm">
-                                {topic.title}
-                              </h5>
-                              <Badge variant="outline" className="text-xs">
-                                {topic.level || "Intermediate"}
-                              </Badge>
+                      return (
+                        <div key={topic.id} className="space-y-3">
+                          {/* Topic */}
+                          <div className="flex items-start gap-3">
+                            <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                              ✓
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {stripHtmlTags(topic.description || "")}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-semibold text-sm">
+                                  {topic.title}
+                                </h5>
+                                <Badge variant="outline" className="text-xs">
+                                  {topic.level || "Intermediate"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {stripHtmlTags(topic.description || "")}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Learning Content (Courses, Projects, Quizzes, Exercises, etc.) */}
-                        {(topic.courses?.length > 0 || otherItems.length > 0) && (
-                          <div className="space-y-3 ml-0 mt-3">
-                            <div className="flex flex-wrap gap-2">
-                              {topic.courses && topic.courses.length > 0 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {topic.courses.length} Course{topic.courses.length !== 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                              {otherItems.length > 0 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {otherItems.length} other item{otherItems.length !== 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              {/* Real courses */}
-                              {topic.courses?.map((courseItem: any) => {
-                                const course =
-                                  courseItem.course || courseItem;
-                                return (
-                                  <div
-                                    key={course.id}
-                                    className="group rounded-lg border border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20 p-3 hover:border-green-200 dark:hover:border-green-800 transition-colors"
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-start gap-2 flex-1 min-w-0">
-                                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-semibold text-sm leading-tight">
-                                            {course.title}
-                                          </p>
-                                          <div className="flex flex-wrap gap-2 mt-2">
-                                            {course.chapters && (
-                                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                <BookOpen className="h-3 w-3" />
-                                                {course.chapters.length} chapters
-                                              </span>
-                                            )}
-                                            {course.totalDuration && (
-                                              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Clock className="h-3 w-3" />
-                                                {course.totalDuration}h
-                                              </span>
-                                            )}
+                          {/* Learning Content (Courses, Projects, Quizzes, Exercises, etc.) */}
+                          {(topic.courses?.length > 0 ||
+                            otherItems.length > 0) && (
+                            <div className="space-y-3 ml-0 mt-3">
+                              <div className="flex flex-wrap gap-2">
+                                {topic.courses && topic.courses.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {topic.courses.length} Course
+                                    {topic.courses.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                                {otherItems.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {otherItems.length} other item
+                                    {otherItems.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                {/* Real courses */}
+                                {topic.courses?.map((courseItem: any) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className="group rounded-lg border border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20 p-3 hover:border-green-200 dark:hover:border-green-800 transition-colors"
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-sm leading-tight">
+                                              {course.title}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                              {course.chapters && (
+                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                  <BookOpen className="h-3 w-3" />
+                                                  {course.chapters.length}{" "}
+                                                  chapters
+                                                </span>
+                                              )}
+                                              {course.totalDuration && (
+                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                  <Clock className="h-3 w-3" />
+                                                  {course.totalDuration}h
+                                                </span>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
+                                        <Badge className="bg-green-600 text-xs flex-shrink-0">
+                                          ✓ Done
+                                        </Badge>
                                       </div>
-                                      <Badge className="bg-green-600 text-xs flex-shrink-0">
-                                        ✓ Done
-                                      </Badge>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                              {otherItems.map((item) =>
-                                renderContentItem(item, true, false, false, true)
-                              )}
+                                  );
+                                })}
+                                {otherItems.map((item) =>
+                                  renderContentItem(
+                                    item,
+                                    true,
+                                    false,
+                                    false,
+                                    true,
+                                  ),
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );})}
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1381,9 +1476,7 @@ export function LearningPathContinuePage({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <Play className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-semibold text-blue-700">
-                      In Progress
-                    </h4>
+                    <h4 className="font-semibold text-blue-700">In Progress</h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-blue-300">
                     {/* Current Topic */}
@@ -1404,7 +1497,12 @@ export function LearningPathContinuePage({
                           <p className="text-xs text-muted-foreground mt-1">
                             {stripHtmlTags(currentTopic.description || "")}
                           </p>
-                          <Progress value={currentTopic.progress ?? 0} className="h-1 mt-3" aria-label={`${currentTopic.title} progress: ${currentTopic.progress ?? 0}%`} aria-valuenow={currentTopic.progress ?? 0} />
+                          <Progress
+                            value={currentTopic.progress ?? 0}
+                            className="h-1 mt-3"
+                            aria-label={`${currentTopic.title} progress: ${currentTopic.progress ?? 0}%`}
+                            aria-valuenow={currentTopic.progress ?? 0}
+                          />
                           <p className="text-xs text-muted-foreground mt-2">
                             {currentTopic.progress ?? 0}% complete
                           </p>
@@ -1412,152 +1510,173 @@ export function LearningPathContinuePage({
                       </div>
 
                       {/* Current Topic Courses */}
-                      {currentTopic.courses && currentTopic.courses.length > 0 && (
-                        <div className="space-y-3 ml-0 mt-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {currentTopic.courses.length} Course{currentTopic.courses.length !== 1 ? "s" : ""}
-                          </p>
-                          <div className="space-y-2">
-                            {currentTopic.courses.map(
-                              (courseItem: any, idx: number) => {
-                                const course =
-                                  courseItem.course || courseItem;
-                                const isCurrent = idx === 0;
-                                return (
-                                  <div
-                                    key={course.id}
-                                    className={`rounded-lg border p-3 transition-colors ${
-                                      isCurrent
-                                        ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
-                                        : "border-muted bg-muted/30 hover:border-muted-foreground/30"
-                                    }`}
-                                  >
-                                    <div className="space-y-2">
-                                      {/* Header */}
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                          {isCurrent ? (
-                                            <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
-                                          ) : (
-                                            <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-sm leading-tight">
-                                              {course.title}
-                                            </p>
-                                            {isCurrent && (
-                                              <p className="text-xs text-blue-600 font-medium mt-1">
-                                                Currently learning
-                                              </p>
+                      {currentTopic.courses &&
+                        currentTopic.courses.length > 0 && (
+                          <div className="space-y-3 ml-0 mt-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {currentTopic.courses.length} Course
+                              {currentTopic.courses.length !== 1 ? "s" : ""}
+                            </p>
+                            <div className="space-y-2">
+                              {currentTopic.courses.map(
+                                (courseItem: any, idx: number) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  const isCurrent = idx === 0;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className={`rounded-lg border p-3 transition-colors ${
+                                        isCurrent
+                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+                                          : "border-muted bg-muted/30 hover:border-muted-foreground/30"
+                                      }`}
+                                    >
+                                      <div className="space-y-2">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            {isCurrent ? (
+                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                                            ) : (
+                                              <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                                             )}
+                                            <div className="flex-1 min-w-0">
+                                              <p className="font-semibold text-sm leading-tight">
+                                                {course.title}
+                                              </p>
+                                              {isCurrent && (
+                                                <p className="text-xs text-blue-600 font-medium mt-1">
+                                                  Currently learning
+                                                </p>
+                                              )}
+                                            </div>
                                           </div>
+                                          <Badge
+                                            className={`text-xs flex-shrink-0 ${
+                                              isCurrent
+                                                ? "bg-blue-600"
+                                                : "bg-muted-foreground/20"
+                                            }`}
+                                          >
+                                            {isCurrent
+                                              ? "In Progress"
+                                              : "Upcoming"}
+                                          </Badge>
                                         </div>
-                                        <Badge
-                                          className={`text-xs flex-shrink-0 ${
-                                            isCurrent
-                                              ? "bg-blue-600"
-                                              : "bg-muted-foreground/20"
-                                          }`}
-                                        >
-                                          {isCurrent ? "In Progress" : "Upcoming"}
-                                        </Badge>
-                                      </div>
 
-                                      {/* Course metadata */}
-                                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                        {course.chapters && (
-                                          <div className="flex items-center gap-1">
-                                            <BookOpen className="h-3 w-3" />
-                                            <span>
-                                              {course.chapters.length} chapter
-                                              {course.chapters.length !== 1
-                                                ? "s"
-                                                : ""}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.totalDuration && (
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{course.totalDuration}h</span>
-                                          </div>
-                                        )}
-                                        {course.level && (
-                                          <div className="flex items-center gap-1">
-                                            <Zap className="h-3 w-3" />
-                                            <span className="capitalize">
-                                              {course.level}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
+                                        {/* Course metadata */}
+                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                          {course.chapters && (
+                                            <div className="flex items-center gap-1">
+                                              <BookOpen className="h-3 w-3" />
+                                              <span>
+                                                {course.chapters.length} chapter
+                                                {course.chapters.length !== 1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.totalDuration && (
+                                            <div className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              <span>
+                                                {course.totalDuration}h
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.level && (
+                                            <div className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              <span className="capitalize">
+                                                {course.level}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
 
-                                      {/* Progress bar for current course */}
-                                      {isCurrent && (
-                                        <div className="space-y-1 pt-1">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium">
-                                              Progress
-                                            </span>
-                                            <span className="text-xs font-semibold text-blue-600">
-                                              35%
-                                            </span>
+                                        {/* Progress bar for current course */}
+                                        {isCurrent && (
+                                          <div className="space-y-1 pt-1">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-medium">
+                                                Progress
+                                              </span>
+                                              <span className="text-xs font-semibold text-blue-600">
+                                                35%
+                                              </span>
+                                            </div>
+                                            <Progress
+                                              value={35}
+                                              className="h-1.5"
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                              Chapter 3 of 8
+                                            </p>
                                           </div>
-                                          <Progress
-                                            value={35}
-                                            className="h-1.5"
-                                          />
-                                          <p className="text-xs text-muted-foreground">
-                                            Chapter 3 of 8
+                                        )}
+
+                                        {/* Course description */}
+                                        {course.summary && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
+                                            {stripHtmlTags(course.summary)}
                                           </p>
-                                        </div>
-                                      )}
+                                        )}
 
-                                      {/* Course description */}
-                                      {course.summary && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
-                                          {stripHtmlTags(course.summary)}
-                                        </p>
-                                      )}
-
-                                      {/* Quick action */}
-                                      {isCurrent && (
-                                        <Button
-                                          size="sm"
-                                          className="w-full mt-2 h-8 text-xs"
-                                          disabled={navigating}
-                                          onClick={() =>
-                                            navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? [])
-                                          }
-                                        >
-                                          <Play className="h-3 w-3 mr-1" />
-                                          {navigating ? "Loading…" : "Resume Learning"}
-                                        </Button>
-                                      )}
+                                        {/* Quick action */}
+                                        {isCurrent && (
+                                          <Button
+                                            size="sm"
+                                            className="w-full mt-2 h-8 text-xs"
+                                            disabled={navigating}
+                                            onClick={() =>
+                                              navigateToFirstUncompletedVideo(
+                                                currentTopic.id,
+                                                currentTopic.courses ?? [],
+                                              )
+                                            }
+                                          >
+                                            <Play className="h-3 w-3 mr-1" />
+                                            {navigating
+                                              ? "Loading…"
+                                              : "Resume Learning"}
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              }
-                            )}
+                                  );
+                                },
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
                       {(() => {
-                        const currentOtherItems = getNonCourseItems(currentTopic, isEnrolled);
+                        const currentOtherItems = getNonCourseItems(
+                          currentTopic,
+                          isEnrolled,
+                        );
                         if (!currentOtherItems.length) return null;
                         return (
-                        <div className="space-y-3 ml-0 mt-3">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {currentOtherItems.length} other item{currentOtherItems.length !== 1 ? "s" : ""}
-                          </p>
-                          <div className="space-y-2">
-                            {currentOtherItems.map((item) =>
-                              renderContentItem(item, false, false, false, true)
-                            )}
+                          <div className="space-y-3 ml-0 mt-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {currentOtherItems.length} other item
+                              {currentOtherItems.length !== 1 ? "s" : ""}
+                            </p>
+                            <div className="space-y-2">
+                              {currentOtherItems.map((item) =>
+                                renderContentItem(
+                                  item,
+                                  false,
+                                  false,
+                                  false,
+                                  true,
+                                ),
+                              )}
+                            </div>
                           </div>
-                        </div>
                         );
                       })()}
                     </div>
@@ -1569,138 +1688,133 @@ export function LearningPathContinuePage({
               {upcomingTopics.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                    <h4 className="font-semibold text-gray-600">
+                    <div className="h-5 w-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                      →
+                    </div>
+                    <h4 className="font-semibold text-gray-700">
                       Upcoming ({upcomingTopics.length})
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-gray-200">
                     {upcomingTopics.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
-                      return (<div key={topic.id} className="space-y-3">
-                        {/* Topic */}
-                        <div className="flex items-start gap-3 opacity-60">
-                          <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
-                            🔒
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-semibold text-sm text-gray-600">
-                                {topic.title}
-                              </h5>
-                              <Badge
-                                variant="outline"
-                                className="text-xs text-gray-500"
-                              >
-                                {topic.level || "Intermediate"}
-                              </Badge>
+                      return (
+                        <div key={topic.id} className="space-y-3">
+                          {/* Topic */}
+                          <div className="flex items-start gap-3">
+                            <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                              {topic.position || ""}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {stripHtmlTags(topic.description || "")}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-semibold text-sm text-gray-700">
+                                  {topic.title}
+                                </h5>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-gray-500"
+                                >
+                                  {topic.level || "Intermediate"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {stripHtmlTags(topic.description || "")}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Locked courses and other content in topic */}
-                        {(topic.courses?.length > 0 || otherItems.length > 0) && (
-                          <div className="space-y-3 ml-0 opacity-75">
-                            <div className="flex flex-wrap gap-2">
-                              {topic.courses && topic.courses.length > 0 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {topic.courses.length} Course{topic.courses.length !== 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                              {otherItems.length > 0 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {otherItems.length} other item{otherItems.length !== 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              {/* Real courses */}
-                              {topic.courses?.map((courseItem: any) => {
-                                const course =
-                                  courseItem.course || courseItem;
-                                return (
-                                  <div
-                                    key={course.id}
-                                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 p-3 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
-                                  >
-                                    <div className="space-y-2">
-                                      {/* Header */}
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                          <Lock className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-sm text-gray-700 dark:text-gray-300 leading-tight">
-                                              {course.title}
-                                            </p>
+                          {(topic.courses?.length > 0 ||
+                            otherItems.length > 0) && (
+                            <div className="space-y-3 ml-0">
+                              <div className="flex flex-wrap gap-2">
+                                {topic.courses && topic.courses.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {topic.courses.length} Course
+                                    {topic.courses.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                                {otherItems.length > 0 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {otherItems.length} other item
+                                    {otherItems.length !== 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                {topic.courses?.map((courseItem: any) => {
+                                  const course =
+                                    courseItem.course || courseItem;
+                                  return (
+                                    <div
+                                      key={course.id}
+                                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-slate-950/80 p-3 hover:border-blue-300 transition-colors"
+                                    >
+                                      <div className="space-y-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight">
+                                                {course.title}
+                                              </p>
+                                            </div>
                                           </div>
                                         </div>
-                                        <Badge
-                                          variant="outline"
-                                          className="text-xs flex-shrink-0 text-gray-500"
-                                        >
-                                          Locked
-                                        </Badge>
-                                      </div>
 
-                                      {/* Course metadata */}
-                                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                        {course.chapters && (
-                                          <div className="flex items-center gap-1">
-                                            <BookOpen className="h-3 w-3" />
-                                            <span>
-                                              {course.chapters.length} chapter
-                                              {course.chapters.length !== 1
-                                                ? "s"
-                                                : ""}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.totalDuration && (
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{course.totalDuration}h</span>
-                                          </div>
-                                        )}
-                                        {course.level && (
-                                          <div className="flex items-center gap-1">
-                                            <Zap className="h-3 w-3" />
-                                            <span className="capitalize">
-                                              {course.level}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
+                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                          {course.chapters && (
+                                            <div className="flex items-center gap-1">
+                                              <BookOpen className="h-3 w-3" />
+                                              <span>
+                                                {course.chapters.length} chapter
+                                                {course.chapters.length !== 1
+                                                  ? "s"
+                                                  : ""}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.totalDuration && (
+                                            <div className="flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              <span>
+                                                {course.totalDuration}h
+                                              </span>
+                                            </div>
+                                          )}
+                                          {course.level && (
+                                            <div className="flex items-center gap-1">
+                                              <Zap className="h-3 w-3" />
+                                              <span className="capitalize">
+                                                {course.level}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
 
-                                      {/* Course description */}
-                                      {course.summary && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                          {stripHtmlTags(course.summary)}
-                                        </p>
-                                      )}
-
-                                      {/* Unlock info */}
-                                      <div className="flex items-center gap-2 pt-1 text-xs text-gray-500">
-                                        <Lock className="h-3 w-3" />
-                                        <span>
-                                          Unlock after completing{" "}
-                                          {topic.title}
-                                        </span>
+                                        {course.summary && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2">
+                                            {stripHtmlTags(course.summary)}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                              {otherItems.map((item) =>
-                                renderContentItem(item, false, true, false, true)
-                              )}
+                                  );
+                                })}
+                                {otherItems.map((item) =>
+                                  renderContentItem(
+                                    item,
+                                    false,
+                                    false,
+                                    false,
+                                    true,
+                                  ),
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );})}
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1765,14 +1879,21 @@ export function LearningPathContinuePage({
                   disabled={navigating}
                   onClick={() => {
                     if (isEnrolled) {
-                      navigateToFirstUncompletedVideo(currentTopic.id, currentTopic.courses ?? []);
+                      navigateToFirstUncompletedVideo(
+                        currentTopic.id,
+                        currentTopic.courses ?? [],
+                      );
                     } else {
                       onNavigate?.(`/paths/${pathId}`);
                     }
                   }}
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  {navigating ? "Loading…" : isEnrolled ? "Continue Learning" : "Enroll Now"}
+                  {navigating
+                    ? "Loading…"
+                    : isEnrolled
+                      ? "Continue Learning"
+                      : "Enroll Now"}
                 </Button>
               </CardContent>
             </Card>
@@ -1794,7 +1915,10 @@ export function LearningPathContinuePage({
                     <h3 className="font-medium">Certificate</h3>
                     {certificate ? (
                       <p className="text-sm text-muted-foreground">
-                        ID: <span className="font-mono font-medium">{certificate.code}</span>
+                        ID:{" "}
+                        <span className="font-mono font-medium">
+                          {certificate.code}
+                        </span>
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -1809,7 +1933,9 @@ export function LearningPathContinuePage({
                       if (certificate?.verifyUrl) {
                         window.open(certificate.verifyUrl, "_blank");
                       } else {
-                        toast.info("Certificate is being generated. Check your email shortly.");
+                        toast.info(
+                          "Certificate is being generated. Check your email shortly.",
+                        );
                       }
                     }}
                   >
@@ -1844,7 +1970,9 @@ export function LearningPathContinuePage({
                 className="flex-1"
                 onClick={() => {
                   setShowCelebration(false);
-                  onNavigate?.(routes.pathContinue(pathId, upcomingTopics[0].id));
+                  onNavigate?.(
+                    routes.pathContinue(pathId, upcomingTopics[0].id),
+                  );
                 }}
               >
                 Continue to Next Topic →

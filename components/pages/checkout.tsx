@@ -46,6 +46,8 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   const searchParams = useSearchParams();
   const store = useAppStore();
   const user = useUser();
+  const fmt = (date?: string | Date | null): string =>
+    formatDate(String(date ?? ""), user?.settings?.dateFormat);
   const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("paddle");
@@ -57,8 +59,8 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
 
   // Extract checkout type and ID from the URL
   // const checkoutType = searchParams.get("type");
-  const checkoutId = searchParams.get("plan");
-  const cycle = searchParams.get("cycle");
+  const checkoutId = searchParams?.get("plan");
+  const cycle = searchParams?.get("cycle");
 
   // const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
   const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
@@ -101,10 +103,11 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
       },
       items: [{ priceId }],
       customer: {
-        email: user?.email,
+        email: user?.email!,
         address: {
           countryCode:
-            countries.find((c) => c.name.includes(user?.country))?.code ?? "",
+            countries.find((c) => c.name.includes(user?.country ?? "Nigeria"))
+              ?.code ?? "",
         },
       },
     });
@@ -151,7 +154,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
           setIsProcessing(false);
           setCelebration(true);
           toast.success(
-            "You have successfully subscribe to " + checkoutId + " plan"
+            "You have successfully subscribe to " + checkoutId + " plan",
           );
           break;
       }
@@ -176,9 +179,9 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
       AsyncpayCheckout({
         publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
         customer: {
-          firstName: user.name.split(" ")[0],
-          lastName: user.name.split(" ")[1],
-          email: user.email,
+          firstName: user?.name?.split(" ")?.[0],
+          lastName: user?.name?.split(" ")?.[1],
+          email: user?.email,
         },
         subscriptionPlanUUID: getPriceId(paymentMethod),
         onSuccess: () => {
@@ -200,8 +203,8 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
 
   const activePlan = plans.find((p) =>
     p.name.includes(
-      subscription?.name! ?? subscription?.plan?.name! ?? subscription?.plan
-    )
+      subscription?.name! ?? subscription?.plan?.name! ?? subscription?.plan,
+    ),
   );
 
   const handleBack = () => {
@@ -217,7 +220,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
             <CardDescription>
               Are you sure you want to cancel your subscription? You'll lose
               access to all premium features when your current billing period
-              ends on {formatDate(subscription?.expiry)}.
+              ends on {fmt(subscription?.expiry)}.
             </CardDescription>
           </CardHeader>
           <CardFooter className="gap-4">
@@ -236,7 +239,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                     Are you sure you want to cancel your {subscription?.name}{" "}
                     subscription? You'll lose access to all premium features
                     when your current billing period ends on{" "}
-                    {formatDate(subscription?.expiry)}.
+                    {fmt(subscription?.expiry)}.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -315,7 +318,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
 
   const currentPaymentMethod = (method: string) => {
     const pc = plan?.paymentChannels?.find((pc) =>
-      pc.channel.toString().toLowerCase().includes(method)
+      pc.channel.toString().toLowerCase().includes(method),
     );
     return {
       ...plan,
@@ -413,14 +416,14 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                       ? formatAmount(
                           Number(
                             currentPaymentMethod(paymentMethod).pc
-                              ?.originalMonthlyPrice
-                          )
+                              ?.originalMonthlyPrice,
+                          ),
                         )
                       : formatAmount(
                           Number(
                             currentPaymentMethod(paymentMethod).pc
-                              ?.originalYearlyPrice
-                          )
+                              ?.originalYearlyPrice,
+                          ),
                         )}
                   </span>
                 </div>
@@ -441,14 +444,14 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                     ? formatAmount(
                         Number(
                           currentPaymentMethod(paymentMethod).pc
-                            ?.originalMonthlyPrice
-                        )
+                            ?.originalMonthlyPrice,
+                        ),
                       )
                     : formatAmount(
                         Number(
                           currentPaymentMethod(paymentMethod).pc
-                            ?.originalYearlyPrice
-                        )
+                            ?.originalYearlyPrice,
+                        ),
                       )}
                 </span>
               </div>
@@ -462,14 +465,14 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                         ? formatAmount(
                             Number(
                               currentPaymentMethod(paymentMethod).pc
-                                ?.originalMonthlyPrice
-                            )
+                                ?.originalMonthlyPrice,
+                            ),
                           )
                         : formatAmount(
                             Number(
                               currentPaymentMethod(paymentMethod).pc
-                                ?.originalYearlyPrice
-                            )
+                                ?.originalYearlyPrice,
+                            ),
                           )}
                     </span>{" "}
                     every {cycle === "monthly" ? "month" : "year"}.
@@ -519,14 +522,14 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                         ? formatAmount(
                             Number(
                               currentPaymentMethod(paymentMethod).pc
-                                ?.originalMonthlyPrice
-                            )
+                                ?.originalMonthlyPrice,
+                            ),
                           )
                         : formatAmount(
                             Number(
                               currentPaymentMethod(paymentMethod).pc
-                                ?.originalYearlyPrice
-                            )
+                                ?.originalYearlyPrice,
+                            ),
                           )}
                     </Button>
                   </div>

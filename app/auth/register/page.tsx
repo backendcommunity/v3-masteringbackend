@@ -1,8 +1,10 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import type React from "react";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { analytics } from "@/lib/analytics";
 import {
   Eye,
@@ -20,9 +22,15 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
-    null
+  return (
+    <Suspense>
+      <RegisterContent />
+    </Suspense>
   );
+}
+
+function RegisterContent() {
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -40,12 +48,6 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
   });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSearchParams(new URLSearchParams(window.location.search));
-    }
-  }, []);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {
@@ -120,15 +122,13 @@ export default function RegisterPage() {
 
       if (isRegistered)
         router.push(
-          "/auth/email/verify?sent=true&email=" +
-            encodeURIComponent(formData.email)
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
         );
     } catch (error: any) {
       const message = error?.response?.data?.message ?? error?.message;
       if (message.includes("verify email"))
         router.push(
-          "/auth/email/verify?sent=true&email=" +
-            encodeURIComponent(formData.email)
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
         );
 
       analytics.track("signup_failed", { method: "email", reason: message });
@@ -536,7 +536,7 @@ export default function RegisterPage() {
             <p className="text-[#0E1F33]/70 dark:text-[#94A3B8]">
               Already have an account?{" "}
               <a
-                href="/auth/login"
+                href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
                 className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign in

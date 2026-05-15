@@ -33,6 +33,7 @@ import {
   BadgeIcon as Certificate,
   Trophy,
   Crown,
+  Loader2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -41,7 +42,6 @@ import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Course, UserChapter, Video } from "@/lib/data";
 import { toast } from "sonner";
-import ConfettiCelebration from "@/components/confetti-celebration";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
@@ -58,9 +58,9 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const { updateCourse } = store;
   const [currentChapter] = useState(course?.chapters[0]);
   const [loading, setLoading] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [celebration, setCelebration] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -135,7 +135,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         break;
     }
 
-    setCelebration(true);
     toast.success("You have successfully enrolled");
   };
 
@@ -154,6 +153,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
+      setEnrolling(true);
       const data = await handleEnrollment(course?.id!);
       if (!data) {
         toast.error("An error occurred. Please try again");
@@ -161,13 +161,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       }
       updateCourse(slug, { ...course, enrolled: true, userCourse: data });
       Object.assign(course!, { enrolled: true });
-
-      // Trigger celebration for first-time enrollment
-      setCelebration(true);
       toast.success("You have successfully enrolled");
     } catch (error: any) {
       const e = error?.response?.message ?? error?.message;
       toast.error(e ?? "An error occurred");
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -176,10 +175,18 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     return data;
   };
 
-  const handlePreviewCourse = () => {
-    //TODO: Add user to course and set preview true
-    const previewPath = routes.coursePreview(slug);
-    onNavigate(previewPath);
+  const handleFreeChapterClick = async (chapter: Chapter) => {
+    try {
+      const data = await store.handleCourseEnrollment(course?.id!, true);
+      if (data) {
+        updateCourse(slug, { ...course, enrolled: true, userCourse: data });
+        Object.assign(course!, { enrolled: true });
+      }
+      const firstVideo = chapter.videos?.[0];
+      onNavigate(routes.courseWatch(slug, chapter.slug, firstVideo?.slug));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? err?.message ?? "Could not enroll. Please try again.");
+    }
   };
 
   const handleContinueLearning = () => {
@@ -213,15 +220,11 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
   const handleChapterClick = (chapter: Chapter, index: number) => {
     if (course?.enrolled) {
-      // Default to video watch
-      const watchPath = routes.courseWatch(
-        slug,
-        chapter.slug,
-        chapter?.videos[0]?.slug,
-      );
-      onNavigate(watchPath);
+      onNavigate(routes.courseWatch(slug, chapter.slug, chapter?.videos[0]?.slug));
+    } else if (!chapter.isPremium) {
+      handleFreeChapterClick(chapter);
     } else {
-      handlePreviewCourse();
+      handleEnrollNow();
     }
   };
 
@@ -264,9 +267,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               <span className="text-sm">{course?.rating ?? 4.5}</span>
-              <span className="text-sm text-muted-foreground">
-                ({course?.students?.toLocaleString()} students)
-              </span>
             </div>
           </div>
 
@@ -447,17 +447,13 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                       Included in Pro
                     </Badge>
                   )}
-                  <Button className="w-full" onClick={handleEnrollNow}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Learning
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handlePreviewCourse}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Preview Course
+                  <Button className="w-full" onClick={handleEnrollNow} disabled={enrolling}>
+                    {enrolling ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-2 h-4 w-4" />
+                    )}
+                    {enrolling ? "Enrolling..." : "Start Learning"}
                   </Button>
                 </div>
               )}
@@ -576,9 +572,14 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   variant="outline"
                   className="w-full"
                   onClick={handleEnrollNow}
+                  disabled={enrolling}
                 >
-                  <Certificate className="mr-2 h-4 w-4" />
-                  Enroll to Earn Certificate
+                  {enrolling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Certificate className="mr-2 h-4 w-4" />
+                  )}
+                  {enrolling ? "Enrolling..." : "Enroll to Earn Certificate"}
                 </Button>
               )}
             </CardContent>
@@ -729,7 +730,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   </p>
                   <div className="flex gap-4 text-sm text-muted-foreground">
                     <span>15 courses</span>
-                    <span>50k+ students</span>
+
                     <span>4.9 rating</span>
                   </div>
                 </div>
@@ -758,13 +759,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Confetti Celebration */}
-      <ConfettiCelebration
-        onComplete={() => setCelebration(false)}
-        isVisible={celebration}
-        celebrationType="enrollment"
-        courseName={course?.title!}
-      />
     </div>
   );
 }

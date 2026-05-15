@@ -1,31 +1,45 @@
 // This file configures the initialization of Sentry on the client.
-// The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
 
-Sentry.init({
-  dsn: "https://b488564494f60a7e04e8cf95ea7b07e9@o4510933825159168.ingest.us.sentry.io/4510933826928640",
+const env = process.env.NEXT_PUBLIC_NODE_ENV ?? process.env.NODE_ENV;
+const isProduction = env === "production";
 
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
+if (isProduction) {
+  Sentry.init({
+    dsn: "https://b488564494f60a7e04e8cf95ea7b07e9@o4510933825159168.ingest.us.sentry.io/4510933826928640",
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+    environment: "production",
 
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
+    integrations: [Sentry.replayIntegration()],
 
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
+    tracesSampleRate: 0.1,
+    enableLogs: false,
+    sendDefaultPii: false,
 
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
-});
+    replaysSessionSampleRate: 0.05,
+    replaysOnErrorSampleRate: 1.0,
+
+    beforeSend(event, hint) {
+      const error = hint.originalException;
+      if (error instanceof Error) {
+        // Vimeo SDK AbortError on player.destroy() — not actionable
+        if (error.name === "AbortError") return null;
+        // Vimeo SDK missing id/url — fixed at source, filter residual noise
+        if (error.message?.includes("id or url must be passed")) return null;
+        // Transient network errors — not actionable
+        if (
+          error.message?.includes("NetworkError") ||
+          error.message?.includes("Network Error") ||
+          error.message?.includes("Failed to fetch")
+        ) {
+          return null;
+        }
+      }
+      return event;
+    },
+  });
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

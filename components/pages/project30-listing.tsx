@@ -22,7 +22,6 @@ import {
 import {
   PlayCircle,
   Clock,
-  Users,
   Star,
   Search,
   Filter,
@@ -333,10 +332,6 @@ export function Project30ListingPage({
                         <PlayCircle className="h-4 w-4" />
                         {course.totalContents} videos
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {course?.students?.toLocaleString()}
-                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -552,10 +547,6 @@ export function Project30ListingPage({
 
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          {course?.students?.toLocaleString()} students
-                        </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
                           {course.totalDuration}

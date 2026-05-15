@@ -106,9 +106,9 @@ export function BootcampCertificatePage({
       <Certificate
         type="bootcamp"
         courseName={bootcamp.title}
-        studentName={user.name}
+        studentName={user?.name!}
         instructorName={bootcamp?.instructor ?? "Masteringbackend"}
-        completionDate={formatDate(bootcamp?.userCohort?.updatedAt + "")}
+        completionDate={formatDate(bootcamp?.userCohort?.updatedAt + "", user?.settings?.dateFormat)}
         course={bootcamp}
         onDownload={handleDownload}
         onShare={handleShare}

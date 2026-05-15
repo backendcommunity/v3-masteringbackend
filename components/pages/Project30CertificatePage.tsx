@@ -92,9 +92,12 @@ export function Project30CertificatePage({
       <Certificate
         type="project30"
         courseName={project30.title}
-        studentName={user.name}
+        studentName={user?.name ?? ""}
         instructorName={project30?.instructor?.name ?? "Masteringbackend"}
-        completionDate={formatDate(project30.userProject30.updatedAt + "")}
+        completionDate={formatDate(
+          project30.userProject30.updatedAt + "",
+          user?.settings?.dateFormat,
+        )}
         course={project30}
         onDownload={handleDownload}
         onShare={handleShare}

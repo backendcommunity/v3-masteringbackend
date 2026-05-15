@@ -7,6 +7,19 @@ export interface UserRoadmapFilters {
   size?: number;
   filters?: any;
 }
+
+export interface UserRoadmap {
+  id: string;
+  userId: string;
+  roadmapId: string;
+  isPreview: boolean;
+  isCompleted: boolean;
+  currentTopicId?: string;
+  roadmap?: any;
+  currentUserTopicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface User {
   id: string;
   name: string;
@@ -93,21 +106,14 @@ export interface StreakData {
   isStreakActiveToday: boolean;
 }
 
-export type ContentItemType =
-  | "course"
-  | "roadmap"
-  | "bootcamp"
-  | "project"
-  | "mock_interview";
-
 export interface ContinueLearningItem {
-  type: ContentItemType;
   id: string;
+  slug: string;
   title: string;
+  subtitle: string;
   banner?: string | null;
-  resumeLabel: string;
-  resumeUrl: string;
-  lastActiveAt: string;
+  progress: number;
+  currentTopicId: string | null;
 }
 
 // Epic 6: Global Search types
@@ -425,6 +431,12 @@ export interface CourseFilterOptions {
   category?: string;
   level?: string;
   tab?: string;
+  tag?: string;
+}
+
+export interface CourseFiltersData {
+  categories: Array<{ id: string; name: string }>;
+  tags: string[];
 }
 
 export interface NewUser {
@@ -435,6 +447,18 @@ export interface NewUser {
   subscribe: boolean;
   signedUpThrough: "MASTERINGBACKEND" | "GOOGLE" | "GITHUB";
   source?: string;
+}
+
+export interface StarterKitItem {
+  id: string;
+  title: string;
+  summary: string;
+  banner: string;
+  slug: string;
+  level?: string;
+  tags?: string[];
+  skills?: string[];
+  students: number;
 }
 
 export interface Course {

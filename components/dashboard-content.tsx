@@ -37,9 +37,9 @@ import { useUser } from "@/hooks/use-user";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 
-interface DashboardContentProps { }
+interface DashboardContentProps {}
 
-export function DashboardContent({ }: DashboardContentProps) {
+export function DashboardContent({}: DashboardContentProps) {
   const router = useRouter();
   const user = useUser();
   const store = useAppStore();
@@ -169,8 +169,9 @@ export function DashboardContent({ }: DashboardContentProps) {
             </div>
             <Progress
               value={
-                (user?.numberOfCoursesCompleted ??
-                  0 / user?.numberOfCoursesInProgress!) * 100
+                ((user?.numberOfCoursesCompleted ?? 0) /
+                  user?.numberOfCoursesInProgress!) *
+                100
               }
               className="mt-2"
             />
@@ -228,14 +229,14 @@ export function DashboardContent({ }: DashboardContentProps) {
       <ScheduleList />
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>Jump into your learning journey</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
+            {quickActions?.map((action, index) => (
               <Button
                 key={index}
                 variant="outline"
@@ -255,7 +256,7 @@ export function DashboardContent({ }: DashboardContentProps) {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
 
@@ -335,13 +336,13 @@ export function DashboardContent({ }: DashboardContentProps) {
                     title="No Learning Roadmap Yet"
                     description="Choose a structured learning path to guide your backend engineering journey."
                     primaryCTA={{
-                      label: "Explore Roadmaps",
-                      onClick: () => handleNavigate("/roadmaps"),
+                      label: "Explore Learing paths",
+                      onClick: () => handleNavigate("/paths"),
                     }}
                   />
                 ) : (
                   <>
-                    {userRoadmaps.map((userRoadmap: any, i: number) => {
+                    {userRoadmaps?.map((userRoadmap: any, i: number) => {
                       return (
                         <div className="space-y-4" key={i}>
                           <div className="space-y-2">

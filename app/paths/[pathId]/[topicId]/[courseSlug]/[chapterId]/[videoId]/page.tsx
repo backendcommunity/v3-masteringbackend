@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { RoadmapVideoWatchPage } from "@/components/pages/roadmap-video-watch";
+import { RoadmapVideoWatchPage } from "@/components/pages/path-video-watch";
 import { routes } from "@/lib/routes";
 import { useParams, useRouter } from "next/navigation";
 

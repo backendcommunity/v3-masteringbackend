@@ -215,8 +215,12 @@ export function CourseQuizPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl dark:text-white">{quiz.title}</CardTitle>
-              <p className="text-gray-600 dark:text-gray-300">{quiz.description}</p>
+              <CardTitle className="text-2xl dark:text-white">
+                {quiz.title}
+              </CardTitle>
+              <p className="text-gray-600 dark:text-gray-300">
+                {quiz.description}
+              </p>
             </CardHeader>
             <CardContent className="space-y-6 dark:text-white">
               <div className="grid grid-cols-2 gap-4">
@@ -300,7 +304,9 @@ export function CourseQuizPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl dark:text-white">{currentQ?.question}</CardTitle>
+              <CardTitle className="text-xl dark:text-white">
+                {currentQ?.question}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {currentQ?.options?.map((option, index) => (
@@ -311,7 +317,7 @@ export function CourseQuizPage({
                   }
                   className={`w-full text-left p-4 rounded-lg border transition-colors dark:text-white ${
                     answers[currentQuestion] === index.toString()
-                      ? "bg-blue-100 border-blue-500 dark:bg-blue-900 dark:border-blue-400"
+                      ? "bg-primary border-primary dark:bg-primary-900 dark:border-primary"
                       : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
@@ -361,8 +367,8 @@ export function CourseQuizPage({
       score > 0
         ? score
         : quiz.enrolled
-        ? quiz.userQuiz.bestScore
-        : quiz.userQuiz?.score;
+          ? quiz.userQuiz.bestScore
+          : quiz.userQuiz?.score;
 
     const passed = _score >= (quiz.passingScore ?? 50);
     const questions = quiz.userQuiz?.items ?? quiz?.questions;
@@ -428,7 +434,10 @@ export function CourseQuizPage({
               <div className="space-y-4">
                 <h4 className="font-semibold dark:text-white">Quiz Review</h4>
                 {questions?.map((question: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-4 dark:border-gray-600 dark:bg-gray-900">
+                  <div
+                    key={index}
+                    className="border rounded-lg p-4 dark:border-gray-600 dark:bg-gray-900"
+                  >
                     <div className="flex items-start gap-2 mb-2">
                       {question?.passed ? (
                         <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
@@ -436,14 +445,16 @@ export function CourseQuizPage({
                         <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
                       )}
                       <div className="flex-1">
-                        <p className="font-medium dark:text-white">{question?.question}</p>
+                        <p className="font-medium dark:text-white">
+                          {question?.question}
+                        </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                           Your answer:{" "}
                           {question?.userAnswer
                             ? question.userAnswer
                             : question.passed
-                            ? question.correctAnswer
-                            : "Not answered"}
+                              ? question.correctAnswer
+                              : "Not answered"}
                         </p>
                         {!question.passed && (
                           <p className="text-sm text-green-600 dark:text-green-400 mt-1">

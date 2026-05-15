@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { toast } from "sonner";
 
@@ -30,6 +30,8 @@ const STEP_ORDER: Step[] = ["welcome", "experience", "language", "goal", "time",
 
 export function OnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams?.get("redirect") ?? undefined;
   const { user, completeOnboarding } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<Step>("welcome");
@@ -62,13 +64,13 @@ export function OnboardingFlow() {
     try {
       setIsSubmitting(true);
       await completeOnboarding({ skipped: true });
-      router.replace(routes.dashboard);
+      router.replace(redirect || routes.dashboard);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
-  }, [completeOnboarding, router]);
+  }, [completeOnboarding, redirect, router]);
 
   // ── Submit (after time commitment selected) ─────────────────────────────
   const handleSubmit = useCallback(async () => {
@@ -88,9 +90,9 @@ export function OnboardingFlow() {
         setRecommendation(res.data.recommendation);
         setCurrentStep("result");
       } else {
-        // API succeeded but no recommendation — go to dashboard
+        // API succeeded but no recommendation — go to redirect or dashboard
         toast.success("Onboarding complete!");
-        router.replace(routes.dashboard);
+        router.replace(redirect || routes.dashboard);
       }
     } catch {
       toast.error("Something went wrong. Let's try again.");
@@ -185,7 +187,7 @@ export function OnboardingFlow() {
         )}
 
         {currentStep === "result" && recommendation && (
-          <OnboardingResult recommendation={recommendation} learningGoal={learningGoal} />
+          <OnboardingResult recommendation={recommendation} learningGoal={learningGoal} redirect={redirect} />
         )}
       </div>
     </div>

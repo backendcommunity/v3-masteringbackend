@@ -232,8 +232,6 @@ export function RoadmapWatchPage({
           setCompletedItems(completed);
         });
 
-    if (!hasNext()) handleCompleted();
-
     // setCelebration(true);
     setCompleted(true);
     toast.success(`Task completed successfully`);

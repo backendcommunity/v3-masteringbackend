@@ -57,6 +57,8 @@ export function SubscriptionManagementPage({
   onNavigate,
 }: SubscriptionManagementPageProps) {
   const user = useUser();
+  const fmt = (date?: string | Date | null): string =>
+    formatDate(String(date ?? ""), user?.settings?.dateFormat);
   const store = useAppStore();
   const plans = dataStore.plans;
   const [activeTab, setActiveTab] = useState("subscription");
@@ -67,15 +69,15 @@ export function SubscriptionManagementPage({
   const [enterprisePlan, setEnterprisePlan] = useState<any>();
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(
-    user.isPremium
+    user?.isPremium
       ? user?.subscription
       : {
           plan: { name: "Free", monthlyPrice: 0 },
           expiry: "Free forever",
           status: "active",
           paymentMethod: "No card added",
-          startDate: user.createdAt,
-        }
+          startDate: user?.createdAt,
+        },
   );
 
   const [stats, setStats] = useState<{
@@ -120,8 +122,8 @@ export function SubscriptionManagementPage({
 
   const activePlan = plans.find((p) =>
     p.name.includes(
-      subscription?.name! ?? subscription?.plan?.name! ?? subscription?.plan
-    )
+      subscription?.name! ?? subscription?.plan?.name! ?? subscription?.plan,
+    ),
   );
 
   const handleCancelSubscription = async () => {
@@ -178,7 +180,7 @@ export function SubscriptionManagementPage({
       setLoading(true);
 
       const shouldDelete = confirm(
-        "Are you sure you want to delete your payment method?"
+        "Are you sure you want to delete your payment method?",
       );
       if (!shouldDelete) return;
 
@@ -254,14 +256,14 @@ export function SubscriptionManagementPage({
                           {subscription?.status?.trim()}
                         </span>{" "}
                         on{" "}
-                        {formatDate(
+                        {fmt(
                           subscription?.status?.trim()?.includes("resuming")
                             ? subscription?.expiry
-                            : subscription?.switchToBasicDate
+                            : subscription?.switchToBasicDate,
                         ) ?? "N/A"}
                       </span>
                     ) : (
-                      `Renews on ${formatDate(subscription?.expiry)}`
+                      `Renews on ${fmt(subscription?.expiry)}`
                     )}
                   </p>
                 </div>
@@ -290,8 +292,8 @@ export function SubscriptionManagementPage({
                       <dt className="text-muted-foreground">Start Date:</dt>
                       <dd className="font-medium">
                         {subscription?.plan?.name === "Free"
-                          ? formatDate(user?.createdAt)
-                          : formatDate(subscription?.startedAt)}
+                          ? fmt(user?.createdAt)
+                          : fmt(subscription?.startedAt)}
                       </dd>
                     </div>
 
@@ -307,10 +309,10 @@ export function SubscriptionManagementPage({
                           {subscription?.status?.trim()} on:
                         </dt>
                         <dd className="font-medium">
-                          {formatDate(
+                          {fmt(
                             subscription?.status?.trim()?.includes("resuming")
                               ? subscription?.expiry
-                              : subscription?.switchToBasicDate
+                              : subscription?.switchToBasicDate,
                           ) ?? "N/A"}
                         </dd>
                       </div>
@@ -318,7 +320,7 @@ export function SubscriptionManagementPage({
                       <div className="flex justify-between">
                         <dt className="text-muted-foreground">Next Billing:</dt>
                         <dd className="font-medium">
-                          {formatDate(subscription?.expiry)}
+                          {fmt(subscription?.expiry)}
                         </dd>
                       </div>
                     )}
@@ -368,12 +370,12 @@ export function SubscriptionManagementPage({
                       </div>
                     </span>
                     {!subscription?.paymentMethod?.includes(
-                      "No card added"
+                      "No card added",
                     ) && (
                       <Button
                         onClick={handleDeleteCard}
                         disabled={["active", "resuming"].includes(
-                          subscription?.status?.trim()
+                          subscription?.status?.trim(),
                         )}
                         variant="outline"
                         size="sm"
@@ -403,13 +405,13 @@ export function SubscriptionManagementPage({
               <div className="flex gap-4">
                 {!subscription?.plan?.name?.includes("Free") &&
                   !["canceling", "canceled"].includes(
-                    subscription?.status?.trim()
+                    subscription?.status?.trim(),
                   ) && (
                     <Dialog
                       open={pauseDialogOpen}
                       onOpenChange={(e) => {
                         ["paused", "pausing"].includes(
-                          subscription?.status?.trim()
+                          subscription?.status?.trim(),
                         )
                           ? handleResumeSubscription()
                           : setPauseDialogOpen(e);
@@ -419,14 +421,14 @@ export function SubscriptionManagementPage({
                         <Button
                           variant={
                             ["paused", "pausing"].includes(
-                              subscription?.status?.trim()
+                              subscription?.status?.trim(),
                             )
                               ? "default"
                               : "secondary"
                           }
                         >
                           {["paused", "pausing"].includes(
-                            subscription?.status?.trim()
+                            subscription?.status?.trim(),
                           ) ? (
                             loading ? (
                               <>
@@ -448,9 +450,8 @@ export function SubscriptionManagementPage({
                             Are you sure you want to pause your{" "}
                             {subscription?.name} subscription? You'll lose
                             access to all premium features when your current
-                            billing period ends on{" "}
-                            {formatDate(subscription?.expiry)} until you resume
-                            back.
+                            billing period ends on {fmt(subscription?.expiry)}{" "}
+                            until you resume back.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
@@ -528,7 +529,7 @@ export function SubscriptionManagementPage({
 
                 {!subscription?.plan?.name?.includes("Free") &&
                   !["canceling", "canceled", "paused", "pausing"].includes(
-                    subscription?.status?.trim()
+                    subscription?.status?.trim(),
                   ) && (
                     <Dialog
                       open={cancelDialogOpen}
@@ -546,8 +547,7 @@ export function SubscriptionManagementPage({
                             Are you sure you want to cancel your{" "}
                             {subscription?.name} subscription? You'll lose
                             access to all premium features when your current
-                            billing period ends on{" "}
-                            {formatDate(subscription?.expiry)}.
+                            billing period ends on {fmt(subscription?.expiry)}.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
@@ -697,7 +697,7 @@ export function SubscriptionManagementPage({
                         <span>
                           Invoice #{invoice.invoice?.substring(0, 10)}
                         </span>
-                        <span>{formatDate(invoice?.createdAt)}</span>
+                        <span>{fmt(invoice?.createdAt)}</span>
                         <span>${invoice?.amount?.toFixed(2)}</span>
                       </div>
                     </div>
@@ -753,7 +753,7 @@ export function SubscriptionManagementPage({
                   <div className="text-2xl font-bold text-green-600">
                     {
                       billingHistory?.filter(
-                        (i) => i.status?.trim()?.toLowerCase() === "paid"
+                        (i) => i.status?.trim()?.toLowerCase() === "paid",
                       ).length
                     }
                   </div>
