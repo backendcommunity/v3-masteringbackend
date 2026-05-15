@@ -59,13 +59,15 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
 
   // Extract checkout type and ID from the URL
   // const checkoutType = searchParams.get("type");
-  const checkoutId = searchParams?.get("plan");
-  const cycle = searchParams?.get("cycle");
+  const checkoutId = searchParams?.get("plan") ?? "pro";
+  const cycle = searchParams?.get("cycle") ?? "monthly";
 
   // const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
   const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
   const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
-  const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
+  const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
+    ? "sandbox"
+    : "production";
 
   const subscription = user?.subscription;
   const plans = dataStore.plans;

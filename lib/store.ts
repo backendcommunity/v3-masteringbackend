@@ -255,7 +255,7 @@ interface AppState {
 
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
-  getContinueLearning: () => Promise<ContinueLearningItem[]>;
+  getContinueLearning: () => Promise<ContinueLearningItem>;
   markActivityRead: (id: string) => Promise<void>;
   markAllActivitiesRead: () => Promise<void>;
 

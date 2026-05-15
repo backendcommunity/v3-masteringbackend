@@ -1470,7 +1470,7 @@ export function LearningPathContinuePage({
                                     </div>
                                   );
                                 })}
-                                {otherItems.map((item) =>
+                                {otherItems?.map((item) =>
                                   renderContentItem(
                                     item,
                                     true,
@@ -1684,7 +1684,7 @@ export function LearningPathContinuePage({
                               {currentOtherItems.length !== 1 ? "s" : ""}
                             </p>
                             <div className="space-y-2">
-                              {currentOtherItems.map((item) =>
+                              {currentOtherItems?.map((item) =>
                                 renderContentItem(
                                   item,
                                   false,
@@ -1818,7 +1818,7 @@ export function LearningPathContinuePage({
                                     </div>
                                   );
                                 })}
-                                {otherItems.map((item) =>
+                                {otherItems?.map((item) =>
                                   renderContentItem(
                                     item,
                                     false,

@@ -143,7 +143,7 @@ export function CoursePreviewPage({
   };
 
   const handleEnrollNow = async () => {
-    if (!user.isPremium) {
+    if (!user?.isPremium) {
       setShowPaymentDialog(!showPaymentDialog);
       return;
     }
@@ -153,8 +153,8 @@ export function CoursePreviewPage({
         routes.courseWatch(
           slug,
           course?.chapters[0]?.slug,
-          course?.chapters[0]?.videos[0]?.slug
-        )
+          course?.chapters[0]?.videos[0]?.slug,
+        ),
       );
       return;
     }
@@ -329,11 +329,11 @@ export function CoursePreviewPage({
                 handleEnrollNow();
               }}
             >
-              {user.isPremium
+              {user?.isPremium
                 ? "Start Learning Now"
                 : course.isEnrolled
-                ? "Continue Learning"
-                : "Enroll Now"}
+                  ? "Continue Learning"
+                  : "Enroll Now"}
             </Button>
           </div>
 
@@ -594,11 +594,11 @@ export function CoursePreviewPage({
                   handleEnrollNow();
                 }}
               >
-                {user.isPremium
+                {user?.isPremium
                   ? "Start Learning Now"
                   : course.isEnrolled
-                  ? "Continue Learning"
-                  : "Enroll Now"}
+                    ? "Continue Learning"
+                    : "Enroll Now"}
               </Button>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">
