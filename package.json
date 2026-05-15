@@ -93,7 +93,7 @@
     "zod": "^3.24.1",
     "zustand": "latest"
   },
-    "engines": {
+  "engines": {
     "node": ">=20.19.0"
   },
   "devDependencies": {
