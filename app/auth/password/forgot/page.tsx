@@ -24,11 +24,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const isSent = await auth.sendForgotPasswordEmail(email);
-      if (!isSent) {
-        toast.error("Please retry again");
-        return;
-      }
+      await auth.sendForgotPasswordEmail(email);
       setIsEmailSent(true);
     } catch (error: any) {
       const message = error?.response?.data?.message ?? error?.message;
@@ -42,14 +38,10 @@ export default function ForgotPasswordPage() {
   const handleResendEmail = async () => {
     setIsLoading(true);
     try {
-      const isSent = await auth.sendForgotPasswordEmail(email);
-      if (!isSent) {
-        toast.error("Please retry again");
-        return;
-      }
+      await auth.sendForgotPasswordEmail(email);
       toast.success("Code Resent Successfully");
     } catch (err: any) {
-      const message = err?.response?.data?.message ?? err?.message;
+      const message = err?.response?.data?.error?.message ?? err?.message;
       toast.error(message);
       setError("Failed to resend email. Please try again.");
     } finally {
@@ -60,15 +52,15 @@ export default function ForgotPasswordPage() {
   const handleVerifyCode = async () => {
     setIsLoading(true);
     try {
-      const isVerified = await auth.verifyCode(email, code);
+      const isVerified = await auth.verifyCode(email, code, "RESET");
       if (!isVerified)
         throw new Error("We could not verify code. Please try again");
 
       router.push(
-        `/auth/password/reset?token=${code}&email=${encodeURIComponent(email)}`
+        `/auth/password/reset?token=${code}&email=${encodeURIComponent(email)}`,
       );
     } catch (error: any) {
-      const message = error?.response?.data?.message ?? error?.message;
+      const message = error?.response?.data?.error?.message ?? error?.message;
       toast.error(message);
       setIsLoading(false);
     }

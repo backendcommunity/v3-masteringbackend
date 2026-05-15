@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CheckCircle,
@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 export default function VerifyEmailPage() {
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
-    null
+    null,
   );
   const auth = useAuth();
   const [verificationStatus, setVerificationStatus] = useState<
@@ -54,7 +54,8 @@ export default function VerifyEmailPage() {
     setVerificationStatus("sent");
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     try {
       setIsLoading(true);
       setVerificationStatus("loading");
@@ -68,6 +69,11 @@ export default function VerifyEmailPage() {
       setVerificationStatus("error");
       setIsLoading(false);
     } catch (error: any) {
+      const message =
+        error?.response?.data?.error?.message ??
+        error?.message ??
+        "Verification failed";
+      toast.error(message);
       setIsLoading(false);
       setVerificationStatus("error");
     }
@@ -209,7 +215,11 @@ export default function VerifyEmailPage() {
               your account.
             </p>
             <Link
-              href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
+              href={
+                redirect
+                  ? `/auth/login?redirect=${encodeURIComponent(redirect)}`
+                  : "/auth/login"
+              }
               className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               Continue to Login
@@ -266,14 +276,20 @@ export default function VerifyEmailPage() {
               Verification Failed
             </h1>
             <p className="text-gray-600 dark:text-white/70 mb-8">
-              We couldn't verify your email address. The token may be invalid or
+              We couldn't verify your email address. The code may be invalid or
               expired.
             </p>
             <div className="space-y-4">
               <button
+                onClick={() => setVerificationStatus("sent")}
+                className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium flex items-center justify-center space-x-2"
+              >
+                Try Again
+              </button>
+              <button
                 onClick={handleResendVerification}
                 disabled={isResending}
-                className="w-full bg-[#0E1F33] dark:bg-[#0EA5E9] text-white py-3 px-4 rounded-lg hover:bg-[#0E1F33]/90 dark:hover:bg-[#0284C7] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="w-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isResending ? (
                   <div className="flex items-center justify-center gap-2">
@@ -284,12 +300,6 @@ export default function VerifyEmailPage() {
                   "Resend Verification Email"
                 )}
               </button>
-              <Link
-                href="/auth/register"
-                className="block w-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-medium py-3 px-4 rounded-lg transition-all duration-300"
-              >
-                Create New Account
-              </Link>
             </div>
           </div>
         );
