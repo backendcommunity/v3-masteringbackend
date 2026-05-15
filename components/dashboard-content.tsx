@@ -333,8 +333,8 @@ export function DashboardContent({}: DashboardContentProps) {
                     title="No Learning Roadmap Yet"
                     description="Choose a structured learning path to guide your backend engineering journey."
                     primaryCTA={{
-                      label: "Explore Roadmaps",
-                      onClick: () => handleNavigate("/roadmaps"),
+                      label: "Explore Learing paths",
+                      onClick: () => handleNavigate("/paths"),
                     }}
                   />
                 ) : (
