@@ -33,7 +33,9 @@ const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
 const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
 const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
 
-const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
+const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
+  ? "sandbox"
+  : "production";
 
 export function PaymentDialog({
   data,
@@ -263,7 +265,7 @@ export function PaymentDialog({
     try {
       const res = await store.initiateAsyncpayCheckout(
         data.bootcampId,
-        data.id
+        data.id,
       );
       const { AsyncpayCheckout } = await import("@asyncpay/checkout");
       AsyncpayCheckout({
@@ -312,7 +314,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableSubscription) {
-                  analytics.track("payment_plan_selected", { plan: "subscription", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "subscription",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "subscription");
                 }
               }}
@@ -360,7 +365,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableOnetime) {
-                  analytics.track("payment_plan_selected", { plan: "individual", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "individual",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "individual");
                 }
               }}
@@ -400,7 +408,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableMB) {
-                  analytics.track("payment_plan_selected", { plan: "mb", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "mb",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "mb");
                 }
               }}

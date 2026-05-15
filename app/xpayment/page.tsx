@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 
 const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
 const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
-const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
+const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
+  ? "sandbox"
+  : "production";
 const DEFAULT_PRICE_ID = "pri_01kc68wvad2nfdd5a7s5zphemt";
 
 export default function XPayment() {

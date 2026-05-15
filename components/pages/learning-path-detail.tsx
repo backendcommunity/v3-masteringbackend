@@ -997,7 +997,7 @@ export function LearningPathDetailPage({
                                 collapsible
                                 className="space-y-3"
                               >
-                                {topicItems.map((item) => {
+                                {topicItems?.map((item) => {
                                   const cfg =
                                     typeConfig[item.type] ?? typeConfig.course;
                                   return (
@@ -1670,7 +1670,7 @@ export function LearningPathDetailPage({
                               collapsible
                               className="space-y-3"
                             >
-                              {topicItems.map((item: any) => {
+                              {topicItems?.map((item: any) => {
                                 const cfg =
                                   typeConfig[item.type] ?? typeConfig.course;
                                 const dotCls = cfg.dotCls;
@@ -1790,12 +1790,12 @@ export function LearningPathDetailPage({
                                                       case "quiz":
                                                         if (
                                                           item.raw
-                                                            ?.parentCourseId
+                                                            ?.parentCourseSlug
                                                         ) {
                                                           onNavigate?.(
                                                             routes.courseQuiz(
                                                               item.raw
-                                                                .parentCourseId,
+                                                                .parentCourseSlug,
                                                               item.id,
                                                             ),
                                                           );
@@ -1812,12 +1812,12 @@ export function LearningPathDetailPage({
                                                       case "exercise":
                                                         if (
                                                           item.raw
-                                                            ?.parentCourseId
+                                                            ?.parentCourseSlug
                                                         ) {
                                                           onNavigate?.(
                                                             routes.courseExercise(
                                                               item.raw
-                                                                .parentCourseId,
+                                                                .parentCourseSlug,
                                                               item.id,
                                                             ),
                                                           );

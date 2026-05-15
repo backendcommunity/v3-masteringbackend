@@ -197,9 +197,9 @@ export function ProjectPlaygroundPage({
       setProject(project);
       setLoading(false);
     }
-    setConnected(!!user.githubInstallationId || !!user.github);
+    setConnected(!!user?.githubInstallationId || !!user?.github);
     findProject(slug);
-  }, [slug, user.github, user.githubInstallationId]);
+  }, [slug, user?.github, user?.githubInstallationId]);
 
   useEffect(() => {
     const load = async () => {
@@ -208,7 +208,7 @@ export function ProjectPlaygroundPage({
       updateUser(data);
     };
 
-    const searchTerm = searchParams.get("ref");
+    const searchTerm = searchParams?.get("ref");
     if (searchTerm?.includes("githubapp")) load();
   }, []);
 
@@ -248,7 +248,7 @@ export function ProjectPlaygroundPage({
     socket.on("folder:response", (data) => {
       setLoadingFiles(true);
       const active = data.files[0].children.find(
-        (f: FileNode) => f.type === "file" && !f.isBlocked
+        (f: FileNode) => f.type === "file" && !f.isBlocked,
       );
       setActiveFile(active?.path);
       setCode(active?.content);
@@ -372,7 +372,7 @@ export function ProjectPlaygroundPage({
   // ====================================
   const handleProjectSetup = () => {
     socket.emit("project:start", {
-      userId: user.id,
+      userId: user?.id,
       template: language,
       projectName: slug,
       installationId: user?.githubInstallationId,
@@ -409,7 +409,7 @@ export function ProjectPlaygroundPage({
 
   const handleEnrollNow = async () => {
     try {
-      if (!user.isPremium && project.isPremium && !project.enrolled) {
+      if (!user?.isPremium && project.isPremium && !project.enrolled) {
         setShowPayment(!showPayment);
         return;
       }
@@ -622,7 +622,7 @@ export function ProjectPlaygroundPage({
   // Recursive search for a node by path
   const findNodeByPath = (
     nodes: FileNode[],
-    path: string
+    path: string,
   ): FileNode | undefined => {
     for (const n of nodes) {
       if (n.folder! === path) return n;
@@ -643,7 +643,7 @@ export function ProjectPlaygroundPage({
 
       // Does a file/folder with this name already exist here?
       const exists = currentFolder?.children?.some(
-        (child) => child?.name?.toLowerCase() === fileName?.toLowerCase()
+        (child) => child?.name?.toLowerCase() === fileName?.toLowerCase(),
       );
 
       return exists;
@@ -661,16 +661,16 @@ export function ProjectPlaygroundPage({
       const file = findFile(fileTree, newOpenFiles[0]);
       setCode(file?.content!);
       setCurrentLanguage(
-        file?.language || getLanguageFromFileName(newOpenFiles[0])
+        file?.language || getLanguageFromFileName(newOpenFiles[0]),
       );
     }
   };
 
   const handleDownloadProject = () => {
-    if (!user.isPremium) return;
+    if (!user?.isPremium) return;
     socket.emit("project:download:stream", {
       projectName: slug,
-      userId: user.id,
+      userId: user?.id,
     });
 
     setShowLoader(true);
@@ -709,7 +709,7 @@ export function ProjectPlaygroundPage({
     // clearTimeout(idleTimer?.current!);
     idleTimer.current = setTimeout(
       () => autoSaveAndCommit(),
-      AUTO_COMMIT_INTERVAL
+      AUTO_COMMIT_INTERVAL,
     ) as any;
     setCode(value ?? "");
   };
@@ -730,7 +730,7 @@ export function ProjectPlaygroundPage({
         .map((node) =>
           node.children
             ? { ...node, children: removeNode(node.children, targetPath) }
-            : node
+            : node,
         );
     };
 
@@ -884,7 +884,7 @@ export function ProjectPlaygroundPage({
               ...projectTask,
               tasks: updatedTasks,
             };
-          }
+          },
         );
 
         return {
@@ -912,7 +912,7 @@ export function ProjectPlaygroundPage({
     socket.emit("project:run", {
       language: project?.template ?? "node",
       projectName: slug,
-      userId: user.id,
+      userId: user?.id,
       installationId: user?.githubInstallationId,
     });
 
@@ -921,8 +921,8 @@ export function ProjectPlaygroundPage({
 
   const connectGitHub = () => {
     window.location.href = `https://github.com/login/oauth/authorize?client_id=Ov23li2TmT8axelh1vDq&scope=repo,user&state=githupapp+${encodeURIComponent(
-      window.location.origin + pathname
-    )}+${user.email}`;
+      window.location.origin + pathname,
+    )}+${user?.email}`;
   };
 
   const editorMenu = () => {
@@ -930,7 +930,7 @@ export function ProjectPlaygroundPage({
       {
         label: "Close All",
         action: () =>
-          user.isPremium ? handleDownloadProject() : setShowPayment(true),
+          user?.isPremium ? handleDownloadProject() : setShowPayment(true),
       },
       {
         label: "separator",
@@ -952,7 +952,7 @@ export function ProjectPlaygroundPage({
         className="absolute top-5 right-0 bg-secondary text-white shadow-lg rounded-lg py-1 w-40 z-50"
         onClick={(e) => e.stopPropagation()}
       >
-        {menuItems.map((item: any, i: number) => {
+        {menuItems?.map((item: any, i: number) => {
           return item.label === "separator" ? (
             <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
           ) : (
@@ -974,7 +974,7 @@ export function ProjectPlaygroundPage({
       {
         label: "Download Project",
         action: () =>
-          user.isPremium ? handleDownloadProject() : setShowPayment(true),
+          user?.isPremium ? handleDownloadProject() : setShowPayment(true),
       },
       {
         label: "separator",
@@ -996,7 +996,7 @@ export function ProjectPlaygroundPage({
         className="absolute top-5 left-1 bg-secondary text-white shadow-lg rounded-lg py-1 w-40 z-50"
         onClick={(e) => e.stopPropagation()}
       >
-        {menuItems.map((item: any, i: number) => {
+        {menuItems?.map((item: any, i: number) => {
           return item.label === "separator" ? (
             <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
           ) : (
@@ -1387,11 +1387,11 @@ export function ProjectPlaygroundPage({
                                     setPreviewUrl((prev) => {
                                       const url = new URL(
                                         prev,
-                                        window.location.origin
+                                        window.location.origin,
                                       );
                                       url.searchParams.set(
                                         "_t",
-                                        Date.now() + ""
+                                        Date.now() + "",
                                       );
                                       return url.toString();
                                     });
