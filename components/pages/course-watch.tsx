@@ -374,7 +374,7 @@ export function CourseWatchPage({
         <div className="lg:col-span-3 space-y-4 fle flex-col">
           <Card className="overflow-hidden">
             {/* Video Player */}
-            {["VIDEO", "WORKSHOP"].includes(currentVideo?.type as string) && (
+            {["VIDEO", "WORKSHOP"]?.includes(currentVideo?.type as string) && (
               <Card className="overflow-hidden group relative">
                 <div className="aspect-video bg-black relative">
                   {currentVideo?.isPremium && !user?.isPremium ? (

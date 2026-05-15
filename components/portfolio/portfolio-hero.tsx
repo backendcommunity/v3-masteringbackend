@@ -42,8 +42,8 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
     user.xpToNextLevel > 0
       ? Math.min(1, user.xp / (user.xp + user.xpToNextLevel))
       : user.level >= 10
-      ? 1
-      : 0;
+        ? 1
+        : 0;
   const circumference = 2 * Math.PI * 52; // radius=52 for the ring
   const strokeOffset = circumference * (1 - xpProgress);
 
@@ -324,7 +324,7 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
 
         {/* Stat pills */}
         <div className="grid grid-cols-2 gap-2.5 shrink-0 w-full md:w-auto">
-          {statItems.map((stat) => (
+          {statItems?.map((stat) => (
             <div
               key={stat.label}
               className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] px-4 py-3"

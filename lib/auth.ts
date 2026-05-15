@@ -1,18 +1,13 @@
-import { redirect } from "next/navigation";
 import { api } from "./api";
 import { NewUser } from "./data";
 
-export const login = async (email: string, password: string) => {
-  const response = await api.post("/auth/login", { email, password });
+export const login = async (email: string, password: string, remember = false) => {
+  const response = await api.post("/auth/login", { email, password, remember });
   return response.data;
 };
 
 export const register = async (user: NewUser) => {
-  const name = user.firstName + " " + user.lastName;
-
-  const { firstName, lastName, ...data } = user;
-
-  const response = await api.post("/auth/register", { ...data, name });
+  const response = await api.post("/auth/register", user);
   return response.data;
 };
 
@@ -30,13 +25,8 @@ export const verifyEmail = async (data: { code: string; email: string }) => {
 };
 
 export const resendEmail = async (email: string) => {
-  try {
-    const res = await api.post("/auth/email", { email });
-    return res.data;
-  } catch (error) {
-    console.log(error);
-    redirect("/auth/login");
-  }
+  const res = await api.post("/auth/email", { email });
+  return res.data;
 };
 
 export const sendForgotPasswordEmail = async (email: string) => {
@@ -62,10 +52,11 @@ export const fetchUser = async (): Promise<any> => {
   return data;
 };
 
-export const verifyCode = async (email: string, code: string) => {
+export const verifyCode = async (email: string, code: string, type?: string) => {
   const res = await api.post("/auth/code/verify", {
     email,
     code,
+    ...(type ? { type } : {}),
   });
   return res.data;
 };
