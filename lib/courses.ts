@@ -1,6 +1,11 @@
 import { api } from "./api";
 import { CoursesQuery } from "./data";
 
+export const fetchCoursesFilters = async (): Promise<any> => {
+  const { data } = await api.get("/courses/filters");
+  return data;
+};
+
 export const fetchCourses = async (queries?: CoursesQuery): Promise<any> => {
   const { data } = await api.get("/courses", {
     params: queries,
@@ -45,8 +50,8 @@ export const fetchUserCourse = async (courseId: string) => {
   return data;
 };
 
-export const handleCourseEnrollment = async (courseId: string) => {
-  const { data } = await api.post("/courses/" + courseId);
+export const handleCourseEnrollment = async (courseId: string, isPreview = false) => {
+  const { data } = await api.post("/courses/" + courseId, { isPreview });
   return data;
 };
 

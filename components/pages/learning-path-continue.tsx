@@ -20,7 +20,6 @@ import {
   Play,
   Lock,
   Trophy,
-  Users,
   Star,
   Zap,
   Brain,
@@ -696,23 +695,6 @@ export function LearningPathContinuePage({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                      <Users className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Enrolled
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {(roadmap.students || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Skills You'll Learn */}
@@ -1111,7 +1093,7 @@ export function LearningPathContinuePage({
             </Card>
 
             {/* Social Proof */}
-            {roadmap?.students?.length && (
+            {/* {roadmap?.students?.length && (
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -1130,7 +1112,7 @@ export function LearningPathContinuePage({
                   </div>
                 </CardContent>
               </Card>
-            )}
+            )} */}
 
             {/* Why Enroll */}
             <Card>

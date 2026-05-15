@@ -12,7 +12,6 @@ import {
   Eye,
   Clock,
   BookOpen,
-  Users,
   Award,
   Target,
   CheckCircle2,
@@ -466,14 +465,6 @@ export function LearningPathCoursePreviewPage({
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
-                    Students
-                  </span>
-                  <span className="font-medium">
-                    {(roadmap.students || 0).toLocaleString()}
-                  </span>
-                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <Award className="h-4 w-4" />
