@@ -36,9 +36,9 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<
-    "google" | "github" | null
-  >(null);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(
+    null,
+  );
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(true);
   const [formData, setFormData] = useState({
@@ -90,11 +90,11 @@ function RegisterContent() {
     try {
       e.preventDefault();
       if (formData.password !== formData.confirmPassword) {
-        alert("Passwords don't match!");
+        toast.error("Passwords don't match");
         return;
       }
       if (!agreedToTerms) {
-        alert("Please agree to the terms and conditions");
+        toast.error("Please agree to the terms and conditions");
         return;
       }
 
@@ -122,14 +122,25 @@ function RegisterContent() {
 
       if (isRegistered)
         router.push(
-          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`,
         );
     } catch (error: any) {
-      const message = error?.response?.data?.message ?? error?.message;
-      if (message.includes("verify email"))
+      const message =
+        error?.response?.data?.error?.message ??
+        error?.message ??
+        "Registration failed. Please try again.";
+
+      console.log(error, message);
+
+      if (
+        message.toLowerCase().includes("verify") ||
+        message.toLowerCase().includes("verification")
+      ) {
         router.push(
-          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
+          `/auth/email/verify?sent=true&email=${encodeURIComponent(formData.email)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`,
         );
+        return;
+      }
 
       analytics.track("signup_failed", { method: "email", reason: message });
       toast.error(message);
@@ -175,7 +186,10 @@ function RegisterContent() {
                   return;
                 }
                 setOauthLoading("github");
-                analytics.track("oauth_initiated", { provider: "github", page: "register" });
+                analytics.track("oauth_initiated", {
+                  provider: "github",
+                  page: "register",
+                });
               }}
             >
               {oauthLoading === "github" ? (
@@ -196,7 +210,10 @@ function RegisterContent() {
                   return;
                 }
                 setOauthLoading("google");
-                analytics.track("oauth_initiated", { provider: "google", page: "register" });
+                analytics.track("oauth_initiated", {
+                  provider: "google",
+                  page: "register",
+                });
               }}
             >
               {oauthLoading === "google" ? (
@@ -342,7 +359,7 @@ function RegisterContent() {
                     <div className="flex-1 bg-gray-200 dark:bg-[#475569]/30 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${getStrengthColor(
-                          strength
+                          strength,
                         )}`}
                         style={{ width: `${(strength / 5) * 100}%` }}
                       ></div>
@@ -352,10 +369,10 @@ function RegisterContent() {
                         strength <= 2
                           ? "text-red-500"
                           : strength <= 3
-                          ? "text-yellow-500"
-                          : strength <= 4
-                          ? "text-blue-500"
-                          : "text-green-500"
+                            ? "text-yellow-500"
+                            : strength <= 4
+                              ? "text-blue-500"
+                              : "text-green-500"
                       }`}
                     >
                       {getStrengthText(strength)}
@@ -536,7 +553,11 @@ function RegisterContent() {
             <p className="text-[#0E1F33]/70 dark:text-[#94A3B8]">
               Already have an account?{" "}
               <a
-                href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
+                href={
+                  redirect
+                    ? `/auth/login?redirect=${encodeURIComponent(redirect)}`
+                    : "/auth/login"
+                }
                 className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign in
