@@ -283,9 +283,6 @@ export function CourseDetailPage({
             <div className="flex items-center gap-1">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               <span className="text-sm">{course?.rating ?? 4.5}</span>
-              <span className="text-sm text-muted-foreground">
-                ({course?.students?.toLocaleString()} students)
-              </span>
             </div>
           </div>
 

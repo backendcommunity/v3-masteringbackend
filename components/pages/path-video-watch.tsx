@@ -112,9 +112,9 @@ export function RoadmapVideoWatchPage({
         <div className="flex-1 p-6">
           <div className="text-center">
             <h1 className="text-2xl font-bold">Milestone not found</h1>
-            <Button onClick={() => onNavigate?.("/roadmaps")} className="mt-4">
+            <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Roadmaps
+              Back to Learning Paths
             </Button>
           </div>
         </div>
@@ -169,9 +169,9 @@ export function RoadmapVideoWatchPage({
       <div className="flex-1 p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Roadmap not found</h1>
-          <Button onClick={() => onNavigate?.("/roadmaps")} className="mt-4">
+          <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Roadmaps
+            Back to Learning Paths
           </Button>
         </div>
       </div>
@@ -436,7 +436,7 @@ export function RoadmapVideoWatchPage({
                           onClick={() =>
                             onNavigate?.(
                               backUrl ??
-                                `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`,
+                                `/paths/${slug}/topics/${milestone.id}/courses/${course.slug}`,
                             )
                           }
                         >
@@ -447,7 +447,7 @@ export function RoadmapVideoWatchPage({
                             onClick={() =>
                               onNavigate?.(
                                 backUrl ??
-                                  `/roadmaps/${slug}/topics/${milestone.id}/courses/${course.slug}`,
+                                  `/paths/${slug}/topics/${milestone.id}/courses/${course.slug}`,
                               )
                             }
                             href={"#"}
@@ -750,7 +750,7 @@ export function RoadmapVideoWatchPage({
                     config={{
                       identifier: `roadmap-${currentVideo?.slug}`,
                       title: currentVideo?.title,
-                      url: `/roadmaps/${slug}/courses/${course.slug}/watch/${chapterId}/${videoId}`,
+                      url: `/paths/${slug}/courses/${course.slug}/watch/${chapterId}/${videoId}`,
                     }}
                   />
                 </CardContent>

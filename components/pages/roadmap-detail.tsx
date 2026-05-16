@@ -165,7 +165,6 @@ export function RoadmapDetailPage({
     );
   }
 
-  const handleBackToCourse = () => {};
   const handleDownload = () => {};
   const handleShare = () => {};
 
@@ -836,7 +835,8 @@ export function RoadmapDetailPage({
                                             {tech}
                                           </Badge>
                                         ))}
-                                      {(project.technologies?.length ?? 0) > 3 && (
+                                      {(project.technologies?.length ?? 0) >
+                                        3 && (
                                         <Badge variant="secondary">
                                           +{project.technologies?.length - 3}{" "}
                                           more
