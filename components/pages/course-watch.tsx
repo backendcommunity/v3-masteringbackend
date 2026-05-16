@@ -84,6 +84,7 @@ import { Loader } from "../ui/loader";
 import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 import { NextContentOverlay } from "../next-content-overlay";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface CourseWatchPageProps {
   slug: string;
@@ -111,13 +112,16 @@ export function CourseWatchPage({
   const [completed, setCompleted] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [celebration, setCelebration] = useState(false);
+  const [chapterComplete, setChapterComplete] = useState(false);
   const [note, setNote] = useState("");
   const path = usePathname();
   const [activeTab, setActiveTab] = useState("overview");
   const [showNextOverlay, setShowNextOverlay] = useState(false);
   const [captions, setCaptions] = useState<CaptionCue[]>([]);
   const [captionTime, setCaptionTime] = useState(0);
+  const [streak, setStreak] = useState(0);
   const captionListRef = useRef<HTMLDivElement>(null);
+  const positionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch captions whenever the Vimeo video ID changes
   useEffect(() => {
@@ -137,6 +141,11 @@ export function CourseWatchPage({
     active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [captionTime]);
 
+  // Fetch streak once on mount
+  useEffect(() => {
+    store.getStreak().then((s) => setStreak(s.currentStreak)).catch(() => {});
+  }, []);
+
   async function loadNotes(courseId: string, videoId: string) {
     setLoadingNotes(true);
     await store.getVideoNotes(courseId, videoId).then((notes: any) => {
@@ -144,6 +153,19 @@ export function CourseWatchPage({
     });
     setLoadingNotes(false);
   }
+
+  const handleTimeUpdate = useCallback(
+    (seconds: number) => {
+      setCaptionTime(seconds);
+      if (positionSaveTimer.current) clearTimeout(positionSaveTimer.current);
+      positionSaveTimer.current = setTimeout(() => {
+        if (currentVideo?.id) {
+          localStorage.setItem(`mb-video-pos:${currentVideo.id}`, String(Math.floor(seconds)));
+        }
+      }, 10_000);
+    },
+    [currentVideo?.id],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -242,9 +264,10 @@ export function CourseWatchPage({
       // Refresh course progress so course-detail stays in sync
       store.getUserCourse(slug).catch(() => {});
 
-      toast.success("You just earned some points!");
+      toast.success("+10 XP earned!");
       setCelebration(true);
-      setShowNextOverlay(true);
+      if (isChapterCompleted) setChapterComplete(true);
+      else setShowNextOverlay(true);
     } catch (error) {
       toast.error("An error occurred. Please try again");
     }
@@ -435,15 +458,19 @@ export function CourseWatchPage({
                   {/* Vimeo Player */}
                   <VimeoPlayer
                     video={currentVideo!}
-                    onEnded={async () => {
-                      setTimeout(() => {
-                        if (nextVideo) return handleVideoClick(nextVideo);
-                        if (!nextVideo && nextChapter)
-                          handleChapterClick(nextChapter);
-                      }, 0);
-                    }}
+                    initialTime={
+                      typeof window !== "undefined"
+                        ? parseInt(
+                            localStorage.getItem(
+                              `mb-video-pos:${currentVideo?.id}`,
+                            ) ?? "0",
+                            10,
+                          ) || 0
+                        : 0
+                    }
+                    onEnded={() => setShowNextOverlay(true)}
                     onComplete={handleMarkComplete}
-                    onTimeUpdate={setCaptionTime}
+                    onTimeUpdate={handleTimeUpdate}
                   />
 
                   {/* Hover Overlay */}
@@ -845,7 +872,14 @@ export function CourseWatchPage({
               {/* Course Progress */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Course Progress</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Course Progress</CardTitle>
+                    {streak > 0 && (
+                      <span className="text-sm font-medium flex items-center gap-1">
+                        🔥 {streak}-day streak
+                      </span>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -1122,6 +1156,48 @@ export function CourseWatchPage({
         nextItem={nextVideo}
         onContinue={handleContinueNext}
       />
+
+      {/* Chapter completion celebration */}
+      {/* Chapter completion celebration — navigates directly, no second overlay */}
+      <Dialog
+        open={chapterComplete}
+        onOpenChange={(open) => { if (!open) setChapterComplete(false); }}
+      >
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogTitle className="text-2xl font-bold">
+            Chapter Complete! 🎉
+          </DialogTitle>
+          <div className="space-y-4 py-4">
+            <p className="text-muted-foreground">
+              You finished <span className="font-semibold text-foreground">{chapter?.title}</span>
+            </p>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span>Course progress</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setChapterComplete(false);
+                  handleContinueNext();
+                }}
+              >
+                Continue to Next Chapter
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setChapterComplete(false)}
+              >
+                Stay Here
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
