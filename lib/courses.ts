@@ -55,6 +55,22 @@ export const handleCourseEnrollment = async (courseId: string, isPreview = false
   return data;
 };
 
+export const fetchVideoCaption = async (vimeoId: number | string): Promise<string | null> => {
+  const { data } = await api.get(`/courses/videos/${vimeoId}/captions`);
+  return data?.data ?? null;
+};
+
+export interface LeaderboardRank {
+  rank: number | null;
+  total: number;
+  percentile: number | null;
+}
+
+export const fetchLeaderboardRank = async (courseId: string): Promise<LeaderboardRank | null> => {
+  const { data } = await api.get(`/courses/${courseId}/leaderboard-rank`);
+  return data?.data ?? null;
+};
+
 export const markVideoComplete = async (
   courseId: string,
   chapterId: string,

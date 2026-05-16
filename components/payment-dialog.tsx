@@ -61,11 +61,9 @@ export function PaymentDialog({
       eventCallback: function (data: any) {
         switch (data.name) {
           case "checkout.loaded":
-            console.log("Checkout loaded", data);
             onClose();
             break;
           case "checkout.closed":
-            console.log("Checkout closed");
             break;
           case "checkout.completed":
             const c_data = data?.custom_data;
@@ -140,14 +138,6 @@ export function PaymentDialog({
       )?.code ||
       user?.country ||
       "";
-
-    console.log("[Paddle Checkout]", {
-      priceId,
-      email: user?.email,
-      country: user?.country,
-      countryCode,
-      customData,
-    });
 
     paddle?.Checkout.open({
       settings: {
@@ -238,10 +228,6 @@ export function PaymentDialog({
         toast.error(
           `This ${data?.type ?? "item"} is not available for purchase right now. Please try again later.`,
         );
-        console.error("[Paddle Payment] Missing price ID for:", {
-          type: data?.type,
-          id: data?.id,
-        });
         return;
       }
 

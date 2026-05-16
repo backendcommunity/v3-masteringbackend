@@ -16,6 +16,7 @@ import {
   Folder,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
+import { executeCode } from "@/lib/executor";
 
 interface CoursePlaygroundPageProps {
   courseId: string;
@@ -31,7 +32,7 @@ export function CoursePlaygroundPage({
   const [activeFile, setActiveFile] = useState("index.js");
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
-  const [files, setFiles] = useState({
+  const [files, setFiles] = useState<Record<string, string>>({
     "index.js": `// Welcome to the JavaScript Playground!
 // Write your code here and click "Run" to see the output
 
@@ -78,24 +79,24 @@ export function capitalize(str) {
   const runCode = async () => {
     setIsRunning(true);
     setOutput("Running code...\n");
-
-    // Simulate code execution
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Mock output - in a real implementation, this would execute the code safely
-    const mockOutput = `Hello, World!
-Doubled numbers: [2, 4, 6, 8, 10]
-Hello, Developer! Welcome to the playground.
-
-✅ Code executed successfully!`;
-
-    setOutput(mockOutput);
-    setIsRunning(false);
+    try {
+      const lang = playground.language.toLowerCase().replace("javascript", "node");
+      const result = await executeCode(files[activeFile], lang);
+      if (!result.success) {
+        setOutput(`Error: ${result.error ?? "Execution failed"}`);
+      } else {
+        const out = result.raw?.stdout || result.raw?.stderr || "";
+        setOutput(out || "✅ Code executed with no output");
+      }
+    } catch {
+      setOutput("Failed to connect to execution service");
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const savePlayground = () => {
-    // Mock save functionality
-    console.log("Playground saved!");
+    // Playground is auto-saved via local state; explicit save TBD
   };
 
   const addNewFile = () => {

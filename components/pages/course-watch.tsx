@@ -1,6 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+interface CaptionCue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+function parseVTT(vtt: string): CaptionCue[] {
+  const cues: CaptionCue[] = [];
+  const blocks = vtt.split(/\n{2,}/);
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const tsIdx = lines.findIndex((l) => l.includes("-->"));
+    if (tsIdx === -1) continue;
+    const [startStr, endStr] = lines[tsIdx].split("-->").map((s) => s.trim());
+    const text = lines
+      .slice(tsIdx + 1)
+      .join(" ")
+      .trim();
+    if (!text) continue;
+    cues.push({
+      start: vttTimeToSec(startStr),
+      end: vttTimeToSec(endStr),
+      text,
+    });
+  }
+  return cues;
+}
+
+function vttTimeToSec(t: string): number {
+  const parts = t.split(":").map(parseFloat);
+  return parts.length === 3
+    ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+    : parts[0] * 60 + parts[1];
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +74,7 @@ import {
 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import DisqusCommentBlock from "../ui/comment";
-import { markVideoComplete } from "@/lib/courses";
+import { markVideoComplete, fetchVideoCaption, fetchLeaderboardRank, LeaderboardRank } from "@/lib/courses";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { handleShare } from "@/lib/utils";
@@ -50,6 +85,7 @@ import { Loader } from "../ui/loader";
 import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 import { NextContentOverlay } from "../next-content-overlay";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PaymentDialog } from "../payment-dialog";
 
 interface CourseWatchPageProps {
@@ -76,13 +112,47 @@ export function CourseWatchPage({
   const [loading, setLoading] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [notes, setNotes] = useState<Note[]>([]);
   const [celebration, setCelebration] = useState(false);
+  const [chapterComplete, setChapterComplete] = useState(false);
   const [note, setNote] = useState("");
   const path = usePathname();
   const [activeTab, setActiveTab] = useState("overview");
   const [showNextOverlay, setShowNextOverlay] = useState(false);
+  const [captions, setCaptions] = useState<CaptionCue[]>([]);
+  const [captionTime, setCaptionTime] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [leaderboardRank, setLeaderboardRank] = useState<LeaderboardRank | null>(null);
+  const captionListRef = useRef<HTMLDivElement>(null);
+  const positionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch captions whenever the Vimeo video ID changes
+  useEffect(() => {
+    if (!currentVideo?.video) {
+      setCaptions([]);
+      return;
+    }
+    fetchVideoCaption(Number(currentVideo.video))
+      .then((vtt) => setCaptions(vtt ? parseVTT(vtt) : []))
+      .catch(() => setCaptions([]));
+  }, [currentVideo?.video]);
+
+  // Auto-scroll active caption into view
+  useEffect(() => {
+    if (!captionListRef.current) return;
+    const active = captionListRef.current.querySelector("[data-active='true']");
+    active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [captionTime]);
+
+  // Fetch streak + leaderboard rank once course is loaded
+  useEffect(() => {
+    store.getStreak().then((s) => setStreak(s.currentStreak)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!course?.id) return;
+    fetchLeaderboardRank(course.id).then(setLeaderboardRank).catch(() => {});
+  }, [course?.id]);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   async function loadNotes(courseId: string, videoId: string) {
@@ -92,6 +162,19 @@ export function CourseWatchPage({
     });
     setLoadingNotes(false);
   }
+
+  const handleTimeUpdate = useCallback(
+    (seconds: number) => {
+      setCaptionTime(seconds);
+      if (positionSaveTimer.current) clearTimeout(positionSaveTimer.current);
+      positionSaveTimer.current = setTimeout(() => {
+        if (currentVideo?.id) {
+          localStorage.setItem(`mb-video-pos:${currentVideo.id}`, String(Math.floor(seconds)));
+        }
+      }, 10_000);
+    },
+    [currentVideo?.id],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -175,6 +258,12 @@ export function CourseWatchPage({
       ];
       setUserChapters(userChapter);
 
+      // Capture progress before state update for milestone detection
+      const prevCompleted = (userVideos ?? []).filter((v) => v.isCompleted).length;
+      const totalContent = course.totalContent ?? 0;
+      const prevPct = totalContent > 0 ? Math.floor((prevCompleted / totalContent) * 100) : 0;
+      const newPct = totalContent > 0 ? Math.floor(((prevCompleted + 1) / totalContent) * 100) : 0;
+
       // Backend update with proper `isChapterCompleted`
       const result = await markVideoComplete(
         course.id,
@@ -187,9 +276,26 @@ export function CourseWatchPage({
       // Sync points/level to store without extra API call
       if (result?.data?.user) store.syncUserSnapshot(result.data.user);
 
-      toast.success("You just earned some points!");
+      // Refresh course progress so course-detail stays in sync
+      store.getUserCourse(slug).catch(() => {});
+
+      toast.success("+10 XP earned!");
+
+      // Milestone prompts
+      const MILESTONES = [25, 50, 75] as const;
+      for (const m of MILESTONES) {
+        if (prevPct < m && newPct >= m) {
+          setTimeout(() => toast(`${m === 50 ? "Halfway there! 🚀" : `You're ${m}% through! Keep going 💪`}`), 800);
+          break;
+        }
+      }
+      if (newPct >= 100) {
+        setTimeout(() => markCourseAsCompleted(), 1200);
+      }
+
       setCelebration(true);
-      setShowNextOverlay(true);
+      if (isChapterCompleted) setChapterComplete(true);
+      else setShowNextOverlay(true);
     } catch (error) {
       toast.error("An error occurred. Please try again");
     }
@@ -377,6 +483,7 @@ export function CourseWatchPage({
             {["VIDEO", "WORKSHOP"]?.includes(currentVideo?.type as string) && (
               <Card className="overflow-hidden group relative">
                 <div className="aspect-video bg-black relative">
+
                   {currentVideo?.isPremium && !user?.isPremium ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-xl">
                       <div className="text-center space-y-3 p-6 max-w-sm">
@@ -390,17 +497,22 @@ export function CourseWatchPage({
                     </div>
                   ) : (
                     /* Vimeo Player */
-                    <VimeoPlayer
-                      video={currentVideo!}
-                      onEnded={async () => {
-                        setTimeout(() => {
-                          if (nextVideo) return handleVideoClick(nextVideo);
-                          if (!nextVideo && nextChapter)
-                            handleChapterClick(nextChapter);
-                        }, 0);
-                      }}
-                      onComplete={handleMarkComplete}
-                    />
+   <VimeoPlayer
+                    video={currentVideo!}
+                    initialTime={
+                      typeof window !== "undefined"
+                        ? parseInt(
+                            localStorage.getItem(
+                              `mb-video-pos:${currentVideo?.id}`,
+                            ) ?? "0",
+                            10,
+                          ) || 0
+                        : 0
+                    }
+                    onEnded={() => setShowNextOverlay(true)}
+                    onComplete={handleMarkComplete}
+                    onTimeUpdate={handleTimeUpdate}
+                  />
                   )}
 
                   {/* Hover Overlay */}
@@ -600,14 +712,11 @@ export function CourseWatchPage({
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   {["VIDEO", "WORKSHOP"].includes(
                     currentVideo?.type as string,
-                  ) && (
-                    <>
-                      <TabsTrigger value="code">Code Editor</TabsTrigger>
-                      <TabsTrigger value="transcript">Transcript</TabsTrigger>
-                    </>
-                  )}
+                  ) && <TabsTrigger value="code">Code Editor</TabsTrigger>}
                   <TabsTrigger value="notes">Notes</TabsTrigger>
-
+                  {captions.length > 0 && (
+                    <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                  )}
                   <TabsTrigger value="resources">Resources</TabsTrigger>
                   <TabsTrigger value="discussion">Discussion</TabsTrigger>
                 </div>
@@ -715,6 +824,45 @@ export function CourseWatchPage({
                 </Card>
               </TabsContent>
 
+              <TabsContent value="transcript" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transcript</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      ref={captionListRef}
+                      className="h-[400px] overflow-y-auto space-y-1 pr-2"
+                    >
+                      {captions.map((cue, i) => {
+                        const isActive =
+                          captionTime >= cue.start && captionTime < cue.end;
+                        return (
+                          <div
+                            key={i}
+                            data-active={isActive ? "true" : undefined}
+                            className={`flex gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                              isActive
+                                ? "bg-primary/10 text-foreground font-medium"
+                                : "text-muted-foreground hover:bg-muted/50"
+                            }`}
+                          >
+                            <span className="shrink-0 text-xs tabular-nums pt-0.5 w-12 text-right">
+                              {new Date(cue.start * 1000)
+                                .toISOString()
+                                .substring(14, 19)}
+                            </span>
+                            <span className="text-sm leading-relaxed">
+                              {cue.text}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="resources" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -768,57 +916,6 @@ export function CourseWatchPage({
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="transcript" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Video Transcript</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Auto-generated transcript with timestamps
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {[
-                        {
-                          time: "00:00",
-                          text: `Welcome to ${
-                            currentVideo?.title || chapter.title
-                          }.`,
-                        },
-                        {
-                          time: "00:15",
-                          text: "In this section, we'll explore the key concepts and practical applications.",
-                        },
-                        {
-                          time: "00:30",
-                          text: "Let's start by understanding the fundamental principles.",
-                        },
-                        {
-                          time: "01:00",
-                          text: "Now let's look at a practical example of implementing this concept.",
-                        },
-                      ].map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex gap-3 p-2 rounded hover:bg-muted cursor-pointer"
-                          onClick={() =>
-                            setCurrentTime(
-                              Number.parseInt(item.time.split(":")[0]) * 60 +
-                                Number.parseInt(item.time.split(":")[1]),
-                            )
-                          }
-                        >
-                          <span className="text-sm font-mono text-blue-600 min-w-[50px]">
-                            {item.time}
-                          </span>
-                          <span className="text-sm">{item.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
         </div>
@@ -836,7 +933,14 @@ export function CourseWatchPage({
               {/* Course Progress */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Course Progress</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Course Progress</CardTitle>
+                    {streak > 0 && (
+                      <span className="text-sm font-medium flex items-center gap-1">
+                        🔥 {streak}-day streak
+                      </span>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -853,8 +957,38 @@ export function CourseWatchPage({
                     }{" "}
                     of {course.totalContent} videos completed
                   </div>
+
+                  {/* XP Progress Bar */}
+                  {user && (
+                    <div className="pt-2 border-t space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Level {user.level} · {user.points} pts</span>
+                        <span>{user.points % 100}/100 XP</span>
+                      </div>
+                      <Progress value={(user.points % 100)} className="h-1.5 bg-muted" />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Leaderboard rank */}
+              {leaderboardRank && leaderboardRank.total > 1 && (
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Your rank</span>
+                      <span className="font-semibold">
+                        #{leaderboardRank.rank} of {leaderboardRank.total}
+                      </span>
+                    </div>
+                    {leaderboardRank.percentile !== null && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Top {100 - leaderboardRank.percentile}% of learners
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Chapter Content */}
               <Card>
@@ -1113,6 +1247,48 @@ export function CourseWatchPage({
         nextItem={nextVideo}
         onContinue={handleContinueNext}
       />
+
+      {/* Chapter completion celebration */}
+      {/* Chapter completion celebration — navigates directly, no second overlay */}
+      <Dialog
+        open={chapterComplete}
+        onOpenChange={(open) => { if (!open) setChapterComplete(false); }}
+      >
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogTitle className="text-2xl font-bold">
+            Chapter Complete! 🎉
+          </DialogTitle>
+          <div className="space-y-4 py-4">
+            <p className="text-muted-foreground">
+              You finished <span className="font-semibold text-foreground">{chapter?.title}</span>
+            </p>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span>Course progress</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setChapterComplete(false);
+                  handleContinueNext();
+                }}
+              >
+                Continue to Next Chapter
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setChapterComplete(false)}
+              >
+                Stay Here
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

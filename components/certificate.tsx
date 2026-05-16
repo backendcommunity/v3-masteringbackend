@@ -50,11 +50,6 @@ export function Certificate({
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [copiedResume, setCopiedResume] = useState(false);
 
-  html2canvas(certificateRef?.current!, {
-    scale: window.devicePixelRatio * 2, // For crisp output on all screens
-    useCORS: true,
-  });
-
   const handleDownload = async () => {
     if (!certificateRef.current) return;
 

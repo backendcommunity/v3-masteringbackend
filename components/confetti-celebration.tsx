@@ -87,8 +87,6 @@ const ConfettiCelebration: React.FC<ConfettiCelebrationProps> = ({
         break;
     }
 
-    console.log(celebrationType);
-
     const intervalId = setInterval(party, 200);
     interval.push(intervalId);
 
