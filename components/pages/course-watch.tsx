@@ -73,7 +73,7 @@ import {
 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import DisqusCommentBlock from "../ui/comment";
-import { markVideoComplete, fetchVideoCaption } from "@/lib/courses";
+import { markVideoComplete, fetchVideoCaption, fetchLeaderboardRank, LeaderboardRank } from "@/lib/courses";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { handleShare } from "@/lib/utils";
@@ -120,6 +120,7 @@ export function CourseWatchPage({
   const [captions, setCaptions] = useState<CaptionCue[]>([]);
   const [captionTime, setCaptionTime] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [leaderboardRank, setLeaderboardRank] = useState<LeaderboardRank | null>(null);
   const captionListRef = useRef<HTMLDivElement>(null);
   const positionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -141,10 +142,15 @@ export function CourseWatchPage({
     active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [captionTime]);
 
-  // Fetch streak once on mount
+  // Fetch streak + leaderboard rank once course is loaded
   useEffect(() => {
     store.getStreak().then((s) => setStreak(s.currentStreak)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!course?.id) return;
+    fetchLeaderboardRank(course.id).then(setLeaderboardRank).catch(() => {});
+  }, [course?.id]);
 
   async function loadNotes(courseId: string, videoId: string) {
     setLoadingNotes(true);
@@ -249,6 +255,12 @@ export function CourseWatchPage({
       ];
       setUserChapters(userChapter);
 
+      // Capture progress before state update for milestone detection
+      const prevCompleted = (userVideos ?? []).filter((v) => v.isCompleted).length;
+      const totalContent = course.totalContent ?? 0;
+      const prevPct = totalContent > 0 ? Math.floor((prevCompleted / totalContent) * 100) : 0;
+      const newPct = totalContent > 0 ? Math.floor(((prevCompleted + 1) / totalContent) * 100) : 0;
+
       // Backend update with proper `isChapterCompleted`
       const result = await markVideoComplete(
         course.id,
@@ -265,6 +277,19 @@ export function CourseWatchPage({
       store.getUserCourse(slug).catch(() => {});
 
       toast.success("+10 XP earned!");
+
+      // Milestone prompts
+      const MILESTONES = [25, 50, 75] as const;
+      for (const m of MILESTONES) {
+        if (prevPct < m && newPct >= m) {
+          setTimeout(() => toast(`${m === 50 ? "Halfway there! 🚀" : `You're ${m}% through! Keep going 💪`}`), 800);
+          break;
+        }
+      }
+      if (newPct >= 100) {
+        setTimeout(() => markCourseAsCompleted(), 1200);
+      }
+
       setCelebration(true);
       if (isChapterCompleted) setChapterComplete(true);
       else setShowNextOverlay(true);
@@ -896,8 +921,38 @@ export function CourseWatchPage({
                     }{" "}
                     of {course.totalContent} videos completed
                   </div>
+
+                  {/* XP Progress Bar */}
+                  {user && (
+                    <div className="pt-2 border-t space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Level {user.level} · {user.points} pts</span>
+                        <span>{user.points % 100}/100 XP</span>
+                      </div>
+                      <Progress value={(user.points % 100)} className="h-1.5 bg-muted" />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Leaderboard rank */}
+              {leaderboardRank && leaderboardRank.total > 1 && (
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Your rank</span>
+                      <span className="font-semibold">
+                        #{leaderboardRank.rank} of {leaderboardRank.total}
+                      </span>
+                    </div>
+                    {leaderboardRank.percentile !== null && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Top {100 - leaderboardRank.percentile}% of learners
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Chapter Content */}
               <Card>
