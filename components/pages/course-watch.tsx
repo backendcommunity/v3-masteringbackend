@@ -1,6 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+interface CaptionCue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+function parseVTT(vtt: string): CaptionCue[] {
+  const cues: CaptionCue[] = [];
+  const blocks = vtt.split(/\n{2,}/);
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const tsIdx = lines.findIndex((l) => l.includes("-->"));
+    if (tsIdx === -1) continue;
+    const [startStr, endStr] = lines[tsIdx].split("-->").map((s) => s.trim());
+    const text = lines
+      .slice(tsIdx + 1)
+      .join(" ")
+      .trim();
+    if (!text) continue;
+    cues.push({
+      start: vttTimeToSec(startStr),
+      end: vttTimeToSec(endStr),
+      text,
+    });
+  }
+  return cues;
+}
+
+function vttTimeToSec(t: string): number {
+  const parts = t.split(":").map(parseFloat);
+  return parts.length === 3
+    ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+    : parts[0] * 60 + parts[1];
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +73,7 @@ import {
 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import DisqusCommentBlock from "../ui/comment";
-import { markVideoComplete } from "@/lib/courses";
+import { markVideoComplete, fetchVideoCaption } from "@/lib/courses";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { handleShare } from "@/lib/utils";
@@ -74,13 +109,33 @@ export function CourseWatchPage({
   const [loading, setLoading] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [notes, setNotes] = useState<Note[]>([]);
   const [celebration, setCelebration] = useState(false);
   const [note, setNote] = useState("");
   const path = usePathname();
   const [activeTab, setActiveTab] = useState("overview");
   const [showNextOverlay, setShowNextOverlay] = useState(false);
+  const [captions, setCaptions] = useState<CaptionCue[]>([]);
+  const [captionTime, setCaptionTime] = useState(0);
+  const captionListRef = useRef<HTMLDivElement>(null);
+
+  // Fetch captions whenever the Vimeo video ID changes
+  useEffect(() => {
+    if (!currentVideo?.video) {
+      setCaptions([]);
+      return;
+    }
+    fetchVideoCaption(Number(currentVideo.video))
+      .then((vtt) => setCaptions(vtt ? parseVTT(vtt) : []))
+      .catch(() => setCaptions([]));
+  }, [currentVideo?.video]);
+
+  // Auto-scroll active caption into view
+  useEffect(() => {
+    if (!captionListRef.current) return;
+    const active = captionListRef.current.querySelector("[data-active='true']");
+    active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [captionTime]);
 
   async function loadNotes(courseId: string, videoId: string) {
     setLoadingNotes(true);
@@ -183,6 +238,9 @@ export function CourseWatchPage({
       );
       // Sync points/level to store without extra API call
       if (result?.data?.user) store.syncUserSnapshot(result.data.user);
+
+      // Refresh course progress so course-detail stays in sync
+      store.getUserCourse(slug).catch(() => {});
 
       toast.success("You just earned some points!");
       setCelebration(true);
@@ -385,6 +443,7 @@ export function CourseWatchPage({
                       }, 0);
                     }}
                     onComplete={handleMarkComplete}
+                    onTimeUpdate={setCaptionTime}
                   />
 
                   {/* Hover Overlay */}
@@ -565,14 +624,11 @@ export function CourseWatchPage({
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   {["VIDEO", "WORKSHOP"].includes(
                     currentVideo?.type as string,
-                  ) && (
-                    <>
-                      <TabsTrigger value="code">Code Editor</TabsTrigger>
-                      <TabsTrigger value="transcript">Transcript</TabsTrigger>
-                    </>
-                  )}
+                  ) && <TabsTrigger value="code">Code Editor</TabsTrigger>}
                   <TabsTrigger value="notes">Notes</TabsTrigger>
-
+                  {captions.length > 0 && (
+                    <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                  )}
                   <TabsTrigger value="resources">Resources</TabsTrigger>
                   <TabsTrigger value="discussion">Discussion</TabsTrigger>
                 </div>
@@ -680,6 +736,45 @@ export function CourseWatchPage({
                 </Card>
               </TabsContent>
 
+              <TabsContent value="transcript" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transcript</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      ref={captionListRef}
+                      className="h-[400px] overflow-y-auto space-y-1 pr-2"
+                    >
+                      {captions.map((cue, i) => {
+                        const isActive =
+                          captionTime >= cue.start && captionTime < cue.end;
+                        return (
+                          <div
+                            key={i}
+                            data-active={isActive ? "true" : undefined}
+                            className={`flex gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                              isActive
+                                ? "bg-primary/10 text-foreground font-medium"
+                                : "text-muted-foreground hover:bg-muted/50"
+                            }`}
+                          >
+                            <span className="shrink-0 text-xs tabular-nums pt-0.5 w-12 text-right">
+                              {new Date(cue.start * 1000)
+                                .toISOString()
+                                .substring(14, 19)}
+                            </span>
+                            <span className="text-sm leading-relaxed">
+                              {cue.text}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="resources" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -730,57 +825,6 @@ export function CourseWatchPage({
                         url: `/courses/${slug}`,
                       }}
                     />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="transcript" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Video Transcript</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Auto-generated transcript with timestamps
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {[
-                        {
-                          time: "00:00",
-                          text: `Welcome to ${
-                            currentVideo?.title || chapter.title
-                          }.`,
-                        },
-                        {
-                          time: "00:15",
-                          text: "In this section, we'll explore the key concepts and practical applications.",
-                        },
-                        {
-                          time: "00:30",
-                          text: "Let's start by understanding the fundamental principles.",
-                        },
-                        {
-                          time: "01:00",
-                          text: "Now let's look at a practical example of implementing this concept.",
-                        },
-                      ].map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex gap-3 p-2 rounded hover:bg-muted cursor-pointer"
-                          onClick={() =>
-                            setCurrentTime(
-                              Number.parseInt(item.time.split(":")[0]) * 60 +
-                                Number.parseInt(item.time.split(":")[1]),
-                            )
-                          }
-                        >
-                          <span className="text-sm font-mono text-blue-600 min-w-[50px]">
-                            {item.time}
-                          </span>
-                          <span className="text-sm">{item.text}</span>
-                        </div>
-                      ))}
-                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

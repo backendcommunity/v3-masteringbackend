@@ -518,6 +518,7 @@ export interface UserCourse {
   userChapters?: UserChapter[];
   createdAt: Date | string;
   updatedAt: Date | string;
+  completedAt?: Date | string | null;
   enrollmentType?: "SUBSCRIPTION" | "ONETIME" | "COINS";
 }
 

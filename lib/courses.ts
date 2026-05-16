@@ -50,6 +50,11 @@ export const handleCourseEnrollment = async (courseId: string) => {
   return data;
 };
 
+export const fetchVideoCaption = async (vimeoId: number | string): Promise<string | null> => {
+  const { data } = await api.get(`/courses/videos/${vimeoId}/captions`);
+  return data?.data ?? null;
+};
+
 export const markVideoComplete = async (
   courseId: string,
   chapterId: string,

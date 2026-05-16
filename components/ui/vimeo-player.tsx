@@ -12,6 +12,7 @@ interface VimeoPlayerProps {
   onPlay?: () => void;
   onPause?: () => void;
   onComplete?: () => void;
+  onTimeUpdate?: (seconds: number) => void;
 }
 
 const VimeoPlayer = ({
@@ -20,6 +21,7 @@ const VimeoPlayer = ({
   onPlay,
   onPause,
   onComplete,
+  onTimeUpdate,
 }: VimeoPlayerProps) => {
   const playerRef = useRef<HTMLDivElement | null>(null);
   const completedRef = useRef(false);
@@ -63,6 +65,7 @@ const VimeoPlayer = ({
     });
 
     player.on("timeupdate", (data) => {
+      onTimeUpdate?.(data.seconds);
       if (data.percent >= 0.9 && !completedRef.current) {
         completedRef.current = true;
         onComplete?.();
