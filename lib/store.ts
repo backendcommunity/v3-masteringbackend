@@ -40,14 +40,12 @@ import {
   Week,
   UserLesson,
   Playground,
-  CourseFiltersData,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
   fetchCourse,
   fetchCourseQuizzes,
   fetchCourses,
-  fetchCoursesFilters,
   fetchUserCourse,
   fetchUserCourses,
   handleCourseEnrollment,
@@ -57,12 +55,42 @@ import { api, socketAPI } from "./api";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
+const ROADMAP_RESOLVE_PAGE_SIZE = 200;
+const roadmapSlugCache = new Map<string, string>();
+
+const isNumericIdentifier = (value: string) => /^\d+$/.test(value);
+
+const resolveRoadmapSlug = async (identifier: string) => {
+  if (!identifier || !isNumericIdentifier(identifier)) return identifier;
+
+  const cached = roadmapSlugCache.get(identifier);
+  if (cached) return cached;
+
+  try {
+    const { data } = await api.get(
+      `/roadmaps?page=0&size=${ROADMAP_RESOLVE_PAGE_SIZE}`,
+    );
+    const roadmaps = data?.data?.roadmaps ?? data?.data ?? [];
+    const match = roadmaps.find((roadmap: any) =>
+      String(roadmap?.id) === identifier,
+    );
+    if (match?.slug) {
+      roadmapSlugCache.set(identifier, match.slug);
+      return match.slug;
+    }
+  } catch {
+    // Fallback: keep original identifier when lookup fails.
+  }
+
+  return identifier;
+};
+
+
 interface AppState {
   // Data getters
   getUser: () => User | any;
   getPlan: (name: string) => any;
   getCourses: (queries?: CoursesQuery) => Course[] | any;
-  getCoursesFilters: () => Promise<CourseFiltersData>;
   getProject30s: (queries?: Project30Query) => Project30[] | any;
   getProject30: (slug: string) => Project30 | any;
   loadMyProject30s: (queries?: Project30Query) => Project30[] | any;
@@ -219,11 +247,11 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
-  enrollInRoadmap: (slug: string, isPreview?: boolean) => Promise<any>;
+  enrollInRoadmap: (slug: string) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
-  handleCourseEnrollment: (courseId: string, isPreview?: boolean) => Promise<UserCourse | any>;
+  handleCourseEnrollment: (courseId: string) => UserCourse | any;
   handleRoadmapCourseEnrollment: (
     slug: string,
     topicId: string,
@@ -258,7 +286,7 @@ interface AppState {
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
-  getContinueLearning: () => Promise<ContinueLearningItem | null>;
+  getContinueLearning: () => Promise<ContinueLearningItem[]>;
   markActivityRead: (id: string) => Promise<void>;
   markAllActivitiesRead: () => Promise<void>;
 
@@ -280,16 +308,10 @@ interface AppState {
 
   // Level-up celebration modal
   levelUpModal: { oldLevel: number; newLevel: number } | null;
-  setLevelUpModal: (
-    data: { oldLevel: number; newLevel: number } | null,
-  ) => void;
+  setLevelUpModal: (data: { oldLevel: number; newLevel: number } | null) => void;
 
   // Sync user points/level from a mutation response without an extra API call
-  syncUserSnapshot: (snapshot: {
-    points: number;
-    level: number;
-    currentStreak?: number;
-  }) => void;
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -366,7 +388,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getRoadmapItems: async (slug: string, topicId: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/topics/${topicId}/items`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/items`,
+    );
     return data?.data;
   },
 
@@ -392,15 +417,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       updateCourses(res.data);
       return res.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  getCoursesFilters: async (): Promise<CourseFiltersData> => {
-    try {
-      const res = await fetchCoursesFilters();
-      return res.data as CourseFiltersData;
     } catch (error) {
       throw error;
     }
@@ -469,7 +485,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getMilestone: async (slug: string, topicId: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/topics/${topicId}`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/roadmaps/${resolvedSlug}/topics/${topicId}`);
     return data?.data;
   },
   getProjects: async (queries?: Project30Query) => {
@@ -673,7 +690,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/roadmaps?page=${filters?.skip}&size=${filters?.size}`,
     );
-    return data?.data;
+    return data?.data?.roadmaps;
   },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const {
@@ -747,12 +764,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   getRoadmapBySlug: async (slug: string) => {
-    const { data } = await api.get("/roadmaps/" + slug);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get("/roadmaps/" + resolvedSlug);
     return data?.data;
   },
 
   getRoadmapCertificate: async (slug: string) => {
-    const { data } = await api.get(`/roadmaps/${slug}/certificate`);
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/roadmaps/${resolvedSlug}/certificate`);
     return data?.data;
   },
 
@@ -770,17 +789,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLevelUpModal: (data) => set({ levelUpModal: data }),
 
   // Sync user points/level from a mutation response — zero extra API calls
-  syncUserSnapshot: (snapshot: {
-    points: number;
-    level: number;
-    currentStreak?: number;
-  }) => {
+  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => {
     updateUserInStore({
       points: snapshot.points,
       level: snapshot.level,
-      ...(snapshot.currentStreak !== undefined
-        ? { currentStreak: snapshot.currentStreak }
-        : {}),
+      ...(snapshot.currentStreak !== undefined ? { currentStreak: snapshot.currentStreak } : {}),
     });
     set((state) => ({ version: state.version + 1 }));
   },
@@ -802,8 +815,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return await startWithIdentifier(slug);
     } catch (error: any) {
       const status = error?.response?.status;
-      const shouldTryId =
-        id && id !== slug && (status === 404 || status === 500);
+      const shouldTryId = id && id !== slug && (status === 404 || status === 500);
       if (!shouldTryId) throw error;
       return await startWithIdentifier(id);
     }
@@ -916,8 +928,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     courseId: string,
     input: any,
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}/complete`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
       input,
     );
     return data?.data;
@@ -933,8 +946,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       chapter?: any;
     },
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/video`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/video`,
       payload,
     );
     const result = data?.data;
@@ -1022,8 +1036,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   startMilestone: async (slug: string, topicId: string, payload: any = {}) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}`,
       payload,
     );
     return data?.data;
@@ -1066,9 +1081,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleCourseEnrollment: async (
     courseId: string,
-    isPreview = false,
   ): Promise<UserCourse | any> => {
-    const res = await handleCourseEnrollment(courseId, isPreview);
+    const res = await handleCourseEnrollment(courseId);
     return res.data;
   },
 
@@ -1077,8 +1091,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     topicId: string,
     courseId: string,
   ) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${slug}/topics/${topicId}/courses/${courseId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
     );
 
     return data;
@@ -1141,8 +1156,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  enrollInRoadmap: async (slug, isPreview = false) => {
-    const response = await api.post(`/roadmaps/${slug}`, { isPreview });
+  enrollInRoadmap: async (slug) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const response = await api.post(`/roadmaps/${resolvedSlug}`);
     const { data } = response;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to enroll in roadmap");
@@ -1170,15 +1186,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       newXPToNextLevel += 1000;
     }
 
-    patchStoredUser({
-      xp: newXP,
-      level: newLevel,
-      xpToNextLevel: newXPToNextLevel,
-    });
-    Object.assign(dataStore.user, {
-      xp: newXP,
-      level: newLevel,
-      xpToNextLevel: newXPToNextLevel,
-    });
+    patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+    Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
   },
 }));

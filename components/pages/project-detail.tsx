@@ -44,6 +44,7 @@ import ConfettiCelebration from "@/components/confetti-celebration";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
 import { languages } from "@/lib/languages";
+import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 import {
   Accordion,
   AccordionContent,
@@ -590,6 +591,10 @@ export function ProjectDetailPage({
               </div>
             </CardContent>
           </Card>
+
+          {project?.enrolled && userProject?.id && (
+            <ScheduleWidget projectId={userProject.id} />
+          )}
 
           {/* Certification Card */}
           <Card

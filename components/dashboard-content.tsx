@@ -29,6 +29,7 @@ import { Topic } from "@/lib/data";
 import { OnboardingSkipBanner } from "@/components/onboarding/onboarding-skip-banner";
 import { ContinueLearningCard } from "@/components/continue-learning-card";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { ScheduleList } from "@/components/schedule/ScheduleList";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { format } from "timeago.js";
@@ -224,6 +225,8 @@ export function DashboardContent({}: DashboardContentProps) {
       </div>
       {/* Epic 5, Story 5.1: Continue Learning */}
       <ContinueLearningCard />
+
+      <ScheduleList />
 
       {/* Quick Actions */}
       {/* <Card>
