@@ -1,25 +1,13 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { CoursePreviewPage } from "@/components/pages/course-preview";
 import { useParams, useRouter } from "next/navigation";
-import React from "react";
+import { useEffect } from "react";
 
-type CoursePreviewPageRouteProps = {
-  slug: string;
-};
-
-export default function CoursePreviewPageRoute() {
+export default function CoursePreviewRedirect() {
+  const { slug } = useParams() as { slug: string };
   const router = useRouter();
-  const { slug } = useParams() as CoursePreviewPageRouteProps;
-
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
-
-  return (
-    <DashboardLayout>
-      <CoursePreviewPage slug={slug} onNavigate={handleNavigate} />
-    </DashboardLayout>
-  );
+  useEffect(() => {
+    router.replace(`/courses/${slug}`);
+  }, [slug, router]);
+  return null;
 }

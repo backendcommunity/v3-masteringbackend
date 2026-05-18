@@ -40,12 +40,14 @@ import {
   Week,
   UserLesson,
   Playground,
+  CourseFiltersData,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
   fetchCourse,
   fetchCourseQuizzes,
   fetchCourses,
+  fetchCoursesFilters,
   fetchUserCourse,
   fetchUserCourses,
   handleCourseEnrollment,
@@ -60,6 +62,7 @@ interface AppState {
   getUser: () => User | any;
   getPlan: (name: string) => any;
   getCourses: (queries?: CoursesQuery) => Course[] | any;
+  getCoursesFilters: () => Promise<CourseFiltersData>;
   getProject30s: (queries?: Project30Query) => Project30[] | any;
   getProject30: (slug: string) => Project30 | any;
   loadMyProject30s: (queries?: Project30Query) => Project30[] | any;
@@ -220,7 +223,7 @@ interface AppState {
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
-  handleCourseEnrollment: (courseId: string) => UserCourse | any;
+  handleCourseEnrollment: (courseId: string, isPreview?: boolean) => Promise<UserCourse | any>;
   handleRoadmapCourseEnrollment: (
     slug: string,
     topicId: string,
@@ -255,7 +258,7 @@ interface AppState {
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
-  getContinueLearning: () => Promise<ContinueLearningItem[]>;
+  getContinueLearning: () => Promise<ContinueLearningItem | null>;
   markActivityRead: (id: string) => Promise<void>;
   markAllActivitiesRead: () => Promise<void>;
 
@@ -389,6 +392,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       updateCourses(res.data);
       return res.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getCoursesFilters: async (): Promise<CourseFiltersData> => {
+    try {
+      const res = await fetchCoursesFilters();
+      return res.data as CourseFiltersData;
     } catch (error) {
       throw error;
     }
@@ -661,7 +673,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/roadmaps?page=${filters?.skip}&size=${filters?.size}`,
     );
-    return data?.data?.roadmaps;
+    return data?.data;
   },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const {
@@ -1054,8 +1066,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleCourseEnrollment: async (
     courseId: string,
+    isPreview = false,
   ): Promise<UserCourse | any> => {
-    const res = await handleCourseEnrollment(courseId);
+    const res = await handleCourseEnrollment(courseId, isPreview);
     return res.data;
   },
 

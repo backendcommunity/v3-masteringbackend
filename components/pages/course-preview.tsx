@@ -16,7 +16,6 @@ import {
   Clock,
   Star,
   BookOpen,
-  Users,
   Award,
   Lock,
   Eye,
@@ -489,10 +488,7 @@ export function CoursePreviewPage({
                           <BookOpen className="h-4 w-4" />
                           <span>15 courses</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>50k+ students</span>
-                        </div>
+
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                           <span>4.9 rating</span>
@@ -556,14 +552,6 @@ export function CoursePreviewPage({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    Students
-                  </span>
-                  <span className="font-medium">
-                    {course.students.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
                     Certificate
                   </span>
                   <div className="flex items-center gap-1">
@@ -582,10 +570,6 @@ export function CoursePreviewPage({
                 <h3 className="font-bold text-lg mb-2">
                   Ready to start learning?
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Join {course.students.toLocaleString()} students already
-                  enrolled
-                </p>
               </div>
               <Button
                 className="w-full"

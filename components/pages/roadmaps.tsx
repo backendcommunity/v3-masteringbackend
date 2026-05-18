@@ -3,19 +3,20 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, Target, Clock, Award } from "lucide-react";
+import { Circle, Target, Clock, Award, BarChart2 } from "lucide-react";
 import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { useEffect, useState } from "react";
-import { Roadmap } from "@/lib/data";
+import { Roadmap, StarterKitItem } from "@/lib/data";
 import { Loader } from "../ui/loader";
+import { FreeStarterSection } from "@/components/free-starter-section";
+import { getTagIcon } from "@/lib/tag-icons";
 
 interface RoadmapsPageProps {
   onNavigate?: (route: string) => void;
@@ -25,18 +26,21 @@ export function RoadmapsPage({ onNavigate }: RoadmapsPageProps) {
   const store = useAppStore();
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [currentRoadmap, setCurrentRoadmap] = useState<Roadmap>();
+  const [freeStarters, setFreeStarters] = useState<StarterKitItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadRoadmaps = async () => {
       setLoading(true);
-      const roadmaps = await store.getRoadmaps({
+      const result = await store.getRoadmaps({
         size: 10,
         skip: 0,
       });
-      setRoadmaps(roadmaps);
+      const list: Roadmap[] = result?.roadmaps ?? result ?? [];
+      setRoadmaps(list);
+      setFreeStarters(result?.freeStarters ?? []);
 
-      const current = roadmaps.find((r: Roadmap) => r.enrolled);
+      const current = list.find((r: Roadmap) => r.enrolled);
       setCurrentRoadmap(current);
       setLoading(false);
     };
@@ -60,6 +64,9 @@ export function RoadmapsPage({ onNavigate }: RoadmapsPageProps) {
           Get Career Assessment
         </Button> */}
       </div>
+
+      {/* Free Starter Section */}
+      <FreeStarterSection items={freeStarters} type="roadmap" />
 
       {/* Current Roadmap Progress */}
       {roadmaps.some((r: any) => r.enrolled) && (
@@ -102,276 +109,77 @@ export function RoadmapsPage({ onNavigate }: RoadmapsPageProps) {
       )}
 
       {/* Roadmap Details */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {roadmaps.map((roadmap: any) => (
         <Card
           key={roadmap.id}
-          className="cursor-pointer hover:shadow-lg border hover:border-gray-200 transition-shadow"
+          className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => onNavigate?.(routes.roadmapDetail(roadmap.slug))}
         >
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{roadmap.title}</CardTitle>
-                <CardDescription
-                  className="pt-1"
-                  dangerouslySetInnerHTML={{
-                    __html: roadmap?.summary,
-                  }}
-                ></CardDescription>
-              </div>
-              <div className="text-right">
-                <Badge variant="outline">
-                  {roadmap?.timeframe ?? "4-6 months"}
-                </Badge>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {roadmap?.level}
-                </p>
-              </div>
+          <CardHeader className="p-4 pb-3 flex-1 space-y-3">
+            {/* Type label */}
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Learning Path
+            </p>
+
+            {/* Title */}
+            <CardTitle className="text-base font-bold line-clamp-2 leading-snug">
+              {roadmap.title}
+            </CardTitle>
+
+            {/* Level */}
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <BarChart2 className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>{roadmap.level ?? "All levels"}</span>
             </div>
+
+            {/* Description */}
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {roadmap.summary ?? roadmap.description}
+            </p>
+
+            {/* Enrolled progress */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{roadmap.topics?.length ?? 0} topics</span>
+              {roadmap.enrolled && (
+                <span className="text-xs text-muted-foreground">{roadmap.progress ?? 0}%</span>
+              )}
+            </div>
+
+            {/* First skill tag */}
+            {roadmap.skills?.length > 0 && (
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wide w-fit">
+                {roadmap.skills[0]}
+              </Badge>
+            )}
           </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {roadmap?.topics?.slice(0, 3).map((topic: any, index: number) => {
-                const isCompleted = topic?.userTopic?.completed;
-                const isCurrent =
-                  topic?.id === roadmap?.userRoadmap?.currentTopic?.id;
 
-                const inProgress = !!topic?.userTopic;
-
-                return (
-                  <div key={topic.id} className="flex items-start gap-4">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                          isCompleted
-                            ? "bg-green-600 border-green-600 text-white"
-                            : isCurrent || inProgress
-                            ? "bg-blue-600 border-blue-600 text-white"
-                            : "border-gray-300 text-gray-400"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : (
-                          <span className="text-sm font-medium">
-                            {index + 1}
-                          </span>
-                        )}
-                      </div>
-                      {index < 4 && (
-                        <div
-                          className={`w-0.5 h-12 mt-2 ${
-                            isCompleted ? "bg-green-600" : "bg-gray-300"
-                          }`}
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3
-                            className={`font-medium ${
-                              isCompleted
-                                ? "text-green-700"
-                                : isCurrent || inProgress
-                                ? "text-blue-700"
-                                : "text-gray-500"
-                            }`}
-                          >
-                            {topic.title}
-                          </h3>
-                          <article
-                            className="text-sm text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                            dangerouslySetInnerHTML={{
-                              __html: topic?.summary,
-                            }}
-                          ></article>
-                        </div>
-                        <Badge
-                          variant={
-                            isCompleted
-                              ? "default"
-                              : isCurrent || inProgress
-                              ? "secondary"
-                              : "outline"
-                          }
-                          className={
-                            isCompleted
-                              ? "bg-green-100 text-green-800 border-green-200"
-                              : isCurrent || inProgress
-                              ? "bg-blue-100 text-blue-800 border-blue-200"
-                              : ""
-                          }
-                        >
-                          {isCompleted
-                            ? "Completed"
-                            : isCurrent || inProgress
-                            ? "In Progress"
-                            : "Upcoming"}
-                        </Badge>
-                      </div>
-
-                      {isCurrent ||
-                        (inProgress &&
-                          (topic?.userTopic?.completed ? (
-                            <div className="space-y-2">
-                              <Progress
-                                value={
-                                  topic?.userTopic?.progress > 0
-                                    ? topic?.userTopic?.progres
-                                    : 100
-                                }
-                                className="h-2"
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                {topic?.userTopic?.progress > 0
-                                  ? topic?.userTopic?.progres
-                                  : 100}
-                                % complete - Continue with {topic.title}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <Progress
-                                value={topic?.userTopic?.progress}
-                                className="h-2"
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                {topic?.userTopic?.progress}% complete -
-                                Continue with {topic.title}
-                              </p>
-                            </div>
-                          )))}
-                      {isCompleted && (
-                        <p className="text-sm text-green-600">
-                          ✓ Milestone achieved! Great progress on your career
-                          journey.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* If more than 4 topics, show ellipsis and then last one */}
-              {roadmap?.topics?.length > 5 && (
-                <>
-                  <div className="flex items-start text-gray-400 gap-4 text-sm">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={
-                          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-300 text-gray-400"
-                        }
-                      >
-                        <span className="text-sm font-medium">---</span>
-                      </div>
-
-                      <div className={"w-0.5 h-12 mt-2 bg-gray-300"}> </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className={"font-medium text-gray-500 "}>
-                          More here
-                        </h3>
-                        <Badge variant={"outline"}>Upcoming</Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Show the last topic */}
-                  {(() => {
-                    const topic = roadmap.topics[roadmap?.topics?.length - 1];
-                    const index = roadmap?.topics?.length - 1;
-                    const isCompleted = topic?.completed;
-                    const isCurrent =
-                      topic?.id === roadmap?.userRoadmap?.currentTopic?.id;
-
-                    return (
-                      <div key={topic.id} className="flex items-start gap-4">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                              isCompleted
-                                ? "bg-green-600 border-green-600 text-white"
-                                : isCurrent
-                                ? "bg-blue-600 border-blue-600 text-white"
-                                : "border-gray-300 text-gray-400"
-                            }`}
-                          >
-                            {isCompleted ? (
-                              <CheckCircle2 className="h-4 w-4" />
-                            ) : (
-                              <span className="text-sm font-medium">
-                                {index + 1}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h3
-                              className={`font-medium ${
-                                isCompleted
-                                  ? "text-green-700"
-                                  : isCurrent
-                                  ? "text-blue-700"
-                                  : "text-gray-500"
-                              }`}
-                            >
-                              {topic.title}
-                            </h3>
-                            <Badge
-                              variant={
-                                isCompleted
-                                  ? "default"
-                                  : isCurrent
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                              className={
-                                isCompleted
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : isCurrent
-                                  ? "bg-blue-100 text-blue-800 border-blue-200"
-                                  : ""
-                              }
-                            >
-                              {isCompleted
-                                ? "Completed"
-                                : isCurrent
-                                ? "In Progress"
-                                : "Upcoming"}
-                            </Badge>
-                          </div>
-                          {isCurrent && (
-                            <div className="space-y-2">
-                              <Progress
-                                value={topic.progress}
-                                className="h-2"
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                {topic.progress}% complete - Continue with{" "}
-                                {topic.title}
-                              </p>
-                            </div>
-                          )}
-                          {isCompleted && (
-                            <p className="text-sm text-green-600">
-                              ✓ Milestone achieved! Great progress on your
-                              career journey.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </>
+          {/* Footer */}
+          <CardContent className="p-4 pt-3 border-t">
+            {roadmap.enrolled && <Progress value={roadmap.progress ?? 0} className="h-1 mb-2" />}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground flex-shrink-0">
+                  {(() => { const Icon = getTagIcon(roadmap.skills); return <Icon className="h-4 w-4 text-background" />; })()}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {roadmap.estimatedWeeks ? `${roadmap.estimatedWeeks}w` : "Self-paced"}
+                </span>
+              </div>
+              {roadmap.enrolled ? (
+                <Button size="sm" onClick={(e) => { e.stopPropagation(); onNavigate?.(routes.roadmapDetail(roadmap.slug)); }}>
+                  Continue
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onNavigate?.(routes.roadmapDetail(roadmap.slug)); }}>
+                  Start
+                </Button>
               )}
             </div>
           </CardContent>
         </Card>
       ))}
+      </div>
 
       {/* Career Insights */}
       {/* <div className="grid gap-6 md:grid-cols-2">

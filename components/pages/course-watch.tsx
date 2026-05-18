@@ -59,6 +59,7 @@ import {
   Share2,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -90,6 +91,7 @@ import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 import { NextContentOverlay } from "../next-content-overlay";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { PaymentDialog } from "../payment-dialog";
 
 interface CourseWatchPageProps {
   slug: string;
@@ -162,6 +164,7 @@ export function CourseWatchPage({
       .then(setLeaderboardRank)
       .catch(() => {});
   }, [course?.id]);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   async function loadNotes(courseId: string, videoId: string) {
     setLoadingNotes(true);
@@ -506,8 +509,21 @@ export function CourseWatchPage({
             {["VIDEO", "WORKSHOP"]?.includes(currentVideo?.type as string) && (
               <Card className="overflow-hidden group relative">
                 <div className="aspect-video bg-black relative">
-                  {/* Vimeo Player */}
-                  <VimeoPlayer
+
+                  {currentVideo?.isPremium && !user?.isPremium ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-xl">
+                      <div className="text-center space-y-3 p-6 max-w-sm">
+                        <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
+                        <h3 className="font-semibold text-lg">Premium Content</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Upgrade your plan to watch this lesson
+                        </p>
+                        <Button onClick={() => setShowUpgradeDialog(true)}>Upgrade to Pro</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Vimeo Player */
+   <VimeoPlayer
                     video={currentVideo!}
                     initialTime={
                       typeof window !== "undefined"
@@ -523,6 +539,7 @@ export function CourseWatchPage({
                     onComplete={handleMarkComplete}
                     onTimeUpdate={handleTimeUpdate}
                   />
+                  )}
 
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
@@ -595,6 +612,25 @@ export function CourseWatchPage({
                   </div>
                 </div>
               </Card>
+            )}
+            {showUpgradeDialog && (
+              <PaymentDialog
+                open={showUpgradeDialog}
+                onClose={() => setShowUpgradeDialog(false)}
+                data={{ ...course, type: "course" }}
+                onHandlePreview={() => {}}
+                onHandlePurchase={(_id: string, _type: any, success: boolean) => {
+                  if (success) {
+                    setShowUpgradeDialog(false);
+                    store.getUserCourse(slug).then((uc: any) => {
+                      if (uc) {
+                        setCourse(uc.course);
+                        setUserCourse(uc);
+                      }
+                    });
+                  }
+                }}
+              />
             )}
             {currentVideo?.type === "QUIZ" && (
               <Card className="overflow-hidden">
