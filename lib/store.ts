@@ -986,8 +986,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getCoursesFilters: async () => {
-    return await fetchCoursesFilters();
+  getCoursesFilters: async (): Promise<CourseFiltersData> => {
+    const res = await fetchCoursesFilters();
+    return res.data as CourseFiltersData;
   },
 
   // Epic 5: Engagement features

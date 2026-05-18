@@ -465,7 +465,6 @@ export function LearningPathCoursePreviewPage({
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                <div className="flex items-center justify-between">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <Award className="h-4 w-4" />
                     Certificate
