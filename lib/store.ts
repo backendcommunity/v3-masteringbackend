@@ -40,12 +40,14 @@ import {
   Week,
   UserLesson,
   Playground,
+  CourseFiltersData,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
   fetchCourse,
   fetchCourseQuizzes,
   fetchCourses,
+  fetchCoursesFilters,
   fetchUserCourse,
   fetchUserCourses,
   handleCourseEnrollment,
@@ -247,11 +249,11 @@ interface AppState {
     payload: any,
   ) => UserLesson | any;
   enrollInPath: (pathId: string) => void;
-  enrollInRoadmap: (slug: string) => Promise<any>;
+  enrollInRoadmap: (slug: string, isPreview?: boolean) => Promise<any>;
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
-  handleCourseEnrollment: (courseId: string) => UserCourse | any;
+  handleCourseEnrollment: (courseId: string, isPreview?: boolean) => UserCourse | any;
   handleRoadmapCourseEnrollment: (
     slug: string,
     topicId: string,
@@ -284,9 +286,11 @@ interface AppState {
   executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
+  getCoursesFilters: () => Promise<CourseFiltersData>;
+
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
-  getContinueLearning: () => Promise<ContinueLearningItem[]>;
+  getContinueLearning: () => Promise<ContinueLearningItem | null>;
   markActivityRead: (id: string) => Promise<void>;
   markAllActivitiesRead: () => Promise<void>;
 
@@ -690,7 +694,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/roadmaps?page=${filters?.skip}&size=${filters?.size}`,
     );
-    return data?.data?.roadmaps;
+    return data?.data;
   },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const {
@@ -930,7 +934,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.post(
-      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
+      `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}/complete`,
       input,
     );
     return data?.data;
@@ -982,6 +986,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  getCoursesFilters: async () => {
+    return await fetchCoursesFilters();
+  },
+
   // Epic 5: Engagement features
   getStreak: async () => {
     const { data } = await api.get(`/users/streak`);
@@ -990,7 +998,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getContinueLearning: async () => {
     const { data } = await api.get(`/users/continue-learning`);
-    return data?.data;
+    return data?.data ?? null;
   },
 
   markActivityRead: async (id: string) => {
@@ -1081,8 +1089,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleCourseEnrollment: async (
     courseId: string,
+    isPreview?: boolean,
   ): Promise<UserCourse | any> => {
-    const res = await handleCourseEnrollment(courseId);
+    const res = await handleCourseEnrollment(courseId, isPreview);
     return res.data;
   },
 
@@ -1156,9 +1165,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  enrollInRoadmap: async (slug) => {
+  enrollInRoadmap: async (slug, isPreview?) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
-    const response = await api.post(`/roadmaps/${resolvedSlug}`);
+    const response = await api.post(`/roadmaps/${resolvedSlug}`, { isPreview });
     const { data } = response;
     if (!data?.success) {
       throw new Error(data?.message || "Failed to enroll in roadmap");
