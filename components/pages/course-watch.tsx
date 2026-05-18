@@ -13,7 +13,7 @@ function parseVTT(vtt: string): CaptionCue[] {
   const blocks = vtt.split(/\n{2,}/);
   for (const block of blocks) {
     const lines = block.trim().split("\n");
-    const tsIdx = lines.findIndex((l) => l.includes("-->"));
+    const tsIdx = lines.findIndex((l) => l?.includes("-->"));
     if (tsIdx === -1) continue;
     const [startStr, endStr] = lines[tsIdx].split("-->").map((s) => s.trim());
     const text = lines
@@ -73,7 +73,12 @@ import {
 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import DisqusCommentBlock from "../ui/comment";
-import { markVideoComplete, fetchVideoCaption, fetchLeaderboardRank, LeaderboardRank } from "@/lib/courses";
+import {
+  markVideoComplete,
+  fetchVideoCaption,
+  fetchLeaderboardRank,
+  LeaderboardRank,
+} from "@/lib/courses";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { handleShare } from "@/lib/utils";
@@ -120,7 +125,8 @@ export function CourseWatchPage({
   const [captions, setCaptions] = useState<CaptionCue[]>([]);
   const [captionTime, setCaptionTime] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [leaderboardRank, setLeaderboardRank] = useState<LeaderboardRank | null>(null);
+  const [leaderboardRank, setLeaderboardRank] =
+    useState<LeaderboardRank | null>(null);
   const captionListRef = useRef<HTMLDivElement>(null);
   const positionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -144,12 +150,17 @@ export function CourseWatchPage({
 
   // Fetch streak + leaderboard rank once course is loaded
   useEffect(() => {
-    store.getStreak().then((s) => setStreak(s.currentStreak)).catch(() => {});
+    store
+      .getStreak()
+      .then((s) => setStreak(s.currentStreak))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!course?.id) return;
-    fetchLeaderboardRank(course.id).then(setLeaderboardRank).catch(() => {});
+    fetchLeaderboardRank(course.id)
+      .then(setLeaderboardRank)
+      .catch(() => {});
   }, [course?.id]);
 
   async function loadNotes(courseId: string, videoId: string) {
@@ -166,7 +177,10 @@ export function CourseWatchPage({
       if (positionSaveTimer.current) clearTimeout(positionSaveTimer.current);
       positionSaveTimer.current = setTimeout(() => {
         if (currentVideo?.id) {
-          localStorage.setItem(`mb-video-pos:${currentVideo.id}`, String(Math.floor(seconds)));
+          localStorage.setItem(
+            `mb-video-pos:${currentVideo.id}`,
+            String(Math.floor(seconds)),
+          );
         }
       }, 10_000);
     },
@@ -256,10 +270,16 @@ export function CourseWatchPage({
       setUserChapters(userChapter);
 
       // Capture progress before state update for milestone detection
-      const prevCompleted = (userVideos ?? []).filter((v) => v.isCompleted).length;
+      const prevCompleted = (userVideos ?? []).filter(
+        (v) => v.isCompleted,
+      ).length;
       const totalContent = course.totalContent ?? 0;
-      const prevPct = totalContent > 0 ? Math.floor((prevCompleted / totalContent) * 100) : 0;
-      const newPct = totalContent > 0 ? Math.floor(((prevCompleted + 1) / totalContent) * 100) : 0;
+      const prevPct =
+        totalContent > 0 ? Math.floor((prevCompleted / totalContent) * 100) : 0;
+      const newPct =
+        totalContent > 0
+          ? Math.floor(((prevCompleted + 1) / totalContent) * 100)
+          : 0;
 
       // Backend update with proper `isChapterCompleted`
       const result = await markVideoComplete(
@@ -282,7 +302,13 @@ export function CourseWatchPage({
       const MILESTONES = [25, 50, 75] as const;
       for (const m of MILESTONES) {
         if (prevPct < m && newPct >= m) {
-          setTimeout(() => toast(`${m === 50 ? "Halfway there! 🚀" : `You're ${m}% through! Keep going 💪`}`), 800);
+          setTimeout(
+            () =>
+              toast(
+                `${m === 50 ? "Halfway there! 🚀" : `You're ${m}% through! Keep going 💪`}`,
+              ),
+            800,
+          );
           break;
         }
       }
@@ -595,73 +621,6 @@ export function CourseWatchPage({
             )}
           </Card>
 
-          {/* Video Actions */}
-          {/* <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {currentVideo && (
-                <>
-                  {currentVideo.type === "VIDEO" &&
-                    !isVideoCompleted(currentVideo.id) && (
-                      <Button onClick={handleMarkComplete}>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Mark Complete
-                      </Button>
-                    )}
-
-                  {currentVideo.type === "QUIZ" ||
-                    (currentVideo?.quizCourse?.quiz &&
-                      !currentVideo?.quizCourse?.quiz?.required && (
-                        <Button onClick={handleMarkComplete}>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Mark Quiz Complete
-                        </Button>
-                      ))}
-                </>
-              )}
-
-              {nextVideo && (
-                <Button
-                  onClick={() => handleVideoClick(nextVideo)}
-                  className="capitalize"
-                >
-                  Next {nextVideo?.type?.toLowerCase()}
-                  <SkipForward className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-              {!nextVideo && nextChapter && (
-                <Button onClick={() => handleChapterClick(nextChapter)}>
-                  Next Chapter
-                  <SkipForward className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-
-
-              {!nextVideo && !nextChapter && (
-                <div>
-                  {!completed ? (
-                    <Button
-                      variant={"destructive"}
-                      onClick={() => markCourseAsCompleted()}
-                    >
-                      Earn Your Rewards
-                      <Crown className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant={"outline"}
-                      onClick={() =>
-                        onNavigate?.(routes.courseCertificate(slug))
-                      }
-                    >
-                      View Your Certificate
-                      <SkipForward className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div> */}
-
           <Separator />
 
           {/* Content Tabs */}
@@ -674,7 +633,7 @@ export function CourseWatchPage({
               <TabsList>
                 <div className="md:w-full w-[350px] flex overflow-y-auto no-scrollbar">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
-                  {["VIDEO", "WORKSHOP"].includes(
+                  {["VIDEO", "WORKSHOP"]?.includes(
                     currentVideo?.type as string,
                   ) && <TabsTrigger value="code">Code Editor</TabsTrigger>}
                   <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -926,10 +885,15 @@ export function CourseWatchPage({
                   {user && (
                     <div className="pt-2 border-t space-y-1">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Level {user.level} · {user.points} pts</span>
+                        <span>
+                          Level {user.level} · {user.points} pts
+                        </span>
                         <span>{user.points % 100}/100 XP</span>
                       </div>
-                      <Progress value={(user.points % 100)} className="h-1.5 bg-muted" />
+                      <Progress
+                        value={user.points % 100}
+                        className="h-1.5 bg-muted"
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -1216,7 +1180,9 @@ export function CourseWatchPage({
       {/* Chapter completion celebration — navigates directly, no second overlay */}
       <Dialog
         open={chapterComplete}
-        onOpenChange={(open) => { if (!open) setChapterComplete(false); }}
+        onOpenChange={(open) => {
+          if (!open) setChapterComplete(false);
+        }}
       >
         <DialogContent className="sm:max-w-md text-center">
           <DialogTitle className="text-2xl font-bold">
@@ -1224,7 +1190,10 @@ export function CourseWatchPage({
           </DialogTitle>
           <div className="space-y-4 py-4">
             <p className="text-muted-foreground">
-              You finished <span className="font-semibold text-foreground">{chapter?.title}</span>
+              You finished{" "}
+              <span className="font-semibold text-foreground">
+                {chapter?.title}
+              </span>
             </p>
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
