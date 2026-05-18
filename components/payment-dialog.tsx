@@ -33,7 +33,9 @@ const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
 const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
 const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
 
-const PADDLE_ENVIRONMENT = NODE_ENV === "dev" ? "sandbox" : "production";
+const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
+  ? "sandbox"
+  : "production";
 
 export function PaymentDialog({
   data,
@@ -59,11 +61,9 @@ export function PaymentDialog({
       eventCallback: function (data: any) {
         switch (data.name) {
           case "checkout.loaded":
-            console.log("Checkout loaded", data);
             onClose();
             break;
           case "checkout.closed":
-            console.log("Checkout closed");
             break;
           case "checkout.completed":
             const c_data = data?.custom_data;
@@ -138,14 +138,6 @@ export function PaymentDialog({
       )?.code ||
       user?.country ||
       "";
-
-    console.log("[Paddle Checkout]", {
-      priceId,
-      email: user?.email,
-      country: user?.country,
-      countryCode,
-      customData,
-    });
 
     paddle?.Checkout.open({
       settings: {
@@ -236,10 +228,6 @@ export function PaymentDialog({
         toast.error(
           `This ${data?.type ?? "item"} is not available for purchase right now. Please try again later.`,
         );
-        console.error("[Paddle Payment] Missing price ID for:", {
-          type: data?.type,
-          id: data?.id,
-        });
         return;
       }
 
@@ -263,7 +251,7 @@ export function PaymentDialog({
     try {
       const res = await store.initiateAsyncpayCheckout(
         data.bootcampId,
-        data.id
+        data.id,
       );
       const { AsyncpayCheckout } = await import("@asyncpay/checkout");
       AsyncpayCheckout({
@@ -312,7 +300,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableSubscription) {
-                  analytics.track("payment_plan_selected", { plan: "subscription", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "subscription",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "subscription");
                 }
               }}
@@ -360,7 +351,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableOnetime) {
-                  analytics.track("payment_plan_selected", { plan: "individual", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "individual",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "individual");
                 }
               }}
@@ -400,7 +394,10 @@ export function PaymentDialog({
               }`}
               onClick={() => {
                 if (!disableMB) {
-                  analytics.track("payment_plan_selected", { plan: "mb", contentId: data.id });
+                  analytics.track("payment_plan_selected", {
+                    plan: "mb",
+                    contentId: data.id,
+                  });
                   handlePayment(data.id, "mb");
                 }
               }}

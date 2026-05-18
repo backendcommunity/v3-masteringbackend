@@ -226,7 +226,7 @@ export function PathPreviewDialog({
                 ))}
 
                 {/* Locked Preview Items */}
-                {freeItems.map((item) => {
+                {freeItems?.map((item) => {
                   const cfg = itemConfig[item.type];
                   const IconComponent = cfg.icon;
                   return (

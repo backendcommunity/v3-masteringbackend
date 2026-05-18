@@ -39,7 +39,7 @@ export function CourseQuizPage({
 
   const [quiz, setQuiz] = useState<Quiz>();
   const [quizStatus, setQuizStatus] = useState<
-    "loading" | "not_started" | "in_progress" | "completed"
+    "loading" | "not_started" | "in_progress" | "completed" | "failed"
   >("loading");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -56,7 +56,7 @@ export function CourseQuizPage({
 
         if (!_quiz) {
           toast.error("Quiz not found!");
-          setQuizStatus("not_started");
+          setQuizStatus("failed");
           return;
         }
 
@@ -76,7 +76,7 @@ export function CourseQuizPage({
         setTimeLeft((_quiz?.timeLimit ?? 20) * 60);
       } catch (error) {
         toast.error("Failed to load quiz");
-        setQuizStatus("not_started");
+        setQuizStatus("failed");
       }
     };
 
@@ -188,6 +188,24 @@ export function CourseQuizPage({
       <div className="flex items-center p-6 h-[400px]">
         <div className="max-w-2xl mx-auto space-y-6">
           <Loader isFull={false} isLoader={true} />
+        </div>
+      </div>
+    );
+  }
+
+  if (quizStatus === "failed") {
+    return (
+      <div className="flex-1 p-6">
+        <div className="max-w-2xl mx-auto text-center space-y-4 py-12">
+          <h2 className="text-xl font-semibold">Quiz Unavailable</h2>
+          <p className="text-muted-foreground">
+            This quiz could not be loaded. Please try again later.
+          </p>
+          {showNav && (
+            <Button variant="outline" onClick={() => onNavigate(-1 as any)}>
+              Go Back
+            </Button>
+          )}
         </div>
       </div>
     );

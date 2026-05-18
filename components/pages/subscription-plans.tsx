@@ -36,7 +36,7 @@ export function SubscriptionPlansPage({
   const [loading, setLoading] = useState(false);
   const user = useUser();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
-    "annual"
+    "monthly",
   );
 
   const [plans, setPlans] = useState(dataStore.plans);

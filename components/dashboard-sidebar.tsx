@@ -281,7 +281,7 @@ export function DashboardSidebar({
               </h3>
             )}
             <div className="space-y-1">
-              {items.map((item) => (
+              {items?.map((item) => (
                 <button
                   key={item.title}
                   onClick={() => onNavigate(item.url)}

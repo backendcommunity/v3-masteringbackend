@@ -48,7 +48,7 @@ function LoginContent() {
 
       analytics.track("login_attempted", { method: "email" });
 
-      const user = await auth.login(email, password);
+      const user = await auth.login(email, password, rememberMe);
 
       if (!user) {
         toast.error("Login failed");

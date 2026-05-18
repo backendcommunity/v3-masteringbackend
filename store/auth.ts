@@ -22,7 +22,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   token: string | null;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, remember?: boolean) => Promise<User>;
   register: (user: NewUser) => Promise<boolean>;
   verifyEmail: (data: { code: string; email: string }) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -33,7 +33,7 @@ interface AuthState {
     email: string,
     password: string
   ) => Promise<boolean>;
-  verifyCode: (email: string, code: string) => Promise<boolean>;
+  verifyCode: (email: string, code: string, type?: string) => Promise<boolean>;
   currentUser: () => Promise<User>;
   completeOnboarding: (input: OnboardingInput) => Promise<any>;
 }
@@ -58,8 +58,8 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
 
-  login: async (email, password) => {
-    const { data } = await login(email, password);
+  login: async (email, password, remember = false) => {
+    const { data } = await login(email, password, remember);
     // The backend sets the HttpOnly mb_token cookie directly — no client-side cookie needed
     set({ user: data.user, token: data.token });
     updateUser(data.user);
@@ -91,8 +91,8 @@ export const useAuth = create<AuthState>((set) => ({
     return res?.success;
   },
 
-  verifyCode: async (email: string, code: string) => {
-    const res = await verifyCode(email, code);
+  verifyCode: async (email: string, code: string, type?: string) => {
+    const res = await verifyCode(email, code, type);
     return res?.success;
   },
 

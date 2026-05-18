@@ -15,6 +15,7 @@ import {
   Eye,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
+import { executeCode } from "@/lib/executor";
 
 interface CourseExercisePageProps {
   courseId: string;
@@ -88,43 +89,50 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
 
   const runTests = async () => {
     setIsRunning(true);
-
-    // Simulate test execution
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Step 1: Execute user code and return the result
-    // Step 2: Compare the result with what you have in TestCase
-
     try {
-      // In a real implementation, this would execute the code safely
-      const results = exercise.testCases.map((testCase, index) => {
-        // Mock test execution - in reality, you'd run the actual code
-        const mockResult = Math.random() > 0.3; // 70% pass rate for demo
-        return {
-          id: index,
-          description: testCase.description,
-          input: testCase.input,
-          expected: testCase.expected,
-          actual: mockResult
-            ? testCase.expected
-            : { error: "Function not implemented correctly" },
-          passed: mockResult,
-        };
-      });
+      const result = await executeCode(
+        code,
+        "node",
+        exercise.testCases,
+        "createUser",
+      );
+
+      if (!result.success) {
+        setTestResults([
+          {
+            id: 0,
+            description: "Code execution error",
+            error: result.error ?? "Execution failed",
+            passed: false,
+          },
+        ]);
+        return;
+      }
+
+      const results = exercise.testCases.map((testCase, index) => ({
+        id: index,
+        description: testCase.description,
+        input: testCase.input,
+        expected: testCase.expected,
+        actual: result.results?.[index]?.pass
+          ? testCase.expected
+          : { error: "Function not implemented correctly" },
+        passed: result.results?.[index]?.pass ?? false,
+      }));
 
       setTestResults(results);
-    } catch (error) {
+    } catch {
       setTestResults([
         {
           id: 0,
           description: "Code execution error",
-          error: "Syntax error in your code",
+          error: "Failed to connect to execution service",
           passed: false,
         },
       ]);
+    } finally {
+      setIsRunning(false);
     }
-
-    setIsRunning(false);
   };
 
   const resetCode = () => {

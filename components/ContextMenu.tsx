@@ -69,7 +69,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       style={{ top: y, left: x }}
       onClick={(e) => e.stopPropagation()}
     >
-      {menuItems.map((item, i) => {
+      {menuItems?.map((item, i) => {
         return item.label === "separator" ? (
           <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
         ) : (

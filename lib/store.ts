@@ -283,7 +283,7 @@ interface AppState {
   ) => any;
   executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
-
+  initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
   getContinueLearning: () => Promise<ContinueLearningItem[]>;

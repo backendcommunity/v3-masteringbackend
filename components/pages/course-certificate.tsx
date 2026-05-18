@@ -6,9 +6,10 @@ import { Certificate } from "@/components/certificate";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { useEffect, useState } from "react";
-import { Course } from "@/lib/data";
+import { Course, UserCourse } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
+import { toast } from "sonner";
 
 interface CourseCertificatePageProps {
   slug: string;
@@ -21,37 +22,44 @@ export function CourseCertificatePage({
 }: CourseCertificatePageProps) {
   const store = useAppStore();
   const [course, setCourse] = useState<Course>();
+  const [userCourse, setUserCourse] = useState<UserCourse>();
   const [loading, setLoading] = useState(false);
   const user = useUser();
 
   useEffect(() => {
     setLoading(true);
-    async function findCourse(slug: string) {
-      const course = await store.getCourse(slug);
-      setCourse(course);
+    async function loadData(slug: string) {
+      const [courseData, userCourseData] = await Promise.allSettled([
+        store.getCourse(slug),
+        store.getUserCourse(slug),
+      ]);
+      if (courseData.status === "fulfilled") setCourse(courseData.value);
+      if (userCourseData.status === "fulfilled") setUserCourse(userCourseData.value);
       setLoading(false);
     }
-    findCourse(slug);
+    loadData(slug);
   }, [slug]);
 
   if (loading) return <Loader isLoader={false} />;
   if (!course) return <div>No course found</div>;
 
+  const completionDate = userCourse?.completedAt
+    ? new Date(userCourse.completedAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
   const handleBackToCourse = () => {
-    const coursePath = routes.courseDetail(slug);
-    console.log("Back to Course - Navigating to:", coursePath);
-    onNavigate(coursePath);
+    onNavigate(routes.courseDetail(slug));
   };
 
   const handleDownload = () => {
-    console.log("Downloading certificate for course:", slug);
-    // In a real app, this would generate and download a PDF
-    alert("Certificate download started!");
+    // Certificate component handles PDF generation; this is the post-download callback
   };
 
   const handleShare = () => {
-    console.log("Sharing certificate for course:", slug);
-    // In a real app, this would open sharing options
     if (navigator.share) {
       navigator.share({
         title: `I completed ${course?.title} on MasteringBackend!`,
@@ -59,9 +67,8 @@ export function CourseCertificatePage({
         url: window.location.href,
       });
     } else {
-      // Fallback for browsers that don't support Web Share API
       navigator.clipboard.writeText(window.location.href);
-      alert("Certificate link copied to clipboard!");
+      toast.success("Certificate link copied to clipboard!");
     }
   };
 
@@ -102,7 +109,7 @@ export function CourseCertificatePage({
         studentName={user?.name!}
         type="course"
         instructorName={course?.instructor ?? "Solomon Eseme"}
-        completionDate={"December 8, 2024"}
+        completionDate={completionDate}
         course={course!}
         onDownload={handleDownload}
         onShare={handleShare}
