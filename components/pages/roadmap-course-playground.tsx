@@ -49,16 +49,16 @@ export function RoadmapCoursePlayground({
   }
 
   // Initialize file contents if empty
-  if (Object.keys(fileContents).length === 0 && playground.files.length > 0) {
+  if (Object.keys(fileContents).length === 0 && (playground.files ?? []).length > 0) {
     const contents: Record<string, string> = {}
-    playground.files.forEach((file) => {
+    ;(playground.files ?? []).forEach((file) => {
       contents[file.id] = file.content
     })
     setFileContents(contents)
-    setActiveFile(playground.files[0].id)
+    setActiveFile((playground.files ?? [])[0]?.id ?? "")
   }
 
-  const currentFile = playground.files.find((f) => f.id === activeFile)
+  const currentFile = (playground.files ?? []).find((f) => f.id === activeFile)
 
   const handleFileChange = (fileId: string) => {
     setActiveFile(fileId)
@@ -84,7 +84,7 @@ export function RoadmapCoursePlayground({
     setConsoleOutput((prev) => [
       ...prev,
       "> Loading dependencies...",
-      ...playground.dependencies.map((dep) => `> Loaded ${dep}`),
+      ...(playground.dependencies ?? []).map((dep) => `> Loaded ${dep}`),
       "> Executing code...",
       "",
       "// Console output:",
@@ -109,7 +109,7 @@ export function RoadmapCoursePlayground({
 
   const handleResetCode = () => {
     const contents: Record<string, string> = {}
-    playground.files.forEach((file) => {
+    ;(playground.files ?? []).forEach((file) => {
       contents[file.id] = file.content
     })
     setFileContents(contents)
@@ -198,7 +198,7 @@ export function RoadmapCoursePlayground({
               </CardHeader>
               <CardContent className="p-0">
                 <div className="max-h-[500px] overflow-y-auto">
-                  {playground.files.map((file) => (
+                  {(playground.files ?? []).map((file) => (
                     <button
                       key={file.id}
                       onClick={() => handleFileChange(file.id)}
@@ -269,14 +269,14 @@ export function RoadmapCoursePlayground({
               </Tabs>
 
               {/* Dependencies */}
-              {playground.dependencies.length > 0 && (
+              {(playground.dependencies ?? []).length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Dependencies</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {playground.dependencies.map((dep) => (
+                      {(playground.dependencies ?? []).map((dep) => (
                         <Badge key={dep} variant="outline" className="text-xs">
                           {dep}
                         </Badge>

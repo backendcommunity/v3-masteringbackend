@@ -706,7 +706,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 <span>{user?.points?.toLocaleString()} MB</span>
                 <span>
                   {mbToNextLevel?.toLocaleString()} MB to Level{" "}
-                  {user?.level + 1}
+                  {(user?.level ?? 0) + 1}
                 </span>
               </div>
             </CardContent>

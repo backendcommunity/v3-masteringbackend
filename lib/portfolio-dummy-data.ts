@@ -60,6 +60,8 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     streak: 14,
     isVerified: true,
     isOpenToWork: true,
+    isPremium: false,
+    isTrial: false,
     joinedAt: "2024-01-15T00:00:00Z",
     socialLinks: {
       github: "https://github.com/sarahjohnson",
@@ -97,6 +99,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
   projects: [
     {
       id: "p1",
+      slug: "distributed-task-queue",
       title: "Distributed Task Queue",
       level: "Advanced",
       score: 95,
@@ -115,6 +118,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     },
     {
       id: "p2",
+      slug: "rest-api-rate-limiting",
       title: "REST API with Rate Limiting",
       level: "Intermediate",
       score: 88,
@@ -131,6 +135,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     },
     {
       id: "p3",
+      slug: "realtime-chat-application",
       title: "Real-time Chat Application",
       level: "Intermediate",
       score: 72,
@@ -144,6 +149,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     },
     {
       id: "p4",
+      slug: "graphql-api-dataloader",
       title: "GraphQL API with DataLoader",
       level: "Intermediate",
       score: 91,
@@ -160,6 +166,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     },
     {
       id: "p5",
+      slug: "microservices-ecommerce-platform",
       title: "Microservices E-commerce Platform",
       level: "Advanced",
       score: 0,
@@ -172,6 +179,7 @@ export const DUMMY_PORTFOLIO_DATA: PortfolioData = {
     },
     {
       id: "p6",
+      slug: "oauth2-server-implementation",
       title: "OAuth2 Server Implementation",
       level: "Advanced",
       score: 55,

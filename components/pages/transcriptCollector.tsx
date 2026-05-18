@@ -10,7 +10,7 @@ export function TranscriptCollector({
 
   useEffect(() => {
     const full = transcriptions
-      .map((t) => `${t.participantName}: ${t.text}`)
+      .map((t) => `${t.participantInfo?.identity ?? "Unknown"}: ${t.text}`)
       .join("\n");
 
     onUpdate(full);

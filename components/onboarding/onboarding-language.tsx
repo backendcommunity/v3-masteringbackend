@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, Python, Coffee } from "lucide-react";
+import { Code2, Coffee } from "lucide-react";
 import { OnboardingProgress } from "./onboarding-progress";
 import { OnboardingOptionCard } from "./onboarding-option-card";
 import type { ProgrammingLanguage } from "@/lib/data";

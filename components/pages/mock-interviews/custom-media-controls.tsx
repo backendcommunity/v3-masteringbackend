@@ -62,17 +62,7 @@ export function CustomMediaControls({
     const newMutedState = !isSpeakerMuted;
     setIsSpeakerMuted(newMutedState);
 
-    // Iterate through all remote participants and mute/unmute their audio tracks
-    room.remoteParticipants.forEach((participant) => {
-      participant.audioTrackPublications.forEach((publication) => {
-        if (publication.track) {
-          // Set the track's volume (0 = muted, 1 = full volume)
-          publication.track.setVolume(newMutedState ? 0 : 1);
-        }
-      });
-    });
-
-    // Also control any audio elements rendered by RoomAudioRenderer
+    // Mute/unmute audio elements rendered by RoomAudioRenderer
     const audioElements = document.querySelectorAll("audio");
     audioElements.forEach((audio) => {
       audio.muted = newMutedState;
@@ -84,12 +74,9 @@ export function CustomMediaControls({
     if (!isSpeakerMuted) return;
 
     const handleTrackSubscribed = () => {
-      room.remoteParticipants.forEach((participant) => {
-        participant.audioTrackPublications.forEach((publication) => {
-          if (publication.track) {
-            publication.track.setVolume(0);
-          }
-        });
+      const audioElements = document.querySelectorAll("audio");
+      audioElements.forEach((audio) => {
+        audio.muted = true;
       });
     };
 

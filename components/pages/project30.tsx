@@ -849,7 +849,7 @@ export function Project30Page({
                       Get access to track your daily progress and compete with
                       others
                     </p>
-                    {user.isPremium ? (
+                    {user?.isPremium ? (
                       <Button
                         onClick={() => handleStartChallenge(slug)}
                         className="w-full md:w-auto"
@@ -1020,7 +1020,7 @@ export function Project30Page({
                               onClick={() => {
                                 if (project30?.isEnrolled) {
                                   handleWatchPage(video.id);
-                                } else if (!user.isPremium) {
+                                } else if (!user?.isPremium) {
                                   setShowPaymentDialog(true);
                                 }
                               }}
@@ -1336,7 +1336,7 @@ export function Project30Page({
                     </p>
 
                     <Button
-                      disabled={user.isPremium}
+                      disabled={user?.isPremium}
                       variant={"outline"}
                       onClick={() => setShowPaymentDialog(true)}
                       className="w-full md:w-auto"
@@ -1434,7 +1434,7 @@ export function Project30Page({
                     progress
                   </p>
                   <Button
-                    disabled={user.isPremium}
+                    disabled={user?.isPremium}
                     variant={"outline"}
                     onClick={() => setShowPaymentDialog(true)}
                     className="w-full md:w-auto"
@@ -1513,7 +1513,7 @@ export function Project30Page({
                     </p>
 
                     <Button
-                      disabled={user.isPremium}
+                      disabled={user?.isPremium}
                       variant={"outline"}
                       onClick={() => setShowPaymentDialog(true)}
                       className="w-full md:w-auto"
@@ -1578,7 +1578,7 @@ export function Project30Page({
                   </Button>
                 ) : (
                   <Button
-                    disabled={user.isPremium}
+                    disabled={user?.isPremium}
                     variant="outline"
                     className="w-full"
                     onClick={() => setShowPaymentDialog(true)}

@@ -564,7 +564,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.patch(
       `/bootcamps/admin/assignments/${userLessonId}`,
     );
-    return data;
+    return data?.data;
   },
 
   initiateAsyncpayCheckout: async (bootcampId: string, cohortId: string) => {
@@ -697,9 +697,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
-    const {
-      data: { data },
-    } = await api.get(
+    const { data } = await api.get(
       `/users/roadmaps?skip=${skip}&size=${size}&filters=${filters}`,
     );
     return data?.data;
@@ -826,7 +824,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   executeCode: async (payload: { language: string; code: string }) => {
     const { data } = await socketAPI.post(`/projects/execute`, payload);
-    return data;
+    return data?.data ?? data;
   },
   handleProjectEnrollment: async (slug: string) => {
     const { data } = await api.post(`/projects/${slug}`);
@@ -1106,7 +1104,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/roadmaps/${resolvedSlug}/topics/${topicId}/courses/${courseId}`,
     );
 
-    return data;
+    return data?.data;
   },
 
   updateProject: (id, updates) => {

@@ -82,7 +82,6 @@ export interface DebugChallenge extends Challenge {
   type: "debug"
   buggyCode: string
   expectedOutput: string
-  hints: string[]
 }
 
 export interface TestCase {

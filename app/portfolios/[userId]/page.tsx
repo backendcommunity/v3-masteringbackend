@@ -7,7 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 export default function PortfolioPageRoute() {
   const router = useRouter();
   const params = useParams();
-  const userId = params.userId as string;
+  const userId = (params?.userId ?? "") as string;
 
   const handleNavigate = (path: string) => {
     router.push(path);

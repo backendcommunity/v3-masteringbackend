@@ -30,7 +30,7 @@ export function RoadmapCourseProjects({
     return <div>Course not found</div>
   }
 
-  const completedProjects = projects.filter((p) => p.status === "Completed" || p.status === "Submitted").length
+  const completedProjects = projects.filter((p) => (p.status as string) === "Completed" || (p.status as string) === "Submitted").length
   const totalProjects = projects.length
 
   const getDifficultyColor = (difficulty: string) => {
@@ -231,7 +231,7 @@ export function RoadmapCourseProjects({
                             <Play className="h-4 w-4" />
                             {project.status === "Not Started"
                               ? "Start Project"
-                              : project.status === "Completed" || project.status === "Submitted"
+                              : (project.status as string) === "Completed" || (project.status as string) === "Submitted"
                                 ? "View Project"
                                 : "Continue Project"}
                           </Button>

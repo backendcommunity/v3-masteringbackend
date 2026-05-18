@@ -239,10 +239,10 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
                           <span className="text-sm text-muted-foreground ml-2">({criteria.weight}%)</span>
                         </div>
                         <span>
-                          {criteria.earnedPoints}/{criteria.maxPoints}
+                          {(criteria as any).earnedPoints ?? 0}/{criteria.maxPoints}
                         </span>
                       </div>
-                      <Progress value={(criteria.earnedPoints / criteria.maxPoints) * 100} className="h-2" />
+                      <Progress value={(((criteria as any).earnedPoints ?? 0) / criteria.maxPoints) * 100} className="h-2" />
                     </div>
                   ))}
                 </div>
