@@ -22,6 +22,7 @@ import {
   Link,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
+import { toast } from "sonner";
 
 interface CourseProjectPageProps {
   courseId: string;
@@ -186,12 +187,7 @@ Create a personal portfolio website that showcases your skills and projects. You
 
   const handleSubmit = () => {
     if (submissionUrl.trim()) {
-      // Mock submission
-      console.log("Project submitted:", {
-        url: submissionUrl,
-        notes: submissionNotes,
-      });
-      alert("Project submitted successfully!");
+      toast.success("Project submitted successfully!");
     }
   };
 

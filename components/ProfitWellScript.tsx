@@ -2,6 +2,12 @@
 
 import { useEffect } from "react";
 
+declare global {
+  interface Window {
+    profitwell: (action: string, options?: Record<string, unknown>) => void;
+  }
+}
+
 interface ProfitWellScriptProps {
   userEmail: string;
 }

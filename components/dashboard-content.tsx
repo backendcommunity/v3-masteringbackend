@@ -29,6 +29,7 @@ import { Topic } from "@/lib/data";
 import { OnboardingSkipBanner } from "@/components/onboarding/onboarding-skip-banner";
 import { ContinueLearningCard } from "@/components/continue-learning-card";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { ScheduleList } from "@/components/schedule/ScheduleList";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { format } from "timeago.js";
@@ -64,7 +65,7 @@ export function DashboardContent({}: DashboardContentProps) {
 
         if (!cancelled) {
           setActivities(activities);
-          setUserRoadmaps(userRoadmaps);
+          setUserRoadmaps(userRoadmaps?.data);
         }
       } catch (error) {
       } finally {
@@ -225,6 +226,8 @@ export function DashboardContent({}: DashboardContentProps) {
       {/* Epic 5, Story 5.1: Continue Learning */}
       <ContinueLearningCard />
 
+      <ScheduleList />
+
       {/* Quick Actions */}
       {/* <Card>
         <CardHeader>
@@ -327,7 +330,7 @@ export function DashboardContent({}: DashboardContentProps) {
               <Loader isLoader={false} />
             ) : (
               <>
-                {userRoadmaps.length < 1 ? (
+                {userRoadmaps?.length < 1 ? (
                   <EmptyStateCard
                     icon={BookOpen}
                     title="No Learning Roadmap Yet"

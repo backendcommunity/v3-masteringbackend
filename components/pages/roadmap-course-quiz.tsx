@@ -386,7 +386,7 @@ export function RoadmapCourseQuiz({
                 </Button>
                 {showNav && (
                   <Button
-                    onClick={() => onNavigate(routes.courseQuizzes(courseId))}
+                    onClick={() => onNavigate(routes.courseQuizzes(courseId ?? ""))}
                     className="flex-1"
                   >
                     Back to Quizzes
@@ -411,7 +411,7 @@ export function RoadmapCourseQuiz({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onNavigate(routes.courseQuizzes(courseId))}
+            onClick={() => onNavigate(routes.courseQuizzes(courseId ?? ""))}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />

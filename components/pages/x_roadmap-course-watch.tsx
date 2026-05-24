@@ -555,13 +555,13 @@ export function RoadmapCourseWatch({
                                 <FileText className="h-4 w-4 text-blue-500" />
                                 <div className="flex-1">
                                   <div className="text-sm font-medium text-gray-900">
-                                    {chapter.quiz.title}
+                                    {chapter.quiz?.title}
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    Quiz • {chapter.quiz.timeLimit} min
+                                    Quiz • {chapter.quiz?.timeLimit} min
                                   </div>
                                 </div>
-                                {chapter.quiz.completed && (
+                                {chapter.quiz?.completed && (
                                   <CheckCircle className="h-4 w-4 text-green-500" />
                                 )}
                               </div>

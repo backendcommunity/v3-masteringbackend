@@ -10,7 +10,8 @@ type MockInterviewResultsPageRouteProps = {
 
 export default function MockInterviewResultsPageRoute() {
   const router = useRouter();
-  const { id } = useParams<MockInterviewResultsPageRouteProps>();
+  const params = useParams<MockInterviewResultsPageRouteProps>();
+  const id = params?.id ?? "";
 
   const handleNavigate = (path: string) => {
     router.push(path);

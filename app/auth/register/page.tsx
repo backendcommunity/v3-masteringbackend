@@ -83,7 +83,8 @@ function RegisterContent() {
   const ref =
     searchParams?.get("ref") ??
     searchParams?.get("source") ??
-    searchParams?.get("utm_source");
+    searchParams?.get("utm_source") ??
+    "direct";
   const redirect = searchParams?.get("redirect");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,7 +115,7 @@ function RegisterContent() {
           searchParams?.get("ref") ??
           searchParams?.get("source") ??
           searchParams?.get("utm_source") ??
-          undefined,
+          "direct",
       });
 
       setEmailLoading(false);

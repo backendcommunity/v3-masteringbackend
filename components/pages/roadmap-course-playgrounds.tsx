@@ -155,12 +155,12 @@ export function RoadmapCoursePlaygrounds({
                               </div>
                               <div className="flex items-center gap-1">
                                 <FileText className="h-4 w-4" />
-                                <span>{playground.files.length} files</span>
+                                <span>{(playground.files ?? []).length} files</span>
                               </div>
-                              {playground.dependencies.length > 0 && (
+                              {(playground.dependencies ?? []).length > 0 && (
                                 <div className="flex items-center gap-1">
                                   <Zap className="h-4 w-4" />
-                                  <span>{playground.dependencies.length} dependencies</span>
+                                  <span>{(playground.dependencies ?? []).length} dependencies</span>
                                 </div>
                               )}
                             </div>
@@ -183,7 +183,7 @@ export function RoadmapCoursePlaygrounds({
                     <CardContent>
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-600">
-                          {playground.files.map((file) => file.name).join(", ")}
+                          {(playground.files ?? []).map((file) => file.name).join(", ")}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -195,11 +195,11 @@ export function RoadmapCoursePlaygrounds({
                       </div>
 
                       {/* Show files preview */}
-                      {playground.files.length > 0 && (
+                      {(playground.files ?? []).length > 0 && (
                         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                           <div className="text-sm font-medium text-gray-900 mb-2">Files:</div>
                           <div className="grid grid-cols-2 gap-2">
-                            {playground.files.map((file) => (
+                            {(playground.files ?? []).map((file) => (
                               <div key={file.id} className="flex items-center gap-2 text-sm text-gray-700">
                                 <FileText className="h-4 w-4 text-gray-500" />
                                 <span>{file.name}</span>

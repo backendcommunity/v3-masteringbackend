@@ -94,10 +94,10 @@ export function PortfolioBootcamps({ bootcamps }: PortfolioBootcampsProps) {
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  {new Date(bc.startedAt).toLocaleDateString("en-US", {
+                  {bc.startedAt ? new Date(bc.startedAt).toLocaleDateString("en-US", {
                     month: "short",
                     year: "numeric",
-                  })}
+                  }) : "—"}
                 </span>
               </div>
             </div>

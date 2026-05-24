@@ -356,7 +356,11 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     store
       .getCoursesFilters()
       .then((filters) => {
-        setFilterOptions(filters || { categories: [], tags: [] });
+        setFilterOptions(
+          Array.isArray(filters?.categories)
+            ? filters
+            : { categories: [], tags: [] },
+        );
       })
       .catch((error) => {
         console.error("Failed to load course filters:", error);
@@ -626,7 +630,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {filterOptions.categories.map((cat) => (
+                {(filterOptions.categories ?? []).map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}
                   </SelectItem>
@@ -639,7 +643,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Tags</SelectItem>
-                {filterOptions.tags.map((tag) => (
+                {(filterOptions.tags ?? []).map((tag) => (
                   <SelectItem key={tag} value={tag}>
                     {tag}
                   </SelectItem>

@@ -740,13 +740,13 @@ export function BootcampVideoWatchPage({
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-                              {user.name
-                                .split(" ")
-                                .map((n: any) => n[0])
-                                .join("")}
+                              {user?.name
+                                ?.split(" ")
+                                ?.map((n: any) => n[0])
+                                ?.join("")}
                             </div>
                             <span className="font-medium text-sm">
-                              {user.name}
+                              {user?.name}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {format(note?.createdAt)}
@@ -969,7 +969,7 @@ export function BootcampVideoWatchPage({
           open={showWeekComplete}
           onClose={() => setShowWeekComplete(false)}
           week={week}
-          userName={user.name}
+          userName={user?.name ?? ""}
           points={week?.lessons?.reduce((p, c) => (p += c.mb), 0) ?? 0}
           onStartNextWeek={
             week?.nextWeek

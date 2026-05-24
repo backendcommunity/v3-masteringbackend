@@ -156,7 +156,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
 
           {project.technologies && (
             <div className="flex flex-wrap gap-1">
-              {project.technologies.slice(0, 3).map((tech) => (
+              {project.technologies.slice(0, 3).map((tech: string) => (
                 <Badge key={tech} variant="secondary" className="text-xs">
                   {tech}
                 </Badge>
