@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Pencil, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
+import {
+  CalendarClock,
+  Pencil,
+  PauseCircle,
+  PlayCircle,
+  Trash2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,7 +167,7 @@ export function ScheduleCard({ schedule, onChanged }: ScheduleCardProps) {
         <div className="space-y-1 text-sm">
           <p className="font-medium">{scheduleLabel}</p>
           <p className="text-muted-foreground">
-            {formatDuration(schedule.duration)} - Reminder {" "}
+            {formatDuration(schedule.duration)} - Reminder{" "}
             {schedule.reminderMinutes} min before
           </p>
         </div>
@@ -200,9 +206,8 @@ export function ScheduleCard({ schedule, onChanged }: ScheduleCardProps) {
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="destructive"
             size="sm"
-            className="text-red-600 hover:text-red-700"
             onClick={handleDelete}
             disabled={isWorking}
           >
