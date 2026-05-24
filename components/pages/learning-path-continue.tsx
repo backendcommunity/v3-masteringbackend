@@ -245,7 +245,7 @@ export function LearningPathContinuePage({
       const completedVideoIds = new Set(
         (milestone?.userTopic?.completedItems ?? [])
           .filter((ci: any) => ci.itemType === "VIDEO")
-          .map((ci: any) => ci.itemId),
+          ?.map((ci: any) => ci.itemId),
       );
 
       for (const course of courses) {
@@ -499,7 +499,7 @@ export function LearningPathContinuePage({
 
         {/* Topic timeline skeleton */}
         <div className="space-y-6">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(4)]?.map((_, i) => (
             <div key={i} className="flex items-start gap-4">
               <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
@@ -694,7 +694,6 @@ export function LearningPathContinuePage({
                   </div>
                 </CardContent>
               </Card>
-
             </div>
 
             {/* Skills You'll Learn */}
@@ -708,7 +707,7 @@ export function LearningPathContinuePage({
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {roadmap.skills.map((skill: string) => (
+                    {roadmap?.skills?.map((skill: string) => (
                       <Badge key={skill} className="justify-center py-2">
                         {skill}
                       </Badge>
@@ -756,7 +755,7 @@ export function LearningPathContinuePage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {topics.map((topic: any, topicIndex: number) => (
+                {topics?.map((topic: any, topicIndex: number) => (
                   <div key={topic.id} className="space-y-4">
                     {/* Topic Header */}
                     <div className="pb-3 border-b">
@@ -793,7 +792,7 @@ export function LearningPathContinuePage({
                           Courses in this topic
                         </p>
                         <div className="space-y-3">
-                          {topic.courses.map((courseItem: any) => {
+                          {topic.courses?.map((courseItem: any) => {
                             const course = courseItem.course || courseItem;
                             return (
                               <div
@@ -942,7 +941,7 @@ export function LearningPathContinuePage({
                             );
                           })}
                           {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
-                          {getNonCourseItems(topic, false).map((item) => {
+                          {getNonCourseItems(topic, false)?.map((item) => {
                             // For non-enrolled, make dummy items look like courses initially
                             const config = getContentTypeConfig(item.type);
                             const IconComponent = config.icon;
@@ -1369,7 +1368,7 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-green-200">
-                    {completedTopics.map((topic: any) => {
+                    {completedTopics?.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
                       return (
                         <div key={topic.id} className="space-y-3">
@@ -1518,7 +1517,7 @@ export function LearningPathContinuePage({
                               {currentTopic.courses.length !== 1 ? "s" : ""}
                             </p>
                             <div className="space-y-2">
-                              {currentTopic.courses.map(
+                              {currentTopic.courses?.map(
                                 (courseItem: any, idx: number) => {
                                   const course =
                                     courseItem.course || courseItem;
@@ -1696,7 +1695,7 @@ export function LearningPathContinuePage({
                     </h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-gray-200">
-                    {upcomingTopics.map((topic: any) => {
+                    {upcomingTopics?.map((topic: any) => {
                       const otherItems = getNonCourseItems(topic, isEnrolled);
                       return (
                         <div key={topic.id} className="space-y-3">

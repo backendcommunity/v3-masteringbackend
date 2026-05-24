@@ -35,7 +35,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {items.map((item) => (
+        {items?.map((item) => (
           <Card
             key={item.id}
             className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"

@@ -66,7 +66,7 @@ export function LearningPathCoursePreviewPage({
 
         // Build free chapters/videos list
         const chapters = (courseData?.chapters ?? [])
-          .map((ch: any) => ({
+          ?.map((ch: any) => ({
             ...ch,
             videos: (ch.videos ?? []).filter((v: any) => !v.isPremium),
           }))
@@ -319,7 +319,7 @@ export function LearningPathCoursePreviewPage({
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {freeVideos.map((video: any) => (
+                  {freeVideos?.map((video: any) => (
                     <div
                       key={video.id}
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
@@ -557,7 +557,7 @@ export function LearningPathCoursePreviewPage({
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {topics.map((topic: any, idx: number) => (
+                  {topics?.map((topic: any, idx: number) => (
                     <div
                       key={topic.id}
                       className={`flex items-start gap-2.5 text-sm p-2 rounded-md ${

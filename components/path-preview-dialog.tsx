@@ -172,7 +172,7 @@ export function PathPreviewDialog({
 
               <div className="space-y-2">
                 {/* Free Courses */}
-                {freeCourses.map((course) => (
+                {freeCourses?.map((course) => (
                   <button
                     key={course.id}
                     onClick={() =>

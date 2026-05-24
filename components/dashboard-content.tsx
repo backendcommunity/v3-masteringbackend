@@ -65,7 +65,7 @@ export function DashboardContent({}: DashboardContentProps) {
 
         if (!cancelled) {
           setActivities(activities);
-          setUserRoadmaps(userRoadmaps);
+          setUserRoadmaps(userRoadmaps?.data);
         }
       } catch (error) {
       } finally {
@@ -330,7 +330,7 @@ export function DashboardContent({}: DashboardContentProps) {
               <Loader isLoader={false} />
             ) : (
               <>
-                {userRoadmaps.length < 1 ? (
+                {userRoadmaps?.length < 1 ? (
                   <EmptyStateCard
                     icon={BookOpen}
                     title="No Learning Roadmap Yet"
