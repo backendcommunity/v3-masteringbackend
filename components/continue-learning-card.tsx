@@ -77,7 +77,7 @@ export function ContinueLearningCard() {
     });
 
     if (!currentTopicId) {
-      router.push(routes.pathDetail(slug));
+      router.push(routes.pathContinue(slug));
       return;
     }
 
@@ -133,17 +133,17 @@ export function ContinueLearningCard() {
           ),
         );
       } else {
-        router.push(routes.pathDetail(slug));
+        router.push(routes.pathContinue(slug));
       }
     } catch {
-      router.push(routes.pathDetail(slug));
+      router.push(routes.pathContinue(slug));
     } finally {
       setNavigating(false);
     }
   };
 
   const handleSyllabus = () => {
-    router.push(routes.pathDetail(item.slug));
+    router.push(routes.pathContinue(item.slug));
   };
 
   return (
@@ -170,10 +170,14 @@ export function ContinueLearningCard() {
           Continue where you left off
         </p>
 
-        <h3 className="font-bold text-lg leading-tight truncate">{item.title}</h3>
+        <h3 className="font-bold text-lg leading-tight truncate">
+          {item.title}
+        </h3>
 
         {item.subtitle && (
-          <p className="text-sm text-muted-foreground truncate">{item.subtitle}</p>
+          <p className="text-sm text-muted-foreground truncate">
+            {item.subtitle}
+          </p>
         )}
 
         <div className="flex items-center gap-2 mt-1">
