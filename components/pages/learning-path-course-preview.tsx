@@ -162,7 +162,7 @@ export function LearningPathCoursePreviewPage({
       <div className="flex-1 p-6 text-center">
         <h1 className="text-2xl font-bold">Content not found</h1>
         <Button
-          onClick={() => onNavigate?.(routes.pathDetail(pathId))}
+          onClick={() => onNavigate?.(routes.pathContinue(pathId))}
           className="mt-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -199,7 +199,7 @@ export function LearningPathCoursePreviewPage({
         </button>
         <span>/</span>
         <button
-          onClick={() => onNavigate?.(routes.pathDetail(pathId))}
+          onClick={() => onNavigate?.(routes.pathContinue(pathId))}
           className="hover:text-foreground transition-colors"
         >
           {roadmap.title}
