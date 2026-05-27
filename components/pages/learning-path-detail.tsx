@@ -37,7 +37,8 @@ import {
   RotateCcw,
   Flame,
   Award,
-  DollarSign,
+  Wrench,
+  Link2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
@@ -46,6 +47,7 @@ import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PaymentDialog } from "../payment-dialog";
+import { PathPreviewDialog } from "../path-preview-dialog";
 import {
   Dialog,
   DialogContent,
@@ -55,15 +57,18 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
+import ConfettiCelebration from "../confetti-celebration";
 
 // Type definitions for multi-content timeline
 type ContentItemType =
   | "course"
+  | "workshop"
   | "project"
   | "quiz"
   | "exercise"
   | "mock_interview"
   | "bootcamp"
+  | "resource"
   | "land";
 
 interface ContentItem {
@@ -104,6 +109,12 @@ function getContentTypeConfig(type: ContentItemType) {
       label: "Video Course",
       ctaLabel: "Resume Learning",
     },
+    workshop: {
+      icon: Wrench,
+      color: "text-teal-600",
+      label: "Workshop",
+      ctaLabel: "Start Workshop",
+    },
     project: {
       icon: FolderOpen,
       color: "text-orange-600",
@@ -133,6 +144,12 @@ function getContentTypeConfig(type: ContentItemType) {
       color: "text-yellow-600",
       label: "Live Bootcamp",
       ctaLabel: "Join Bootcamp",
+    },
+    resource: {
+      icon: Link2,
+      color: "text-slate-600",
+      label: "Resource",
+      ctaLabel: "Open Resource",
     },
     land: {
       icon: Trophy,
@@ -229,6 +246,18 @@ function getNonCourseItems(
     });
   });
 
+  (topic.resources || []).forEach((r: any) => {
+    items.push({
+      id: r.id,
+      type: "resource",
+      title: r.title,
+      description: r.description || "",
+      meta: { topicId },
+      completed: false,
+      locked: !isEnrolled,
+    });
+  });
+
   return items;
 }
 
@@ -236,13 +265,6 @@ interface LearningPathDetailPageProps {
   pathId: string;
   onNavigate?: (route: string) => void;
 }
-
-const getPreviewEmbedUrl = (preview?: string | null) => {
-  if (!preview) return "";
-  if (/^https?:\/\//i.test(preview)) return preview;
-  if (/^\d+$/.test(preview)) return `https://player.vimeo.com/video/${preview}`;
-  return preview;
-};
 
 export function LearningPathDetailPage({
   pathId,
@@ -259,6 +281,7 @@ export function LearningPathDetailPage({
   const [certificate, setCertificate] = useState<any>(null);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [celebration, setCelebration] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
     type: string;
     title: string;
@@ -268,6 +291,51 @@ export function LearningPathDetailPage({
   } | null>(null);
   // Cache milestone per topicId to avoid re-fetching when user clicks Continue
   const milestoneCache = useRef<Record<string, any>>({});
+  const typeConfig: Record<
+    string,
+    { label: string; badgeCls: string; dotCls: string }
+  > = {
+    course: {
+      label: "Course",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-foreground/20",
+    },
+    workshop: {
+      label: "Workshop",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    quiz: {
+      label: "Skill Assessment",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    project: {
+      label: "Project",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    exercise: {
+      label: "Coding Exercise",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    mock_interview: {
+      label: "Mock Interview",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    bootcamp: {
+      label: "Live Workshop",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    resource: {
+      label: "Resource",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+  };
 
   const loadData = async () => {
     try {
@@ -364,16 +432,23 @@ export function LearningPathDetailPage({
           return;
         }
 
+        // Just to make first start access faster
+        const userRoadmap = enrollResult?.userRoadmap;
+        milestoneCache.current[userRoadmap?.currentTopicId] =
+          userRoadmap?.currentTopic;
+
+        const updated = await store.getRoadmapBySlug(pathId);
+        setRoadmap(updated);
+        setUserRoadmap(updated?.userRoadmap ?? null);
+
+        setCelebration(true);
+        setShowWelcomeDialog(true);
+
         analytics.track("path_enrolled", {
           pathId,
           pathTitle: roadmap?.title,
           method: "direct",
         });
-        setShowWelcomeDialog(true);
-
-        const updated = await store.getRoadmapBySlug(pathId);
-        setRoadmap(updated);
-        setUserRoadmap(updated?.userRoadmap ?? null);
       } catch (error: any) {
         const errorMsg =
           error?.response?.data?.message ||
@@ -421,6 +496,39 @@ export function LearningPathDetailPage({
     } finally {
       setEnrolling(false);
     }
+  };
+
+  // Preview enrollment — optimistically proceed immediately, enroll in background.
+  // The enrollment API is fire-and-forget for preview: user shouldn't wait for a
+  // DB write before seeing content they're already allowed to access.
+  const handlePreviewEnroll = (afterEnroll: () => void) => {
+    if (isEnrolled) {
+      afterEnroll();
+      return;
+    }
+
+    // Optimistically mark as preview-enrolled so derived state updates instantly
+    setUserRoadmap({ isPreview: true });
+    afterEnroll();
+
+    // Background enrollment — silent on success, subtle toast on failure
+    store
+      .enrollInRoadmap(pathId, true)
+      .then(() => {
+        store.getRoadmapBySlug(pathId).then((updated: any) => {
+          if (updated) {
+            setRoadmap(updated);
+            setUserRoadmap(updated?.userRoadmap ?? { isPreview: true });
+          }
+        });
+      })
+      .catch((error: any) => {
+        const msg =
+          error?.response?.data?.message === "You're already enrolled."
+            ? null // Not an error — concurrent click or page reload race
+            : "Failed to enroll in preview mode. Please refresh the page and try again.";
+        if (msg) toast.error(msg);
+      });
   };
 
   // Deep-link to the exact video where the user left off
@@ -478,183 +586,13 @@ export function LearningPathDetailPage({
           ),
         );
       } else {
-        onNavigate(routes.pathDetail(pathId));
+        onNavigate(routes.pathContinue(pathId));
       }
     } catch {
-      onNavigate(routes.pathDetail(pathId));
+      onNavigate(routes.pathContinue(pathId));
     } finally {
       setNavigating(false);
     }
-  };
-
-  // Renderer for content items (courses, projects, quizzes, etc.)
-  const renderContentItem = (
-    item: ContentItem,
-    isCompleted: boolean = false,
-    isLocked: boolean = false,
-    isCurrent: boolean = false,
-    isEnrolled: boolean = false,
-  ) => {
-    const config = getContentTypeConfig(item.type);
-    const IconComponent = config.icon;
-
-    const isAvailable = !isLocked && isEnrolled;
-    const status = isCompleted
-      ? "completed"
-      : isCurrent
-        ? "current"
-        : isLocked
-          ? "locked"
-          : "available";
-
-    const borderColor =
-      status === "completed"
-        ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
-        : status === "current"
-          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
-          : "border-muted bg-muted/30";
-
-    const statusColor =
-      status === "completed"
-        ? "bg-green-600"
-        : status === "current"
-          ? "bg-blue-600"
-          : "bg-gray-400";
-
-    return (
-      <div
-        key={item.id}
-        className={`rounded-lg border ${borderColor} p-3 hover:shadow-sm transition-all`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2 flex-1 min-w-0">
-            <IconComponent
-              className={`h-4 w-4 ${config.color} flex-shrink-0 mt-0.5`}
-            />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm leading-tight">
-                {item.title}
-              </p>
-              {item.description && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                  {item.description}
-                </p>
-              )}
-              {(item.duration ||
-                item.meta?.chapters ||
-                item.meta?.difficulty) && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {item.meta?.chapters && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <BookOpen className="h-3 w-3" />
-                      {item.meta.chapters} chapters
-                    </span>
-                  )}
-                  {item.duration && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {item.duration}
-                    </span>
-                  )}
-                  {item.meta?.difficulty && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Zap className="h-3 w-3" />
-                      {item.meta.difficulty}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <Badge className={`${statusColor} text-xs flex-shrink-0 text-white`}>
-            {status === "completed"
-              ? "✓ Done"
-              : status === "current"
-                ? "In Progress"
-                : status === "locked"
-                  ? "Locked"
-                  : "Available"}
-          </Badge>
-        </div>
-        {status === "current" && item.progress !== undefined && (
-          <div className="space-y-1 pt-2 mt-2 border-t border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-between text-xs">
-              <span>Progress</span>
-              <span className="font-semibold text-blue-600">
-                {item.progress}%
-              </span>
-            </div>
-            <Progress
-              value={item.progress}
-              className="h-1.5"
-              aria-label={`${item.title} progress: ${item.progress ?? 0}%`}
-              aria-valuenow={item.progress}
-            />
-          </div>
-        )}
-        {(isAvailable || isCompleted) && (
-          <Button
-            size="sm"
-            variant={isCompleted ? "ghost" : "default"}
-            className={`w-full mt-3 h-8 text-xs ${isCompleted ? "text-muted-foreground hover:text-foreground" : ""}`}
-            onClick={() => {
-              const topicId = item.meta?.topicId || "";
-              analytics.track(
-                isCompleted
-                  ? "path_completed_content_reviewed"
-                  : "path_content_clicked",
-                {
-                  pathId,
-                  topicId,
-                  contentType: item.type,
-                  contentId: item.id,
-                  contentTitle: item.title,
-                },
-              );
-              switch (item.type) {
-                case "course":
-                  navigateToFirstUncompletedVideo(topicId, [item]);
-                  break;
-                case "exercise":
-                  onNavigate?.(routes.pathExercise(pathId, topicId, item.id));
-                  break;
-                case "quiz":
-                  onNavigate?.(routes.pathQuiz(pathId, topicId, item.id));
-                  break;
-                case "project":
-                  if (item.meta?.slug) {
-                    onNavigate?.(routes.projectDetail(item.meta.slug));
-                  }
-                  break;
-                case "bootcamp":
-                  onNavigate?.(routes.bootcampDetail(item.id));
-                  break;
-                case "mock_interview":
-                  onNavigate?.(routes.mockInterviewDetail(item.id));
-                  break;
-                case "land":
-                  onNavigate?.(routes.landDetail(item.id));
-                  break;
-                default:
-                  toast.info(`Opening ${config.label}...`);
-              }
-            }}
-          >
-            {isCompleted ? (
-              <>
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Review
-              </>
-            ) : (
-              <>
-                <Play className="h-3 w-3 mr-1" />
-                {config.ctaLabel}
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-    );
   };
 
   useEffect(() => {
@@ -664,12 +602,15 @@ export function LearningPathDetailPage({
   // ALL derived state must be computed before any conditional returns (Rules of Hooks)
   const topics: any[] = roadmap?.topics ?? [];
   const isEnrolled = Boolean(userRoadmap);
+  const isPreviewMode = isEnrolled && userRoadmap?.isPreview === true;
+  const isFullAccess = isEnrolled && !isPreviewMode;
   const progress =
     userRoadmap?.isCompleted === true ? 100 : (roadmap?.progress ?? 0);
 
-  // Free preview course: first non-premium course in first topic (only relevant for premium roadmaps)
+  // Free preview course: first non-premium course in first topic
+  // Exposed for non-enrolled AND preview-enrolled users on premium roadmaps
   const freePreviewCourseId =
-    !isEnrolled && roadmap?.isPremium
+    !isFullAccess && roadmap?.isPremium
       ? (topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null)
       : null;
 
@@ -690,15 +631,6 @@ export function LearningPathDetailPage({
     () => topics.filter((t) => !t.completed && t.id !== currentTopicId),
     [topics, currentTopicId],
   );
-
-  // Pre-compute non-course items for every topic once; avoids repeated iteration in render
-  const nonCourseItemsByTopicId = useMemo(() => {
-    const map: Record<string, ContentItem[]> = {};
-    topics.forEach((t) => {
-      map[t.id] = getNonCourseItems(t, isEnrolled);
-    });
-    return map;
-  }, [topics, isEnrolled]);
 
   if (loading) {
     return (
@@ -832,8 +764,8 @@ export function LearningPathDetailPage({
     );
   }
 
-  // Non-enrolled: show sales/preview page
-  if (!isEnrolled) {
+  // Non-enrolled OR preview-enrolled: show sales/preview page
+  if (!isFullAccess) {
     return (
       <div className="flex-1 space-y-6">
         {/* Breadcrumb */}
@@ -853,7 +785,7 @@ export function LearningPathDetailPage({
           </span>
         </nav>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Title and Description */}
             <div className="space-y-4">
@@ -866,107 +798,40 @@ export function LearningPathDetailPage({
             </div>
 
             {/* Key Stats */}
-            <div className="grid gap-4 md:grid-cols-5">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <BookOpen className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Topics
-                      </div>
-                      <div className="text-2xl font-bold">{topics.length}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                      <Clock className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Duration
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {roadmap.estimatedWeeks > 0
-                          ? `~${roadmap.estimatedWeeks} weeks at ${roadmap.hoursPerWeek}h/week`
-                          : roadmap.timeframe || "Self-paced"}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                      <Code2 className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Content Items
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {roadmap.totalContent || 0}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                      <Users className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Enrolled
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {(roadmap.students || 0).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg">
-                      <DollarSign className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        Access
-                      </div>
-                      <div className="text-2xl font-bold">
-                        {roadmap.amount > 0 || roadmap.isPremium ? (
-                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-base font-bold px-2 py-0.5">
-                            {roadmap.amount > 0
-                              ? `$${roadmap.amount}`
-                              : "Premium"}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-base font-bold px-2 py-0.5">
-                            Free
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* {(() => {
+              const totalCourses = topics.reduce((s: number, t: any) => s + (t.courses?.length || 0), 0);
+              const totalProjects = topics.reduce((s: number, t: any) => s + (t.projects?.length || 0), 0);
+              const totalQuizzes = topics.reduce((s: number, t: any) => s + (t.quizzes?.length || 0), 0);
+              const totalMockInterviews = topics.reduce((s: number, t: any) => s + (t.mockInterviews?.length || 0), 0);
+              const totalWorkshops = topics.reduce((s: number, t: any) => s + (t.bootcamps?.length || 0), 0);
+              const stats = [
+                { label: "Courses", value: totalCourses, icon: BookOpen, iconBg: "bg-blue-100 dark:bg-blue-900", iconColor: "text-blue-600" },
+                { label: "Projects", value: totalProjects, icon: FolderOpen, iconBg: "bg-orange-100 dark:bg-orange-900", iconColor: "text-orange-600" },
+                { label: "Quizzes", value: totalQuizzes, icon: Brain, iconBg: "bg-purple-100 dark:bg-purple-900", iconColor: "text-purple-600" },
+                { label: "Mock Interviews", value: totalMockInterviews, icon: Video, iconBg: "bg-red-100 dark:bg-red-900", iconColor: "text-red-600" },
+                { label: "Live Workshops", value: totalWorkshops, icon: Calendar, iconBg: "bg-green-100 dark:bg-green-900", iconColor: "text-green-600" },
+              ].filter((s) => s.value > 0);
+              return (
+                <div className="grid gap-4 md:grid-cols-5">
+                  {stats.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+                    <Card key={label}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 ${iconBg} rounded-lg`}>
+                            <Icon className={`h-5 w-5 ${iconColor}`} />
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground">{label}</div>
+                            <div className="text-2xl font-bold">{value}</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              );
+            })()} */}
+            {/* Commented out: Topics, Content Items, Enrolled stat cards */}
 
             {/* Skills You'll Learn */}
             {roadmap.skills && roadmap.skills.length > 0 && (
@@ -1013,273 +878,192 @@ export function LearningPathDetailPage({
               </Card>
             )}
 
+            <Separator />
+
             {/* Curriculum Preview */}
             <Card>
-              <CardHeader>
+              {/* <CardHeader>
                 <CardTitle>Learning Path Curriculum</CardTitle>
                 <CardDescription>
-                  {topics.length} topics with{" "}
                   {topics.reduce(
-                    (sum: number, t: any) => sum + (t.courses?.length || 0),
+                    (s: number, t: any) => s + (t.courses?.length || 0),
                     0,
                   )}{" "}
-                  professional courses
+                  courses
+                  {topics.reduce(
+                    (s: number, t: any) => s + (t.quizzes?.length || 0),
+                    0,
+                  ) > 0 &&
+                    ` · ${topics.reduce((s: number, t: any) => s + (t.quizzes?.length || 0), 0)} quizzes`}
+                  {topics.reduce(
+                    (s: number, t: any) => s + (t.projects?.length || 0),
+                    0,
+                  ) > 0 &&
+                    ` · ${topics.reduce((s: number, t: any) => s + (t.projects?.length || 0), 0)} projects`}
                 </CardDescription>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent className="px-0 pt-0">
-                <Accordion
-                  type="single"
-                  collapsible
-                  defaultValue={topics[0]?.id}
-                  className="divide-y"
-                >
-                  {topics.map((topic: any, topicIndex: number) => (
-                    <AccordionItem
-                      key={topic.id}
-                      value={topic.id}
-                      className="border-0"
-                    >
-                      <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/40 [&[data-state=open]]:bg-muted/20">
-                        <div className="flex items-start gap-4 text-left w-full pr-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
-                            {topicIndex + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-bold text-base">
-                                {topic.title}
-                              </h4>
-                              <Badge variant="outline" className="text-xs">
-                                {topic.level || "Intermediate"}
-                              </Badge>
-                              {topic.courses && topic.courses.length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {topic.courses.length} course
-                                  {topic.courses.length !== 1 ? "s" : ""}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {stripHtmlTags(topic.description || "")}
-                            </p>
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-0">
-                        <div className="px-6 pb-4 space-y-4">
-                          {/* Courses in Topic */}
-                          {/* {topic.courses && topic.courses.length > 0 ? ( */}
-                          <div className="space-y-3 ml-12">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Courses in this topic
-                            </p>
-                            <div className="space-y-3">
-                              {topic?.courses?.map((courseItem: any) => {
-                                const course = courseItem.course || courseItem;
-                                return (
-                                  <div
-                                    key={course.id}
-                                    className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
-                                  >
-                                    <div className="space-y-3">
-                                      {/* Header */}
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                                          <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                          <div className="flex-1 min-w-0">
-                                            <h5 className="font-semibold text-sm leading-tight">
-                                              {course.title}
-                                            </h5>
-                                          </div>
-                                        </div>
-                                        {course.id === freePreviewCourseId ? (
-                                          <Badge className="bg-green-600 text-white text-xs flex-shrink-0">
-                                            Free
-                                          </Badge>
-                                        ) : (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-xs flex items-center gap-1 flex-shrink-0"
-                                          >
-                                            <Lock className="h-3 w-3" />
-                                            Locked
-                                          </Badge>
-                                        )}
-                                      </div>
-
-                                      {/* Course Metadata */}
-                                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                        {course.chapters && (
-                                          <div className="flex items-center gap-1">
-                                            <BookOpen className="h-3 w-3" />
-                                            <span>
-                                              {course.chapters.length} chapter
-                                              {course.chapters.length !== 1
-                                                ? "s"
-                                                : ""}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.totalDuration && (
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{course.totalDuration}h</span>
-                                          </div>
-                                        )}
-                                        {course.level && (
-                                          <div className="flex items-center gap-1">
-                                            <Zap className="h-3 w-3" />
-                                            <span className="capitalize">
-                                              {course.level}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Enrollment CTA */}
-                                      {course.id === freePreviewCourseId ? (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="w-full mt-3 h-9 text-sm border-green-600 text-green-700 hover:bg-green-50"
-                                          onClick={() =>
-                                            onNavigate?.(
-                                              routes.pathCoursePreview(
-                                                pathId,
-                                                topics[0]?.id,
-                                                course.slug,
-                                              ),
-                                            )
-                                          }
-                                        >
-                                          <Play className="h-4 w-4 mr-2" />
-                                          Start Free Preview
-                                        </Button>
-                                      ) : (
-                                        <Button
-                                          size="sm"
-                                          className="w-full mt-3 h-9 text-sm"
-                                          disabled={enrolling}
-                                          onClick={handleEnroll}
-                                        >
-                                          <Play className="h-4 w-4 mr-2" />
-                                          {enrolling
-                                            ? "Enrolling..."
-                                            : "Start This Course"}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {/* Other content items (Projects, Quizzes, Exercises, etc.) */}
-                              {(nonCourseItemsByTopicId[topic.id] ?? []).map(
-                                (item) => {
-                                  const config = getContentTypeConfig(
-                                    item.type,
-                                  );
-                                  const IconComponent = config.icon;
-
+                {(() => {
+                  // const typeConfig: Record<
+                  //   string,
+                  //   { label: string; badgeCls: string; dotCls: string }
+                  // > = {
+                  //   course: {
+                  //     label: "Course",
+                  //     badgeCls:
+                  //       "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+                  //     dotCls: "bg-foreground",
+                  //   },
+                  //   workshop: {
+                  //     label: "Workshop",
+                  //     badgeCls:
+                  //       "bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300",
+                  //     dotCls: "bg-teal-500",
+                  //   },
+                  //   quiz: {
+                  //     label: "Skill Assessment",
+                  //     badgeCls:
+                  //       "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
+                  //     dotCls: "bg-indigo-500",
+                  //   },
+                  //   project: {
+                  //     label: "Project",
+                  //     badgeCls:
+                  //       "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+                  //     dotCls: "bg-green-500",
+                  //   },
+                  //   exercise: {
+                  //     label: "Coding Exercise",
+                  //     badgeCls:
+                  //       "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+                  //     dotCls: "bg-emerald-500",
+                  //   },
+                  //   mock_interview: {
+                  //     label: "Mock Interview",
+                  //     badgeCls:
+                  //       "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300",
+                  //     dotCls: "bg-red-500",
+                  //   },
+                  //   bootcamp: {
+                  //     label: "Live Workshop",
+                  //     badgeCls:
+                  //       "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
+                  //     dotCls: "bg-amber-500",
+                  //   },
+                  //   resource: {
+                  //     label: "Resource",
+                  //     badgeCls:
+                  //       "bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300",
+                  //     dotCls: "bg-slate-400",
+                  //   },
+                  // };
+                  return (
+                    <div>
+                      {topics.map((topic: any) => {
+                        // Use pre-sorted flat contents from backend (same order as build-roadmap-response.ts)
+                        const rawContents: any[] = topic.sortedContents || [];
+                        let courseNum = 0;
+                        const topicItems = rawContents.map((item: any) => {
+                          const isCourseOrWorkshop =
+                            item.type === "course" || item.type === "workshop";
+                          if (isCourseOrWorkshop) courseNum++;
+                          return {
+                            id: item.id,
+                            type: item.type,
+                            title: item.title,
+                            description: item.summary || item.description || "",
+                            num: isCourseOrWorkshop ? courseNum : undefined,
+                          };
+                        });
+                        if (topicItems.length === 0) return null;
+                        return (
+                          <div
+                            key={topic.id}
+                            className="border-t first:border-t-0"
+                          >
+                            {topics.length > 1 && (
+                              <div className="px-6 py-2.5 bg-muted/40 border-b">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {topic.title}
+                                </p>
+                              </div>
+                            )}
+                            {/* Timeline wrapper */}
+                            <div className="relative px-4 py-3">
+                              {/* Vertical line */}
+                              <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+                              <Accordion
+                                type="single"
+                                collapsible
+                                className="space-y-3"
+                              >
+                                {topicItems.map((item) => {
+                                  const cfg =
+                                    typeConfig[item.type] ?? typeConfig.course;
                                   return (
-                                    <div
+                                    <AccordionItem
                                       key={item.id}
-                                      className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                                      value={item.id}
+                                      className="border-0"
                                     >
-                                      <div className="space-y-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                                            <IconComponent
-                                              className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`}
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                              <h5 className="font-semibold text-sm leading-tight">
-                                                {item.title}
-                                              </h5>
-                                              <p className="text-xs text-blue-600 font-medium mt-1">
-                                                {config.label}
+                                      <div className="flex items-start gap-3">
+                                        {/* Timeline dot */}
+                                        <div
+                                          className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${cfg.dotCls}`}
+                                        />
+                                        {/* Card */}
+                                        <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                                          <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                            <div className="space-y-1.5 text-left flex-1 pr-2">
+                                              <span
+                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
+                                              >
+                                                {cfg.label}
+                                              </span>
+                                              <div className="flex items-center gap-2">
+                                                {item.num !== undefined && (
+                                                  <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                                    {String(item.num).padStart(
+                                                      2,
+                                                      "0",
+                                                    )}
+                                                  </span>
+                                                )}
+                                                <span className="font-bold text-sm leading-snug">
+                                                  {item.title}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </AccordionTrigger>
+                                          {item.description && (
+                                            <AccordionContent className="px-4 pb-4 pt-0">
+                                              <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
+                                                {stripHtmlTags(
+                                                  item.description,
+                                                )}
                                               </p>
-                                            </div>
-                                          </div>
-                                          <Badge
-                                            variant="outline"
-                                            className="text-xs flex items-center gap-1 flex-shrink-0"
-                                          >
-                                            <Lock className="h-3 w-3" />
-                                            Locked
-                                          </Badge>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                          {item.meta?.chapters && (
-                                            <div className="flex items-center gap-1">
-                                              <BookOpen className="h-3 w-3" />
-                                              <span>
-                                                {item.meta.chapters} chapter
-                                                {item.meta.chapters !== 1
-                                                  ? "s"
-                                                  : ""}
-                                              </span>
-                                            </div>
-                                          )}
-                                          {item.duration && (
-                                            <div className="flex items-center gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              <span>{item.duration}</span>
-                                            </div>
-                                          )}
-                                          {(item.level ||
-                                            item.meta?.difficulty) && (
-                                            <div className="flex items-center gap-1">
-                                              <Zap className="h-3 w-3" />
-                                              <span className="capitalize">
-                                                {item.level ||
-                                                  item.meta?.difficulty}
-                                              </span>
-                                            </div>
+                                            </AccordionContent>
                                           )}
                                         </div>
-
-                                        {item.description && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {item.description}
-                                          </p>
-                                        )}
-
-                                        <Button
-                                          size="sm"
-                                          className="w-full mt-3 h-9 text-sm"
-                                          disabled={enrolling}
-                                          onClick={handleEnroll}
-                                        >
-                                          <Play className="h-4 w-4 mr-2" />
-                                          {enrolling
-                                            ? "Enrolling..."
-                                            : config.ctaLabel}
-                                        </Button>
                                       </div>
-                                    </div>
+                                    </AccordionItem>
                                   );
-                                },
-                              )}
+                                })}
+                              </Accordion>
                             </div>
                           </div>
-                          {/* ) : (
-                      <div className="text-xs text-muted-foreground italic">
-                        No courses in this topic yet
-                      </div>
-                    )} */}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
 
           {/* Sidebar CTA */}
           <div className="space-y-6">
-            <Card className="border-2 border-blue-600 sticky top-6">
+            <Card className="border-2 border-primary sticky top-6">
               <CardHeader>
                 <CardTitle className="text-2xl">{roadmap.title}</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
@@ -1293,14 +1077,6 @@ export function LearningPathDetailPage({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span>{topics.length} Topics</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span>{roadmap.totalContent || 0} Content Items</span>
-                  </div>
                   {roadmap.timeframe && (
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
@@ -1325,45 +1101,71 @@ export function LearningPathDetailPage({
                   </div>
                 )}
 
+                {isPreviewMode ? (
+                  <>
+                    <div className="rounded-lg border border-[#13AECE]/30 bg-[#13AECE]/5 px-4 py-3">
+                      <p className="text-xs font-semibold text-[#13AECE] mb-0.5">
+                        Preview mode active
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        You have access to free content. Upgrade for the full
+                        curriculum.
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full text-white bg-[#13AECE] hover:bg-[#0FA3C4]"
+                      size="lg"
+                      disabled={enrolling}
+                      onClick={handleEnroll}
+                    >
+                      {enrolling ? "Enrolling..." : "Upgrade to Full Access"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      disabled={enrolling}
+                      onClick={handleEnroll}
+                    >
+                      {enrolling ? "Enrolling..." : "Enrol Now"}
+                    </Button>
+                  </>
+                )}
+
                 {(freePreviewCourseId || roadmap?.preview) && (
                   <Button
                     variant="outline"
                     className="w-full"
+                    disabled={enrolling}
                     onClick={() => {
-                      if (freePreviewCourseId) {
-                        const previewCourse = topics[0]?.courses?.find(
-                          (c: any) => c.id === freePreviewCourseId,
-                        );
-                        if (previewCourse?.slug) {
+                      if (roadmap?.preview) {
+                        handlePreviewEnroll(() => setShowPreviewDialog(true));
+                        return;
+                      }
+                      // No preview video — navigate directly to free course preview
+                      const previewCourse = topics[0]?.courses?.find(
+                        (c: any) => c.id === freePreviewCourseId,
+                      );
+                      if (previewCourse?.slug) {
+                        handlePreviewEnroll(() =>
                           onNavigate?.(
                             routes.pathCoursePreview(
                               pathId,
                               topics[0].id,
                               previewCourse.slug,
                             ),
-                          );
-                          return;
-                        }
+                          ),
+                        );
                       }
-                      // Fallback: open video dialog for roadmap.preview URL
-                      setShowPreviewDialog(true);
                     }}
                   >
                     <Play className="h-4 w-4 mr-2" />
-                    Watch Preview
+                    {enrolling ? "Starting..." : "Watch Preview"}
                   </Button>
                 )}
-
-                <Button
-                  className="w-full"
-                  size="lg"
-                  disabled={enrolling}
-                  onClick={handleEnroll}
-                >
-                  {enrolling ? "Enrolling..." : "Start Learning Path"}
-                </Button>
-
-                {roadmap?.isPremium && (
+                {roadmap?.isPremium && !user?.isPremium && (
                   <p className="text-xs text-center text-muted-foreground">
                     Premium membership required
                   </p>
@@ -1399,7 +1201,98 @@ export function LearningPathDetailPage({
                 <CardTitle className="text-lg">Path Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="space-y-3">
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) => s + (t.courses?.length || 0),
+                        0,
+                      ),
+                      label: "Courses",
+                      icon: BookOpen,
+                      color: "text-blue-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) => s + (t.projects?.length || 0),
+                        0,
+                      ),
+                      label: "Portfolio Projects",
+                      icon: FolderOpen,
+                      color: "text-orange-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s + (t.mockInterviews?.length || 0),
+                        0,
+                      ),
+                      label: "Mock Interviews",
+                      icon: Video,
+                      color: "text-red-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "quiz",
+                          ).length || 0),
+                        0,
+                      ),
+                      label: "Quizzes",
+                      icon: Brain,
+                      color: "text-purple-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "workshop",
+                          ).length || 0),
+                        0,
+                      ),
+                      label: "Live Workshops",
+                      icon: Wrench,
+                      color: "text-teal-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "exercise",
+                          ).length || 0),
+                        0,
+                      ),
+                      label: "Coding Exercises",
+                      icon: Code2,
+                      color: "text-green-600",
+                    },
+                    {
+                      value: topics.reduce(
+                        (s: number, t: any) =>
+                          s +
+                          (t.sortedContents?.filter(
+                            (i: any) => i.type === "resource",
+                          ).length || 0),
+                        0,
+                      ),
+                      label: "Resources",
+                      icon: Link2,
+                      color: "text-slate-600",
+                    },
+                  ].map(({ value, label, icon: Icon, color }) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <Icon className={`h-4 w-4 ${color} flex-shrink-0`} />
+                      <p className="text-sm">
+                        <span className="font-semibold">{value}</span> {label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2.5 pt-2 border-t">
                   {roadmap.instructor && (
                     <div className="flex gap-2">
                       <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -1414,25 +1307,6 @@ export function LearningPathDetailPage({
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Price</p>
-                      {roadmap.amount > 0 ? (
-                        <p className="font-medium text-sm">${roadmap.amount}</p>
-                      ) : (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">
-                          Free
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">
-                      Lifetime Access &middot; No expiry
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
                     <Award className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
                     <p className="text-sm">
                       Certificate of completion included
@@ -1445,6 +1319,39 @@ export function LearningPathDetailPage({
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Certificate Preview */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-600" />
+                  Certificate of Completion
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="relative rounded-lg border-2 border-dashed border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/20 p-5 text-center">
+                  <div className="absolute inset-0 backdrop-blur-[1px] rounded-lg flex items-center justify-center">
+                    <div className="bg-background/80 rounded-full p-2">
+                      <Lock className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </div>
+                  <Trophy className="h-12 w-12 mx-auto mb-2 text-yellow-500 opacity-60" />
+                  <p className="font-semibold text-sm text-muted-foreground">
+                    {roadmap.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Certificate of Completion
+                  </p>
+                  <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                    <Award className="h-3 w-3" />
+                    <span>Verified · Shareable</span>
+                  </div>
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                  Enroll and complete all topics to earn your certificate
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -1463,31 +1370,19 @@ export function LearningPathDetailPage({
           disableOnetime={!roadmap?.paddle_price_id}
         />
 
-        {/* Watch Preview Dialog */}
-        <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Preview: {roadmap?.title}</DialogTitle>
-              <DialogDescription>
-                Watch a free preview of this learning path
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-2">
-              {getPreviewEmbedUrl(roadmap?.preview) ? (
-                <iframe
-                  src={getPreviewEmbedUrl(roadmap?.preview)}
-                  className="w-full aspect-video rounded-md"
-                  allowFullScreen
-                  allow="autoplay; fullscreen"
-                />
-              ) : (
-                <div className="w-full aspect-video rounded-md bg-muted flex items-center justify-center text-sm text-muted-foreground">
-                  Preview not available
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PathPreviewDialog
+          open={showPreviewDialog}
+          onClose={() => setShowPreviewDialog(false)}
+          onEnroll={() => {
+            handleEnroll();
+            setShowPreviewDialog(false);
+          }}
+          roadmap={roadmap}
+          topics={topics}
+          pathId={pathId}
+          freePreviewCourseId={freePreviewCourseId}
+          onNavigate={onNavigate}
+        />
       </div>
     );
   }
@@ -1517,7 +1412,7 @@ export function LearningPathDetailPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
           <p className="text-muted-foreground">
-            {currentTopicIndex + 1} of {topics.length} • {progress}% Complete
+            {stripHtmlTags(roadmap.summary || "")}
           </p>
         </div>
       </div>
@@ -1686,511 +1581,556 @@ export function LearningPathDetailPage({
 
           {/* Learning Path Timeline */}
           <Card>
-            <CardHeader>
+            {/* <CardHeader>
               <CardTitle>Learning Timeline</CardTitle>
               <CardDescription>
                 Your progress through topics and courses
               </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Completed Topics */}
-              {completedTopics.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <h4 className="font-semibold text-green-700">
-                      Completed ({completedTopics.length})
-                    </h4>
-                  </div>
-                  <div className="space-y-4 pl-7 border-l-2 border-green-200">
-                    {completedTopics.map((topic: any) => {
-                      const otherItems =
-                        nonCourseItemsByTopicId[topic.id] ?? [];
+            </CardHeader> */}
+            <CardContent className="px-0 pt-0">
+              {/* Unified topic-grouped learning timeline */}
+              {(() => {
+                return (
+                  <div>
+                    {topics.map((topic: any) => {
+                      const isTopicCompleted = topic.completed === true;
+                      const isTopicCurrent = topic.id === currentTopic?.id;
+
+                      // Use pre-sorted flat contents from backend (mirrors build-roadmap-response.ts order)
+                      let courseNum = 0;
+                      const topicItems = [
+                        ...(topic.sortedContents || []),
+
+                        // FOr testing other content types without modifying backend data structure
+                        // {
+                        //   id: "asa",
+                        //   type: "resource",
+                        //   title: "Test",
+                        //   description: "Test description",
+                        //   num: undefined,
+                        //   isCompleted: false,
+                        //   raw: {},
+                        // },
+                      ].map((item: any) => {
+                        const isCourseOrWorkshop =
+                          item.type === "course" || item.type === "workshop";
+
+                        if (isCourseOrWorkshop) courseNum++;
+
+                        return {
+                          id: item.id,
+                          type: item.type,
+                          title: item.title,
+                          description: item.summary || item.description || "",
+                          num: isCourseOrWorkshop ? courseNum : undefined,
+                          isCompleted: item.isCompleted ?? false,
+                          raw: item,
+                        };
+                      });
+                      if (topicItems.length === 0) return null;
+
                       return (
-                        <div key={topic.id} className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-xs font-bold text-green-600 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
-                              ✓
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h5 className="font-semibold text-sm">
-                                  {topic.title}
-                                </h5>
-                                <Badge variant="outline" className="text-xs">
-                                  {topic.level || "Intermediate"}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {stripHtmlTags(topic.description || "")}
-                              </p>
-                            </div>
-                          </div>
-
-                          {(topic.courses?.length > 0 ||
-                            otherItems.length > 0) && (
-                            <div className="space-y-3 ml-0 mt-3">
-                              <div className="flex flex-wrap gap-2">
-                                {topic.courses && topic.courses.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {topic.courses.length} Course
-                                    {topic.courses.length !== 1 ? "s" : ""}
-                                  </Badge>
-                                )}
-                                {otherItems.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {otherItems.length} other item
-                                    {otherItems.length !== 1 ? "s" : ""}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                {topic.courses?.map((courseItem: any) => {
-                                  const course =
-                                    courseItem.course || courseItem;
-                                  return (
-                                    <div
-                                      key={course.id}
-                                      className="group rounded-lg border border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20 p-3 hover:border-green-200 dark:hover:border-green-800 transition-colors"
-                                    >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-sm leading-tight">
-                                              {course.title}
-                                            </p>
-                                            <div className="flex flex-wrap gap-2 mt-2">
-                                              {course.chapters && (
-                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                  <BookOpen className="h-3 w-3" />
-                                                  {course.chapters.length}{" "}
-                                                  chapters
-                                                </span>
-                                              )}
-                                              {course.totalDuration && (
-                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                  <Clock className="h-3 w-3" />
-                                                  {course.totalDuration}h
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                          <Badge className="bg-green-600 text-xs flex-shrink-0">
-                                            ✓ Done
-                                          </Badge>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 text-xs text-muted-foreground px-2"
-                                            disabled={navigating}
-                                            onClick={() => {
-                                              analytics.track(
-                                                "path_completed_content_reviewed",
-                                                {
-                                                  pathId,
-                                                  contentType: "course",
-                                                  contentId: course.id,
-                                                  contentTitle: course.title,
-                                                },
-                                              );
-                                              navigateToFirstUncompletedVideo(
-                                                topic.id,
-                                                [course],
-                                              );
-                                            }}
-                                          >
-                                            <RotateCcw className="h-3 w-3 mr-1" />
-                                            {navigating ? "Loading…" : "Review"}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {otherItems.map((item) =>
-                                  renderContentItem(
-                                    item,
-                                    true,
-                                    false,
-                                    false,
-                                    true,
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Current Topic */}
-              {currentTopic && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Play className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-semibold text-blue-700">In Progress</h4>
-                  </div>
-                  <div className="space-y-4 pl-7 border-l-2 border-blue-300">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
-                          {currentTopicIndex + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h5 className="font-semibold text-sm">
-                              {currentTopic.title}
-                            </h5>
-                            <Badge className="bg-blue-600 text-xs">
-                              {currentTopic.level || "Intermediate"}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {stripHtmlTags(currentTopic.description || "")}
-                          </p>
-                          <Progress
-                            value={currentTopic.progress ?? 0}
-                            className="h-1 mt-3"
-                          />
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {currentTopic.progress ?? 0}% complete
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Current Topic Courses */}
-                      {currentTopic.courses &&
-                        currentTopic.courses.length > 0 && (
-                          <div className="space-y-3 ml-0 mt-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              {currentTopic.courses.length} Course
-                              {currentTopic.courses.length !== 1 ? "s" : ""}
+                        <div
+                          key={topic.id}
+                          className="border-t first:border-t-0"
+                        >
+                          {/* Topic header */}
+                          <div
+                            className={`px-6 py-3 border-b flex items-center gap-3 ${isTopicCompleted ? "bg-green-50/50 dark:bg-green-950/20" : isTopicCurrent ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-muted/30"}`}
+                          >
+                            {isTopicCompleted ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            ) : isTopicCurrent ? (
+                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            ) : (
+                              <div className="h-4 w-4 rounded-full bg-muted-foreground/20 flex-shrink-0" />
+                            )}
+                            <p
+                              className={`text-xs font-semibold uppercase tracking-wider flex-1 ${isTopicCompleted ? "text-green-700 dark:text-green-400" : isTopicCurrent ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground"}`}
+                            >
+                              {topic.title}
                             </p>
-                            <div className="space-y-2">
-                              {currentTopic.courses.map((courseItem: any) => {
-                                const course = courseItem.course || courseItem;
-                                const isCompleted =
-                                  courseItem.isCompleted ?? false;
-                                const isCurrent = !isCompleted;
+                            {isTopicCompleted && (
+                              <Badge className="bg-green-600 text-[10px]">
+                                Complete
+                              </Badge>
+                            )}
+                            {/* {isTopicCurrent && (
+                              <Badge className="bg-blue-600 text-[10px]">
+                                In Progress · {topic.progress ?? 0}%
+                              </Badge>
+                            )} */}
+                          </div>
+
+                          {/* Timeline items */}
+                          <div className="relative px-4 py-3">
+                            <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+                            <Accordion
+                              type="single"
+                              collapsible
+                              className="space-y-3"
+                            >
+                              {topicItems.map((item: any) => {
+                                const cfg =
+                                  typeConfig[item.type] ?? typeConfig.course;
+                                const dotCls = cfg.dotCls;
+                                const numBgCls = item.isCompleted
+                                  ? "bg-green-600"
+                                  : "bg-foreground";
+                                const isCourseType =
+                                  item.type === "course" ||
+                                  item.type === "workshop";
+                                const isResourceType = item.type === "resource";
+                                const hasAction = true;
                                 return (
-                                  <div
-                                    key={course.id}
-                                    className={`rounded-lg border p-3 transition-colors ${
-                                      isCompleted
-                                        ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
-                                        : "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
-                                    }`}
+                                  <AccordionItem
+                                    key={item.id}
+                                    value={item.id}
+                                    className="border-0"
                                   >
-                                    <div className="space-y-2">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                          {isCompleted ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                                          ) : (
-                                            <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-sm leading-tight">
-                                              {course.title}
-                                            </p>
-                                            {isCurrent && (
-                                              <p className="text-xs text-blue-600 font-medium mt-1">
-                                                Currently learning
-                                              </p>
-                                            )}
+                                    <div className="flex items-start gap-3">
+                                      <div
+                                        className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${dotCls}`}
+                                      />
+                                      <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                                        <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                                          <div className="space-y-1.5 text-left flex-1 pr-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span
+                                                className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.badgeCls}`}
+                                              >
+                                                {cfg.label}
+                                              </span>
+                                              {item.isCompleted && (
+                                                <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
+                                                  ✓ Done
+                                                </Badge>
+                                              )}
+                                              {isTopicCurrent &&
+                                                !item.isCompleted &&
+                                                isCourseType && (
+                                                  <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
+                                                    In Progress
+                                                  </Badge>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              {item.num !== undefined && (
+                                                <span
+                                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                                >
+                                                  {String(item.num).padStart(
+                                                    2,
+                                                    "0",
+                                                  )}
+                                                </span>
+                                              )}
+                                              <span className="font-bold text-sm leading-snug">
+                                                {item.title}
+                                              </span>
+                                              {isResourceType &&
+                                                !item.isLocked && (
+                                                  <Link2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                                )}
+                                            </div>
+                                            {isTopicCurrent &&
+                                              !item.isCompleted &&
+                                              isCourseType && (
+                                                <div className="space-y-1">
+                                                  <Progress
+                                                    value={topic.progress ?? 0}
+                                                    className="h-1.5"
+                                                  />
+                                                  <p className="text-xs text-blue-600 font-medium">
+                                                    {topic.progress ?? 0}%
+                                                    complete
+                                                  </p>
+                                                </div>
+                                              )}
                                           </div>
-                                        </div>
-                                        <Badge
-                                          className={`text-xs flex-shrink-0 ${
-                                            isCompleted
-                                              ? "bg-green-600"
-                                              : "bg-blue-600"
-                                          }`}
-                                        >
-                                          {isCompleted
-                                            ? "✓ Done"
-                                            : "In Progress"}
-                                        </Badge>
+                                        </AccordionTrigger>
+                                        {(item.description || hasAction) && (
+                                          <AccordionContent className="px-4 pb-4 pt-0">
+                                            <div className="border-t pt-3 space-y-3">
+                                              {item.description && (
+                                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                                  {stripHtmlTags(
+                                                    item.description,
+                                                  )}
+                                                </p>
+                                              )}
+                                              {/* CTA button per type */}
+                                              {hasAction &&
+                                                (() => {
+                                                  const handleClick = () => {
+                                                    analytics.track(
+                                                      item.isCompleted
+                                                        ? "path_completed_content_reviewed"
+                                                        : "path_content_clicked",
+                                                      {
+                                                        pathId,
+                                                        topicId: topic.id,
+                                                        contentType: item.type,
+                                                        contentId: item.id,
+                                                        contentTitle:
+                                                          item.title,
+                                                      },
+                                                    );
+                                                    switch (item.type) {
+                                                      case "course":
+                                                      case "workshop":
+                                                        navigateToFirstUncompletedVideo(
+                                                          topic.id,
+                                                          item.isCompleted
+                                                            ? [item.raw]
+                                                            : (topic.courses ??
+                                                                []),
+                                                        );
+                                                        break;
+                                                      case "quiz":
+                                                        if (
+                                                          item.raw
+                                                            ?.parentCourseId
+                                                        ) {
+                                                          onNavigate?.(
+                                                            routes.courseQuiz(
+                                                              item.raw
+                                                                .parentCourseId,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          onNavigate?.(
+                                                            routes.pathQuiz(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        }
+                                                        break;
+                                                      case "exercise":
+                                                        if (
+                                                          item.raw
+                                                            ?.parentCourseId
+                                                        ) {
+                                                          onNavigate?.(
+                                                            routes.courseExercise(
+                                                              item.raw
+                                                                .parentCourseId,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        } else {
+                                                          onNavigate?.(
+                                                            routes.pathExercise(
+                                                              pathId,
+                                                              topic.id,
+                                                              item.id,
+                                                            ),
+                                                          );
+                                                        }
+                                                        break;
+                                                      case "project":
+                                                        if (item.raw?.slug)
+                                                          onNavigate?.(
+                                                            routes.projectDetail(
+                                                              item.raw.slug,
+                                                            ),
+                                                          );
+                                                        break;
+                                                      case "bootcamp":
+                                                        if (item.raw?.slug)
+                                                          onNavigate?.(
+                                                            routes.bootcampDetail(
+                                                              item.raw.slug,
+                                                            ),
+                                                          );
+                                                        break;
+                                                      case "mock_interview":
+                                                        onNavigate?.(
+                                                          routes.mockInterviewBooking(
+                                                            item.id,
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "resource": {
+                                                        const url =
+                                                          item.raw?.link ||
+                                                          item.raw?.content ||
+                                                          "";
+                                                        if (
+                                                          url.startsWith("http")
+                                                        ) {
+                                                          window.open(
+                                                            url,
+                                                            "_blank",
+                                                            "noopener,noreferrer",
+                                                          );
+                                                        }
+                                                        break;
+                                                      }
+                                                    }
+                                                  };
+                                                  const isCourseCompleted =
+                                                    item.isCompleted &&
+                                                    isCourseType;
+                                                  const isCourseInProgress =
+                                                    isTopicCurrent &&
+                                                    !item.isCompleted &&
+                                                    isCourseType;
+                                                  if (isCourseCompleted) {
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 text-xs w-full"
+                                                        disabled={navigating}
+                                                        onClick={handleClick}
+                                                      >
+                                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Review Course"}
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  if (isCourseInProgress) {
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        className="w-full h-8 text-xs"
+                                                        disabled={navigating}
+                                                        onClick={handleClick}
+                                                      >
+                                                        <Play className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Resume Learning"}
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  if (isCourseType) {
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 text-xs w-full"
+                                                        disabled={navigating}
+                                                        onClick={handleClick}
+                                                      >
+                                                        <Play className="h-3 w-3 mr-1" />
+                                                        {navigating
+                                                          ? "Loading…"
+                                                          : "Start Course"}
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  const typeCtaLabel: Record<
+                                                    string,
+                                                    string
+                                                  > = {
+                                                    quiz: item.isCompleted
+                                                      ? "Retake Quiz"
+                                                      : "Take Quiz",
+                                                    exercise: item.isCompleted
+                                                      ? "Redo Exercise"
+                                                      : "Solve Exercise",
+                                                    project: item.isCompleted
+                                                      ? "View Project"
+                                                      : "Open Project",
+                                                    bootcamp: "Join Bootcamp",
+                                                    mock_interview:
+                                                      item.isCompleted
+                                                        ? "View Results"
+                                                        : "Start Interview",
+                                                    resource: "Open Resource",
+                                                  };
+                                                  const typeCtaIcon: Record<
+                                                    string,
+                                                    any
+                                                  > = {
+                                                    quiz: item.isCompleted
+                                                      ? RotateCcw
+                                                      : Brain,
+                                                    exercise: item.isCompleted
+                                                      ? RotateCcw
+                                                      : Code2,
+                                                    project: FolderOpen,
+                                                    bootcamp: Calendar,
+                                                    mock_interview:
+                                                      item.isCompleted
+                                                        ? RotateCcw
+                                                        : Video,
+                                                    resource: Link2,
+                                                  };
+                                                  const CtaIcon =
+                                                    typeCtaIcon[item.type] ??
+                                                    Play;
+                                                  const ctaLabel =
+                                                    typeCtaLabel[item.type] ??
+                                                    "Open";
+                                                  return (
+                                                    <Button
+                                                      size="sm"
+                                                      variant={
+                                                        item.isCompleted
+                                                          ? "outline"
+                                                          : "default"
+                                                      }
+                                                      className="h-8 text-xs w-full"
+                                                      onClick={handleClick}
+                                                    >
+                                                      <CtaIcon className="h-3 w-3 mr-1" />
+                                                      {ctaLabel}
+                                                    </Button>
+                                                  );
+                                                })()}
+                                            </div>
+                                          </AccordionContent>
+                                        )}
                                       </div>
-
-                                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                        {course.chapters && (
-                                          <div className="flex items-center gap-1">
-                                            <BookOpen className="h-3 w-3" />
-                                            <span>
-                                              {course.chapters.length} chapter
-                                              {course.chapters.length !== 1
-                                                ? "s"
-                                                : ""}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {course.totalDuration && (
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{course.totalDuration}h</span>
-                                          </div>
-                                        )}
-                                        {course.level && (
-                                          <div className="flex items-center gap-1">
-                                            <Zap className="h-3 w-3" />
-                                            <span className="capitalize">
-                                              {course.level}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {isCurrent && (
-                                        <div className="space-y-1 pt-1">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium">
-                                              Progress
-                                            </span>
-                                            <span className="text-xs font-semibold text-blue-600">
-                                              {currentTopic.progress ?? 0}%
-                                            </span>
-                                          </div>
-                                          <Progress
-                                            value={currentTopic.progress ?? 0}
-                                            className="h-1.5"
-                                          />
-                                          {currentItem &&
-                                            currentItem.chapterTitle && (
-                                              <p className="text-xs text-muted-foreground">
-                                                {currentItem.chapterTitle}
-                                              </p>
-                                            )}
-                                        </div>
-                                      )}
-
-                                      {course.summary && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2 pt-1">
-                                          {stripHtmlTags(course.summary)}
-                                        </p>
-                                      )}
-
-                                      {isCurrent && (
-                                        <Button
-                                          size="sm"
-                                          className="w-full mt-2 h-8 text-xs"
-                                          disabled={navigating}
-                                          onClick={() =>
-                                            navigateToFirstUncompletedVideo(
-                                              currentTopic.id,
-                                              currentTopic.courses ?? [],
-                                            )
-                                          }
-                                        >
-                                          <Play className="h-3 w-3 mr-1" />
-                                          {navigating
-                                            ? "Loading…"
-                                            : "Resume Learning"}
-                                        </Button>
-                                      )}
                                     </div>
-                                  </div>
+                                  </AccordionItem>
                                 );
                               })}
-                            </div>
+                            </Accordion>
                           </div>
-                        )}
-
-                      {/* Other content items */}
-                      {(() => {
-                        const currentOtherItems =
-                          nonCourseItemsByTopicId[currentTopic.id] ?? [];
-                        if (!currentOtherItems.length) return null;
-                        return (
-                          <div className="space-y-3 ml-0 mt-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              {currentOtherItems.length} other item
-                              {currentOtherItems.length !== 1 ? "s" : ""}
-                            </p>
-                            <div className="space-y-2">
-                              {currentOtherItems.map((item) =>
-                                renderContentItem(
-                                  item,
-                                  false,
-                                  false,
-                                  false,
-                                  true,
-                                ),
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Upcoming Topics */}
-              {upcomingTopics.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                    <h4 className="font-semibold text-gray-600">
-                      Upcoming ({upcomingTopics.length})
-                    </h4>
-                  </div>
-                  <div className="space-y-4 pl-7 border-l-2 border-gray-200">
-                    {upcomingTopics.map((topic: any) => {
-                      const otherItems =
-                        nonCourseItemsByTopicId[topic.id] ?? [];
-                      return (
-                        <div key={topic.id} className="space-y-3">
-                          <div className="flex items-start gap-3 opacity-60">
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
-                              🔒
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h5 className="font-semibold text-sm text-gray-600">
-                                  {topic.title}
-                                </h5>
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs text-gray-500"
-                                >
-                                  {topic.level || "Intermediate"}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {stripHtmlTags(topic.description || "")}
-                              </p>
-                            </div>
-                          </div>
-
-                          {(topic.courses?.length > 0 ||
-                            otherItems.length > 0) && (
-                            <div className="space-y-3 ml-0 opacity-75">
-                              <div className="flex flex-wrap gap-2">
-                                {topic.courses && topic.courses.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {topic.courses.length} Course
-                                    {topic.courses.length !== 1 ? "s" : ""}
-                                  </Badge>
-                                )}
-                                {otherItems.length > 0 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {otherItems.length} other item
-                                    {otherItems.length !== 1 ? "s" : ""}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                {topic.courses?.map((courseItem: any) => {
-                                  const course =
-                                    courseItem.course || courseItem;
-                                  return (
-                                    <div
-                                      key={course.id}
-                                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 p-3 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
-                                    >
-                                      <div className="space-y-2">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            <Lock className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                              <p className="font-semibold text-sm text-gray-700 dark:text-gray-300 leading-tight">
-                                                {course.title}
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <Badge
-                                            variant="outline"
-                                            className="text-xs flex-shrink-0 text-gray-500"
-                                          >
-                                            Locked
-                                          </Badge>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                          {course.chapters && (
-                                            <div className="flex items-center gap-1">
-                                              <BookOpen className="h-3 w-3" />
-                                              <span>
-                                                {course.chapters.length} chapter
-                                                {course.chapters.length !== 1
-                                                  ? "s"
-                                                  : ""}
-                                              </span>
-                                            </div>
-                                          )}
-                                          {course.totalDuration && (
-                                            <div className="flex items-center gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              <span>
-                                                {course.totalDuration}h
-                                              </span>
-                                            </div>
-                                          )}
-                                          {course.level && (
-                                            <div className="flex items-center gap-1">
-                                              <Zap className="h-3 w-3" />
-                                              <span className="capitalize">
-                                                {course.level}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-
-                                        {course.summary && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {stripHtmlTags(course.summary)}
-                                          </p>
-                                        )}
-
-                                        <div className="flex items-center gap-2 pt-1 text-xs text-gray-500">
-                                          <Lock className="h-3 w-3" />
-                                          <span>
-                                            Unlock after completing{" "}
-                                            {topic.title}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {otherItems.map((item) =>
-                                  renderContentItem(
-                                    item,
-                                    false,
-                                    true,
-                                    false,
-                                    true,
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Progress Card */}
+          <Card className="bg-gradient-to-br from-[#0E1F33] to-[#13AECE] text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Target className="h-5 w-5" />
+                Your Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-100">Overall Completion</span>
+                  <span className="font-bold text-lg">{progress}%</span>
+                </div>
+                <Progress
+                  value={progress}
+                  className="h-3 bg-white/20 [&>div]:bg-white"
+                />
+                <div className="flex justify-between text-xs text-blue-100 pt-1">
+                  <span>
+                    {completedTopics.length} of {topics.length} topics done
+                  </span>
+                  {progress > 0 && progress < 100 && (
+                    <span>{100 - progress}% remaining</span>
+                  )}
+                  {progress === 100 && (
+                    <span className="text-yellow-300 font-semibold">
+                      🎉 Complete!
+                    </span>
+                  )}
+                </div>
+              </div>
+              {completedTopics.length > 0 && (
+                <div className="flex items-center gap-1.5 text-sm border-t border-white/20 pt-3">
+                  <Zap className="h-4 w-4 text-yellow-300" />
+                  <span className="text-blue-100">XP earned:</span>
+                  <span className="font-semibold text-yellow-300">
+                    {completedTopics.length * 50} MB
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Certificate Card */}
+          <Card
+            className={
+              progress === 100
+                ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20"
+                : ""
+            }
+          >
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Trophy
+                  className={`h-5 w-5 ${progress === 100 ? "text-yellow-600" : "text-muted-foreground"}`}
+                />
+                Certificate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {progress === 100 ? (
+                <div className="space-y-3">
+                  <div className="text-center p-4 border border-yellow-300 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
+                    <Trophy className="h-10 w-10 mx-auto mb-2 text-yellow-600" />
+                    <p className="font-semibold text-sm">Path Complete!</p>
+                    {certificate ? (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ID:{" "}
+                        <span className="font-mono font-medium">
+                          {certificate.code}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Your certificate is ready
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      if (certificate?.verifyUrl) {
+                        window.open(certificate.verifyUrl, "_blank");
+                      } else {
+                        toast.info(
+                          "Certificate is being generated. Check your email shortly.",
+                        );
+                      }
+                    }}
+                  >
+                    <Award className="mr-2 h-4 w-4" />
+                    View Certificate
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center p-4 border border-dashed rounded-lg bg-muted/30">
+                  <div className="relative inline-block mb-2">
+                    <Trophy className="h-10 w-10 text-muted-foreground/40" />
+                    <Lock className="h-4 w-4 text-muted-foreground absolute -bottom-1 -right-1" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Certificate of Completion
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Complete all {topics.length} topics to unlock
+                  </p>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-1.5" />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Your Investment */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Your Investment</CardTitle>
-            </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
                     Topics completed
@@ -2213,20 +2153,20 @@ export function LearningPathDetailPage({
                     {currentTopicIndex + 1} of {topics.length}
                   </span>
                 </div>
-              </div>
-              {completedTopics.length > 0 && (
-                <>
-                  <Separator />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Zap className="h-3 w-3" /> XP earned
-                    </span>
-                    <span className="font-semibold text-yellow-600">
-                      {completedTopics.length * 50} MB
-                    </span>
-                  </div>
-                </>
-              )}
+              </div> */}
+              {/* {completedTopics.length > 0 && (
+              <>
+                <Separator />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Zap className="h-3 w-3" /> XP earned
+                  </span>
+                  <span className="font-semibold text-yellow-600">
+                    {completedTopics.length * 50} MB
+                  </span>
+                </div>
+              </>
+               )} */}
               {roadmap.students > 0 && (
                 <>
                   <Separator />
@@ -2254,116 +2194,6 @@ export function LearningPathDetailPage({
               )}
             </CardContent>
           </Card>
-
-          {/* Current Topic Card */}
-          {currentTopic && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Continue Learning</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
-                    Current Topic
-                  </p>
-                  <h4 className="font-semibold text-sm">
-                    {currentTopic.title}
-                  </h4>
-                </div>
-                {currentItem && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-xs text-blue-600 font-semibold mb-1">
-                        ▶ Next Up
-                      </p>
-                      <p className="text-sm font-medium line-clamp-2">
-                        {currentItem.title}
-                      </p>
-                      {currentItem.chapterTitle && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {currentItem.chapterTitle}
-                        </p>
-                      )}
-                      {currentItem.totalItems > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {currentItem.itemIndex} of {currentItem.totalItems}{" "}
-                          complete
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
-                <Button
-                  className="w-full"
-                  size="sm"
-                  disabled={navigating}
-                  onClick={() => {
-                    analytics.track("path_continue_clicked", {
-                      pathId,
-                      topicId: currentTopic.id,
-                      topicTitle: currentTopic.title,
-                      source: "sidebar",
-                    });
-                    navigateToFirstUncompletedVideo(
-                      currentTopic.id,
-                      currentTopic.courses ?? [],
-                    );
-                  }}
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  {navigating ? "Loading…" : "Continue Learning"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Path Complete */}
-          {progress === 100 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-yellow-600" />
-                  Path Complete!
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4">
-                  <div className="text-center p-4 border rounded-lg bg-yellow-50">
-                    <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                    <h3 className="font-medium">Certificate</h3>
-                    {certificate ? (
-                      <p className="text-sm text-muted-foreground">
-                        ID:{" "}
-                        <span className="font-mono font-medium">
-                          {certificate.code}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Your completion certificate is ready
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      if (certificate?.verifyUrl) {
-                        window.open(certificate.verifyUrl, "_blank");
-                      } else {
-                        toast.info(
-                          "Certificate is being generated. Check your email shortly.",
-                        );
-                      }
-                    }}
-                  >
-                    View Certificate
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -2392,7 +2222,7 @@ export function LearningPathDetailPage({
             disabled={enrolling}
             onClick={handleEnroll}
           >
-            {enrolling ? "Enrolling..." : "Start Learning Path"}
+            {enrolling ? "Enrolling..." : "Enrol Now"}
           </Button>
         </div>
       )}
@@ -2407,6 +2237,13 @@ export function LearningPathDetailPage({
           }
         }}
         data={{ ...roadmap, type: "roadmap" }}
+      />
+
+      <ConfettiCelebration
+        onComplete={() => setCelebration(false)}
+        isVisible={celebration}
+        celebrationType="enrollment"
+        courseName={roadmap?.title!}
       />
 
       {/* Post-enrollment welcome dialog */}
@@ -2453,7 +2290,17 @@ export function LearningPathDetailPage({
               className="w-full"
               onClick={() => {
                 setShowWelcomeDialog(false);
-                if (onNavigate) onNavigate(routes.pathContinue(pathId));
+
+                analytics.track("path_continue_clicked", {
+                  pathId,
+                  topicId: topics[0].id,
+                  topicTitle: topics[0].title,
+                  source: "current_card",
+                });
+                navigateToFirstUncompletedVideo(
+                  topics[0].id,
+                  topics[0].courses ?? [],
+                );
               }}
             >
               Start Now &rarr;

@@ -342,7 +342,9 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                     </div>
                     <Button
                       className="w-full"
-                      onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
+                      onClick={() =>
+                        onNavigate?.(routes.pathContinue(path.slug))
+                      }
                     >
                       Continue Learning
                     </Button>
@@ -350,7 +352,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
                 ) : (
                   <Button
                     className="w-full"
-                    onClick={() => onNavigate?.(routes.pathDetail(path.slug))}
+                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
                   >
                     View Learning Path
                   </Button>
