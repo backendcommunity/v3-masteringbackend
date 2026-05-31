@@ -6,6 +6,7 @@ export const api = axios.create({
 });
 
 let isRefreshing = false;
+let isHandlingAuthFailure = false;
 let failedQueue: Array<{
   resolve: (value: any) => void;
   reject: (reason?: any) => void;
@@ -19,21 +20,31 @@ const processQueue = (error: any) => {
   failedQueue = [];
 };
 
-const handleAuthFailure = async () => {
-  if (
-    typeof window !== "undefined" &&
-    !window.location.pathname.includes("/auth/")
-  ) {
-    // Call logout so the server clears the HttpOnly mb_token cookie.
-    // Fire-and-forget — don't let a network error block the redirect.
-    try {
-      await api.post("/auth/logout");
-    } catch {
-      // ignore — we're logging out regardless
-    }
-    localStorage.clear();
-    window.location.href = "/auth/login";
+export const handleAuthFailure = async () => {
+  // Guard: only one redirect allowed — prevent race from multiple concurrent failures
+  if (isHandlingAuthFailure) return;
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.includes("/auth/")) return;
+
+  isHandlingAuthFailure = true;
+
+  try {
+    await api.post("/auth/logout");
+  } catch {
+    // ignore — clearing cookies server-side is best-effort
   }
+
+  // Only remove MB-owned keys — localStorage.clear() would nuke third-party SDK data too
+  const keysToRemove = Object.keys(localStorage).filter(
+    (k) => k.startsWith("mb_") || k === "user"
+  );
+  keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+  // Reset flag after delay — guards against rare case where redirect is blocked
+  // (page reload resets the module anyway, but this prevents silent failure in edge cases)
+  setTimeout(() => { isHandlingAuthFailure = false; }, 5000);
+
+  window.location.href = "/auth/login";
 };
 
 api.interceptors.response.use(
@@ -68,13 +79,14 @@ api.interceptors.response.use(
       try {
         await api.post("/auth/refresh");
         processQueue(null);
+        isRefreshing = false;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
+        isRefreshing = false;
+        // Both access token and refresh token are expired — force relogin
         await handleAuthFailure();
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

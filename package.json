@@ -66,6 +66,7 @@
     "html2canvas": "^1.4.1",
     "immer": "latest",
     "input-otp": "1.4.1",
+    "jose": "^6.2.3",
     "jspdf": "^3.0.1",
     "livekit-client": "^2.16.1",
     "lucide-react": "^0.454.0",
