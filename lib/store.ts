@@ -57,6 +57,57 @@ import { api, socketAPI } from "./api";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
+// Chat interview types
+export interface ChatMessage {
+  id: string;
+  role: "ai" | "user";
+  content: string;
+  timestamp: string;
+  questionIndex: number;
+  isQuestion?: boolean;
+  artifactRef?: {
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+    code?: string;
+  } | null;
+}
+
+export interface ChatArtifactRef {
+  type: "code" | "whiteboard";
+  data: string;
+  language?: string;
+}
+
+export interface ChatInterviewTemplate {
+  name: string | null;
+  position: string | null;
+  company: string | null;
+  seniority: string | null;
+  difficulty: string;
+  duration: number;
+  questions: number | null;
+  topics: string[] | null;
+  format: string | null;
+  style: string | null;
+  description: string | null;
+}
+
+export interface ChatInterviewSession {
+  sessionId: string;
+  sessionMode: string;
+  interviewType: string | null;
+  chatMessages: ChatMessage[];
+  currentQuestionIndex: number;
+  codeArtifact: string | null;
+  codeLanguage: string | null;
+  whiteboardArtifact: unknown;
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  template: ChatInterviewTemplate;
+}
+
 const ROADMAP_RESOLVE_PAGE_SIZE = 200;
 const roadmapSlugCache = new Map<string, string>();
 
@@ -296,6 +347,13 @@ interface AppState {
 
   // Epic 6: Global Search
   search: (query: string) => Promise<SearchResults>;
+
+  // Chat-based Mock Interview
+  startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
+  getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
+  streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
+  endChatInterviewSession: (sessionId: string) => Promise<void>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -637,6 +695,62 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/mock-interviews/sessions/${sessionId}/report/retry`,
     );
     return data?.data;
+  },
+
+  // Chat-based Mock Interview implementations
+  startChatInterview: async (userInterviewId: string, interviewType?: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/chat/${userInterviewId}/start`,
+      { interviewType },
+    );
+    return data?.data;
+  },
+
+  getChatInterviewSession: async (sessionId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/sessions/${sessionId}`,
+    );
+    return data?.data;
+  },
+
+  streamChatMessage: async (
+    sessionId: string,
+    content: string,
+    artifactRef?: ChatArtifactRef,
+  ) => {
+    const baseURL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const response = await fetch(
+      `${baseURL}/mock-interviews/chat/sessions/${sessionId}/message`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content, artifactRef }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Stream request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  saveChatArtifact: async (
+    sessionId: string,
+    type: "code" | "whiteboard",
+    data: string,
+    language?: string,
+  ) => {
+    await api.post(`/mock-interviews/chat/sessions/${sessionId}/artifact`, {
+      type,
+      data,
+      language,
+    });
+  },
+
+  endChatInterviewSession: async (sessionId: string) => {
+    await api.delete(`/mock-interviews/chat/sessions/${sessionId}`);
   },
 
   // Project Solutions/Submissions
