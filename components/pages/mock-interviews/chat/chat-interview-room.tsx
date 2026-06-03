@@ -60,8 +60,37 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         if (cancelled) return;
         setSession(data);
         setMessages(data.chatMessages ?? []);
-        setIsComplete(data.status === "COMPLETED" || data.status === "ENDED");
+        const alreadyDone = data.status === "COMPLETED" || data.status === "ENDED";
+        setIsComplete(alreadyDone);
         sessionIdRef.current = data.sessionId;
+
+        if (alreadyDone) {
+          // Session was already complete before this mount — fetch stored report
+          // directly from DB/cache without triggering AI generation.
+          autoResultFiredRef.current = true; // prevent useEffect from also firing
+          try {
+            const report = await store.getChatSessionReport(data.sessionId);
+            if (cancelled) return;
+            if (report) {
+              setResultsData(report);
+              if (report.questionAnalysis?.length) {
+                setQuestionAnalysis(
+                  report.questionAnalysis.map((q: any) => ({
+                    score: q.score,
+                    feedback: q.feedback,
+                  })),
+                );
+                setResultsRevealed(true);
+              }
+            } else {
+              // Report not yet generated — let useEffect trigger generation
+              autoResultFiredRef.current = false;
+            }
+          } catch {
+            // Report doesn't exist yet — fall through to generation via useEffect
+            autoResultFiredRef.current = false;
+          }
+        }
       } catch (err: any) {
         if (!cancelled) {
           const code = err?.response?.data?.code ?? null;

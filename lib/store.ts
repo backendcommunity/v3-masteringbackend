@@ -354,6 +354,7 @@ interface AppState {
   streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
+  getChatSessionReport: (sessionId: string) => Promise<any>;
   generateSessionReport: (sessionId: string) => Promise<any>;
   streamSessionReport: (sessionId: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
 
@@ -753,6 +754,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   endChatInterviewSession: async (sessionId: string) => {
     await api.delete(`/mock-interviews/chat/sessions/${sessionId}`);
+  },
+
+  getChatSessionReport: async (sessionId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/sessions/${sessionId}/report`,
+    );
+    return data?.data;
   },
 
   generateSessionReport: async (sessionId: string) => {
