@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -23,7 +22,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Calendar,
@@ -38,11 +36,9 @@ import {
   Briefcase,
   FileText,
   Sparkles,
-  Timer,
   Layout,
   Play,
   CalendarClock,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -50,10 +46,12 @@ import {
   Crown,
   AlertTriangle,
   Lock,
-  Wrench,
-  X,
   MessageSquare,
+  Bookmark,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -153,11 +151,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   const [interviewAccess, setInterviewAccess] =
     useState<InterviewAccess | null>(null);
-
-  const [showDevBanner, setShowDevBanner] = useState(true);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [creating, setCreating] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedMode, setSelectedMode] = useState<"chat" | "video" | "audio">(
+    "chat",
+  );
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
 
   const [pagination, setPagination] = useState({ size: 10, skip: 0 });
   const [totalTemplates, setTotalTemplates] = useState(0);
@@ -168,6 +169,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     style: "",
     format: "",
     search: "",
+    category: "",
   });
 
   const [customInterviewData, setCustomInterviewData] =
@@ -206,6 +208,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadBookedInterviews();
     loadCompletedInterviews();
     loadInterviewAccess();
+    loadCategories();
   }, []);
 
   // Cleanup debounce timeout on unmount
@@ -244,6 +247,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       if (filters.style) filterObj.style = filters.style;
       if (filters.format) filterObj.format = filters.format;
       if (filters.search) filterObj.search = filters.search;
+      if (filters.category) filterObj.category = filters.category;
 
       // Send filters as an object
       params.filters = filterObj;
@@ -317,6 +321,15 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       setInterviewAccess(data);
     } catch (error) {
       console.error("Failed to load interview access");
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await store.getMockInterviewCategories();
+      setCategories(data);
+    } catch {
+      // silently fail — pills won't show
     }
   };
 
@@ -408,6 +421,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         setIsBookingDialogOpen(false);
         setScheduledDate("");
         setScheduledTime("");
+        setShowScheduleForm(false);
         setSelectedTemplate(null);
         setActiveTab("booked");
         loadBookedInterviews();
@@ -613,26 +627,103 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }));
   };
 
+  // ─── Saved interviews (bookmark) state ───────────────────────────────────
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("mb_saved_interviews");
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  const toggleSaved = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      localStorage.setItem("mb_saved_interviews", JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  // Derived lists
+  const savedTemplates = templates.filter((t) => savedIds.has(t.id));
+
+  // ─── Difficulty badge helper ──────────────────────────────────────────────
+  const difficultyBadge = (difficulty: string) => {
+    const map: Record<string, { pill: string; dot: string }> = {
+      Easy: {
+        pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        dot: "bg-emerald-500",
+      },
+      Medium: {
+        pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        dot: "bg-amber-500",
+      },
+      Hard: {
+        pill: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        dot: "bg-red-500",
+      },
+    };
+    const style = map[difficulty] ?? {
+      pill: "bg-muted text-muted-foreground",
+      dot: "bg-muted-foreground",
+    };
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full",
+          style.pill,
+        )}
+      >
+        <span
+          className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", style.dot)}
+        />
+        {difficulty}
+      </span>
+    );
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex md:item-center md:flex-row flex-col gap-3 justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Mock Interviews</h1>
-          <p className="text-muted-foreground">
-            Practice with AI-powered interviews to ace your next job interview
-          </p>
-          {interviewAccess &&
-            (interviewAccess.tier === "free" ||
-              interviewAccess.tier === "pro") && (
-              <div className="flex items-center gap-2 mt-1">
+    <div className="min-h-screen bg-muted/30">
+      {/* ── Sticky Header ──────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 border-b bg-background">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Mock Interviews
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Practice with Kap AI · Land your next backend role
+            </p>
+            {/* Inline stats row */}
+            <p className="text-sm text-muted-foreground mt-1">
+              <span className="font-semibold text-foreground">
+                {stats?.totalInterviews ?? 0}
+              </span>{" "}
+              completed ·{" "}
+              <span className="font-semibold text-foreground">
+                {stats?.averageScore ?? 0}%
+              </span>{" "}
+              avg score ·{" "}
+              <span className="font-semibold text-foreground">
+                {stats?.practicedHours ?? 0}h
+              </span>{" "}
+              practiced
+            </p>
+            {/* Session access badge */}
+            {interviewAccess &&
+              (interviewAccess.tier === "free" ||
+                interviewAccess.tier === "pro") && (
                 <Badge
                   variant={
                     interviewAccess.remainingSessions === 0
                       ? "destructive"
                       : "secondary"
                   }
-                  className="text-xs"
+                  className="text-xs mt-1.5"
                 >
                   {interviewAccess.tier === "free"
                     ? interviewAccess.remainingSessions === 0
@@ -640,873 +731,376 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       : "1 free trial interview available"
                     : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
                 </Badge>
-              </div>
-            )}
-          {interviewAccess?.tier === "enterprise" && (
-            <Badge variant="secondary" className="mt-1 text-xs">
-              <Crown className="h-3 w-3 mr-1" />
-              Enterprise — Unlimited sessions
-            </Badge>
-          )}
-        </div>
-        <div className="flex md:items-center md:flex-row flex-col gap-3">
-          <Dialog
-            open={isCreateInterviewDialogOpen}
-            onOpenChange={setIsCreateInterviewDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button disabled={true}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create from Job Description
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[75vw] max-w-[80vw] h-[90vh] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Custom Mock Interview</DialogTitle>
-                <DialogDescription>
-                  Customize your mock interview experience by providing details
-                  about the role you're preparing for.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="company" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    Company *
-                  </Label>
-                  <Input
-                    id="company"
-                    placeholder="e.g., Google, Amazon, Stripe"
-                    value={customInterviewData.company}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("company", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="position" className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    Position *
-                  </Label>
-                  <Input
-                    id="position"
-                    placeholder="e.g., Senior Backend Engineer"
-                    value={customInterviewData.position}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("position", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="seniority"
-                    className="flex items-center gap-2"
-                  >
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    Seniority Level
-                  </Label>
-                  <Select
-                    value={customInterviewData.seniority}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("seniority", value)
-                    }
-                  >
-                    <SelectTrigger id="seniority">
-                      <SelectValue placeholder="Select seniority level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="junior">Junior</SelectItem>
-                      <SelectItem value="mid">Mid-Level</SelectItem>
-                      <SelectItem value="senior">Senior</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="style" className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    Interview Style
-                  </Label>
-                  <Select
-                    value={customInterviewData.style}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("style", value)
-                    }
-                  >
-                    <SelectTrigger id="style">
-                      <SelectValue placeholder="Select interview style" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="coding">Coding</SelectItem>
-                      <SelectItem value="system-design">
-                        System Design
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="difficulty"
-                    className="flex items-center gap-2"
-                  >
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                    Difficulty
-                  </Label>
-                  <Select
-                    value={customInterviewData.difficulty}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("difficulty", value)
-                    }
-                  >
-                    <SelectTrigger id="difficulty">
-                      <SelectValue placeholder="Select difficulty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* <div className="grid gap-2">
-                  <Label htmlFor="format" className="flex items-center gap-2">
-                    <Layout className="h-4 w-4 text-muted-foreground" />
-                    Format
-                  </Label>
-                  <Select
-                    value={customInterviewData.format}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("format", value)
-                    }
-                  >
-                    <SelectTrigger id="format">
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="audio">Audio</SelectItem>
-                      <SelectItem value="text">Text</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div> */}
-
-                <div className="grid gap-2">
-                  <Label htmlFor="duration" className="flex items-center gap-2">
-                    <Layout className="h-4 w-4 text-muted-foreground" />
-                    Duration
-                  </Label>
-                  <Select
-                    value={customInterviewData.duration + ""}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("duration", value)
-                    }
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[15, 30, 45, 60].map((d) => (
-                        <SelectItem
-                          key={d}
-                          value={d + ""}
-                          disabled={
-                            interviewAccess?.hasAccess === true &&
-                            !interviewAccess.allowedDurations.includes(d)
-                          }
-                        >
-                          {d} min
-                          {interviewAccess?.hasAccess &&
-                            !interviewAccess.allowedDurations.includes(d) &&
-                            " (Enterprise)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2 md:col-span-2">
-                  <Label
-                    htmlFor="description"
-                    className="flex items-center gap-2"
-                  >
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    Job Description *
-                  </Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Paste the job description here..."
-                    rows={8}
-                    value={customInterviewData.description}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("description", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateInterviewDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateCustomInterview}
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Create & Start
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog
-            open={isCreateTemplateDialogOpen}
-            onOpenChange={setIsCreateTemplateDialogOpen}
-          >
-            {user?.role === "ADMIN" && (
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
-              </DialogTrigger>
-            )}
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create Interview Template</DialogTitle>
-                <DialogDescription>
-                  Create a reusable interview template
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Template Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Backend Developer Interview"
-                    value={templateFormData.name}
-                    onChange={(e) =>
-                      handleTemplateFormChange("name", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="summary">Summary *</Label>
-                  <Textarea
-                    id="summary"
-                    placeholder="Brief description of the template"
-                    rows={3}
-                    value={templateFormData.summary}
-                    onChange={(e) =>
-                      handleTemplateFormChange("summary", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      placeholder="e.g., Backend Development"
-                      value={templateFormData.category}
-                      onChange={(e) =>
-                        handleTemplateFormChange("category", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="template-difficulty">Difficulty</Label>
-                    <Select
-                      value={templateFormData.difficulty}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("difficulty", value)
-                      }
-                    >
-                      <SelectTrigger id="template-difficulty">
-                        <SelectValue placeholder="Select difficulty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Easy">Easy</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="Hard">Hard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label
-                      htmlFor="seniority"
-                      className="flex items-center gap-2"
-                    >
-                      Seniority Level
-                    </Label>
-                    <Select
-                      value={templateFormData.seniority}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("seniority", value)
-                      }
-                    >
-                      <SelectTrigger id="seniority">
-                        <SelectValue placeholder="Select seniority level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="junior">Junior</SelectItem>
-                        <SelectItem value="mid">Mid-Level</SelectItem>
-                        <SelectItem value="senior">Senior</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="style" className="flex items-center gap-2">
-                      Interview Style
-                    </Label>
-                    <Select
-                      value={templateFormData.style}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("style", value)
-                      }
-                    >
-                      <SelectTrigger id="style">
-                        <SelectValue placeholder="Select interview style" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="technical">Technical</SelectItem>
-                        <SelectItem value="behavioral">Behavioral</SelectItem>
-                        <SelectItem value="coding">Coding</SelectItem>
-                        <SelectItem value="system-design">
-                          System Design
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="duration" className="flex items-center gap-2">
-                    Duration
-                  </Label>
-                  <Select
-                    value={templateFormData.duration + ""}
-                    onValueChange={(value) =>
-                      handleTemplateFormChange("duration", value)
-                    }
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[15, 30, 45, 60].map((d) => (
-                        <SelectItem
-                          key={d}
-                          value={d + ""}
-                          disabled={
-                            interviewAccess?.hasAccess === true &&
-                            !interviewAccess.allowedDurations.includes(d)
-                          }
-                        >
-                          {d} min
-                          {interviewAccess?.hasAccess &&
-                            !interviewAccess.allowedDurations.includes(d) &&
-                            " (Enterprise)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="topics">Topics</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="topics"
-                      placeholder="Add a topic"
-                      value={topicInput}
-                      onChange={(e) => setTopicInput(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleAddTopic()}
-                    />
-                    <Button type="button" onClick={handleAddTopic}>
-                      Add
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {templateFormData.topics.map((topic, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => handleRemoveTopic(index)}
-                      >
-                        {topic} ×
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateTemplateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateTemplate} disabled={creating}>
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Template"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <div className="flex items-center gap-2">
-            <Video className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Powered by Kap AI</span>
+              )}
+            {/* {interviewAccess?.tier === "enterprise" && (
+              <Badge variant="secondary" className="mt-1.5 text-xs">
+                <Crown className="h-3 w-3 mr-1" />
+                Enterprise — Unlimited sessions
+              </Badge>
+            )} */}
           </div>
+
+          {/* Right: Create Custom button */}
+          <Button disabled={true} className="shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Custom
+          </Button>
         </div>
       </div>
 
-      {/* Under Development Banner */}
-      {showDevBanner && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/8 px-4 py-3">
-          <Wrench className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              Mock Interview is actively being improved
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Some features are still in development. You can browse templates
-              and schedule interviews — full session support is coming very
-              soon.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowDevBanner(false)}
-            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
-            aria-label="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Session Limit Reached Banner */}
-      {interviewAccess && !interviewAccess.hasAccess && (
-        <Card className="border-orange-500/50 bg-orange-500/5">
-          <CardContent className="flex flex-col sm:flex-row items-center gap-4 p-4">
-            <AlertTriangle className="h-8 w-8 text-orange-500 shrink-0" />
+      {/* ── Content ──────────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Session limit banner */}
+        {interviewAccess && !interviewAccess.hasAccess && (
+          <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 mb-4">
+            <AlertTriangle className="h-6 w-6 text-orange-500 shrink-0" />
             <div className="flex-1 text-center sm:text-left">
-              <h3 className="font-semibold">
+              <p className="font-semibold text-sm">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
                     ? "Free Trial Used"
                     : "Access 1 Free Trial Interview"
                   : "Monthly Limit Reached"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
                     ? "You've used your free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
-                    : "You've 1 free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
+                    : "You have 1 free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
                   : "You've used all your mock interviews this month. Upgrade to Enterprise for unlimited sessions."}
               </p>
             </div>
-            <Button onClick={() => onNavigate("/subscription/plans")}>
+            <Button size="sm" onClick={() => onNavigate("/subscription/plans")}>
               <Crown className="h-4 w-4 mr-2" />
               Upgrade
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Interviews
-            </CardTitle>
-            <Video className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.totalInterviews || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {bookedInterviews.length} booked
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.upcomingInterviews || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Scheduled interviews
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.averageScore || 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Based on {completedInterviews.length} completed
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Practice Hours
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.practicedHours || 0}h
-            </div>
-            <p className="text-xs text-muted-foreground">Total practice time</p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* ── Filter row ───────────────────────────────────────────────────── */}
+        <div className="flex gap-3 items-center flex-wrap mb-6">
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Search templates…"
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+            />
+          </div>
 
-      <Tabs
-        onValueChange={setActiveTab}
-        value={activeTab}
-        defaultValue="templates"
-        className="space-y-4"
-      >
-        <TabsList>
-          <TabsTrigger value="templates">
-            Templates ({totalTemplates})
-          </TabsTrigger>
-          <TabsTrigger value="booked">
-            Booked ({bookedInterviews.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed (
-            {completedInterviews.filter((i) => i.completedSessionId).length})
-          </TabsTrigger>
-        </TabsList>
+          {/* Tab chips */}
+          {(
+            [
+              {
+                value: "templates",
+                label: "All templates",
+                count: totalTemplates,
+              },
+              { value: "saved", label: "Saved", count: savedIds.size },
+              {
+                value: "booked",
+                label: "Booked",
+                count: bookedInterviews.length,
+              },
+              {
+                value: "completed",
+                label: "Completed",
+                count: completedInterviews.filter((i) => i.completedSessionId)
+                  .length,
+              },
+            ] as { value: string; label: string; count: number }[]
+          ).map((chip) => (
+            <button
+              key={chip.value}
+              onClick={() => setActiveTab(chip.value)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm transition-colors",
+                activeTab === chip.value
+                  ? "bg-foreground text-background font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              {chip.label} <span className="opacity-50">{chip.count}</span>
+            </button>
+          ))}
 
-        <TabsContent value="templates" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="filter-difficulty">
-                    <Filter className="h-4 w-4 inline mr-2" />
-                    Difficulty
-                  </Label>
-                  <Select
-                    value={filters.difficulty || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange(
-                        "difficulty",
-                        value === "all" ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger id="filter-difficulty">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-style">Style</Label>
-                  <Select
-                    value={filters.style || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("style", value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="filter-style">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="coding">Coding</SelectItem>
-                      <SelectItem value="system-design">
-                        System Design
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-format">Format</Label>
-                  <Select
-                    value={filters.format || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("format", value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="filter-format">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="audio">Audio</SelectItem>
-                      <SelectItem value="text">Text</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="search">Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Search templates..."
-                      className="pl-8"
-                      value={filters.search}
-                      onChange={(e) =>
-                        handleFilterChange("search", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : templates.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Templates Found</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Try adjusting your filters or create a new template
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
+          {/* Difficulty + Style dropdowns — only for templates/saved */}
+          {(activeTab === "templates" || activeTab === "saved") && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2  gap-6">
-                {templates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className="hover:shadow-lg transition-shadow cursor-pointer"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg line-clamp-2">
-                            {template.name ||
-                              `${template.position} at ${template.company}`}
-                          </CardTitle>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline">
-                              {template.difficulty}
-                            </Badge>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {template.duration} min
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {template.company && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                          <Building2 className="h-3 w-3" />
-                          {template.company}
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="text-sm text-muted-foreground">
-                          <p>{template?.summary?.substring(0, 180) + "..."}</p>
-                        </div>
-                        {template.topics && template.topics.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">
-                              Topics:
-                            </h4>
-                            <div className="flex flex-wrap gap-1">
-                              {template.topics.slice(0, 3).map((topic, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {topic}
-                                </Badge>
-                              ))}
-                              {template.topics.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{template.topics.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        )}
+              <Select
+                value={filters.difficulty || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("difficulty", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-36 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All difficulties</SelectItem>
+                  <SelectItem value="Easy">Easy</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
 
-                        <Button
-                          className="w-full"
-                          onClick={() => handleBookInterview(template)}
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Book Interview
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Showing {pagination.skip + 1} to{" "}
-                  {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
-                  of {totalTemplates} templates
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrevPage}
-                    disabled={pagination.skip === 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextPage}
-                    disabled={!hasMore}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Select
+                value={filters.style || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("style", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Style" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All styles</SelectItem>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="behavioral">Behavioral</SelectItem>
+                  <SelectItem value="coding">Coding</SelectItem>
+                  <SelectItem value="system-design">System Design</SelectItem>
+                </SelectContent>
+              </Select>
             </>
           )}
-        </TabsContent>
+        </div>
 
-        <TabsContent value="booked" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {/* ── Category pills ──────────────────────────────────────────────── */}
+        {(activeTab === "templates" || activeTab === "saved") &&
+          categories.length > 0 && (
+            <div className="flex flex-wrap gap-2 py-2 mb-4">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() =>
+                    handleFilterChange(
+                      "category",
+                      filters.category === cat ? "" : cat,
+                    )
+                  }
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap",
+                    filters.category === cat
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+
+              <Select
+                value={filters.category || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("category", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : bookedInterviews.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+          )}
+
+        {/* ── Templates / Saved tab ─────────────────────────────────────────── */}
+        {(activeTab === "templates" || activeTab === "saved") &&
+          (() => {
+            const list = activeTab === "saved" ? savedTemplates : templates;
+            return (
+              <>
+                {loading ? (
+                  <div className="flex items-center justify-center py-24">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : list.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-center">
+                    <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-1">
+                      {activeTab === "saved"
+                        ? "No saved interviews yet"
+                        : "No Templates Found"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      {activeTab === "saved"
+                        ? "Bookmark templates by clicking the bookmark icon on any card."
+                        : "Try adjusting your filters or check back later."}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Card grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {list.map((template) => (
+                        <div
+                          key={template.id}
+                          onClick={() => handleBookInterview(template)}
+                          className="group bg-card rounded-2xl border border-border p-5 flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+                        >
+                          {/* Top row: category + bookmark */}
+                          <div className="flex items-start justify-between">
+                            <span className="text-[11px] text-muted-foreground font-medium">
+                              {template.category ||
+                                template.style ||
+                                "Interview"}
+                            </span>
+                            <button
+                              onClick={(e) => toggleSaved(template.id, e)}
+                              className="p-0.5 -mt-0.5 rounded transition-colors hover:text-primary"
+                              aria-label="Bookmark"
+                            >
+                              <Bookmark
+                                className={cn(
+                                  "w-4 h-4",
+                                  savedIds.has(template.id)
+                                    ? "fill-primary text-primary"
+                                    : "text-muted-foreground/40",
+                                )}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Title */}
+                          <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                            {template.name ||
+                              `${template.position} at ${template.company}`}
+                          </h3>
+
+                          {/* Description */}
+                          <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-4 flex-1 mt-2">
+                            {template.description || template.summary || ""}
+                          </p>
+
+                          {/* Footer */}
+                          <div className="border-t border-border/50 pt-3 mt-3 flex items-center justify-between">
+                            <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                              <Clock className="w-3.5 h-3.5" />
+                              {template.duration} min
+                            </span>
+                            {difficultyBadge(template.difficulty)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination — only for templates tab */}
+                    {activeTab === "templates" && (
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {pagination.skip + 1}–
+                          {Math.min(
+                            pagination.skip + pagination.size,
+                            totalTemplates,
+                          )}{" "}
+                          of {totalTemplates} templates
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePrevPage}
+                            disabled={pagination.skip === 0}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleNextPage}
+                            disabled={!hasMore}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            );
+          })()}
+
+        {/* ── Booked tab ───────────────────────────────────────────────────── */}
+        {activeTab === "booked" && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : bookedInterviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <h3 className="text-lg font-semibold mb-1">
                   No Booked Interviews
                 </h3>
-                <p className="text-muted-foreground text-center mb-4">
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
                   Book your first mock interview to start practicing
                 </p>
                 <Button onClick={() => setActiveTab("templates")}>
                   Browse Templates
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {bookedInterviews.map((interview) => (
-                <Card
-                  key={interview.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {interview.template.name ||
-                            `${interview.template.position} at ${interview.template.company}`}
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                          {interview.scheduledTime && (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(
-                                  interview.scheduledTime,
-                                ).toLocaleDateString()}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(
-                                  interview.scheduledTime,
-                                ).toLocaleTimeString()}
-                              </div>
-                            </>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Timer className="h-3 w-3" />
-                            {interview.template.duration} min
-                          </div>
-                          <Badge className="hidden lg:block" variant="outline">
-                            {interview.status}
-                          </Badge>
-                        </div>
-                      </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {bookedInterviews.map((interview) => (
+                  <div
+                    key={interview.id}
+                    className="bg-card rounded-2xl border border-border p-5 flex flex-col"
+                  >
+                    {/* Top row */}
+                    <div className="flex items-start justify-between">
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        Booked
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {interview.status}
+                      </Badge>
+                    </div>
 
+                    {/* Title */}
+                    <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                      {interview.template.name ||
+                        `${interview.template.position} at ${interview.template.company}`}
+                    </h3>
+
+                    {/* Meta */}
+                    <div className="flex-1 mt-2 space-y-1">
+                      {interview.scheduledTime && (
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(
+                            interview.scheduledTime,
+                          ).toLocaleDateString()}{" "}
+                          {new Date(interview.scheduledTime).toLocaleTimeString(
+                            [],
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
+                        </p>
+                      )}
+                      <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {interview.template.duration} min
+                      </p>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-border/50 pt-3 mt-3">
                       {!interview.scheduledTime ? (
                         <Button
+                          size="sm"
                           variant="secondary"
+                          className="w-full"
                           onClick={() => {
                             setSelectedTemplate(interview.template);
                             setIsBookingDialogOpen(true);
@@ -1516,75 +1110,91 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                           Schedule Interview
                         </Button>
                       ) : new Date(interview.scheduledTime) > new Date() ? (
-                        <Badge variant={"destructive"}>Upcoming</Badge>
+                        <div className="flex justify-center">
+                          <Badge variant="destructive">Upcoming</Badge>
+                        </div>
                       ) : (
-                        <Button onClick={() => handleJoinInterview(interview)}>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleJoinInterview(interview)}
+                        >
                           <Video className="h-4 w-4 mr-2" />
                           Join Interview
                         </Button>
                       )}
                     </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-        <TabsContent value="completed" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : completedInterviews.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+        {/* ── Completed tab ─────────────────────────────────────────────────── */}
+        {activeTab === "completed" && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : completedInterviews.filter((i) => i.completedSessionId)
+                .length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <h3 className="text-lg font-semibold mb-1">
                   No Completed Interviews
                 </h3>
-                <p className="text-muted-foreground text-center mb-4">
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
                   Complete your first interview to see results here
                 </p>
                 <Button onClick={() => setActiveTab("templates")}>
                   Browse Templates
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {completedInterviews
-                .filter((i) => i.completedSessionId)
-                .map((interview) => (
-                  <Card
-                    key={interview.id}
-                    className="hover:shadow-md transition-shadow"
-                  >
-                    <CardHeader>
-                      <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">
-                            {interview.template.name ||
-                              `${interview.template.position} at ${interview.template.company}`}
-                          </CardTitle>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(
-                                interview.createdAt,
-                              ).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Timer className="h-3 w-3" />
-                              {interview.template.duration} min
-                            </div>
-                            <Badge variant="outline">
-                              {interview.template.difficulty}
-                            </Badge>
-                          </div>
-                        </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {completedInterviews
+                  .filter((i) => i.completedSessionId)
+                  .map((interview) => (
+                    <div
+                      key={interview.id}
+                      className="bg-card rounded-2xl border border-border p-5 flex flex-col"
+                    >
+                      {/* Top row */}
+                      <div className="flex items-start justify-between">
+                        <span className="text-[11px] text-muted-foreground font-medium">
+                          {interview.template.category ||
+                            interview.template.style ||
+                            "Interview"}
+                        </span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                        {interview.template.name ||
+                          `${interview.template.position} at ${interview.template.company}`}
+                      </h3>
+
+                      {/* Meta */}
+                      <div className="flex-1 mt-2 space-y-1">
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(interview.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {interview.template.duration} min
+                        </p>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="border-t border-border/50 pt-3 mt-3">
                         <Button
+                          size="sm"
                           variant="outline"
+                          className="w-full"
                           onClick={() =>
                             handleViewResults(interview.completedSessionId!)
                           }
@@ -1593,216 +1203,329 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                           View Results
                         </Button>
                       </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Dialogs ──────────────────────────────────────────────────────────── */}
 
       {/* Booking Dialog */}
-
       <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Book{" "}
-              {selectedTemplate?.name ||
-                `${selectedTemplate?.position} Interview`}
+        <DialogContent className="w-[95vw] max-w-md p-0 overflow-hidden gap-0">
+          {/* Template overview */}
+
+          <div className="px-6 pt-6 pb-5 border-b border-border">
+            <div className="flex items-center gap-2 mb-2">
+              {selectedTemplate?.category && (
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {selectedTemplate.category}
+                </span>
+              )}
+              {selectedTemplate?.difficulty && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                  {difficultyBadge(selectedTemplate.difficulty)}
+                </span>
+              )}
+            </div>
+            <DialogTitle>
+              <h2 className="text-base font-bold text-foreground leading-tight">
+                {selectedTemplate?.name ||
+                  `${selectedTemplate?.position} Interview`}
+              </h2>
             </DialogTitle>
-            <DialogDescription>
-              Choose how you want to start your mock interview.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-6 py-4">
-            {/* Chat Interview Option */}
-            <Card className="border-primary/30 cursor-pointer hover:border-primary transition-colors">
-              <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">Start Chat Interview</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Text-based AI interview with code editor and whiteboard
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  onClick={() =>
-                    selectedTemplate && handleStartChatNow(selectedTemplate.id)
-                  }
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Start
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or
-                </span>
-              </div>
-            </div>
-
-            {/* Start Now Option (Voice — coming soon) */}
-            <Card className="opacity-50 cursor-not-allowed">
-              <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Play className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">Start Now</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Begin your mock interview immediately with our AI
-                    interviewer
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  disabled={true}
-                  // onClick={() =>
-                  //   selectedTemplate && handleStartNow(selectedTemplate.id)
-                  // }
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Start
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or
-                </span>
-              </div>
-            </div>
-
-            {/* Schedule Option */}
-            <Card className="border-dashed opacity-50">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <CalendarClock className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Schedule for Later</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Pick a date and time that works best for you
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-date">Date</Label>
-                    <Input
-                      id="schedule-date"
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      min={new Date().toISOString().split("T")[0]}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-time">Time</Label>
-                    <Input
-                      id="schedule-time"
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  disabled={true}
-                  // onClick={() =>
-                  //   selectedTemplate &&
-                  //   handleScheduleInterview(selectedTemplate.id)
-                  // }
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Scheduling...
-                    </>
-                  ) : (
-                    <>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Schedule Interview
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Interview Details */}
-          {selectedTemplate && (
-            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-              <h4 className="text-sm font-medium">Interview Details</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Duration: {selectedTemplate.duration} min</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Star className="h-4 w-4" />
-                  <span>Difficulty: {selectedTemplate.difficulty}</span>
-                </div>
-              </div>
-              {selectedTemplate.topics &&
+            {selectedTemplate?.company && (
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {selectedTemplate.company}
+              </p>
+            )}
+            <div className="flex items-center gap-4 mt-3 text-[13px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                {selectedTemplate?.duration} min
+              </span>
+              {selectedTemplate?.topics &&
                 selectedTemplate.topics.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {selectedTemplate.topics.slice(0, 4).map((topic, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {topic}
-                      </Badge>
-                    ))}
-                    {selectedTemplate.topics.length > 4 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{selectedTemplate.topics.length - 4} more
-                      </Badge>
-                    )}
-                  </div>
+                  <span className="flex items-center gap-1.5">
+                    <Layout className="w-3.5 h-3.5" />
+                    {selectedTemplate.topics.length} topics
+                  </span>
                 )}
             </div>
-          )}
+            {selectedTemplate?.topics && selectedTemplate.topics.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {selectedTemplate.topics.slice(0, 5).map((t, i) => (
+                  <span
+                    key={i}
+                    className="text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full"
+                  >
+                    {t}
+                  </span>
+                ))}
+                {selectedTemplate.topics.length > 5 && (
+                  <span className="text-[11px] text-muted-foreground">
+                    +{selectedTemplate.topics.length - 5} more
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mode + action */}
+          <div className="px-6 py-5 space-y-5">
+            {/* Interview type selector */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Interview type
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    {
+                      key: "chat",
+                      icon: MessageSquare,
+                      label: "Text",
+                      available: true,
+                    },
+                    {
+                      key: "video",
+                      icon: Video,
+                      label: "Video",
+                      available: false,
+                    },
+                    {
+                      key: "audio",
+                      icon: Play,
+                      label: "Audio",
+                      available: false,
+                    },
+                  ] as const
+                ).map(({ key, icon: Icon, label, available }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!available}
+                    onClick={() => setSelectedMode(key)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-medium",
+                      !available && "opacity-40 cursor-not-allowed",
+                      available && selectedMode === key
+                        ? "border-primary bg-primary/8 text-primary"
+                        : available
+                          ? "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                          : "border-border/50 text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {label}
+                    {!available && (
+                      <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full -mt-1">
+                        Soon
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                When
+              </p>
+
+              {/* Start now */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScheduleForm(false);
+                  selectedTemplate && handleStartChatNow(selectedTemplate.id);
+                }}
+                disabled={creating || selectedMode !== "chat"}
+                className={cn(
+                  "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed",
+                  !showScheduleForm && selectedMode === "chat"
+                    ? "border-primary bg-primary/5 hover:bg-primary/10"
+                    : "border-border bg-muted/20 hover:border-primary/40",
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                    !showScheduleForm && selectedMode === "chat"
+                      ? "bg-primary/15"
+                      : "bg-muted",
+                  )}
+                >
+                  <Play
+                    className={cn(
+                      "w-4 h-4",
+                      !showScheduleForm && selectedMode === "chat"
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Start Now
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Jump in immediately
+                  </p>
+                </div>
+                {creating ? (
+                  <Loader2
+                    className={cn(
+                      "w-4 h-4 animate-spin flex-shrink-0",
+                      !showScheduleForm && selectedMode === "chat"
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                ) : (
+                  <ArrowRight
+                    className={cn(
+                      "w-4 h-4 flex-shrink-0",
+                      !showScheduleForm && selectedMode === "chat"
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                )}
+              </button>
+
+              {/* Schedule for later */}
+              {selectedMode === "chat" ? (
+                <div
+                  className={cn(
+                    "rounded-xl border-2 transition-all overflow-hidden",
+                    showScheduleForm
+                      ? "border-primary bg-primary/5"
+                      : "border-border",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleForm((v) => !v)}
+                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-primary/5 transition-colors"
+                  >
+                    <div
+                      className={cn(
+                        "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                        showScheduleForm ? "bg-primary/15" : "bg-muted",
+                      )}
+                    >
+                      <CalendarClock
+                        className={cn(
+                          "w-4 h-4",
+                          showScheduleForm
+                            ? "text-primary"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        Book for Later
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Pick a date and time that works for you
+                      </p>
+                    </div>
+                    <ChevronRight
+                      className={cn(
+                        "w-4 h-4 flex-shrink-0 transition-transform",
+                        showScheduleForm
+                          ? "text-primary rotate-90"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                  </button>
+
+                  {showScheduleForm && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-border/50">
+                      <div className="grid grid-cols-2 gap-3 pt-3">
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="schedule-date"
+                            className="text-xs font-medium"
+                          >
+                            Date
+                          </Label>
+                          <Input
+                            id="schedule-date"
+                            type="date"
+                            value={scheduledDate}
+                            onChange={(e) => setScheduledDate(e.target.value)}
+                            min={new Date().toISOString().split("T")[0]}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="schedule-time"
+                            className="text-xs font-medium"
+                          >
+                            Time
+                          </Label>
+                          <Input
+                            id="schedule-time"
+                            type="time"
+                            value={scheduledTime}
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        className="w-full h-9 text-sm"
+                        onClick={() =>
+                          selectedTemplate &&
+                          handleScheduleInterview(selectedTemplate.id)
+                        }
+                        disabled={creating || !scheduledDate || !scheduledTime}
+                      >
+                        {creating ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                            Scheduling…
+                          </>
+                        ) : (
+                          <>
+                            <Calendar className="w-3.5 h-3.5 mr-2" />
+                            Schedule Interview
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border/60 bg-muted/20 opacity-40 cursor-not-allowed select-none">
+                  <div className="flex items-center gap-4 p-4">
+                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <CalendarClock className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        Schedule for Later
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Select Text mode to schedule
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Cancel */}
+          <div className="px-6 pb-5"></div>
         </DialogContent>
       </Dialog>
 
@@ -1858,6 +1581,391 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <Button onClick={() => onNavigate("/subscription/plans")}>
               <Crown className="h-4 w-4 mr-2" />
               View Plans
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create from JD Dialog */}
+      <Dialog
+        open={isCreateInterviewDialogOpen}
+        onOpenChange={setIsCreateInterviewDialogOpen}
+      >
+        <DialogContent className="w-[75vw] max-w-[80vw] h-[90vh] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Custom Mock Interview</DialogTitle>
+            <DialogDescription>
+              Customize your mock interview experience by providing details
+              about the role you're preparing for.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="company" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Company *
+              </Label>
+              <Input
+                id="company"
+                placeholder="e.g., Google, Amazon, Stripe"
+                value={customInterviewData.company}
+                onChange={(e) =>
+                  handleCustomInterviewChange("company", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="position" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                Position *
+              </Label>
+              <Input
+                id="position"
+                placeholder="e.g., Senior Backend Engineer"
+                value={customInterviewData.position}
+                onChange={(e) =>
+                  handleCustomInterviewChange("position", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="seniority" className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Seniority Level
+              </Label>
+              <Select
+                value={customInterviewData.seniority}
+                onValueChange={(value) =>
+                  handleCustomInterviewChange("seniority", value)
+                }
+              >
+                <SelectTrigger id="seniority">
+                  <SelectValue placeholder="Select seniority level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="junior">Junior</SelectItem>
+                  <SelectItem value="mid">Mid-Level</SelectItem>
+                  <SelectItem value="senior">Senior</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="style" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                Interview Style
+              </Label>
+              <Select
+                value={customInterviewData.style}
+                onValueChange={(value) =>
+                  handleCustomInterviewChange("style", value)
+                }
+              >
+                <SelectTrigger id="style">
+                  <SelectValue placeholder="Select interview style" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="behavioral">Behavioral</SelectItem>
+                  <SelectItem value="coding">Coding</SelectItem>
+                  <SelectItem value="system-design">System Design</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="difficulty" className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-muted-foreground" />
+                Difficulty
+              </Label>
+              <Select
+                value={customInterviewData.difficulty}
+                onValueChange={(value) =>
+                  handleCustomInterviewChange("difficulty", value)
+                }
+              >
+                <SelectTrigger id="difficulty">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Easy">Easy</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="duration" className="flex items-center gap-2">
+                <Layout className="h-4 w-4 text-muted-foreground" />
+                Duration
+              </Label>
+              <Select
+                value={customInterviewData.duration + ""}
+                onValueChange={(value) =>
+                  handleCustomInterviewChange("duration", value)
+                }
+              >
+                <SelectTrigger id="duration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[15, 30, 45, 60].map((d) => (
+                    <SelectItem
+                      key={d}
+                      value={d + ""}
+                      disabled={
+                        interviewAccess?.hasAccess === true &&
+                        !interviewAccess.allowedDurations.includes(d)
+                      }
+                    >
+                      {d} min
+                      {interviewAccess?.hasAccess &&
+                        !interviewAccess.allowedDurations.includes(d) &&
+                        " (Enterprise)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2 md:col-span-2">
+              <Label htmlFor="description" className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Job Description *
+              </Label>
+              <Textarea
+                id="description"
+                placeholder="Paste the job description here..."
+                rows={8}
+                value={customInterviewData.description}
+                onChange={(e) =>
+                  handleCustomInterviewChange("description", e.target.value)
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateInterviewDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateCustomInterview} disabled={creating}>
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Video className="h-4 w-4 mr-2" />
+                  Create & Start
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Template Dialog */}
+      <Dialog
+        open={isCreateTemplateDialogOpen}
+        onOpenChange={setIsCreateTemplateDialogOpen}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Interview Template</DialogTitle>
+            <DialogDescription>
+              Create a reusable interview template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Template Name *</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Backend Developer Interview"
+                value={templateFormData.name}
+                onChange={(e) =>
+                  handleTemplateFormChange("name", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="summary">Summary *</Label>
+              <Textarea
+                id="summary"
+                placeholder="Brief description of the template"
+                rows={3}
+                value={templateFormData.summary}
+                onChange={(e) =>
+                  handleTemplateFormChange("summary", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  placeholder="e.g., Backend Development"
+                  value={templateFormData.category}
+                  onChange={(e) =>
+                    handleTemplateFormChange("category", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="template-difficulty">Difficulty</Label>
+                <Select
+                  value={templateFormData.difficulty}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("difficulty", value)
+                  }
+                >
+                  <SelectTrigger id="template-difficulty">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">Easy</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="seniority" className="flex items-center gap-2">
+                  Seniority Level
+                </Label>
+                <Select
+                  value={templateFormData.seniority}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("seniority", value)
+                  }
+                >
+                  <SelectTrigger id="seniority">
+                    <SelectValue placeholder="Select seniority level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="junior">Junior</SelectItem>
+                    <SelectItem value="mid">Mid-Level</SelectItem>
+                    <SelectItem value="senior">Senior</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="style" className="flex items-center gap-2">
+                  Interview Style
+                </Label>
+                <Select
+                  value={templateFormData.style}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("style", value)
+                  }
+                >
+                  <SelectTrigger id="style">
+                    <SelectValue placeholder="Select interview style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="behavioral">Behavioral</SelectItem>
+                    <SelectItem value="coding">Coding</SelectItem>
+                    <SelectItem value="system-design">System Design</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="duration" className="flex items-center gap-2">
+                Duration
+              </Label>
+              <Select
+                value={templateFormData.duration + ""}
+                onValueChange={(value) =>
+                  handleTemplateFormChange("duration", value)
+                }
+              >
+                <SelectTrigger id="duration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[15, 30, 45, 60].map((d) => (
+                    <SelectItem
+                      key={d}
+                      value={d + ""}
+                      disabled={
+                        interviewAccess?.hasAccess === true &&
+                        !interviewAccess.allowedDurations.includes(d)
+                      }
+                    >
+                      {d} min
+                      {interviewAccess?.hasAccess &&
+                        !interviewAccess.allowedDurations.includes(d) &&
+                        " (Enterprise)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="topics">Topics</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="topics"
+                  placeholder="Add a topic"
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleAddTopic()}
+                />
+                <Button type="button" onClick={handleAddTopic}>
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {templateFormData.topics.map((topic, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => handleRemoveTopic(index)}
+                  >
+                    {topic} ×
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateTemplateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTemplate} disabled={creating}>
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Template"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
