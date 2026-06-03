@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { ChatMessageBubble, TypingIndicator, StreamingMessage } from "./chat-message";
+import {
+  ChatMessageBubble,
+  TypingIndicator,
+  StreamingMessage,
+} from "./chat-message";
 import { ChatInput } from "./chat-input";
 import { Button } from "@/components/ui/button";
 import { Trophy } from "lucide-react";
@@ -43,7 +47,6 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-
       {/* Messages */}
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
@@ -77,9 +80,17 @@ export function ChatPanel({
           role="status"
           aria-live="polite"
         >
-          <div className={cn("flex items-center justify-between gap-3", centered && "max-w-3xl mx-auto")}>
+          <div
+            className={cn(
+              "flex items-center justify-between gap-3",
+              centered && "max-w-3xl mx-auto",
+            )}
+          >
             <div className="flex items-center gap-2 min-w-0">
-              <Trophy className="w-4 h-4 text-emerald-500 flex-shrink-0" aria-hidden="true" />
+              <Trophy
+                className="w-4 h-4 text-emerald-500 flex-shrink-0"
+                aria-hidden="true"
+              />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                   Interview Complete!
@@ -93,7 +104,9 @@ export function ChatPanel({
               <Button
                 size="sm"
                 className="flex-shrink-0 h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => window.location.href = `/mock-interviews/${sessionId}/results`}
+                onClick={() =>
+                  (window.location.href = `/mock-interviews/${sessionId}/results`)
+                }
                 aria-label="View your interview results"
               >
                 View Results
@@ -107,15 +120,24 @@ export function ChatPanel({
       <div className={cn("flex-shrink-0 border-t border-border")}>
         <div className={cn(centered && "max-w-3xl mx-auto w-full")}>
           {!isComplete && (
-            <div className="px-4 sm:px-5 pt-2 pb-0" aria-live="polite" aria-atomic="true">
-              <p className="text-xs text-muted-foreground" aria-label={`${userResponseCount} of ${totalQuestions} responses submitted`}>
+            <div
+              className="px-4 sm:px-5 pt-2 pb-0"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <p
+                className="text-xs text-muted-foreground"
+                aria-label={`${userResponseCount} of ${totalQuestions} responses submitted`}
+              >
                 {userResponseCount} / {totalQuestions} Responses
               </p>
             </div>
           )}
           <ChatInput
             onSend={onSend}
-            disabled={disabled || isAITyping || !!streamingContent || isComplete}
+            disabled={
+              disabled || isAITyping || !!streamingContent || isComplete
+            }
             placeholder={
               isComplete
                 ? "Interview complete"
