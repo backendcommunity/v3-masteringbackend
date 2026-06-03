@@ -1,98 +1,31 @@
 "use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
+import "@excalidraw/excalidraw/index.css";
 import dynamic from "next/dynamic";
-import { Button } from "@/components/ui/button";
-import { Send, Loader2 } from "lucide-react";
-
-interface WhiteboardPanelProps {
-  onSendToKap: (diagramJSON: string, svgString: string) => void;
-  disabled?: boolean;
-  savedDiagram?: unknown;
-}
-
-// Dynamically import Excalidraw to avoid SSR issues
-const ExcalidrawComponent = dynamic(
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Footer } from "@excalidraw/excalidraw";
+// Load Excalidraw and WelcomeScreen client-side only
+const ExcalidrawWithWelcome = dynamic(
   async () => {
-    const { Excalidraw } = await import("@excalidraw/excalidraw");
-    return Excalidraw;
-  },
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center w-full h-full bg-white">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    ),
-  }
-);
+    const { Excalidraw, WelcomeScreen } =
+      await import("@excalidraw/excalidraw");
 
-export function WhiteboardPanel({ onSendToKap, disabled, savedDiagram }: WhiteboardPanelProps) {
-  const excalidrawAPIRef = useRef<any>(null);
-  const [isSending, setIsSending] = useState(false);
-  const [libraryData, setLibraryData] = useState<any>(null);
-
-  useEffect(() => {
-    fetch("/mb.excalidrawlib")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.library) setLibraryData(data.library);
-      })
-      .catch(() => {});
-  }, []);
-
-  const setExcalidrawAPI = useCallback((api: any) => {
-    excalidrawAPIRef.current = api;
-  }, []);
-
-  const handleSendToKap = async () => {
-    if (!excalidrawAPIRef.current || disabled) return;
-
-    setIsSending(true);
-    try {
-      const elements = excalidrawAPIRef.current.getSceneElements();
-      const appState = excalidrawAPIRef.current.getAppState();
-      const files = excalidrawAPIRef.current.getFiles();
-
-      const diagramJSON = JSON.stringify({ elements, appState, files });
-
-      let svgString = "";
-      try {
-        const { exportToSvg } = await import("@excalidraw/excalidraw");
-        const svgElement = await exportToSvg({
-          elements,
-          appState,
-          files,
-        });
-        svgString = new XMLSerializer().serializeToString(svgElement);
-      } catch {
-        // SVG export failed, use empty string
-        svgString = "";
-      }
-
-      onSendToKap(diagramJSON, svgString);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const initialData = {
-    ...(savedDiagram ? (savedDiagram as any) : {
-      appState: {
-        currentItemStrokeColor: "#0E1F33",
-        currentItemBackgroundColor: "transparent",
-        viewBackgroundColor: "#FFFFFF",
-      },
-    }),
-    libraryItems: libraryData,
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0 relative">
-        <ExcalidrawComponent
-          excalidrawAPI={setExcalidrawAPI}
+    return function ExcalidrawWithWelcome({
+      excalidrawAPI,
+      onChange,
+      initialData,
+    }: {
+      excalidrawAPI: (api: any) => void;
+      onChange: (elements: readonly any[], state: any, files: any) => void;
+      initialData?: any;
+    }) {
+      return (
+        <Excalidraw
+          excalidrawAPI={excalidrawAPI}
+          onChange={onChange}
           initialData={initialData}
+          theme="light"
           UIOptions={{
             canvasActions: {
               export: false,
@@ -102,25 +35,115 @@ export function WhiteboardPanel({ onSendToKap, disabled, savedDiagram }: Whitebo
               toggleTheme: false,
             },
           }}
+        >
+          <WelcomeScreen>
+            <WelcomeScreen.Hints.MenuHint />
+            <WelcomeScreen.Hints.ToolbarHint />
+          </WelcomeScreen>
+        </Excalidraw>
+      );
+    };
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center space-y-2">
+          <Loader2 className="w-7 h-7 animate-spin text-primary mx-auto" />
+          <p className="text-xs text-muted-foreground">Loading whiteboard…</p>
+        </div>
+      </div>
+    ),
+  },
+);
+
+interface WhiteboardPanelProps {
+  onSendToKap: (diagramJSON: string) => void;
+  disabled?: boolean;
+  savedDiagram?: unknown;
+}
+
+export function WhiteboardPanel({
+  onSendToKap,
+  disabled,
+  savedDiagram,
+}: WhiteboardPanelProps) {
+  const excalidrawAPIRef = useRef<any>(null);
+  const [hasContent, setHasContent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [libaryData, setLibraryData] = useState<any>(null);
+
+  const handleChange = useCallback((elements: readonly any[]) => {
+    setHasContent(elements.some((el: any) => !el.isDeleted));
+  }, []);
+
+  const handleSendToKap = async () => {
+    if (!excalidrawAPIRef.current || disabled || isSending) return;
+    setIsSending(true);
+    try {
+      const elements = excalidrawAPIRef.current.getSceneElements();
+      const appState = excalidrawAPIRef.current.getAppState();
+      const files = excalidrawAPIRef.current.getFiles();
+      onSendToKap(JSON.stringify({ elements, appState, files }));
+    } finally {
+      setTimeout(() => setIsSending(false), 1000);
+    }
+  };
+
+  useEffect(() => {
+    fetch("/mb.excalidrawlib")
+      .then((res) => res.json())
+      .then((data) => {
+        // The file structure typically contains a 'libraryItems' array
+        console.log("Excalidraw library loaded with items:", data);
+        if (data.library) {
+          setLibraryData(data.library);
+        }
+      })
+      .catch((err) => console.error("Error loading Excalidraw library:", err));
+  }, []);
+
+  const initialData = savedDiagram
+    ? {
+        elements: (savedDiagram as any)?.elements || [],
+      }
+    : undefined;
+
+  return (
+    <div className="relative h-full w-full bg-background">
+      {/* Full-canvas Excalidraw — native toolbar visible */}
+      <div className="h-full w-full excal">
+        <ExcalidrawWithWelcome
+          excalidrawAPI={(api) => {
+            excalidrawAPIRef.current = api;
+          }}
+          onChange={handleChange}
+          initialData={{
+            ...initialData,
+            libraryItems: libaryData,
+          }}
         />
       </div>
-      {!disabled && (
-        <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-background">
-          <Button
-            size="sm"
-            onClick={handleSendToKap}
-            disabled={isSending || disabled}
-            className="gap-1.5 text-xs h-8"
-          >
-            {isSending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-            Send to Kap
-          </Button>
-        </div>
-      )}
+
+      {/* "Send to Kap" — floats above Excalidraw's bottom footer on the right */}
+      {/* right-14 = ~56px gap clears Excalidraw's native help button at bottom-right */}
+      <div className="absolute bottom-3 right-14 z-[100] pointer-events-auto">
+        <button
+          onClick={handleSendToKap}
+          disabled={disabled || !hasContent || isSending}
+          className={cn(
+            "h-9 px-5 rounded-lg text-sm font-semibold transition-all",
+            "shadow-sm",
+            disabled || !hasContent
+              ? "bg-primary/40 text-primary-foreground cursor-not-allowed opacity-60"
+              : isSending
+                ? "bg-primary/80 text-primary-foreground opacity-80"
+                : "bg-primary hover:bg-primary/90 text-primary-foreground",
+          )}
+        >
+          {isSending ? "Sending…" : "Send to Kap"}
+        </button>
+      </div>
     </div>
   );
 }

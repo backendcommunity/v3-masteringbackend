@@ -1,176 +1,130 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { ChatMessageBubble, TypingIndicator, StreamingMessage } from "./chat-message";
+import { ChatInput } from "./chat-input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send } from "lucide-react";
-import { ChatMessage, ChatInterviewSession } from "@/lib/store";
-import { ChatMessageBubble } from "./chat-message";
-import { ResultCard, ReportData } from "./result-card";
+import { Trophy } from "lucide-react";
+import type { ChatMessage } from "@/lib/store";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
-  session: ChatInterviewSession | null;
-  isComplete: boolean;
-  isStreaming: boolean;
+  streamingContent: string;
+  isAITyping: boolean;
+  currentQuestionIndex: number;
+  totalQuestions: number;
   onSend: (content: string) => void;
-  resultsData?: ReportData | null;
-  isLoadingResults?: boolean;
-  resultsError?: string | null;
-  onGetResults?: () => void;
-  questionAnalysis?: Array<{ score: number; feedback: string }>;
-  resultsRevealed?: boolean;
+  disabled?: boolean;
+  isComplete?: boolean;
   centered?: boolean;
+  sessionId?: string;
 }
 
 export function ChatPanel({
   messages,
-  session,
-  isComplete,
-  isStreaming,
+  streamingContent,
+  isAITyping,
+  currentQuestionIndex,
+  totalQuestions,
   onSend,
-  resultsData,
-  isLoadingResults,
-  resultsError,
-  onGetResults,
-  questionAnalysis,
-  resultsRevealed,
+  disabled,
+  isComplete,
   centered,
+  sessionId,
 }: ChatPanelProps) {
-  const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Scroll to bottom whenever messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length, streamingContent, isAITyping]);
 
-  // Build a map of questionIndex → analysis for fast lookup
-  const analysisMap = useMemo(() => {
-    const map = new Map<number, { score: number; feedback: string }>();
-    if (questionAnalysis) {
-      questionAnalysis.forEach((a, i) => {
-        map.set(i, a);
-      });
-    }
-    return map;
-  }, [questionAnalysis]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed || isComplete || isStreaming) return;
-    setInput("");
-    onSend(trimmed);
-  };
+  const userResponseCount = messages.filter((m) => m.role === "user").length;
 
   return (
-    <div className={cn("flex flex-col h-full", centered && "max-w-2xl mx-auto w-full")}>
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {messages.map((msg) => {
-          const analysis =
-            resultsRevealed && msg.role === "user"
-              ? (analysisMap.get(msg.questionIndex) ?? null)
-              : null;
-          return (
-            <ChatMessageBubble
-              key={msg.id}
-              message={msg}
-              analysis={analysis}
-            />
-          );
-        })}
-
-        {/* Completion banner */}
-        {isComplete && (
-          <div className="rounded-xl border border-border bg-muted/30 px-4 py-4 text-center space-y-3">
-            <p className="text-sm font-semibold text-foreground">
-              Interview complete
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain"
+        role="log"
+        aria-label="Interview conversation"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-busy={isAITyping}
+      >
+        <div className={cn("py-3", centered && "max-w-3xl mx-auto w-full")}>
+          {messages.length === 0 && (
+            <p className="text-center text-xs text-muted-foreground py-8 px-4">
+              Your conversation with Kap will appear here.
             </p>
-            <p className="text-[12px] text-muted-foreground">
-              Great work! Your session has ended.
-            </p>
+          )}
+          {messages.map((message) => (
+            <ChatMessageBubble key={message.id} message={message} />
+          ))}
+          {streamingContent && !isAITyping && (
+            <StreamingMessage content={streamingContent} />
+          )}
+          {isAITyping && !streamingContent && <TypingIndicator />}
+          <div ref={bottomRef} aria-hidden="true" />
+        </div>
+      </div>
 
-            {resultsData ? (
-              <ResultCard data={resultsData} />
-            ) : resultsError ? (
-              <p className="text-xs text-red-500">{resultsError}</p>
-            ) : (
+      {/* Completion banner */}
+      {isComplete && (
+        <div
+          className="flex-shrink-0 px-4 sm:px-5 py-3 bg-emerald-500/10 border-t border-emerald-500/20"
+          role="status"
+          aria-live="polite"
+        >
+          <div className={cn("flex items-center justify-between gap-3", centered && "max-w-3xl mx-auto")}>
+            <div className="flex items-center gap-2 min-w-0">
+              <Trophy className="w-4 h-4 text-emerald-500 flex-shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                  Interview Complete!
+                </p>
+                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 truncate">
+                  Your report is being generated…
+                </p>
+              </div>
+            </div>
+            {sessionId && (
               <Button
                 size="sm"
-                onClick={onGetResults}
-                disabled={isLoadingResults}
-                className="gap-1.5"
+                className="flex-shrink-0 h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => window.location.href = `/mock-interviews/${sessionId}/results`}
+                aria-label="View your interview results"
               >
-                {isLoadingResults ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Generating…
-                  </>
-                ) : (
-                  "Get your feedback"
-                )}
+                View Results
               </Button>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-border px-4 py-3 bg-background">
-        <div className="flex gap-2 items-end">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isComplete || isStreaming}
+      {/* Footer: response counter + input */}
+      <div className={cn("flex-shrink-0 border-t border-border")}>
+        <div className={cn(centered && "max-w-3xl mx-auto w-full")}>
+          {!isComplete && (
+            <div className="px-4 sm:px-5 pt-2 pb-0" aria-live="polite" aria-atomic="true">
+              <p className="text-xs text-muted-foreground" aria-label={`${userResponseCount} of ${totalQuestions} responses submitted`}>
+                {userResponseCount} / {totalQuestions} Responses
+              </p>
+            </div>
+          )}
+          <ChatInput
+            onSend={onSend}
+            disabled={disabled || isAITyping || !!streamingContent || isComplete}
             placeholder={
               isComplete
-                ? "Interview ended"
-                : isStreaming
+                ? "Interview complete"
+                : isAITyping || streamingContent
                   ? "Kap is responding…"
-                  : "Type your answer…"
+                  : "Enter response here"
             }
-            rows={1}
-            className={cn(
-              "flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-              "min-h-[40px] max-h-[120px] overflow-y-auto leading-relaxed"
-            )}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = "auto";
-              el.style.height = Math.min(el.scrollHeight, 120) + "px";
-            }}
           />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={isComplete || isStreaming || !input.trim()}
-            className="h-10 w-10 flex-shrink-0"
-          >
-            {isStreaming ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
         </div>
-        {!isComplete && (
-          <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-            Press Enter to send · Shift+Enter for new line
-          </p>
-        )}
       </div>
     </div>
   );

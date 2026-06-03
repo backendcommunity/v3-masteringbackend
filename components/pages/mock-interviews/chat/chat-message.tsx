@@ -16,17 +16,24 @@ export function ChatMessageBubble({ message, analysis }: ChatMessageProps) {
     <div
       className={cn(
         "flex gap-2 w-full",
-        isAI ? "justify-start" : "justify-end"
+        isAI ? "justify-start" : "justify-end",
       )}
     >
       {/* AI avatar */}
       {isAI && (
         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
-          <span className="text-[11px] font-bold text-primary-foreground">K</span>
+          <span className="text-[11px] font-bold text-primary-foreground">
+            K
+          </span>
         </div>
       )}
 
-      <div className={cn("flex flex-col gap-1 max-w-[80%]", isAI ? "items-start" : "items-end")}>
+      <div
+        className={cn(
+          "flex flex-col gap-1 max-w-[80%]",
+          isAI ? "items-start" : "items-end",
+        )}
+      >
         {/* Message bubble */}
         <div className="flex items-start gap-2">
           {/* Score bar for user messages with analysis */}
@@ -40,9 +47,11 @@ export function ChatMessageBubble({ message, analysis }: ChatMessageProps) {
                       ? "bg-green-400"
                       : analysis.score >= 50
                         ? "bg-amber-400"
-                        : "bg-red-400"
+                        : "bg-red-400",
                   )}
-                  style={{ height: `${Math.min(100, Math.max(0, analysis.score))}%` }}
+                  style={{
+                    height: `${Math.min(100, Math.max(0, analysis.score))}%`,
+                  }}
                 />
               </div>
               <span
@@ -52,7 +61,7 @@ export function ChatMessageBubble({ message, analysis }: ChatMessageProps) {
                     ? "text-green-500"
                     : analysis.score >= 50
                       ? "text-amber-500"
-                      : "text-red-500"
+                      : "text-red-500",
                 )}
               >
                 {Math.round(analysis.score / 10)}/10
@@ -65,7 +74,7 @@ export function ChatMessageBubble({ message, analysis }: ChatMessageProps) {
               "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
               isAI
                 ? "bg-transparent text-foreground prose prose-sm max-w-none"
-                : "bg-muted text-foreground"
+                : "bg-muted text-foreground",
             )}
           >
             {/* Artifact: whiteboard */}
@@ -105,7 +114,9 @@ export function ChatMessageBubble({ message, analysis }: ChatMessageProps) {
                         .join("\n")}
                       {message.artifactRef.code.split("\n").length > 8 && (
                         <span className="text-muted-foreground">
-                          {"\n"}… {message.artifactRef.code.split("\n").length - 8} more lines
+                          {"\n"}…{" "}
+                          {message.artifactRef.code.split("\n").length - 8} more
+                          lines
                         </span>
                       )}
                     </pre>

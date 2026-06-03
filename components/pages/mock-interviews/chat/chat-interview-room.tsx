@@ -31,12 +31,16 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [resultsRevealed, setResultsRevealed] = useState(false);
-  const [questionAnalysis, setQuestionAnalysis] = useState<Array<{ score: number; feedback: string }>>([]);
+  const [questionAnalysis, setQuestionAnalysis] = useState<
+    Array<{ score: number; feedback: string }>
+  >([]);
 
   const sessionIdRef = useRef<string | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -51,108 +55,115 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         sessionIdRef.current = data.sessionId;
       } catch (err: any) {
         if (!cancelled) {
-          setInitError(err?.message ?? "Failed to start interview. Please try again.");
+          setInitError(
+            err?.message ?? "Failed to start interview. Please try again.",
+          );
         }
       } finally {
         if (!cancelled) setIsInitializing(false);
       }
     }
     init();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInterviewId]);
 
-  const handleSend = useCallback(async (content: string) => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId || isStreaming || isComplete) return;
+  const handleSend = useCallback(
+    async (content: string) => {
+      const sessionId = sessionIdRef.current;
+      if (!sessionId || isStreaming || isComplete) return;
 
-    const userMsgId = `user-${Date.now()}`;
-    const aiMsgId = `ai-${Date.now() + 1}`;
+      const userMsgId = `user-${Date.now()}`;
+      const aiMsgId = `ai-${Date.now() + 1}`;
 
-    // Optimistic user message
-    const userMsg: ChatMessage = {
-      id: userMsgId,
-      role: "user",
-      content,
-      timestamp: new Date().toISOString(),
-      questionIndex: messagesRef.current.filter((m) => m.role === "user").length,
-    };
+      // Optimistic user message
+      const userMsg: ChatMessage = {
+        id: userMsgId,
+        role: "user",
+        content,
+        timestamp: new Date().toISOString(),
+        questionIndex: messagesRef.current.filter((m) => m.role === "user")
+          .length,
+      };
 
-    // Placeholder AI message for streaming
-    const aiMsg: ChatMessage = {
-      id: aiMsgId,
-      role: "ai",
-      content: "",
-      timestamp: new Date().toISOString(),
-      questionIndex: -1,
-    };
+      // Placeholder AI message for streaming
+      const aiMsg: ChatMessage = {
+        id: aiMsgId,
+        role: "ai",
+        content: "",
+        timestamp: new Date().toISOString(),
+        questionIndex: -1,
+      };
 
-    setMessages((prev) => [...prev, userMsg, aiMsg]);
-    streamingMessageIdRef.current = aiMsgId;
-    setIsStreaming(true);
+      setMessages((prev) => [...prev, userMsg, aiMsg]);
+      streamingMessageIdRef.current = aiMsgId;
+      setIsStreaming(true);
 
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-    try {
-      reader = await store.streamChatMessage(sessionId, content);
-      const decoder = new TextDecoder();
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      try {
+        reader = await store.streamChatMessage(sessionId, content);
+        const decoder = new TextDecoder();
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
 
-        for (const line of lines) {
-          if (!line.startsWith("data:")) continue;
-          const jsonStr = line.slice(5).trim();
-          if (!jsonStr) continue;
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const jsonStr = line.slice(5).trim();
+            if (!jsonStr) continue;
 
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "token" && parsed.content) {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === aiMsgId
-                    ? { ...m, content: m.content + parsed.content }
-                    : m
-                )
-              );
-            } else if (parsed.type === "done") {
-              if (parsed.isComplete) {
-                setIsComplete(true);
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.type === "token" && parsed.content) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === aiMsgId
+                      ? { ...m, content: m.content + parsed.content }
+                      : m,
+                  ),
+                );
+              } else if (parsed.type === "done") {
+                if (parsed.isComplete) {
+                  setIsComplete(true);
+                }
               }
+            } catch {
+              // Skip malformed JSON lines
             }
-          } catch {
-            // Skip malformed JSON lines
           }
         }
+      } catch (err: any) {
+        // Remove placeholder AI message on error
+        setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
+      } finally {
+        if (reader) {
+          reader.cancel().catch(() => {});
+        }
+        streamingMessageIdRef.current = null;
+        setIsStreaming(false);
       }
-    } catch (err: any) {
-      // Remove placeholder AI message on error
-      setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
-    } finally {
-      if (reader) {
-        reader.cancel().catch(() => {});
-      }
-      streamingMessageIdRef.current = null;
-      setIsStreaming(false);
-    }
-  }, [isStreaming, isComplete, store]);
+    },
+    [isStreaming, isComplete, store],
+  );
 
-  const handleSendArtifact = useCallback(async (
-    type: "code" | "whiteboard",
-    data: string,
-    language?: string,
-  ) => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId) return;
-    try {
-      await store.saveChatArtifact(sessionId, type, data, language);
-    } catch {
-      // Silently ignore artifact save errors
-    }
-  }, [store]);
+  const handleSendArtifact = useCallback(
+    async (type: "code" | "whiteboard", data: string, language?: string) => {
+      const sessionId = sessionIdRef.current;
+      if (!sessionId) return;
+      try {
+        await store.saveChatArtifact(sessionId, type, data, language);
+      } catch {
+        // Silently ignore artifact save errors
+      }
+    },
+    [store],
+  );
 
   const handleEndInterview = useCallback(async () => {
     const sessionId = sessionIdRef.current;
@@ -180,52 +191,64 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           report.questionAnalysis.map((q: any) => ({
             score: q.score,
             feedback: q.feedback,
-          }))
+          })),
         );
         setResultsRevealed(true);
       }
     } catch (err: any) {
-      setResultsError(err?.message ?? "Failed to generate report. Please try again.");
+      setResultsError(
+        err?.message ?? "Failed to generate report. Please try again.",
+      );
     } finally {
       setIsLoadingResults(false);
     }
   }, [store]);
 
-  const handleWhiteboardSend = useCallback((diagramJSON: string, svgString: string) => {
-    // Inject svg into the latest whiteboard artifact message
-    if (svgString) {
+  const handleWhiteboardSend = useCallback(
+    (diagramJSON: string, svgString: string) => {
+      // Inject svg into the latest whiteboard artifact message
+      if (svgString) {
+        setMessages((prev) => {
+          const lastWhiteboardIdx = [...prev]
+            .reverse()
+            .findIndex(
+              (m) => m.role === "user" && m.artifactRef?.type === "whiteboard",
+            );
+          if (lastWhiteboardIdx === -1) return prev;
+          const realIdx = prev.length - 1 - lastWhiteboardIdx;
+          return prev.map((m, i) =>
+            i === realIdx && m.artifactRef
+              ? { ...m, artifactRef: { ...m.artifactRef, svg: svgString } }
+              : m,
+          );
+        });
+      }
+      handleSendArtifact("whiteboard", diagramJSON);
+    },
+    [handleSendArtifact],
+  );
+
+  const handleCodeSend = useCallback(
+    (code: string, language: string) => {
+      // Inject code into the latest code artifact message
       setMessages((prev) => {
-        const lastWhiteboardIdx = [...prev].reverse().findIndex(
-          (m) => m.role === "user" && m.artifactRef?.type === "whiteboard"
-        );
-        if (lastWhiteboardIdx === -1) return prev;
-        const realIdx = prev.length - 1 - lastWhiteboardIdx;
+        const lastCodeIdx = [...prev]
+          .reverse()
+          .findIndex(
+            (m) => m.role === "user" && m.artifactRef?.type === "code",
+          );
+        if (lastCodeIdx === -1) return prev;
+        const realIdx = prev.length - 1 - lastCodeIdx;
         return prev.map((m, i) =>
           i === realIdx && m.artifactRef
-            ? { ...m, artifactRef: { ...m.artifactRef, svg: svgString } }
-            : m
+            ? { ...m, artifactRef: { ...m.artifactRef, code, language } }
+            : m,
         );
       });
-    }
-    handleSendArtifact("whiteboard", diagramJSON);
-  }, [handleSendArtifact]);
-
-  const handleCodeSend = useCallback((code: string, language: string) => {
-    // Inject code into the latest code artifact message
-    setMessages((prev) => {
-      const lastCodeIdx = [...prev].reverse().findIndex(
-        (m) => m.role === "user" && m.artifactRef?.type === "code"
-      );
-      if (lastCodeIdx === -1) return prev;
-      const realIdx = prev.length - 1 - lastCodeIdx;
-      return prev.map((m, i) =>
-        i === realIdx && m.artifactRef
-          ? { ...m, artifactRef: { ...m.artifactRef, code, language } }
-          : m
-      );
-    });
-    handleSendArtifact("code", code, language);
-  }, [handleSendArtifact]);
+      handleSendArtifact("code", code, language);
+    },
+    [handleSendArtifact],
+  );
 
   // Loading state
   if (isInitializing) {
@@ -244,9 +267,15 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center space-y-3 px-4">
-          <p className="text-sm font-semibold text-foreground">Unable to start interview</p>
+          <p className="text-sm font-semibold text-foreground">
+            Unable to start interview
+          </p>
           <p className="text-xs text-muted-foreground">{initError}</p>
-          <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.location.reload()}
+          >
             Try again
           </Button>
         </div>
@@ -255,8 +284,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }
 
   const savedDiagram =
-    session.whiteboardArtifact &&
-    typeof session.whiteboardArtifact === "object"
+    session.whiteboardArtifact && typeof session.whiteboardArtifact === "object"
       ? session.whiteboardArtifact
       : undefined;
 
@@ -299,7 +327,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "code"
                   ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
               )}
             >
               <Code2 className="w-3.5 h-3.5" />
@@ -311,7 +339,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "whiteboard"
                   ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
               )}
             >
               <PenTool className="w-3.5 h-3.5" />

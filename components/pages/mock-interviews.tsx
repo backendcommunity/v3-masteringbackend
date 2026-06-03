@@ -367,14 +367,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       setCreating(true);
       const result = await store.scheduleInterviewFromTemplate(templateId, {});
 
-      if (!result?.id) {
+      if (!result?.interview?.id) {
         toast.error("Failed to start chat interview");
         return;
       }
 
       toast.success("Chat interview started!");
       setIsBookingDialogOpen(false);
-      onNavigate(`/mock-interviews/${result.id}/chat`);
+      onNavigate(`/mock-interviews/${result.interview.id}/chat`);
     } catch (error: any) {
       if (error?.response?.status === 402) {
         setIsBookingDialogOpen(false);
