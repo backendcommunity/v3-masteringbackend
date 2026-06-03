@@ -110,9 +110,9 @@ export function WhiteboardPanel({
     : undefined;
 
   return (
-    <div className="relative h-full w-full bg-background">
-      {/* Full-canvas Excalidraw — native toolbar visible */}
-      <div className="h-full w-full excal">
+    <div className="relative h-full w-full bg-background flex flex-col">
+      {/* Full-canvas Excalidraw — leave room for footer */}
+      <div className="flex-1 min-h-0 pb-[41px] excal">
         <ExcalidrawWithWelcome
           excalidrawAPI={(api) => {
             excalidrawAPIRef.current = api;
@@ -125,19 +125,20 @@ export function WhiteboardPanel({
         />
       </div>
 
-      {/* "Send to Kap" — floats above Excalidraw's bottom footer on the right */}
-      {/* right-14 = ~56px gap clears Excalidraw's native help button at bottom-right */}
-      <div className="absolute bottom-3 right-14 z-[100] pointer-events-auto">
+      {/* Footer — same design as code editor footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-[100] flex items-center justify-between px-3 py-2 border-t border-border bg-background">
+        <span className="text-[10px] text-muted-foreground">
+          {disabled ? "Interview ended" : "Share your diagram with Kap"}
+        </span>
         <button
           onClick={handleSendToKap}
           disabled={disabled || !hasContent || isSending}
           className={cn(
-            "h-9 px-5 rounded-lg text-sm font-semibold transition-all",
-            "shadow-sm",
+            "inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-semibold transition-all",
             disabled || !hasContent
-              ? "bg-primary/40 text-primary-foreground cursor-not-allowed opacity-60"
+              ? "bg-primary/40 text-primary-foreground cursor-not-allowed opacity-50"
               : isSending
-                ? "bg-primary/80 text-primary-foreground opacity-80"
+                ? "bg-primary/80 text-primary-foreground"
                 : "bg-primary hover:bg-primary/90 text-primary-foreground",
           )}
         >

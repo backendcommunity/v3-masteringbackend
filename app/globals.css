@@ -860,9 +860,10 @@ article ul li {
   animation-delay: 0.4s;
 }
 
-/* .excal .excalidraw {
-  --color-primary: red;
+.excal .excalidraw {
+  --color-primary: #13AECE;
+  --color-primary-darker: #0e8faa;
+  --color-primary-darkest: #0a6e84;
+  --color-primary-light: rgba(19, 174, 206, 0.12);
+  --color-primary-contrast-offset: rgba(19, 174, 206, 0.08);
 }
-.excal .excalidraw.theme--dark {
-  --color-primary: pink;
-} */

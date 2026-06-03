@@ -155,8 +155,8 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             "flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
             isRecording
-              ? "bg-destructive text-destructive-foreground shadow-md motion-safe:animate-pulse"
-              : "bg-muted text-muted-foreground hover:bg-muted/80",
+              ? "bg-destructive text-destructive-foreground shadow-lg motion-safe:animate-pulse scale-110"
+              : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/60",
             "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
         >

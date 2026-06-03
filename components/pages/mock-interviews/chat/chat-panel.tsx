@@ -71,7 +71,7 @@ export function ChatPanel({
         aria-relevant="additions"
         aria-busy={isStreaming}
       >
-        <div className="py-3">
+        <div className="py-3 max-w-3xl mx-auto w-full">
           {messages.length === 0 && (
             <p className="text-center text-xs text-muted-foreground py-8 px-4">
               Your conversation with Kap will appear here.
@@ -145,10 +145,10 @@ export function ChatPanel({
       </div>
 
       {/* Footer: response counter + input */}
-      <div className="flex-shrink-0 border-t border-border">
+      <div className="flex-shrink-0 border-t border-border bg-muted/10">
         {!isComplete && (
           <div
-            className="px-4 sm:px-5 pt-2 pb-0"
+            className="max-w-3xl mx-auto px-4 sm:px-5 pt-2 pb-0"
             aria-live="polite"
             aria-atomic="true"
           >
@@ -160,17 +160,19 @@ export function ChatPanel({
             </p>
           </div>
         )}
-        <ChatInput
-          onSend={onSend}
-          disabled={isStreaming || isComplete}
-          placeholder={
-            isComplete
-              ? "Interview complete"
-              : isStreaming
-                ? "Kap is responding…"
-                : "Enter response here"
-          }
-        />
+        <div className="max-w-3xl mx-auto">
+          <ChatInput
+            onSend={onSend}
+            disabled={isStreaming || isComplete}
+            placeholder={
+              isComplete
+                ? "Interview complete"
+                : isStreaming
+                  ? "Kap is responding…"
+                  : "Enter response here"
+            }
+          />
+        </div>
       </div>
     </div>
   );

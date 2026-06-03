@@ -35,6 +35,7 @@ import {
   Info,
   Timer,
 } from "lucide-react";
+import Image from "next/image";
 import { ChatInterviewTemplate } from "@/lib/store";
 
 interface ChatInterviewHeaderProps {
@@ -128,8 +129,13 @@ export function ChatInterviewHeader({
     <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
       {/* Left: title */}
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-          <span className="text-[11px] font-bold text-primary-foreground">K</span>
+        <div className="flex-shrink-0 w-8 h-8 relative">
+          <Image
+            src="/blue-icon-logo.png"
+            alt="Mastering Backend"
+            fill
+            className="object-contain"
+          />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground truncate leading-tight">

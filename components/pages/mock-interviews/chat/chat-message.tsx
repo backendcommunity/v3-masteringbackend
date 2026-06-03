@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
+import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ChatMessage } from "@/lib/store";
 
 interface ChatMessageProps {
@@ -27,9 +29,17 @@ function getScorePillClass(score: number): string {
 
 export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessageProps) {
   const isAI = message.role === "ai";
+  const [copied, setCopied] = useState(false);
+  const [vote, setVote] = useState<"up" | "down" | null>(null);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className={cn("flex gap-2 w-full px-4 py-1.5", isAI ? "justify-start" : "justify-end")}>
+    <div className={cn("flex gap-2 w-full px-4 py-1.5 group", isAI ? "justify-start" : "justify-end")}>
       {/* AI avatar */}
       {isAI && (
         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
@@ -127,6 +137,48 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
           <p className="text-[11px] text-muted-foreground max-w-[90%] text-right px-1">
             💡 {analysis.feedback}
           </p>
+        )}
+
+        {/* Action bar — copy + vote, appears on hover */}
+        {message.content && !isStreaming && (
+          <div className={cn(
+            "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
+            isAI ? "justify-start" : "justify-end",
+          )}>
+            <button
+              onClick={handleCopy}
+              title="Copy message"
+              className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
+              {copied
+                ? <Check className="w-3 h-3 text-green-500" />
+                : <Copy className="w-3 h-3" />}
+            </button>
+            {isAI && (
+              <>
+                <button
+                  onClick={() => setVote(vote === "up" ? null : "up")}
+                  title="Good response"
+                  className={cn(
+                    "p-1 rounded hover:bg-muted transition-colors",
+                    vote === "up" ? "text-green-500" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <ThumbsUp className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setVote(vote === "down" ? null : "down")}
+                  title="Poor response"
+                  className={cn(
+                    "p-1 rounded hover:bg-muted transition-colors",
+                    vote === "down" ? "text-red-500" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <ThumbsDown className="w-3 h-3" />
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
