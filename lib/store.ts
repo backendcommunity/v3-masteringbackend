@@ -355,6 +355,7 @@ interface AppState {
   saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
   generateSessionReport: (sessionId: string) => Promise<any>;
+  streamSessionReport: (sessionId: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -759,6 +760,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/mock-interviews/chat/sessions/${sessionId}/report`,
     );
     return data?.data;
+  },
+
+  streamSessionReport: async (sessionId: string) => {
+    const baseURL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const response = await fetch(
+      `${baseURL}/mock-interviews/chat/sessions/${sessionId}/report/stream`,
+      { method: "GET", credentials: "include" },
+    );
+    if (!response.ok) throw new Error(`Stream request failed: ${response.status}`);
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
   },
 
   // Project Solutions/Submissions

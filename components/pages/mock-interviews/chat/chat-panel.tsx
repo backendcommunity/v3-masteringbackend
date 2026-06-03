@@ -16,6 +16,7 @@ interface ChatPanelProps {
   onSend: (content: string) => void;
   resultsData: ReportData | null;
   isLoadingResults: boolean;
+  resultsProgress: string | null;
   resultsError: string | null;
   onGetResults: () => void;
   questionAnalysis: Array<{ score: number; feedback: string }>;
@@ -30,6 +31,7 @@ export function ChatPanel({
   onSend,
   resultsData,
   isLoadingResults,
+  resultsProgress,
   resultsError,
   onGetResults,
   questionAnalysis,
@@ -96,9 +98,9 @@ export function ChatPanel({
                 <ResultCard data={resultsData} />
               ) : isLoadingResults ? (
                 <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground flex-shrink-0" />
+                  <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
-                    Generating your feedback report…
+                    {resultsProgress ?? "Generating your feedback report…"}
                   </p>
                 </div>
               ) : resultsError ? (

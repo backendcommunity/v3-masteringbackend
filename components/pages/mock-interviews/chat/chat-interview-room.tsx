@@ -32,6 +32,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [resultsData, setResultsData] = useState<ReportData | null>(null);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
+  const [resultsProgress, setResultsProgress] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("code");
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
@@ -169,23 +170,51 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     if (!sessionId) return;
     setIsLoadingResults(true);
     setResultsError(null);
+    setResultsProgress(null);
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
-      const report = await store.generateSessionReport(sessionId);
-      setResultsData(report);
-      if (report?.questionAnalysis) {
-        setQuestionAnalysis(
-          report.questionAnalysis.map((q: any) => ({
-            score: q.score,
-            feedback: q.feedback,
-          })),
-        );
-        setResultsRevealed(true);
+      reader = await store.streamSessionReport(sessionId);
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+          try {
+            const event = JSON.parse(jsonStr);
+            if (event.type === "progress") {
+              setResultsProgress(event.message);
+            } else if (event.type === "result") {
+              const report = event.data;
+              setResultsData(report);
+              if (report?.questionAnalysis) {
+                setQuestionAnalysis(
+                  report.questionAnalysis.map((q: any) => ({
+                    score: q.score,
+                    feedback: q.feedback,
+                  })),
+                );
+                setResultsRevealed(true);
+              }
+              setResultsProgress(null);
+            } else if (event.type === "error") {
+              setResultsError(event.message ?? "Failed to generate report.");
+            }
+          } catch {
+            // skip malformed lines
+          }
+        }
       }
     } catch (err: any) {
-      setResultsError(
-        err?.message ?? "Failed to generate report. Please try again.",
-      );
+      setResultsError(err?.message ?? "Failed to generate report. Please try again.");
     } finally {
+      if (reader) reader.cancel().catch(() => {});
       setIsLoadingResults(false);
     }
   }, [store]);
@@ -286,6 +315,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onSend={handleSend}
             resultsData={resultsData}
             isLoadingResults={isLoadingResults}
+            resultsProgress={resultsProgress}
             resultsError={resultsError}
             onGetResults={handleGetResults}
             questionAnalysis={questionAnalysis}
