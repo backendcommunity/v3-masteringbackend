@@ -1224,7 +1224,8 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             Booked ({bookedInterviews.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({completedInterviews.length})
+            Completed (
+            {completedInterviews.filter((i) => i.completedSessionId).length})
           </TabsTrigger>
         </TabsList>
 
@@ -1552,45 +1553,49 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             </Card>
           ) : (
             <div className="space-y-4">
-              {completedInterviews.map((interview) => (
-                <Card
-                  key={interview.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {interview.template.name ||
-                            `${interview.template.position} at ${interview.template.company}`}
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(interview.createdAt).toLocaleDateString()}
+              {completedInterviews
+                .filter((i) => i.completedSessionId)
+                .map((interview) => (
+                  <Card
+                    key={interview.id}
+                    className="hover:shadow-md transition-shadow"
+                  >
+                    <CardHeader>
+                      <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {interview.template.name ||
+                              `${interview.template.position} at ${interview.template.company}`}
+                          </CardTitle>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(
+                                interview.createdAt,
+                              ).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Timer className="h-3 w-3" />
+                              {interview.template.duration} min
+                            </div>
+                            <Badge variant="outline">
+                              {interview.template.difficulty}
+                            </Badge>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Timer className="h-3 w-3" />
-                            {interview.template.duration} min
-                          </div>
-                          <Badge variant="outline">
-                            {interview.template.difficulty}
-                          </Badge>
                         </div>
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            handleViewResults(interview.completedSessionId!)
+                          }
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          View Results
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          handleViewResults(interview.completedSessionId!)
-                        }
-                      >
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        View Results
-                      </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
+                    </CardHeader>
+                  </Card>
+                ))}
             </div>
           )}
         </TabsContent>
