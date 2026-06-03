@@ -1,152 +1,176 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
-import {
-  ChatMessageBubble,
-  TypingIndicator,
-  StreamingMessage,
-} from "./chat-message";
+import { ChatMessageBubble, TypingIndicator } from "./chat-message";
 import { ChatInput } from "./chat-input";
+import { ResultCard, ReportData } from "./result-card";
 import { Button } from "@/components/ui/button";
-import { Trophy } from "lucide-react";
-import type { ChatMessage } from "@/lib/store";
+import { Loader2, AlertCircle, BarChart2 } from "lucide-react";
+import type { ChatMessage, ChatInterviewSession } from "@/lib/store";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
-  streamingContent: string;
-  isAITyping: boolean;
-  currentQuestionIndex: number;
-  totalQuestions: number;
+  session: ChatInterviewSession;
+  isComplete: boolean;
+  isStreaming: boolean;
   onSend: (content: string) => void;
-  disabled?: boolean;
-  isComplete?: boolean;
-  centered?: boolean;
-  sessionId?: string;
+  resultsData: ReportData | null;
+  isLoadingResults: boolean;
+  resultsError: string | null;
+  onGetResults: () => void;
+  questionAnalysis: Array<{ score: number; feedback: string }>;
+  resultsRevealed: boolean;
 }
 
 export function ChatPanel({
   messages,
-  streamingContent,
-  isAITyping,
-  currentQuestionIndex,
-  totalQuestions,
-  onSend,
-  disabled,
+  session,
   isComplete,
-  centered,
-  sessionId,
+  isStreaming,
+  onSend,
+  resultsData,
+  isLoadingResults,
+  resultsError,
+  onGetResults,
+  questionAnalysis,
+  resultsRevealed,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, streamingContent, isAITyping]);
+  }, [messages.length, isStreaming, resultsData]);
 
-  const userResponseCount = messages.filter((m) => m.role === "user").length;
+  const userMessages = messages.filter((m) => m.role === "user");
+  const totalQuestions = session.template.questions || 10;
+
+  // Show typing indicator when AI placeholder message has no content yet
+  const lastMsg = messages.at(-1);
+  const showTypingIndicator =
+    isStreaming && lastMsg?.role === "ai" && !lastMsg.content;
+
+  // ID of the message currently being streamed (last AI with growing content)
+  const streamingMsgId =
+    isStreaming && lastMsg?.role === "ai" && lastMsg.content ? lastMsg.id : null;
+
+  // Map user message → analysis entry by insertion order
+  const getUserAnalysis = (msg: ChatMessage) => {
+    if (!resultsRevealed || msg.role !== "user") return null;
+    const userIdx = userMessages.indexOf(msg);
+    return questionAnalysis[userIdx] ?? null;
+  };
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Messages */}
+      {/* Messages list */}
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
         role="log"
         aria-label="Interview conversation"
         aria-live="polite"
         aria-relevant="additions"
-        aria-busy={isAITyping}
+        aria-busy={isStreaming}
       >
-        <div className={cn("py-3", centered && "max-w-3xl mx-auto w-full")}>
+        <div className="py-3">
           {messages.length === 0 && (
             <p className="text-center text-xs text-muted-foreground py-8 px-4">
               Your conversation with Kap will appear here.
             </p>
           )}
+
           {messages.map((message) => (
-            <ChatMessageBubble key={message.id} message={message} />
+            <ChatMessageBubble
+              key={message.id}
+              message={message}
+              analysis={getUserAnalysis(message)}
+              isStreaming={message.id === streamingMsgId}
+            />
           ))}
-          {streamingContent && !isAITyping && (
-            <StreamingMessage content={streamingContent} />
+
+          {showTypingIndicator && <TypingIndicator />}
+
+          {/* Inline results section — appears after interview completes */}
+          {isComplete && (
+            <div className="px-4 pt-3 pb-3">
+              {resultsData ? (
+                <ResultCard data={resultsData} />
+              ) : isLoadingResults ? (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    Generating your feedback report…
+                  </p>
+                </div>
+              ) : resultsError ? (
+                <div className="flex flex-col gap-2 p-4 rounded-xl border border-destructive/30 bg-destructive/5">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <p className="text-sm text-destructive">{resultsError}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onGetResults}
+                    className="self-start h-7 text-xs"
+                  >
+                    Try again
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 p-5 rounded-xl border border-primary/20 bg-primary/5 text-center">
+                  <BarChart2 className="w-6 h-6 text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Interview Complete!
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Your performance report is ready to generate.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={onGetResults}
+                    disabled={isLoadingResults}
+                    className="h-8 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    Get your feedback
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
-          {isAITyping && !streamingContent && <TypingIndicator />}
+
           <div ref={bottomRef} aria-hidden="true" />
         </div>
       </div>
 
-      {/* Completion banner */}
-      {isComplete && (
-        <div
-          className="flex-shrink-0 px-4 sm:px-5 py-3 bg-emerald-500/10 border-t border-emerald-500/20"
-          role="status"
-          aria-live="polite"
-        >
-          <div
-            className={cn(
-              "flex items-center justify-between gap-3",
-              centered && "max-w-3xl mx-auto",
-            )}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Trophy
-                className="w-4 h-4 text-emerald-500 flex-shrink-0"
-                aria-hidden="true"
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                  Interview Complete!
-                </p>
-                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 truncate">
-                  Your report is being generated…
-                </p>
-              </div>
-            </div>
-            {sessionId && (
-              <Button
-                size="sm"
-                className="flex-shrink-0 h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() =>
-                  (window.location.href = `/mock-interviews/${sessionId}/results`)
-                }
-                aria-label="View your interview results"
-              >
-                View Results
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Footer: response counter + input */}
-      <div className={cn("flex-shrink-0 border-t border-border")}>
-        <div className={cn(centered && "max-w-3xl mx-auto w-full")}>
-          {!isComplete && (
-            <div
-              className="px-4 sm:px-5 pt-2 pb-0"
-              aria-live="polite"
-              aria-atomic="true"
+      <div className="flex-shrink-0 border-t border-border">
+        {!isComplete && (
+          <div
+            className="px-4 sm:px-5 pt-2 pb-0"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <p
+              className="text-xs text-muted-foreground"
+              aria-label={`${userMessages.length} of ${totalQuestions} responses submitted`}
             >
-              <p
-                className="text-xs text-muted-foreground"
-                aria-label={`${userResponseCount} of ${totalQuestions} responses submitted`}
-              >
-                {userResponseCount} / {totalQuestions} Responses
-              </p>
-            </div>
-          )}
-          <ChatInput
-            onSend={onSend}
-            disabled={
-              disabled || isAITyping || !!streamingContent || isComplete
-            }
-            placeholder={
-              isComplete
-                ? "Interview complete"
-                : isAITyping || streamingContent
-                  ? "Kap is responding…"
-                  : "Enter response here"
-            }
-          />
-        </div>
+              {userMessages.length} / {totalQuestions} Responses
+            </p>
+          </div>
+        )}
+        <ChatInput
+          onSend={onSend}
+          disabled={isStreaming || isComplete}
+          placeholder={
+            isComplete
+              ? "Interview complete"
+              : isStreaming
+                ? "Kap is responding…"
+                : "Enter response here"
+          }
+        />
       </div>
     </div>
   );
