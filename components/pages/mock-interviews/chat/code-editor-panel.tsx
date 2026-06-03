@@ -131,14 +131,14 @@ export function CodeEditorPanel({
 }: CodeEditorPanelProps) {
   const [language, setLanguage] = useState(savedLanguage || "JavaScript");
   const [code, setCode] = useState<string>(
-    savedCode ?? STARTER_TEMPLATES["JavaScript"],
+    savedCode || STARTER_TEMPLATES["JavaScript"],
   );
 
   const handleLanguageChange = (newLang: string) => {
     const currentIsTemplate = Object.values(STARTER_TEMPLATES).includes(code);
     setLanguage(newLang);
     // Reset to starter template only when no saved code and user hasn't edited
-    if (!savedCode && currentIsTemplate) {
+    if (!savedCode?.trim() && currentIsTemplate) {
       setCode(STARTER_TEMPLATES[newLang] ?? "");
     }
   };
