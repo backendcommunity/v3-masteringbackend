@@ -132,12 +132,18 @@ export function InterviewCompletionDialog({
             </div>
             <div className="flex-1 min-w-0 pr-6">
               <h2 className="text-base font-bold text-foreground leading-tight">
-                Thank you for the Feedback!
+                {overallScore != null
+                  ? overallScore >= 70
+                    ? "Great performance!"
+                    : overallScore >= 50
+                      ? "Good effort — keep going."
+                      : "Room to grow — keep practising."
+                  : "Interview Complete!"}
               </h2>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                We appreciate you taking the time to provide us with your
-                valuable feedback. We remain committed to making continuous
-                improvements and delivering a better experience.
+                {overallScore != null
+                  ? `You scored ${overallScore}%. Here are recommended interviews and courses to keep building your tech engineering skills.`
+                  : "You've completed this session. Here are recommended interviews and courses to keep building your tech engineering skills."}
               </p>
             </div>
           </div>
