@@ -21,6 +21,8 @@ interface ChatPanelProps {
   onGetResults: () => void;
   questionAnalysis: Array<{ score: number; feedback: string }>;
   resultsRevealed: boolean;
+  userName?: string;
+  userAvatar?: string | null;
 }
 
 export function ChatPanel({
@@ -36,6 +38,8 @@ export function ChatPanel({
   onGetResults,
   questionAnalysis,
   resultsRevealed,
+  userName,
+  userAvatar,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +90,9 @@ export function ChatPanel({
               message={message}
               analysis={getUserAnalysis(message)}
               isStreaming={message.id === streamingMsgId}
+              sessionId={session.sessionId}
+              userName={userName}
+              userAvatar={userAvatar}
             />
           ))}
 

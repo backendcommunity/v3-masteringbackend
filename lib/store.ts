@@ -357,6 +357,7 @@ interface AppState {
   getChatSessionReport: (sessionId: string) => Promise<any>;
   generateSessionReport: (sessionId: string) => Promise<any>;
   streamSessionReport: (sessionId: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  submitMessageFeedback: (sessionId: string, messageId: string, vote: "up" | "down", content: string) => Promise<void>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -768,6 +769,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/mock-interviews/chat/sessions/${sessionId}/report`,
     );
     return data?.data;
+  },
+
+  submitMessageFeedback: async (sessionId: string, messageId: string, vote: "up" | "down", content: string) => {
+    await api.post(`/mock-interviews/chat/sessions/${sessionId}/feedback`, {
+      messageId, vote, content,
+    });
   },
 
   streamSessionReport: async (sessionId: string) => {

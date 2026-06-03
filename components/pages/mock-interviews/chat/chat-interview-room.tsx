@@ -11,6 +11,7 @@ import { ReportData } from "./result-card";
 import { Loader2, Code2, PenTool, Lock, Sparkles, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -35,6 +36,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsProgress, setResultsProgress] = useState<string | null>(null);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [userName, setUserName] = useState<string>("");
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("code");
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
@@ -275,11 +279,23 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     [handleSend],
   );
 
-  // Auto-generate results when interview completes
+  // Load user profile for avatar/initials
   useEffect(() => {
-    if (isComplete && !autoResultFiredRef.current) {
-      autoResultFiredRef.current = true;
-      handleGetResults();
+    store.getUser().then((u: any) => {
+      if (u?.name) setUserName(u.name);
+      if (u?.avatar || u?.image) setUserAvatar(u.avatar || u.image || null);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-generate results when interview completes + show completion dialog
+  useEffect(() => {
+    if (isComplete) {
+      setShowCompletionDialog(true);
+      if (!autoResultFiredRef.current) {
+        autoResultFiredRef.current = true;
+        handleGetResults();
+      }
     }
   }, [isComplete, handleGetResults]);
 
@@ -421,6 +437,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onGetResults={handleGetResults}
             questionAnalysis={questionAnalysis}
             resultsRevealed={resultsRevealed}
+            userName={userName}
+            userAvatar={userAvatar}
           />
         </ResizablePanel>
 
@@ -481,6 +499,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <InterviewCompletionDialog
+        open={showCompletionDialog}
+        onClose={() => setShowCompletionDialog(false)}
+        currentTemplateId={session.template ? (session as any).templateId : undefined}
+        currentCategory={(session.template as any)?.category}
+        overallScore={resultsData?.overallScore ?? null}
+      />
     </div>
   );
 }

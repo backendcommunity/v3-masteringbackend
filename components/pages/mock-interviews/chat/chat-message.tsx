@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
-import { ChatMessage } from "@/lib/store";
+import { ChatMessage, useAppStore } from "@/lib/store";
 
 interface ChatMessageProps {
   message: ChatMessage;
   analysis?: { score: number; feedback: string } | null;
   isStreaming?: boolean;
+  sessionId?: string;
+  userName?: string;
+  userAvatar?: string | null;
 }
 
 function getScoreLabel(score: number): string {
@@ -27,7 +31,17 @@ function getScorePillClass(score: number): string {
   return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
 }
 
-export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessageProps) {
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+}
+
+export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, userName, userAvatar }: ChatMessageProps) {
+  const store = useAppStore();
   const isAI = message.role === "ai";
   const [copied, setCopied] = useState(false);
   const [vote, setVote] = useState<"up" | "down" | null>(null);
@@ -38,12 +52,26 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleVote = async (v: "up" | "down") => {
+    const newVote = vote === v ? null : v;
+    setVote(newVote);
+    if (newVote && sessionId) {
+      store.submitMessageFeedback(sessionId, message.id, newVote, message.content).catch(() => {});
+    }
+  };
+
   return (
     <div className={cn("flex gap-2 w-full px-4 py-1.5 group", isAI ? "justify-start" : "justify-end")}>
-      {/* AI avatar */}
+      {/* AI avatar — MB logo in circle */}
       {isAI && (
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
-          <span className="text-[11px] font-bold text-primary-foreground">K</span>
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
+          <Image
+            src="/blue-icon-logo.png"
+            alt="Kap AI"
+            width={28}
+            height={28}
+            className="object-contain p-0.5"
+          />
         </div>
       )}
 
@@ -111,7 +139,7 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
             </div>
           )}
 
-          {/* Message text — streaming cursor on active AI message */}
+          {/* Message text */}
           <span className="whitespace-pre-wrap">
             {message.content}
             {isAI && isStreaming && message.content && (
@@ -120,14 +148,9 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
           </span>
         </div>
 
-        {/* Score pill badge — shown on user messages after results revealed */}
+        {/* Score pill */}
         {!isAI && analysis && (
-          <span
-            className={cn(
-              "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
-              getScorePillClass(analysis.score),
-            )}
-          >
+          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", getScorePillClass(analysis.score))}>
             {getScoreLabel(analysis.score)}
           </span>
         )}
@@ -139,7 +162,7 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
           </p>
         )}
 
-        {/* Action bar — copy + vote, appears on hover */}
+        {/* Action bar — copy + vote (AI messages only for training) */}
         {message.content && !isStreaming && (
           <div className={cn(
             "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
@@ -150,15 +173,13 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
               title="Copy message"
               className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
             >
-              {copied
-                ? <Check className="w-3 h-3 text-green-500" />
-                : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
             </button>
             {isAI && (
               <>
                 <button
-                  onClick={() => setVote(vote === "up" ? null : "up")}
-                  title="Good response"
+                  onClick={() => handleVote("up")}
+                  title="Good response (helps train the AI)"
                   className={cn(
                     "p-1 rounded hover:bg-muted transition-colors",
                     vote === "up" ? "text-green-500" : "text-muted-foreground hover:text-foreground",
@@ -167,8 +188,8 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
                   <ThumbsUp className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={() => setVote(vote === "down" ? null : "down")}
-                  title="Poor response"
+                  onClick={() => handleVote("down")}
+                  title="Poor response (helps train the AI)"
                   className={cn(
                     "p-1 rounded hover:bg-muted transition-colors",
                     vote === "down" ? "text-red-500" : "text-muted-foreground hover:text-foreground",
@@ -181,6 +202,17 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
           </div>
         )}
       </div>
+
+      {/* User avatar — photo or initials */}
+      {!isAI && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full mt-0.5 overflow-hidden flex items-center justify-center bg-primary text-primary-foreground text-[11px] font-bold flex-shrink-0">
+          {userAvatar ? (
+            <Image src={userAvatar} alt={userName || "You"} width={32} height={32} className="object-cover" />
+          ) : (
+            <span>{userName ? getInitials(userName) : "U"}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -188,8 +220,8 @@ export function ChatMessageBubble({ message, analysis, isStreaming }: ChatMessag
 export function TypingIndicator() {
   return (
     <div className="flex gap-2 px-4 py-1.5">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
-        <span className="text-[11px] font-bold text-primary-foreground">K</span>
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
+        <Image src="/blue-icon-logo.png" alt="Kap AI" width={28} height={28} className="object-contain p-0.5" />
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl bg-muted px-3.5 py-2.5">
         <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/70 animate-bounce [animation-delay:0ms]" />
@@ -203,8 +235,8 @@ export function TypingIndicator() {
 export function StreamingMessage({ content }: { content: string }) {
   return (
     <div className="flex gap-2 px-4 py-1.5">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
-        <span className="text-[11px] font-bold text-primary-foreground">K</span>
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
+        <Image src="/blue-icon-logo.png" alt="Kap AI" width={28} height={28} className="object-contain p-0.5" />
       </div>
       <div className="max-w-[80%] text-sm text-foreground leading-relaxed whitespace-pre-wrap">
         {content}
