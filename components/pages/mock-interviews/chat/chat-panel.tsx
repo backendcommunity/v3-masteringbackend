@@ -5,8 +5,14 @@ import { ChatMessageBubble, TypingIndicator } from "./chat-message";
 import { ChatInput } from "./chat-input";
 import { ResultCard, ReportData } from "./result-card";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, BarChart2, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import {
+  Loader2,
+  AlertCircle,
+  BarChart2,
+  LogOut,
+  MessageSquareOff,
+  RotateCcw,
+} from "lucide-react";
 import type { ChatMessage, ChatInterviewSession } from "@/lib/store";
 
 interface ChatPanelProps {
@@ -21,8 +27,10 @@ interface ChatPanelProps {
   resultsError: string | null;
   onGetResults: () => void;
   onExit?: () => void;
+  onRestart?: () => void;
   questionAnalysis: Array<{ score: number; feedback: string }>;
   resultsRevealed: boolean;
+  insufficientAnswers?: boolean;
   userName?: string;
   userAvatar?: string | null;
 }
@@ -40,9 +48,11 @@ export function ChatPanel({
   onGetResults,
   questionAnalysis,
   resultsRevealed,
+  insufficientAnswers,
   userName,
   userAvatar,
   onExit,
+  onRestart,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -106,10 +116,56 @@ export function ChatPanel({
           {/* Inline results section — appears after interview completes */}
           {isComplete && (
             <div className="px-4 pt-3 pb-3">
-              {resultsData ? (
+              {insufficientAnswers ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquareOff className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                      Not enough responses
+                    </p>
+                  </div>
+                  <p className="text-sm text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
+                    You need to answer at least 3 questions to generate a
+                    performance report. Start a new interview and complete at
+                    least 3 questions to receive Kap's feedback.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {onRestart && (
+                      <Button
+                        size="sm"
+                        onClick={onRestart}
+                        className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Restart Interview
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onExit}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Exit room
+                    </Button>
+                  </div>
+                </div>
+              ) : resultsData ? (
                 <>
                   <ResultCard data={resultsData} />
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    {onRestart && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onRestart}
+                        className="h-8 text-xs gap-1.5"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Restart
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"

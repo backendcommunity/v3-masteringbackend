@@ -41,7 +41,9 @@ import { ChatInterviewTemplate } from "@/lib/store";
 interface ChatInterviewHeaderProps {
   template: ChatInterviewTemplate;
   onEndInterview: () => void;
+  onExitRoom?: () => void;
   isComplete?: boolean;
+  resultsReady?: boolean;
   startedAt?: string | null;
 }
 
@@ -109,7 +111,9 @@ const HELP_ITEMS = [
 export function ChatInterviewHeader({
   template,
   onEndInterview,
+  onExitRoom,
   isComplete,
+  resultsReady,
   startedAt,
 }: ChatInterviewHeaderProps) {
   const { display, secondsLeft } = useCountdown(
@@ -210,11 +214,22 @@ export function ChatInterviewHeader({
           </SheetContent>
         </Sheet>
 
-        {/* End interview */}
+        {/* End interview / Exit room */}
         {isComplete ? (
-          <Button variant="destructive" size="sm" className="h-8 text-xs px-3 opacity-50" disabled>
-            Interview Ended
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs px-3 opacity-50 cursor-default" disabled>
+              Interview Ended
+            </Button>
+            {resultsReady && onExitRoom && (
+              <Button
+                size="sm"
+                className="h-8 text-xs px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={onExitRoom}
+              >
+                Exit Room
+              </Button>
+            )}
+          </div>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>

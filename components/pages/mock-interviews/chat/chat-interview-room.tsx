@@ -56,6 +56,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [initError, setInitError] = useState<string | null>(null);
   const [initErrorCode, setInitErrorCode] = useState<string | null>(null);
   const [resultsRevealed, setResultsRevealed] = useState(false);
+  const [insufficientAnswers, setInsufficientAnswers] = useState(false);
   const [questionAnalysis, setQuestionAnalysis] = useState<
     Array<{ score: number; feedback: string }>
   >([]);
@@ -216,6 +217,38 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsComplete(true);
   }, [store]);
 
+  const handleRestart = useCallback(async () => {
+    // Reset all session state
+    setMessages([]);
+    setIsComplete(false);
+    setResultsData(null);
+    setIsLoadingResults(false);
+    setResultsError(null);
+    setResultsProgress(null);
+    setShowCompletionDialog(false);
+    setResultsRevealed(false);
+    setInsufficientAnswers(false);
+    setQuestionAnalysis([]);
+    autoResultFiredRef.current = false;
+    sessionIdRef.current = null;
+    setIsInitializing(true);
+
+    try {
+      const data = await store.startChatInterview(userInterviewId);
+      setSession(data);
+      setMessages(data.chatMessages ?? []);
+      const alreadyDone = data.status === "COMPLETED" || data.status === "ENDED";
+      setIsComplete(alreadyDone);
+      sessionIdRef.current = data.sessionId;
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? null;
+      setInitErrorCode(code);
+      setInitError(err?.message ?? "Failed to restart interview. Please try again.");
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [store, userInterviewId]);
+
   const handleGetResults = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
@@ -306,12 +339,17 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-generate results when interview completes + show completion dialog
+  // Auto-generate results when interview completes (skip if < 3 user answers)
   useEffect(() => {
     if (isComplete) {
       if (!autoResultFiredRef.current) {
         autoResultFiredRef.current = true;
-        handleGetResults();
+        const userAnswerCount = messagesRef.current.filter((m) => m.role === "user").length;
+        if (userAnswerCount >= 3) {
+          handleGetResults();
+        } else {
+          setInsufficientAnswers(true);
+        }
       }
     }
   }, [isComplete, handleGetResults]);
@@ -438,7 +476,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <ChatInterviewHeader
         template={session.template}
         onEndInterview={handleEndInterview}
+        onExitRoom={() => setShowCompletionDialog(true)}
         isComplete={isComplete}
+        resultsReady={!!resultsData || insufficientAnswers}
         startedAt={session.startedAt}
       />
 
@@ -467,12 +507,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onGetResults={handleGetResults}
             questionAnalysis={questionAnalysis}
             resultsRevealed={resultsRevealed}
+            insufficientAnswers={insufficientAnswers}
             userName={userName}
             userAvatar={userAvatar}
-            onExit={() => {
-              // Handle exit logic here
-              setShowCompletionDialog(true);
-            }}
+            onExit={() => setShowCompletionDialog(true)}
+            onRestart={handleRestart}
           />
         </ResizablePanel>
 
