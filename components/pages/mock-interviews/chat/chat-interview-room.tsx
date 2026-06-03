@@ -35,8 +35,13 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     Array<{ score: number; feedback: string }>
   >([]);
 
+  // Resizable panel state
+  const [leftWidth, setLeftWidth] = useState(45);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; w: number } | null>(null);
+
   const sessionIdRef = useRef<string | null>(null);
-  const streamingMessageIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
   useEffect(() => {
     messagesRef.current = messages;
@@ -70,6 +75,40 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInterviewId]);
 
+  // Drag-resize: track mouse from divider
+  const handleDividerMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isDraggingRef.current = true;
+      dragStartRef.current = { x: e.clientX, w: leftWidth };
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (
+          !isDraggingRef.current ||
+          !dragStartRef.current ||
+          !containerRef.current
+        )
+          return;
+        const parentWidth = containerRef.current.offsetWidth;
+        const delta = e.clientX - dragStartRef.current.x;
+        const newWidth =
+          dragStartRef.current.w + (delta / parentWidth) * 100;
+        setLeftWidth(Math.max(25, Math.min(75, newWidth)));
+      };
+
+      const handleMouseUp = () => {
+        isDraggingRef.current = false;
+        dragStartRef.current = null;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [leftWidth],
+  );
+
   const handleSend = useCallback(
     async (content: string) => {
       const sessionId = sessionIdRef.current;
@@ -78,7 +117,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       const userMsgId = `user-${Date.now()}`;
       const aiMsgId = `ai-${Date.now() + 1}`;
 
-      // Optimistic user message
       const userMsg: ChatMessage = {
         id: userMsgId,
         role: "user",
@@ -88,7 +126,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           .length,
       };
 
-      // Placeholder AI message for streaming
+      // Placeholder AI message — content fills in during streaming
       const aiMsg: ChatMessage = {
         id: aiMsgId,
         role: "ai",
@@ -98,7 +136,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       };
 
       setMessages((prev) => [...prev, userMsg, aiMsg]);
-      streamingMessageIdRef.current = aiMsgId;
       setIsStreaming(true);
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -129,23 +166,18 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                   ),
                 );
               } else if (parsed.type === "done") {
-                if (parsed.isComplete) {
-                  setIsComplete(true);
-                }
+                if (parsed.isComplete) setIsComplete(true);
               }
             } catch {
               // Skip malformed JSON lines
             }
           }
         }
-      } catch (err: any) {
-        // Remove placeholder AI message on error
+      } catch {
+        // Remove placeholder AI message on stream error
         setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
       } finally {
-        if (reader) {
-          reader.cancel().catch(() => {});
-        }
-        streamingMessageIdRef.current = null;
+        if (reader) reader.cancel().catch(() => {});
         setIsStreaming(false);
       }
     },
@@ -183,9 +215,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setResultsError(null);
     try {
       const report = await store.getSessionReport(sessionId);
+      // Report still generating — poll again after 3 seconds
+      if (report?.status === "PENDING" || report?.status === "PROCESSING") {
+        setTimeout(handleGetResults, 3000);
+        return;
+      }
       setResultsData(report);
-
-      // Extract per-question analysis if present
       if (report?.questionAnalysis) {
         setQuestionAnalysis(
           report.questionAnalysis.map((q: any) => ({
@@ -202,27 +237,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     } finally {
       setIsLoadingResults(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
   const handleWhiteboardSend = useCallback(
-    (diagramJSON: string, svgString: string) => {
-      // Inject svg into the latest whiteboard artifact message
-      if (svgString) {
-        setMessages((prev) => {
-          const lastWhiteboardIdx = [...prev]
-            .reverse()
-            .findIndex(
-              (m) => m.role === "user" && m.artifactRef?.type === "whiteboard",
-            );
-          if (lastWhiteboardIdx === -1) return prev;
-          const realIdx = prev.length - 1 - lastWhiteboardIdx;
-          return prev.map((m, i) =>
-            i === realIdx && m.artifactRef
-              ? { ...m, artifactRef: { ...m.artifactRef, svg: svgString } }
-              : m,
-          );
-        });
-      }
+    (diagramJSON: string) => {
       handleSendArtifact("whiteboard", diagramJSON);
     },
     [handleSendArtifact],
@@ -230,27 +249,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const handleCodeSend = useCallback(
     (code: string, language: string) => {
-      // Inject code into the latest code artifact message
-      setMessages((prev) => {
-        const lastCodeIdx = [...prev]
-          .reverse()
-          .findIndex(
-            (m) => m.role === "user" && m.artifactRef?.type === "code",
-          );
-        if (lastCodeIdx === -1) return prev;
-        const realIdx = prev.length - 1 - lastCodeIdx;
-        return prev.map((m, i) =>
-          i === realIdx && m.artifactRef
-            ? { ...m, artifactRef: { ...m.artifactRef, code, language } }
-            : m,
-        );
-      });
       handleSendArtifact("code", code, language);
     },
     [handleSendArtifact],
   );
 
-  // Loading state
   if (isInitializing) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -262,7 +265,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     );
   }
 
-  // Error state
   if (initError || !session) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -284,7 +286,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }
 
   const savedDiagram =
-    session.whiteboardArtifact && typeof session.whiteboardArtifact === "object"
+    session.whiteboardArtifact &&
+    typeof session.whiteboardArtifact === "object"
       ? session.whiteboardArtifact
       : undefined;
 
@@ -299,9 +302,15 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       />
 
       {/* Main content */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Chat panel */}
-        <div className="flex flex-col w-full lg:w-[45%] min-h-0 border-r border-border">
+      <div
+        ref={containerRef}
+        className="flex flex-1 min-h-0 overflow-hidden select-none"
+      >
+        {/* Chat panel — variable width on desktop */}
+        <div
+          className="flex flex-col min-h-0 border-r border-border lg:flex-shrink-0 w-full"
+          style={{ width: `${leftWidth}%` }}
+        >
           <ChatPanel
             messages={messages}
             session={session}
@@ -317,9 +326,23 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           />
         </div>
 
+        {/* Drag-resize divider (desktop only) */}
+        <div
+          className={cn(
+            "hidden lg:flex items-center justify-center w-1 flex-shrink-0",
+            "cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60",
+            "transition-colors group",
+          )}
+          onMouseDown={handleDividerMouseDown}
+          role="separator"
+          aria-label="Resize panels"
+        >
+          <div className="w-0.5 h-8 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+        </div>
+
         {/* Right panels (desktop only) */}
         <div className="hidden lg:flex flex-col flex-1 min-h-0">
-          {/* Panel tab switcher */}
+          {/* Tab switcher */}
           <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
             <button
               onClick={() => setActivePanel("code")}
