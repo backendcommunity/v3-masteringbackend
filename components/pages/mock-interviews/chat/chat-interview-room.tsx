@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useAppStore, ChatMessage, ChatInterviewSession } from "@/lib/store";
+import { useAppStore, ChatMessage, ChatInterviewSession, ChatArtifactRef } from "@/lib/store";
 import { ChatInterviewHeader } from "./chat-interview-header";
 import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
@@ -75,7 +75,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }, [userInterviewId]);
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (
+      content: string,
+      artifactRef?: ChatArtifactRef,
+      displayArtifact?: ChatMessage["artifactRef"],
+    ) => {
       const sessionId = sessionIdRef.current;
       if (!sessionId || isStreaming || isComplete) return;
 
@@ -89,9 +93,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         timestamp: new Date().toISOString(),
         questionIndex: messagesRef.current.filter((m) => m.role === "user")
           .length,
+        artifactRef: displayArtifact ?? null,
       };
 
-      // Placeholder AI message — content fills in during streaming
       const aiMsg: ChatMessage = {
         id: aiMsgId,
         role: "ai",
@@ -105,7 +109,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
-        reader = await store.streamChatMessage(sessionId, content);
+        reader = await store.streamChatMessage(sessionId, content, artifactRef);
         const decoder = new TextDecoder();
 
         while (true) {
@@ -139,7 +143,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           }
         }
       } catch {
-        // Remove placeholder AI message on stream error
         setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
       } finally {
         if (reader) reader.cancel().catch(() => {});
@@ -147,19 +150,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       }
     },
     [isStreaming, isComplete, store],
-  );
-
-  const handleSendArtifact = useCallback(
-    async (type: "code" | "whiteboard", data: string, language?: string) => {
-      const sessionId = sessionIdRef.current;
-      if (!sessionId) return;
-      try {
-        await store.saveChatArtifact(sessionId, type, data, language);
-      } catch {
-        // Silently ignore artifact save errors
-      }
-    },
-    [store],
   );
 
   const handleEndInterview = useCallback(async () => {
@@ -207,16 +197,24 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const handleWhiteboardSend = useCallback(
     (diagramJSON: string) => {
-      handleSendArtifact("whiteboard", diagramJSON);
+      handleSend(
+        "Here's my diagram:",
+        { type: "whiteboard", data: diagramJSON },
+        { type: "whiteboard" },
+      );
     },
-    [handleSendArtifact],
+    [handleSend],
   );
 
   const handleCodeSend = useCallback(
     (code: string, language: string) => {
-      handleSendArtifact("code", code, language);
+      handleSend(
+        "Here's my code solution:",
+        { type: "code", data: code, language },
+        { type: "code", language, code },
+      );
     },
-    [handleSendArtifact],
+    [handleSend],
   );
 
   if (isInitializing) {
@@ -251,8 +249,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }
 
   const savedDiagram =
-    session.whiteboardArtifact &&
-    typeof session.whiteboardArtifact === "object"
+    session.whiteboardArtifact && typeof session.whiteboardArtifact === "object"
       ? session.whiteboardArtifact
       : undefined;
 
@@ -272,7 +269,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         className="flex-1 min-h-0 overflow-hidden"
       >
         {/* Chat panel */}
-        <ResizablePanel defaultSize={60} minSize={25} maxSize={75} className="flex flex-col min-h-0">
+        <ResizablePanel
+          defaultSize="60"
+          minSize="25"
+          maxSize="75"
+          className="flex flex-col min-h-0"
+        >
           <ChatPanel
             messages={messages}
             session={session}
@@ -292,7 +294,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         <ResizableHandle withHandle className="hidden lg:flex" />
 
         {/* Right panels (desktop only) */}
-        <ResizablePanel defaultSize={40} minSize={25} maxSize={75} className="hidden lg:flex flex-col min-h-0">
+        <ResizablePanel
+          defaultSize="40"
+          minSize="25"
+          maxSize="75"
+          className="hidden lg:flex flex-col min-h-0"
+        >
           {/* Tab switcher */}
           <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
             <button
