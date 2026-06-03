@@ -204,7 +204,11 @@ export function ChatInterviewHeader({
         </Sheet>
 
         {/* End interview */}
-        {!isComplete && (
+        {isComplete ? (
+          <Button variant="destructive" size="sm" className="h-8 text-xs px-3 opacity-50" disabled>
+            Interview Ended
+          </Button>
+        ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" className="h-8 text-xs px-3">

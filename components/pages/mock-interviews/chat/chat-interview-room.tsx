@@ -36,7 +36,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   >([]);
 
   // Resizable panel state
-  const [leftWidth, setLeftWidth] = useState(45);
+  const [leftWidth, setLeftWidth] = useState(60);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; w: number } | null>(null);

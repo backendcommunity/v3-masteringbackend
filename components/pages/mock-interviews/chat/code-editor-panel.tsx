@@ -161,7 +161,7 @@ export function CodeEditorPanel({
           value={language}
           onChange={(e) => handleLanguageChange(e.target.value)}
           disabled={disabled}
-          className="text-xs bg-[#2d2d2d] text-foreground border border-border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
+          className="text-xs bg-[#2d2d2d] text-white border border-white/20 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
         >
           {LANGUAGES.map((lang) => (
             <option key={lang} value={lang}>
@@ -195,22 +195,20 @@ export function CodeEditorPanel({
       </div>
 
       {/* Send footer */}
-      {!disabled && (
-        <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-background">
-          <span className="text-[10px] text-muted-foreground">
-            Share your solution with Kap
-          </span>
-          <Button
-            size="sm"
-            onClick={handleSend}
-            disabled={disabled || !code.trim()}
-            className="gap-1.5 text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Send className="w-3.5 h-3.5" />
-            Send to Kap
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-background">
+        <span className="text-[10px] text-muted-foreground">
+          {disabled ? "Interview ended" : "Share your solution with Kap"}
+        </span>
+        <Button
+          size="sm"
+          onClick={handleSend}
+          disabled={disabled || !code.trim()}
+          className="gap-1.5 text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+        >
+          <Send className="w-3.5 h-3.5" />
+          Send to Kap
+        </Button>
+      </div>
     </div>
   );
 }

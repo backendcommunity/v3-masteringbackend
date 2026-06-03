@@ -80,61 +80,60 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         Your response to Kap
       </label>
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-center gap-2">
         {/* Textarea */}
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            id={inputId}
-            value={value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              // Auto-grow
-              e.target.style.height = "auto";
-              e.target.style.height =
-                Math.min(e.target.scrollHeight, 128) + "px";
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder || "Enter response here"}
-            disabled={disabled}
-            rows={1}
-            autoComplete="off"
-            autoCorrect="on"
-            spellCheck={true}
-            aria-label="Your response"
-            aria-multiline="true"
-            aria-disabled={disabled}
-            aria-describedby={isRecording ? `${inputId}-recording` : undefined}
-            className={cn(
-              "w-full resize-none rounded-xl border border-input bg-background",
-              // 16px minimum on mobile prevents iOS zoom on focus
-              "px-4 pr-10 py-3 text-[16px] sm:text-sm text-foreground leading-[1.5]",
-              "placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "transition-shadow",
-            )}
-            style={{ minHeight: 48, maxHeight: 128, overflow: "hidden" }}
-          />
-          {/* Send button inside textarea */}
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!canSend}
-            aria-label="Send response"
-            className={cn(
-              "absolute right-2.5 bottom-2.5 w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-              canSend
-                ? "text-foreground/70 hover:bg-muted"
-                : "text-muted-foreground/30 cursor-not-allowed",
-            )}
-          >
-            <ArrowRight className="w-4 h-4" aria-hidden="true" />
-          </button>
-        </div>
+        <textarea
+          ref={textareaRef}
+          id={inputId}
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            // Auto-grow
+            e.target.style.height = "auto";
+            e.target.style.height =
+              Math.min(e.target.scrollHeight, 128) + "px";
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder || "Enter response here"}
+          disabled={disabled}
+          rows={1}
+          autoComplete="off"
+          autoCorrect="on"
+          spellCheck={true}
+          aria-label="Your response"
+          aria-multiline="true"
+          aria-disabled={disabled}
+          aria-describedby={isRecording ? `${inputId}-recording` : undefined}
+          className={cn(
+            "flex-1 resize-none rounded-xl border border-input bg-background",
+            // 16px minimum on mobile prevents iOS zoom on focus
+            "px-4 py-3 text-[16px] sm:text-sm text-foreground leading-[1.5]",
+            "placeholder:text-muted-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "transition-shadow",
+          )}
+          style={{ minHeight: 48, maxHeight: 128, overflow: "hidden" }}
+        />
 
-        {/* Mic button — 44x44 minimum touch target */}
+        {/* Send button */}
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={!canSend}
+          aria-label="Send response"
+          className={cn(
+            "flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            canSend
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+              : "bg-muted text-muted-foreground/40 cursor-not-allowed",
+          )}
+        >
+          <ArrowRight className="w-4 h-4" aria-hidden="true" />
+        </button>
+
+        {/* Mic button */}
         {isRecording && (
           <span
             id={`${inputId}-recording`}
@@ -157,7 +156,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
             isRecording
               ? "bg-destructive text-destructive-foreground shadow-md motion-safe:animate-pulse"
-              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+              : "bg-muted text-muted-foreground hover:bg-muted/80",
             "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
         >
