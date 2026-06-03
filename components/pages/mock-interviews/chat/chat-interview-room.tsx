@@ -42,6 +42,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const sessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
+  const autoResultFiredRef = useRef(false);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -217,6 +218,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     [handleSend],
   );
 
+  // Auto-generate results when interview completes
+  useEffect(() => {
+    if (isComplete && !autoResultFiredRef.current) {
+      autoResultFiredRef.current = true;
+      handleGetResults();
+    }
+  }, [isComplete, handleGetResults]);
+
   if (isInitializing) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -270,7 +279,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       >
         {/* Chat panel */}
         <ResizablePanel
-          defaultSize="60"
+          defaultSize="55"
           minSize="25"
           maxSize="75"
           className="flex flex-col min-h-0"
@@ -295,7 +304,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
         {/* Right panels (desktop only) */}
         <ResizablePanel
-          defaultSize="40"
+          defaultSize="45"
           minSize="25"
           maxSize="75"
           className="hidden lg:flex flex-col min-h-0"
