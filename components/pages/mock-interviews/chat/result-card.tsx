@@ -17,7 +17,7 @@ export interface ReportData {
   questionAnalysis?: Array<{ question: string; userAnswer: string; score: number; feedback: string }>;
   strengths?: string[];
   weaknesses?: string[];
-  recommendations?: string[];
+  recommendations?: Array<string | { title: string; description?: string; resources?: string[] }>;
   interview?: { title?: string; position?: string; company?: string; difficulty?: string; duration?: number };
 }
 
@@ -173,12 +173,21 @@ export function ResultCard({ data }: ResultCardProps) {
               <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1">
                 <BookOpen className="w-3 h-3" /> Recommendations
               </p>
-              <ul className="space-y-1">
-                {data.recommendations.map((r, i) => (
-                  <li key={i} className="text-[11px] text-muted-foreground flex gap-1.5">
-                    <span className="text-primary flex-shrink-0">→</span> {r}
-                  </li>
-                ))}
+              <ul className="space-y-2">
+                {data.recommendations.map((r, i) => {
+                  const isObj = typeof r === "object" && r !== null;
+                  const title = isObj ? (r as any).title : r;
+                  const desc = isObj ? (r as any).description : null;
+                  return (
+                    <li key={i} className="text-[11px] text-muted-foreground">
+                      <div className="flex gap-1.5">
+                        <span className="text-primary flex-shrink-0">→</span>
+                        <span className="font-medium text-foreground">{title}</span>
+                      </div>
+                      {desc && <p className="pl-4 mt-0.5 leading-relaxed">{desc}</p>}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
