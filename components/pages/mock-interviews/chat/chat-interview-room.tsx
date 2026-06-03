@@ -10,6 +10,11 @@ import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
 import { Loader2, Code2, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface ChatInterviewRoomProps {
   userInterviewId: string;
@@ -34,12 +39,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [questionAnalysis, setQuestionAnalysis] = useState<
     Array<{ score: number; feedback: string }>
   >([]);
-
-  // Resizable panel state
-  const [leftWidth, setLeftWidth] = useState(60);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef<{ x: number; w: number } | null>(null);
 
   const sessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
@@ -74,40 +73,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInterviewId]);
-
-  // Drag-resize: track mouse from divider
-  const handleDividerMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      isDraggingRef.current = true;
-      dragStartRef.current = { x: e.clientX, w: leftWidth };
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (
-          !isDraggingRef.current ||
-          !dragStartRef.current ||
-          !containerRef.current
-        )
-          return;
-        const parentWidth = containerRef.current.offsetWidth;
-        const delta = e.clientX - dragStartRef.current.x;
-        const newWidth =
-          dragStartRef.current.w + (delta / parentWidth) * 100;
-        setLeftWidth(Math.max(25, Math.min(75, newWidth)));
-      };
-
-      const handleMouseUp = () => {
-        isDraggingRef.current = false;
-        dragStartRef.current = null;
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    },
-    [leftWidth],
-  );
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -302,15 +267,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       />
 
       {/* Main content */}
-      <div
-        ref={containerRef}
-        className="flex flex-1 min-h-0 overflow-hidden select-none"
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="flex-1 min-h-0 overflow-hidden"
       >
-        {/* Chat panel — variable width on desktop */}
-        <div
-          className="flex flex-col min-h-0 border-r border-border lg:flex-shrink-0 w-full"
-          style={{ width: `${leftWidth}%` }}
-        >
+        {/* Chat panel */}
+        <ResizablePanel defaultSize={60} minSize={25} maxSize={75} className="flex flex-col min-h-0">
           <ChatPanel
             messages={messages}
             session={session}
@@ -324,24 +286,13 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             questionAnalysis={questionAnalysis}
             resultsRevealed={resultsRevealed}
           />
-        </div>
+        </ResizablePanel>
 
-        {/* Drag-resize divider (desktop only) */}
-        <div
-          className={cn(
-            "hidden lg:flex items-center justify-center w-1 flex-shrink-0",
-            "cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60",
-            "transition-colors group",
-          )}
-          onMouseDown={handleDividerMouseDown}
-          role="separator"
-          aria-label="Resize panels"
-        >
-          <div className="w-0.5 h-8 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
-        </div>
+        {/* Resize handle (desktop only) */}
+        <ResizableHandle withHandle className="hidden lg:flex" />
 
         {/* Right panels (desktop only) */}
-        <div className="hidden lg:flex flex-col flex-1 min-h-0">
+        <ResizablePanel defaultSize={40} minSize={25} maxSize={75} className="hidden lg:flex flex-col min-h-0">
           {/* Tab switcher */}
           <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
             <button
@@ -387,8 +338,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
               />
             )}
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
