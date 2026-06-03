@@ -170,12 +170,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsLoadingResults(true);
     setResultsError(null);
     try {
-      const report = await store.getSessionReport(sessionId);
-      // Report still generating — poll again after 3 seconds
-      if (report?.status === "PENDING" || report?.status === "PROCESSING") {
-        setTimeout(handleGetResults, 3000);
-        return;
-      }
+      const report = await store.generateSessionReport(sessionId);
       setResultsData(report);
       if (report?.questionAnalysis) {
         setQuestionAnalysis(
@@ -193,7 +188,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     } finally {
       setIsLoadingResults(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
   const handleWhiteboardSend = useCallback(

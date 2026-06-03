@@ -354,6 +354,7 @@ interface AppState {
   streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
+  generateSessionReport: (sessionId: string) => Promise<any>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -751,6 +752,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   endChatInterviewSession: async (sessionId: string) => {
     await api.delete(`/mock-interviews/chat/sessions/${sessionId}`);
+  },
+
+  generateSessionReport: async (sessionId: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/chat/sessions/${sessionId}/report`,
+    );
+    return data?.data;
   },
 
   // Project Solutions/Submissions
