@@ -5,7 +5,8 @@ import { ChatMessageBubble, TypingIndicator } from "./chat-message";
 import { ChatInput } from "./chat-input";
 import { ResultCard, ReportData } from "./result-card";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, BarChart2 } from "lucide-react";
+import { Loader2, AlertCircle, BarChart2, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { ChatMessage, ChatInterviewSession } from "@/lib/store";
 
 interface ChatPanelProps {
@@ -19,6 +20,7 @@ interface ChatPanelProps {
   resultsProgress: string | null;
   resultsError: string | null;
   onGetResults: () => void;
+  onExit?: () => void;
   questionAnalysis: Array<{ score: number; feedback: string }>;
   resultsRevealed: boolean;
   userName?: string;
@@ -40,6 +42,7 @@ export function ChatPanel({
   resultsRevealed,
   userName,
   userAvatar,
+  onExit,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +60,9 @@ export function ChatPanel({
 
   // ID of the message currently being streamed (last AI with growing content)
   const streamingMsgId =
-    isStreaming && lastMsg?.role === "ai" && lastMsg.content ? lastMsg.id : null;
+    isStreaming && lastMsg?.role === "ai" && lastMsg.content
+      ? lastMsg.id
+      : null;
 
   // Map user message → analysis entry by insertion order
   const getUserAnalysis = (msg: ChatMessage) => {
@@ -102,7 +107,20 @@ export function ChatPanel({
           {isComplete && (
             <div className="px-4 pt-3 pb-3">
               {resultsData ? (
-                <ResultCard data={resultsData} />
+                <>
+                  <ResultCard data={resultsData} />
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onExit}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Exit room
+                    </Button>
+                  </div>
+                </>
               ) : isLoadingResults ? (
                 <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
                   <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />

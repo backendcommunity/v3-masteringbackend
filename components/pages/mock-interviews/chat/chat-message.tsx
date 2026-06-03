@@ -62,16 +62,10 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
 
   return (
     <div className={cn("flex gap-2 w-full px-4 py-1.5 group", isAI ? "justify-start" : "justify-end")}>
-      {/* AI avatar — MB logo in circle */}
+      {/* AI avatar — K circle */}
       {isAI && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
-          <Image
-            src="/blue-icon-logo.png"
-            alt="Kap AI"
-            width={28}
-            height={28}
-            className="object-contain p-0.5"
-          />
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
+          <span className="text-[11px] font-bold text-primary-foreground">K</span>
         </div>
       )}
 
@@ -220,8 +214,8 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
 export function TypingIndicator() {
   return (
     <div className="flex gap-2 px-4 py-1.5">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
-        <Image src="/blue-icon-logo.png" alt="Kap AI" width={28} height={28} className="object-contain p-0.5" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
+        <span className="text-[11px] font-bold text-primary-foreground">K</span>
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl bg-muted px-3.5 py-2.5">
         <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/70 animate-bounce [animation-delay:0ms]" />
@@ -235,8 +229,8 @@ export function TypingIndicator() {
 export function StreamingMessage({ content }: { content: string }) {
   return (
     <div className="flex gap-2 px-4 py-1.5">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5 overflow-hidden">
-        <Image src="/blue-icon-logo.png" alt="Kap AI" width={28} height={28} className="object-contain p-0.5" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center mt-0.5">
+        <span className="text-[11px] font-bold text-primary-foreground">K</span>
       </div>
       <div className="max-w-[80%] text-sm text-foreground leading-relaxed whitespace-pre-wrap">
         {content}

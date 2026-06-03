@@ -129,11 +129,12 @@ export function ChatInterviewHeader({
     <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
       {/* Left: title */}
       <div className="flex items-center gap-2 min-w-0">
-        <div className="flex-shrink-0 w-8 h-8 relative">
+        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
           <Image
             src="/blue-icon-logo.png"
             alt="Mastering Backend"
-            fill
+            width={26}
+            height={26}
             className="object-contain"
           />
         </div>

@@ -2,13 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useAppStore, ChatMessage, ChatInterviewSession, ChatArtifactRef } from "@/lib/store";
+import {
+  useAppStore,
+  ChatMessage,
+  ChatInterviewSession,
+  ChatArtifactRef,
+} from "@/lib/store";
 import { ChatInterviewHeader } from "./chat-interview-header";
 import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import { Loader2, Code2, PenTool, Lock, Sparkles, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  Code2,
+  PenTool,
+  Lock,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
@@ -64,7 +76,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         if (cancelled) return;
         setSession(data);
         setMessages(data.chatMessages ?? []);
-        const alreadyDone = data.status === "COMPLETED" || data.status === "ENDED";
+        const alreadyDone =
+          data.status === "COMPLETED" || data.status === "ENDED";
         setIsComplete(alreadyDone);
         sessionIdRef.current = data.sessionId;
 
@@ -250,7 +263,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         }
       }
     } catch (err: any) {
-      setResultsError(err?.message ?? "Failed to generate report. Please try again.");
+      setResultsError(
+        err?.message ?? "Failed to generate report. Please try again.",
+      );
     } finally {
       if (reader) reader.cancel().catch(() => {});
       setIsLoadingResults(false);
@@ -281,17 +296,19 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   // Load user profile for avatar/initials
   useEffect(() => {
-    store.getUser().then((u: any) => {
-      if (u?.name) setUserName(u.name);
-      if (u?.avatar || u?.image) setUserAvatar(u.avatar || u.image || null);
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    store
+      .getUser()
+      .then((u: any) => {
+        if (u?.name) setUserName(u.name);
+        if (u?.avatar || u?.image) setUserAvatar(u.avatar || u.image || null);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-generate results when interview completes + show completion dialog
   useEffect(() => {
     if (isComplete) {
-      setShowCompletionDialog(true);
       if (!autoResultFiredRef.current) {
         autoResultFiredRef.current = true;
         handleGetResults();
@@ -312,7 +329,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   if (initError || !session) {
     const isUpgradePrompt =
-      initErrorCode === "TRIAL_EXHAUSTED" || initErrorCode === "SESSION_LIMIT_REACHED";
+      initErrorCode === "TRIAL_EXHAUSTED" ||
+      initErrorCode === "SESSION_LIMIT_REACHED";
 
     if (isUpgradePrompt) {
       return (
@@ -321,7 +339,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             {/* Logo */}
             <div className="flex justify-center">
               <div className="relative w-14 h-14">
-                <Image src="/blue-icon-logo.png" alt="Mastering Backend" fill className="object-contain" />
+                <Image
+                  src="/blue-icon-logo.png"
+                  alt="Mastering Backend"
+                  fill
+                  className="object-contain"
+                />
               </div>
             </div>
 
@@ -352,7 +375,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 "Code editor & whiteboard",
                 "Performance analytics",
               ].map((f) => (
-                <div key={f} className="flex items-center gap-2 text-sm text-foreground">
+                <div
+                  key={f}
+                  className="flex items-center gap-2 text-sm text-foreground"
+                >
                   <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                   {f}
                 </div>
@@ -368,7 +394,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 </Button>
               </Link>
               <Link href="/mock-interviews" className="block">
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                >
                   Back to interviews
                 </Button>
               </Link>
@@ -439,6 +469,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             resultsRevealed={resultsRevealed}
             userName={userName}
             userAvatar={userAvatar}
+            onExit={() => {
+              // Handle exit logic here
+              setShowCompletionDialog(true);
+            }}
           />
         </ResizablePanel>
 
@@ -503,7 +537,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <InterviewCompletionDialog
         open={showCompletionDialog}
         onClose={() => setShowCompletionDialog(false)}
-        currentTemplateId={session.template ? (session as any).templateId : undefined}
+        currentTemplateId={
+          session.template ? (session as any).templateId : undefined
+        }
         currentCategory={(session.template as any)?.category}
         overallScore={resultsData?.overallScore ?? null}
       />
