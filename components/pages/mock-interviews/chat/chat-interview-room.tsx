@@ -8,7 +8,9 @@ import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import { Loader2, Code2, PenTool } from "lucide-react";
+import { Loader2, Code2, PenTool, Lock, Sparkles, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -36,6 +38,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [activePanel, setActivePanel] = useState<ActivePanel>("code");
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [initErrorCode, setInitErrorCode] = useState<string | null>(null);
   const [resultsRevealed, setResultsRevealed] = useState(false);
   const [questionAnalysis, setQuestionAnalysis] = useState<
     Array<{ score: number; feedback: string }>
@@ -61,6 +64,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         sessionIdRef.current = data.sessionId;
       } catch (err: any) {
         if (!cancelled) {
+          const code = err?.response?.data?.code ?? null;
+          setInitErrorCode(code);
           setInitError(
             err?.message ?? "Failed to start interview. Please try again.",
           );
@@ -261,6 +266,73 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }
 
   if (initError || !session) {
+    const isUpgradePrompt =
+      initErrorCode === "TRIAL_EXHAUSTED" || initErrorCode === "SESSION_LIMIT_REACHED";
+
+    if (isUpgradePrompt) {
+      return (
+        <div className="flex h-screen items-center justify-center bg-background px-4">
+          <div className="max-w-md w-full text-center space-y-6">
+            {/* Logo */}
+            <div className="flex justify-center">
+              <div className="relative w-14 h-14">
+                <Image src="/blue-icon-logo.png" alt="Mastering Backend" fill className="object-contain" />
+              </div>
+            </div>
+
+            {/* Icon badge */}
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Lock className="w-7 h-7 text-primary" />
+              </div>
+            </div>
+
+            {/* Headline */}
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-foreground">
+                {initErrorCode === "TRIAL_EXHAUSTED"
+                  ? "Free Trial Complete"
+                  : "Monthly Limit Reached"}
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {initError}
+              </p>
+            </div>
+
+            {/* Pro features */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-left space-y-2">
+              {[
+                "Unlimited mock interviews",
+                "AI-powered detailed feedback",
+                "Code editor & whiteboard",
+                "Performance analytics",
+              ].map((f) => (
+                <div key={f} className="flex items-center gap-2 text-sm text-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  {f}
+                </div>
+              ))}
+            </div>
+
+            {/* CTAs */}
+            <div className="space-y-2">
+              <Link href="/pricing" className="block">
+                <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2">
+                  Upgrade to Pro
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Link href="/mock-interviews" className="block">
+                <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+                  Back to interviews
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center space-y-3 px-4">
