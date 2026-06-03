@@ -52,6 +52,7 @@ import {
   Lock,
   Wrench,
   X,
+  MessageSquare,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -353,6 +354,33 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         setShowUpgradeDialog(true);
       } else {
         toast.error("Failed to start interview");
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleStartChatNow = async (templateId: string) => {
+    if (!templateId) return;
+
+    try {
+      setCreating(true);
+      const result = await store.scheduleInterviewFromTemplate(templateId, {});
+
+      if (!result?.id) {
+        toast.error("Failed to start chat interview");
+        return;
+      }
+
+      toast.success("Chat interview started!");
+      setIsBookingDialogOpen(false);
+      onNavigate(`/mock-interviews/${result.id}/chat`);
+    } catch (error: any) {
+      if (error?.response?.status === 402) {
+        setIsBookingDialogOpen(false);
+        setShowUpgradeDialog(true);
+      } else {
+        toast.error("Failed to start chat interview");
       }
     } finally {
       setCreating(false);
@@ -1578,16 +1606,59 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               {selectedTemplate?.name ||
                 `${selectedTemplate?.position} Interview`}
             </DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-              <Wrench className="h-3.5 w-3.5 flex-shrink-0" />
-              {/* Choose to start your interview immediately or schedule it for a later time. */}
-              Session booking is temporarily disabled while we finalize the
-              platform.
+            <DialogDescription>
+              Choose how you want to start your mock interview.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-6 py-4">
-            {/* Start Now Option */}
+            {/* Chat Interview Option */}
+            <Card className="border-primary/30 cursor-pointer hover:border-primary transition-colors">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">Start Chat Interview</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Text-based AI interview with code editor and whiteboard
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    selectedTemplate && handleStartChatNow(selectedTemplate.id)
+                  }
+                  disabled={creating}
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Start
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+
+            {/* Start Now Option (Voice — coming soon) */}
             <Card className="opacity-50 cursor-not-allowed">
               <CardContent className="flex items-center gap-4 p-6">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
