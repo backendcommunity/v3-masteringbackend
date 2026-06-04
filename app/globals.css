@@ -126,7 +126,9 @@
   body {
     @apply bg-background text-foreground;
     font-family: "Satoshi", system-ui, sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
 }
 
@@ -211,26 +213,33 @@
 
   /* Card styling for both themes */
   .card-glow {
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    transition:
+      box-shadow 0.3s ease,
+      transform 0.3s ease;
   }
 
   .light .card-glow {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
   .light .card-glow:hover {
-    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1),
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.1),
       0 0 8px 0 rgba(19, 174, 206, 0.15);
     transform: translateY(-1px);
   }
 
   .dark .card-glow {
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2),
+    box-shadow:
+      0 4px 20px -2px rgba(0, 0, 0, 0.2),
       0 0 8px 0 rgba(19, 174, 206, 0.1);
   }
 
   .dark .card-glow:hover {
-    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3),
+    box-shadow:
+      0 8px 25px -5px rgba(0, 0, 0, 0.3),
       0 0 10px 2px rgba(19, 174, 206, 0.2);
     transform: translateY(-2px);
   }
@@ -370,8 +379,12 @@
 
 /* Smooth transitions for theme changes */
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease,
-    color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
 }
 
 /* Light theme interaction states */
@@ -547,11 +560,8 @@
   border: 2px solid transparent;
   background-clip: padding-box, border-box;
   background-origin: padding-box, border-box;
-  background-image: linear-gradient(
-      to right,
-      hsl(var(--card)),
-      hsl(var(--card))
-    ),
+  background-image:
+    linear-gradient(to right, hsl(var(--card)), hsl(var(--card))),
     linear-gradient(90deg, hsl(var(--mb-blue)), hsl(var(--mb-light-blue)));
 }
 
@@ -653,7 +663,8 @@ article ul li {
 
 /* AI Avatar pulse animation */
 @keyframes ai-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
@@ -669,7 +680,8 @@ article ul li {
 
 /* Voice activity indicator */
 @keyframes voice-bar {
-  0%, 100% {
+  0%,
+  100% {
     height: 8px;
   }
   50% {
@@ -699,7 +711,9 @@ article ul li {
     hsl(190 83% 54% / 0.1),
     transparent
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -749,11 +763,7 @@ article ul li {
 
 .interview-progress-fill {
   @apply h-full rounded-full transition-all duration-500;
-  background: linear-gradient(
-    90deg,
-    hsl(190 83% 44%),
-    hsl(190 83% 54%)
-  );
+  background: linear-gradient(90deg, hsl(190 83% 44%), hsl(190 83% 54%));
 }
 
 /* Question card hover effect */
@@ -827,7 +837,9 @@ article ul li {
 
 /* Typing indicator animation */
 @keyframes typing-dot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -846,4 +858,12 @@ article ul li {
 
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+.excal .excalidraw {
+  --color-primary: #13AECE;
+  --color-primary-darker: #0e8faa;
+  --color-primary-darkest: #0a6e84;
+  --color-primary-light: rgba(19, 174, 206, 0.12);
+  --color-primary-contrast-offset: rgba(19, 174, 206, 0.08);
 }
