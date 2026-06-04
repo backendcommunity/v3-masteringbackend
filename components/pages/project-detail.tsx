@@ -185,11 +185,10 @@ export function ProjectDetailPage({
         projectTitle: project?.title,
         isPremium: !user?.isPremium,
       });
-      if (!user?.isPremium) {
+      if (!user?.isPremium && project?.isPremium) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
-      console.log(slug);
       // add from here inside dialog
       const userProject = await handleEnrollment(slug);
       if (!userProject) {
