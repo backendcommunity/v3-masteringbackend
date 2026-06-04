@@ -439,21 +439,25 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       return;
     }
 
+    const isChatInterview =
+      !interview.template.format ||
+      interview.template.format.toLowerCase() === "chat" ||
+      interview.template.format.toLowerCase() === "text";
+
     try {
       setCreating(true);
 
-      // Start the interview by scheduling it with immediate time
-      // This should create and return a session
-      const result = await store.createMockInterviewRoom(interview.id);
-
-      console.log("Join Interview - Room Creation Result:", result);
-
-      if (result?.session?.id) {
-        // Navigate to the session page
-        onNavigate(`/mock-interviews/${result.session.id}`);
+      if (isChatInterview) {
+        // Chat interview — navigate directly to chat room
+        onNavigate(`/mock-interviews/${interview.id}/chat`);
       } else {
-        toast.error("Failed to start interview session. Please try again.");
-        console.error("No session returned from API:", result);
+        // Video/audio interview — create a LiveKit room then navigate to session
+        const result = await store.createMockInterviewRoom(interview.id);
+        if (result?.session?.id) {
+          onNavigate(`/mock-interviews/${result.session.id}`);
+        } else {
+          toast.error("Failed to start interview session. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Failed to join interview:", error);
