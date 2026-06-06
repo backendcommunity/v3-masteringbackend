@@ -1,23 +1,13 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { MockInterviewResultsPage } from "@/components/pages/mock-interview-results";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { ChatInterviewReplayRoom } from "@/components/pages/mock-interviews/chat/chat-interview-replay-room";
 
 export default function MockInterviewResultsPageRoute() {
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
 
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
-
   if (!id) return null;
 
-  return (
-    <DashboardLayout>
-      <MockInterviewResultsPage sessionId={id} onNavigate={handleNavigate} />
-    </DashboardLayout>
-  );
+  return <ChatInterviewReplayRoom sessionId={id} />;
 }
