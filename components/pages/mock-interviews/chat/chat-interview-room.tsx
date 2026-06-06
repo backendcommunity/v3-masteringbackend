@@ -46,6 +46,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [isComplete, setIsComplete] = useState(false);
   const [resultsData, setResultsData] = useState<ReportData | null>(null);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [isResultsStreaming, setIsResultsStreaming] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsProgress, setResultsProgress] = useState<string | null>(null);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -272,9 +273,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           if (!jsonStr) continue;
           try {
             const event = JSON.parse(jsonStr);
-            if (event.type === "progress") {
+            if (event.type === "token") {
+              setIsResultsStreaming(true);
+            } else if (event.type === "progress") {
               setResultsProgress(event.message);
             } else if (event.type === "result") {
+              setIsResultsStreaming(false);
               const report = event.data;
               setResultsData(report);
               if (report?.questionAnalysis) {
@@ -302,6 +306,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     } finally {
       if (reader) reader.cancel().catch(() => {});
       setIsLoadingResults(false);
+      setIsResultsStreaming(false);
     }
   }, [store]);
 
@@ -502,6 +507,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onSend={handleSend}
             resultsData={resultsData}
             isLoadingResults={isLoadingResults}
+            isResultsStreaming={isResultsStreaming}
             resultsProgress={resultsProgress}
             resultsError={resultsError}
             onGetResults={handleGetResults}
