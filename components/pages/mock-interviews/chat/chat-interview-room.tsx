@@ -13,25 +13,10 @@ import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import {
-  Loader2,
-  Code2,
-  PenTool,
-  Lock,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import { Loader2, Code2, PenTool } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -69,12 +54,8 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   >([]);
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const [showAccessDeniedDialog, setShowAccessDeniedDialog] = useState(false);
-  const [accessDeniedInfo, setAccessDeniedInfo] = useState<{
-    tier: string;
-    maxSessions: number;
-    usedSessions: number;
-    message?: string;
-  } | null>(null);
+
+  const router = useRouter();
 
   const sessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
@@ -239,7 +220,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     try {
       const access = await store.getInterviewAccess();
       if (!access?.hasAccess) {
-        setAccessDeniedInfo(access);
         setShowAccessDeniedDialog(true);
         return;
       }
@@ -273,8 +253,13 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       sessionIdRef.current = data.sessionId;
     } catch (err: any) {
       const code = err?.response?.data?.code ?? null;
-      setInitErrorCode(code);
-      setInitError(err?.message ?? "Failed to restart interview. Please try again.");
+      if (code === "TRIAL_EXHAUSTED" || code === "SESSION_LIMIT_REACHED") {
+        // Show dialog — never replace the screen for limit errors
+        setShowAccessDeniedDialog(true);
+      } else {
+        setInitErrorCode(code);
+        setInitError(err?.message ?? "Failed to restart interview. Please try again.");
+      }
     } finally {
       setIsInitializing(false);
     }
@@ -428,76 +413,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
     if (isUpgradePrompt) {
       return (
-        <div className="flex h-screen items-center justify-center bg-background px-4">
-          <div className="max-w-md w-full text-center space-y-6">
-            {/* Logo */}
-            <div className="flex justify-center">
-              <div className="relative w-14 h-14">
-                <Image
-                  src="/blue-icon-logo.png"
-                  alt="Mastering Backend"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            </div>
-
-            {/* Icon badge */}
-            <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Lock className="w-7 h-7 text-primary" />
-              </div>
-            </div>
-
-            {/* Headline */}
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-foreground">
-                {initErrorCode === "TRIAL_EXHAUSTED"
-                  ? "Free Trial Complete"
-                  : "Monthly Limit Reached"}
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {initError}
-              </p>
-            </div>
-
-            {/* Pro features */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-left space-y-2">
-              {[
-                "Unlimited mock interviews",
-                "AI-powered detailed feedback",
-                "Code editor & whiteboard",
-                "Performance analytics",
-              ].map((f) => (
-                <div
-                  key={f}
-                  className="flex items-center gap-2 text-sm text-foreground"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  {f}
-                </div>
-              ))}
-            </div>
-
-            {/* CTAs */}
-            <div className="space-y-2">
-              <Link href="/pricing" className="block">
-                <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2">
-                  Upgrade to Pro
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/mock-interviews" className="block">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-muted-foreground"
-                >
-                  Back to interviews
-                </Button>
-              </Link>
-            </div>
-          </div>
+        <div className="h-screen bg-background">
+          <InterviewCompletionDialog
+            open={true}
+            onClose={() => router.push("/mock-interviews")}
+            currentTemplateId={undefined}
+            currentCategory={undefined}
+            overallScore={null}
+          />
         </div>
       );
     }
@@ -633,82 +556,19 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <InterviewCompletionDialog
         open={showCompletionDialog}
         onClose={() => setShowCompletionDialog(false)}
-        currentTemplateId={
-          session.template ? (session as any).templateId : undefined
-        }
-        currentCategory={(session.template as any)?.category}
+        currentTemplateId={session.template?.id}
+        currentCategory={session.template?.category}
         overallScore={resultsData?.overallScore ?? null}
       />
 
-      {/* Access denied dialog — shown when restart limit is hit */}
-      <Dialog open={showAccessDeniedDialog} onOpenChange={setShowAccessDeniedDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <div className="flex justify-center mb-2">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-            <DialogTitle className="text-center text-lg font-bold">
-              {accessDeniedInfo?.tier === "free"
-                ? "Free Trial Complete"
-                : "Monthly Limit Reached"}
-            </DialogTitle>
-            <DialogDescription className="text-center text-sm leading-relaxed">
-              {accessDeniedInfo?.message ??
-                "You've used all available interview sessions for your current plan."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Usage meter */}
-          {accessDeniedInfo && (
-            <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Sessions used</span>
-              <span className="font-semibold text-foreground tabular-nums">
-                {accessDeniedInfo.usedSessions}
-                {accessDeniedInfo.maxSessions > 0 && (
-                  <span className="text-muted-foreground font-normal">
-                    {" / "}{accessDeniedInfo.maxSessions}
-                  </span>
-                )}
-              </span>
-            </div>
-          )}
-
-          {/* Pro features */}
-          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-1.5">
-            {[
-              "Unlimited mock interviews",
-              "AI-powered detailed feedback",
-              "Code editor & whiteboard",
-              "Performance analytics",
-            ].map((f) => (
-              <div key={f} className="flex items-center gap-2 text-xs text-foreground">
-                <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
-                {f}
-              </div>
-            ))}
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-2 pt-1">
-            <Link href="/pricing" className="block" onClick={() => setShowAccessDeniedDialog(false)}>
-              <Button className="w-full h-10 gap-2 font-semibold">
-                Upgrade to Pro
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground"
-              onClick={() => setShowAccessDeniedDialog(false)}
-            >
-              Keep viewing results
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Blocking upgrade dialog — shown when restart limit is hit */}
+      <InterviewCompletionDialog
+        open={showAccessDeniedDialog}
+        onClose={() => setShowAccessDeniedDialog(false)}
+        currentTemplateId={session?.template?.id}
+        currentCategory={session?.template?.category}
+        overallScore={resultsData?.overallScore ?? null}
+      />
     </div>
   );
 }

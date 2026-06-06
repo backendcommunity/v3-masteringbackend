@@ -47,10 +47,16 @@ interface ChatInterviewHeaderProps {
   startedAt?: string | null;
 }
 
-function useCountdown(durationMinutes: number, startedAt: string | null | undefined, onExpire: () => void) {
+function useCountdown(
+  durationMinutes: number,
+  startedAt: string | null | undefined,
+  onExpire: () => void,
+) {
   const [secondsLeft, setSecondsLeft] = useState<number>(() => {
     if (!startedAt) return durationMinutes * 60;
-    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    const elapsed = Math.floor(
+      (Date.now() - new Date(startedAt).getTime()) / 1000,
+    );
     return Math.max(0, durationMinutes * 60 - elapsed);
   });
   const expiredRef = useRef(false);
@@ -62,7 +68,7 @@ function useCountdown(durationMinutes: number, startedAt: string | null | undefi
       setSecondsLeft((s) => Math.max(0, s - 1));
     }, 1000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -148,7 +154,9 @@ export function ChatInterviewHeader({
           </p>
           {(template.position || template.company) && (
             <p className="text-[11px] text-muted-foreground truncate leading-tight">
-              {[template.position, template.company].filter(Boolean).join(" · ")}
+              {[template.position, template.company]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
         </div>
@@ -180,7 +188,10 @@ export function ChatInterviewHeader({
               <span className="sr-only">Help</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[320px] sm:w-[320px] p-0 flex flex-col">
+          <SheetContent
+            side="right"
+            className="w-[320px] sm:w-[320px] p-0 flex flex-col"
+          >
             <SheetHeader className="px-4 py-3 border-b border-border">
               <SheetTitle className="text-sm">Interview Help</SheetTitle>
             </SheetHeader>
@@ -206,7 +217,9 @@ export function ChatInterviewHeader({
             <div className="px-4 py-3 border-t border-border">
               <div className="rounded-lg bg-muted/50 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground">Pro tip:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    Pro tip:
+                  </span>{" "}
                   This help panel is always available during your interview.
                 </p>
               </div>
@@ -217,7 +230,12 @@ export function ChatInterviewHeader({
         {/* End interview / Exit room */}
         {isComplete ? (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs px-3 opacity-50 cursor-default" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-3 opacity-50 cursor-default"
+              disabled
+            >
               Interview Ended
             </Button>
             {resultsReady && onExitRoom && (
@@ -233,7 +251,11 @@ export function ChatInterviewHeader({
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="h-8 text-xs px-3">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs px-3"
+              >
                 End Interview
               </Button>
             </AlertDialogTrigger>
@@ -241,7 +263,8 @@ export function ChatInterviewHeader({
               <AlertDialogHeader>
                 <AlertDialogTitle>End interview?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to end the interview now? Your progress will be saved and you can still get your feedback report.
+                  Are you sure you want to end the interview now? Your progress
+                  will be saved and you can still get your feedback report.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

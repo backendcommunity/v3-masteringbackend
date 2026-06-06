@@ -47,10 +47,10 @@ import {
   AlertTriangle,
   Lock,
   MessageSquare,
-  Bookmark,
   CheckCircle2,
   ArrowRight,
 } from "lucide-react";
+import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -631,26 +631,48 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }));
   };
 
-  // ─── Saved interviews (bookmark) state ───────────────────────────────────
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem("mb_saved_interviews");
-      return new Set(stored ? JSON.parse(stored) : []);
-    } catch {
-      return new Set();
-    }
-  });
+  // ─── Saved interviews (bookmark) state — API-backed ─────────────────────
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  // templateId → bookmarkId (needed for delete)
+  const bookmarkIdMapRef = useRef<Map<string, string>>(new Map());
 
-  const toggleSaved = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      localStorage.setItem("mb_saved_interviews", JSON.stringify([...next]));
-      return next;
-    });
+  // Load existing bookmarks once on mount
+  useEffect(() => {
+    store.getBookmarks().then((bookmarks) => {
+      const ids = new Set<string>();
+      bookmarks.forEach((b: any) => {
+        if (b.mockInterviewTemplateId) {
+          ids.add(b.mockInterviewTemplateId);
+          bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
+        }
+      });
+      setSavedIds(ids);
+    }).catch(() => {});
   }, []);
+
+  const handleToggleSave = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (savingIds.has(id)) return;
+    setSavingIds((prev) => new Set(prev).add(id));
+
+    const alreadySaved = savedIds.has(id);
+    try {
+      if (alreadySaved) {
+        await store.deleteBookmark({ mockInterviewTemplateId: id });
+        setSavedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        bookmarkIdMapRef.current.delete(id);
+      } else {
+        const created = await store.createBookmark({ type: "MOCK_INTERVIEW", bookmarkType: "BOOKMARK", mockInterviewTemplateId: id });
+        setSavedIds((prev) => new Set(prev).add(id));
+        if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+      }
+    } catch {
+      toast.error(alreadySaved ? "Failed to remove bookmark." : "Failed to save bookmark.");
+    } finally {
+      setSavingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    }
+  }, [savedIds, savingIds, store]);
 
   // Derived lists
   const savedTemplates = templates.filter((t) => savedIds.has(t.id));
@@ -700,23 +722,64 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               Mock Interviews
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Practice with Kap AI · Land your next backend role
+              {({
+                Backend: "Practice with Kap AI · Land your next backend engineering role",
+                DevOps: "Practice with Kap AI · Nail your next DevOps interview",
+                Cybersecurity: "Practice with Kap AI · Sharpen your security engineering edge",
+                Fullstack: "Practice with Kap AI · Stand out as a fullstack engineer",
+              } as Record<string, string>)[filters.category] ??
+                "Practice with Kap AI · Ace your next engineering interview"}
             </p>
-            {/* Inline stats row */}
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="font-semibold text-foreground">
-                {stats?.totalInterviews ?? 0}
-              </span>{" "}
-              completed ·{" "}
-              <span className="font-semibold text-foreground">
-                {stats?.averageScore ?? 0}%
-              </span>{" "}
-              avg score ·{" "}
-              <span className="font-semibold text-foreground">
-                {stats?.practicedHours ?? 0}h
-              </span>{" "}
-              practiced
-            </p>
+            {/* Stats row */}
+            {stats && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{stats.totalInterviews ?? 0}</span> completed
+                </span>
+                <span className="text-muted-foreground/40 text-xs">·</span>
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{stats.averageScore ?? 0}%</span> avg score
+                </span>
+                <span className="text-muted-foreground/40 text-xs">·</span>
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{stats.practicedHours ?? 0}h</span> practiced
+                </span>
+                {stats.bestScore != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{stats.bestScore}%</span> best
+                    </span>
+                  </>
+                )}
+                {stats.passRate != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span className={cn("font-semibold", stats.passRate >= 70 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>{stats.passRate}%</span> pass rate
+                    </span>
+                  </>
+                )}
+                {stats.scoreImprovement != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span className={cn("font-semibold", stats.scoreImprovement >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500")}>
+                        {stats.scoreImprovement >= 0 ? "+" : ""}{stats.scoreImprovement}%
+                      </span> improvement
+                    </span>
+                  </>
+                )}
+                {stats.topCategory && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      top: <span className="font-semibold text-foreground">{stats.topCategory}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             {/* Session access badge */}
             {interviewAccess &&
               (interviewAccess.tier === "free" ||
@@ -851,9 +914,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </Select>
 
               <Select
-                value={filters.style || "all"}
+                value={filters.format || "all"}
                 onValueChange={(v) =>
-                  handleFilterChange("style", v === "all" ? "" : v)
+                  handleFilterChange("format", v === "all" ? "" : v)
                 }
               >
                 <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
@@ -861,10 +924,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All styles</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="behavioral">Behavioral</SelectItem>
-                  <SelectItem value="coding">Coding</SelectItem>
-                  <SelectItem value="system-design">System Design</SelectItem>
+                  <SelectItem value="Technical">Technical</SelectItem>
+                  <SelectItem value="Behavioral">Behavioral</SelectItem>
+                  <SelectItem value="Coding">Coding</SelectItem>
+                  <SelectItem value="System Design">System Design</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -945,54 +1008,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     {/* Card grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {list.map((template) => (
-                        <div
+                        <MockInterviewTemplateCard
                           key={template.id}
-                          onClick={() => handleBookInterview(template)}
-                          className="group bg-card rounded-2xl border border-border p-5 flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
-                        >
-                          {/* Top row: category + bookmark */}
-                          <div className="flex items-start justify-between">
-                            <span className="text-[11px] text-muted-foreground font-medium">
-                              {template.category ||
-                                template.style ||
-                                "Interview"}
-                            </span>
-                            <button
-                              onClick={(e) => toggleSaved(template.id, e)}
-                              className="p-0.5 -mt-0.5 rounded transition-colors hover:text-primary"
-                              aria-label="Bookmark"
-                            >
-                              <Bookmark
-                                className={cn(
-                                  "w-4 h-4",
-                                  savedIds.has(template.id)
-                                    ? "fill-primary text-primary"
-                                    : "text-muted-foreground/40",
-                                )}
-                              />
-                            </button>
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
-                            {template.name ||
-                              `${template.position} at ${template.company}`}
-                          </h3>
-
-                          {/* Description */}
-                          <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-4 flex-1 mt-2">
-                            {template.description || template.summary || ""}
-                          </p>
-
-                          {/* Footer */}
-                          <div className="border-t border-border/50 pt-3 mt-3 flex items-center justify-between">
-                            <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
-                              <Clock className="w-3.5 h-3.5" />
-                              {template.duration} min
-                            </span>
-                            {difficultyBadge(template.difficulty)}
-                          </div>
-                        </div>
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          isSaved={savedIds.has(template.id)}
+                          isSaving={savingIds.has(template.id)}
+                          onToggleSave={(e) => handleToggleSave(template.id, e)}
+                        />
                       ))}
                     </div>
 

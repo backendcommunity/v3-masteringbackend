@@ -80,9 +80,11 @@ export interface ChatArtifactRef {
 }
 
 export interface ChatInterviewTemplate {
+  id: string;
   name: string | null;
   position: string | null;
   company: string | null;
+  category: string | null;
   seniority: string | null;
   difficulty: string;
   duration: number;
@@ -270,6 +272,16 @@ interface AppState {
     id: string,
     data: { scheduledTime?: Date | string; interviewConfig?: any },
   ) => any;
+  getBookmarks: () => Promise<{ id: string; type: string; mockInterviewTemplateId?: string | null; courseId?: string | null }[]>;
+  createBookmark: (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -1044,6 +1056,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
 
     return data?.data;
+  },
+
+  getBookmarks: async () => {
+    const { data } = await api.get("/bookmarks");
+    return data?.data?.bookmarks ?? [];
+  },
+
+  createBookmark: async (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => {
+    const { data } = await api.post("/bookmarks", input);
+    return data?.data;
+  },
+
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string }) => {
+    const params = new URLSearchParams();
+    if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
+    if (opts.courseId) params.set("courseId", opts.courseId);
+    await api.delete(`/bookmarks?${params.toString()}`);
   },
 
   scheduleInterviewFromTemplate: async (
