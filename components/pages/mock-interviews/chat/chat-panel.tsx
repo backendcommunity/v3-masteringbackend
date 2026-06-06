@@ -216,7 +216,7 @@ export function ChatPanel({
                     disabled={isLoadingResults}
                     className="h-8 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
-                    Get your feedback
+                    Get your Result
                   </Button>
                 </div>
               )}
