@@ -46,7 +46,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [isComplete, setIsComplete] = useState(false);
   const [resultsData, setResultsData] = useState<ReportData | null>(null);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
-  const [isResultsStreaming, setIsResultsStreaming] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsProgress, setResultsProgress] = useState<string | null>(null);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -274,11 +273,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           try {
             const event = JSON.parse(jsonStr);
             if (event.type === "token") {
-              setIsResultsStreaming(true);
+              // streaming in progress — cycling timer handles UX
             } else if (event.type === "progress") {
               setResultsProgress(event.message);
             } else if (event.type === "result") {
-              setIsResultsStreaming(false);
               const report = event.data;
               setResultsData(report);
               if (report?.questionAnalysis) {
@@ -306,7 +304,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     } finally {
       if (reader) reader.cancel().catch(() => {});
       setIsLoadingResults(false);
-      setIsResultsStreaming(false);
     }
   }, [store]);
 
@@ -358,6 +355,25 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       }
     }
   }, [isComplete, handleGetResults]);
+
+  // Auto-cycle progress messages while results are loading
+  useEffect(() => {
+    if (!isLoadingResults) return;
+    const cycleMessages = [
+      "Analyzing your responses…",
+      "Evaluating technical depth…",
+      "Building your performance report…",
+      "Finalizing scores and feedback…",
+      "Almost ready…",
+    ];
+    let idx = 0;
+    setResultsProgress(cycleMessages[0]);
+    const timer = setInterval(() => {
+      idx = (idx + 1) % cycleMessages.length;
+      setResultsProgress(cycleMessages[idx]);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [isLoadingResults]);
 
   if (isInitializing) {
     return (
@@ -507,7 +523,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onSend={handleSend}
             resultsData={resultsData}
             isLoadingResults={isLoadingResults}
-            isResultsStreaming={isResultsStreaming}
             resultsProgress={resultsProgress}
             resultsError={resultsError}
             onGetResults={handleGetResults}

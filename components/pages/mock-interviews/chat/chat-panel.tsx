@@ -23,7 +23,6 @@ interface ChatPanelProps {
   onSend: (content: string) => void;
   resultsData: ReportData | null;
   isLoadingResults: boolean;
-  isResultsStreaming: boolean;
   resultsProgress: string | null;
   resultsError: string | null;
   onGetResults: () => void;
@@ -44,7 +43,6 @@ export function ChatPanel({
   onSend,
   resultsData,
   isLoadingResults,
-  isResultsStreaming,
   resultsProgress,
   resultsError,
   onGetResults,
@@ -180,18 +178,12 @@ export function ChatPanel({
                   </div>
                 </>
               ) : isLoadingResults ? (
-                isResultsStreaming ? (
-                  <div className="px-1">
-                    <TypingIndicator />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-                    <p className="text-sm text-muted-foreground">
-                      {resultsProgress ?? "Generating your feedback report…"}
-                    </p>
-                  </div>
-                )
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    {resultsProgress ?? "Analyzing your responses…"}
+                  </p>
+                </div>
               ) : resultsError ? (
                 <div className="flex flex-col gap-2 p-4 rounded-xl border border-destructive/30 bg-destructive/5">
                   <div className="flex items-center gap-2">
