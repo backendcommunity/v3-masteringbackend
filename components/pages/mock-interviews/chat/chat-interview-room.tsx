@@ -26,6 +26,13 @@ import Link from "next/link";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
@@ -60,6 +67,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [questionAnalysis, setQuestionAnalysis] = useState<
     Array<{ score: number; feedback: string }>
   >([]);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+  const [showAccessDeniedDialog, setShowAccessDeniedDialog] = useState(false);
+  const [accessDeniedInfo, setAccessDeniedInfo] = useState<{
+    tier: string;
+    maxSessions: number;
+    usedSessions: number;
+    message?: string;
+  } | null>(null);
 
   const sessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
@@ -218,7 +233,24 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }, [store]);
 
   const handleRestart = useCallback(async () => {
-    // Reset all session state
+    // Check access BEFORE resetting any state so the user's current results
+    // are preserved if they've hit their limit.
+    setIsCheckingAccess(true);
+    try {
+      const access = await store.getInterviewAccess();
+      if (!access?.hasAccess) {
+        setAccessDeniedInfo(access);
+        setShowAccessDeniedDialog(true);
+        return;
+      }
+    } catch {
+      // Access check network failure — let the restart attempt surface the error
+    } finally {
+      setIsCheckingAccess(false);
+    }
+
+    // Access confirmed — reset state and start new session
+    setIsInitializing(true);
     setMessages([]);
     setIsComplete(false);
     setResultsData(null);
@@ -230,8 +262,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setInsufficientAnswers(false);
     setQuestionAnalysis([]);
     autoResultFiredRef.current = false;
-    sessionIdRef.current = null;
-    setIsInitializing(true);
 
     try {
       const data = await store.startChatInterview(userInterviewId);
@@ -239,6 +269,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       setMessages(data.chatMessages ?? []);
       const alreadyDone = data.status === "COMPLETED" || data.status === "ENDED";
       setIsComplete(alreadyDone);
+      // Set ref only after the session is confirmed — prevents null-ref race
       sessionIdRef.current = data.sessionId;
     } catch (err: any) {
       const code = err?.response?.data?.code ?? null;
@@ -345,11 +376,15 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   useEffect(() => {
     if (isComplete) {
       if (!autoResultFiredRef.current) {
-        autoResultFiredRef.current = true;
         const userAnswerCount = messagesRef.current.filter((m) => m.role === "user").length;
         if (userAnswerCount >= 3) {
-          handleGetResults();
+          autoResultFiredRef.current = true;
+          handleGetResults().catch(() => {
+            // Allow retry if generation fails
+            autoResultFiredRef.current = false;
+          });
         } else {
+          autoResultFiredRef.current = true;
           setInsufficientAnswers(true);
         }
       }
@@ -533,6 +568,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             userAvatar={userAvatar}
             onExit={() => setShowCompletionDialog(true)}
             onRestart={handleRestart}
+            isRestartLoading={isCheckingAccess}
           />
         </ResizablePanel>
 
@@ -603,6 +639,76 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
         currentCategory={(session.template as any)?.category}
         overallScore={resultsData?.overallScore ?? null}
       />
+
+      {/* Access denied dialog — shown when restart limit is hit */}
+      <Dialog open={showAccessDeniedDialog} onOpenChange={setShowAccessDeniedDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="flex justify-center mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Lock className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-lg font-bold">
+              {accessDeniedInfo?.tier === "free"
+                ? "Free Trial Complete"
+                : "Monthly Limit Reached"}
+            </DialogTitle>
+            <DialogDescription className="text-center text-sm leading-relaxed">
+              {accessDeniedInfo?.message ??
+                "You've used all available interview sessions for your current plan."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Usage meter */}
+          {accessDeniedInfo && (
+            <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Sessions used</span>
+              <span className="font-semibold text-foreground tabular-nums">
+                {accessDeniedInfo.usedSessions}
+                {accessDeniedInfo.maxSessions > 0 && (
+                  <span className="text-muted-foreground font-normal">
+                    {" / "}{accessDeniedInfo.maxSessions}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* Pro features */}
+          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-1.5">
+            {[
+              "Unlimited mock interviews",
+              "AI-powered detailed feedback",
+              "Code editor & whiteboard",
+              "Performance analytics",
+            ].map((f) => (
+              <div key={f} className="flex items-center gap-2 text-xs text-foreground">
+                <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
+                {f}
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-2 pt-1">
+            <Link href="/pricing" className="block" onClick={() => setShowAccessDeniedDialog(false)}>
+              <Button className="w-full h-10 gap-2 font-semibold">
+                Upgrade to Pro
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={() => setShowAccessDeniedDialog(false)}
+            >
+              Keep viewing results
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

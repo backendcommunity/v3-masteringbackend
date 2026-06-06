@@ -28,6 +28,7 @@ interface ChatPanelProps {
   onGetResults: () => void;
   onExit?: () => void;
   onRestart?: () => void;
+  isRestartLoading?: boolean;
   questionAnalysis: Array<{ score: number; feedback: string }>;
   resultsRevealed: boolean;
   insufficientAnswers?: boolean;
@@ -53,6 +54,7 @@ export function ChatPanel({
   userAvatar,
   onExit,
   onRestart,
+  isRestartLoading,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -134,10 +136,15 @@ export function ChatPanel({
                       <Button
                         size="sm"
                         onClick={onRestart}
+                        disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Restart Interview
+                        {isRestartLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        )}
+                        {isRestartLoading ? "Checking…" : "Restart Interview"}
                       </Button>
                     )}
                     <Button
@@ -160,10 +167,15 @@ export function ChatPanel({
                         size="sm"
                         variant="outline"
                         onClick={onRestart}
+                        disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Restart
+                        {isRestartLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        )}
+                        {isRestartLoading ? "Checking…" : "Restart"}
                       </Button>
                     )}
                     <Button
