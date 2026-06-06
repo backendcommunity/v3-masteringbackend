@@ -325,8 +325,7 @@ export function MockInterviewResultsPage({
     try {
       setStatus("processing");
 
-      // Direct call to generate (returns existing report if already generated)
-      const data = await store.getSessionReport(sessionId);
+      const data = await store.getChatSessionReport(sessionId);
 
       if (!data) {
         setStatus("failed");
@@ -336,16 +335,6 @@ export function MockInterviewResultsPage({
 
       setReport(data);
       setStatus("completed");
-
-      // Also fetch transcript
-      try {
-        const transcriptData = await store.getSessionTranscript(sessionId);
-        if (transcriptData?.transcript) {
-          setTranscript(transcriptData.transcript);
-        }
-      } catch (transcriptErr) {
-        console.error("Failed to fetch transcript:", transcriptErr);
-      }
     } catch (err: any) {
       console.error("Failed to generate report:", err);
       setStatus("failed");
@@ -366,7 +355,7 @@ export function MockInterviewResultsPage({
   const handleRetry = async () => {
     setIsRetrying(true);
     try {
-      await store.retryReportGeneration(sessionId);
+      await store.generateSessionReport(sessionId);
       setStatus("pending");
       setError(null);
       // Restart polling
