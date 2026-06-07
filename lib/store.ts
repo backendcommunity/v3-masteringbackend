@@ -173,8 +173,8 @@ interface AppState {
     filters?: any;
   }) => any;
   getMockInterviewCategories: () => Promise<string[]>;
-  getUserBookedInterviews: () => any;
-  getUserCompletedInterviews: () => any;
+  getUserBookedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getUserCompletedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
   getMyTemplates: () => any;
   deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
@@ -274,7 +274,7 @@ interface AppState {
     id: string,
     data: { scheduledTime?: Date | string; interviewConfig?: any },
   ) => any;
-  getBookmarks: () => Promise<{ id: string; type: string; mockInterviewTemplateId?: string | null; courseId?: string | null }[]>;
+  getBookmarks: (size?: number, skip?: number) => Promise<{ bookmarks: any[]; meta: { total: number } }>;
   createBookmark: (input: {
     type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
     bookmarkType: "BOOKMARK" | "WISHLIST";
@@ -900,14 +900,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data ?? [];
   },
 
-  getUserBookedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/booked");
-    return data?.data;
+  getUserBookedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/booked?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
   },
 
-  getUserCompletedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/completed");
-    return data?.data;
+  getUserCompletedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/completed?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
   },
 
   getMockInterviewTemplate: async (id: string) => {
@@ -1071,9 +1071,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getBookmarks: async () => {
-    const { data } = await api.get("/bookmarks");
-    return data?.data?.bookmarks ?? [];
+  getBookmarks: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
+    return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
   },
 
   createBookmark: async (input: {

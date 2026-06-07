@@ -157,6 +157,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [totalTemplates, setTotalTemplates] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
+  const PAGE_SIZE = 12;
+  const [bookedPage, setBookedPage] = useState(0);
+  const [bookedTotal, setBookedTotal] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [savedPage, setSavedPage] = useState(0);
+  const [savedTotal, setSavedTotal] = useState(0);
+
   const [filters, setFilters] = useState({
     difficulty: "",
     style: "",
@@ -210,9 +218,23 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       setMyTemplatesPage(0);
     }
     if (activeTab === "completed") {
-      loadCompletedInterviews();
+      setCompletedPage(0);
+      loadCompletedInterviews(0);
+    }
+    if (activeTab === "booked") {
+      setBookedPage(0);
+      loadBookedInterviews(0);
+    }
+    if (activeTab === "saved") {
+      setSavedPage(0);
+      loadBookmarks(0);
     }
   }, [activeTab]);
+
+  // Re-fetch when page changes
+  useEffect(() => { loadBookedInterviews(bookedPage); }, [bookedPage]);
+  useEffect(() => { loadCompletedInterviews(completedPage); }, [completedPage]);
+  useEffect(() => { loadBookmarks(savedPage); }, [savedPage]);
 
   // Load stats, booked, completed interviews, and access on initial mount
   useEffect(() => {
@@ -294,11 +316,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadBookedInterviews = async () => {
+  const loadBookedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserBookedInterviews();
-      setBookedInterviews(data || []);
+      const res = await store.getUserBookedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setBookedInterviews(res.data || []);
+      setBookedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load booked interviews");
     } finally {
@@ -306,13 +329,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadCompletedInterviews = async () => {
+  const loadCompletedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserCompletedInterviews();
-      setCompletedInterviews(data || []);
-
-      console.log("Completed Interviews:", data);
+      const res = await store.getUserCompletedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setCompletedInterviews(res.data || []);
+      setCompletedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load completed interviews");
     } finally {
@@ -620,11 +642,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   // templateId → bookmarkId (needed for delete)
   const bookmarkIdMapRef = useRef<Map<string, string>>(new Map());
 
-  // Load existing bookmarks once on mount
-  useEffect(() => {
+  const loadBookmarks = (page = 0) => {
     store
-      .getBookmarks()
-      .then((bookmarks) => {
+      .getBookmarks(PAGE_SIZE, page * PAGE_SIZE)
+      .then(({ bookmarks, meta }) => {
         const ids = new Set<string>();
         const tpls: InterviewTemplate[] = [];
         bookmarks.forEach((b: any) => {
@@ -636,8 +657,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         });
         setSavedIds(ids);
         setSavedTemplates(tpls);
+        setSavedTotal(meta?.total ?? 0);
       })
       .catch(() => {});
+  };
+
+  // Load existing bookmarks once on mount
+  useEffect(() => {
+    loadBookmarks(0);
   }, []);
 
   const handleToggleSave = useCallback(
@@ -1106,33 +1133,39 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       ))}
                     </div>
 
-                    {/* Pagination — only for templates tab */}
+                    {/* Pagination — templates tab */}
                     {activeTab === "templates" && (
                       <div className="flex items-center justify-between mt-6">
                         <p className="text-sm text-muted-foreground">
                           Showing {pagination.skip + 1}–
-                          {Math.min(
-                            pagination.skip + pagination.size,
-                            totalTemplates,
-                          )}{" "}
+                          {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
                           of {totalTemplates} templates
                         </p>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePrevPage}
-                            disabled={pagination.skip === 0}
-                          >
+                          <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={pagination.skip === 0}>
                             <ChevronLeft className="h-4 w-4" />
                             Previous
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleNextPage}
-                            disabled={!hasMore}
-                          >
+                          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasMore}>
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pagination — saved tab */}
+                    {activeTab === "saved" && savedTotal > PAGE_SIZE && (
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {savedPage * PAGE_SIZE + 1}–{Math.min((savedPage + 1) * PAGE_SIZE, savedTotal)} of {savedTotal} saved
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p - 1)} disabled={savedPage === 0}>
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p + 1)} disabled={(savedPage + 1) * PAGE_SIZE >= savedTotal}>
                             Next
                             <ChevronRight className="h-4 w-4" />
                           </Button>
@@ -1242,6 +1275,23 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 ))}
               </div>
             )}
+            {bookedTotal > PAGE_SIZE && bookedInterviews.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-muted-foreground">
+                  Showing {bookedPage * PAGE_SIZE + 1}–{Math.min((bookedPage + 1) * PAGE_SIZE, bookedTotal)} of {bookedTotal} booked
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p - 1)} disabled={bookedPage === 0}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p + 1)} disabled={(bookedPage + 1) * PAGE_SIZE >= bookedTotal}>
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -1319,6 +1369,23 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       </div>
                     </div>
                   ))}
+              </div>
+            )}
+            {completedTotal > PAGE_SIZE && completedInterviews.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-muted-foreground">
+                  Showing {completedPage * PAGE_SIZE + 1}–{Math.min((completedPage + 1) * PAGE_SIZE, completedTotal)} of {completedTotal} completed
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p - 1)} disabled={completedPage === 0}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p + 1)} disabled={(completedPage + 1) * PAGE_SIZE >= completedTotal}>
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </>
