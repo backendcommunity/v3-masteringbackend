@@ -625,6 +625,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           <div className="flex-1 min-h-0">
             {activePanel === "code" ? (
               <CodeEditorPanel
+                key={messages.filter((m) => m.role === "user").length}
                 onSendToKap={handleCodeSend}
                 disabled={isComplete}
                 savedCode={session.codeArtifact}

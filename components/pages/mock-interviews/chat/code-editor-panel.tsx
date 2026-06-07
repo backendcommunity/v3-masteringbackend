@@ -21,6 +21,8 @@ const LANGUAGES = [
   "Rust",
   "C++",
   "SQL",
+  "HTML",
+  "CSS",
 ];
 
 const STARTER_TEMPLATES: Record<string, string> = {
@@ -112,6 +114,34 @@ FROM users
 WHERE active = true
 ORDER BY created_at DESC
 LIMIT 10;`,
+  HTML: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solution</title>
+  <style>
+    /* Add your styles here */
+  </style>
+</head>
+<body>
+  <!-- Write your solution here -->
+
+  <script>
+    // Add interactivity here
+  </script>
+</body>
+</html>`,
+  CSS: `/* Write your CSS solution here */
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Add your styles below */
+`,
 };
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {

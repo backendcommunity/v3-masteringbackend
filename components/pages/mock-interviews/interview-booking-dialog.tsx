@@ -136,7 +136,7 @@ export function InterviewBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-md p-0 overflow-hidden gap-0">
+      <DialogContent className="w-[95vw] max-w-md p-0 overflow-y-auto max-h-[90vh] gap-0">
         {/* Template overview */}
         <div className="px-6 pt-6 pb-5 border-b border-border">
           <div className="flex items-center gap-2 mb-2">
