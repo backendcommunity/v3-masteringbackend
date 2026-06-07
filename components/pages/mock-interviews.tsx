@@ -838,17 +838,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </span>
                   </>
                 )}
-                {stats.topCategory && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      top:{" "}
-                      <span className="font-semibold text-foreground">
-                        {stats.topCategory}
-                      </span>
-                    </span>
-                  </>
-                )}
               </div>
             )}
             {/* Session access badge */}
