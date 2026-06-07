@@ -616,6 +616,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   // ─── Saved interviews (bookmark) state — API-backed ─────────────────────
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [savedTemplates, setSavedTemplates] = useState<InterviewTemplate[]>([]);
   // templateId → bookmarkId (needed for delete)
   const bookmarkIdMapRef = useRef<Map<string, string>>(new Map());
 
@@ -625,13 +626,16 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       .getBookmarks()
       .then((bookmarks) => {
         const ids = new Set<string>();
+        const tpls: InterviewTemplate[] = [];
         bookmarks.forEach((b: any) => {
-          if (b.mockInterviewTemplateId) {
+          if (b.mockInterviewTemplateId && b.mockInterviewTemplate) {
             ids.add(b.mockInterviewTemplateId);
             bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
+            tpls.push(b.mockInterviewTemplate as InterviewTemplate);
           }
         });
         setSavedIds(ids);
+        setSavedTemplates(tpls);
       })
       .catch(() => {});
   }, []);
@@ -651,6 +655,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             next.delete(id);
             return next;
           });
+          setSavedTemplates((prev) => prev.filter((t) => t.id !== id));
           bookmarkIdMapRef.current.delete(id);
         } else {
           const created = await store.createBookmark({
@@ -660,6 +665,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           });
           setSavedIds((prev) => new Set(prev).add(id));
           if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+          // Add the template to savedTemplates from the current paginated list
+          const tpl = templates.find((t) => t.id === id);
+          if (tpl) setSavedTemplates((prev) => [tpl, ...prev]);
         }
       } catch {
         toast.error(
@@ -678,8 +686,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     [savedIds, savingIds, store],
   );
 
-  // Derived lists
-  const savedTemplates = templates.filter((t) => savedIds.has(t.id));
+  // Derived lists (savedTemplates is API-backed state, not derived from paginated templates)
 
   // ─── Difficulty badge helper ──────────────────────────────────────────────
   const difficultyBadge = (difficulty: string) => {
