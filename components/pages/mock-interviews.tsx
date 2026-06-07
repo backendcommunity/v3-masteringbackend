@@ -209,6 +209,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       loadMyTemplates();
       setMyTemplatesPage(0);
     }
+    if (activeTab === "completed") {
+      loadCompletedInterviews();
+    }
   }, [activeTab]);
 
   // Load stats, booked, completed interviews, and access on initial mount
@@ -218,6 +221,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadCompletedInterviews();
     loadInterviewAccess();
     loadCategories();
+    loadMyTemplates();
     analytics.page("Mock Interviews");
   }, []);
 
@@ -243,7 +247,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       setTimeout(() => handleBookInterview(template), 100);
     }
   }, [searchParams, templates]);
-
 
   const loadTemplates = async () => {
     try {
@@ -377,7 +380,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       interviewAccess?.remainingSessions! >= 1 &&
       !interviewAccess?.hasAccess
     ) {
-      analytics.track("mock_interview_upgrade_dialog_shown", { trigger: "template_click", tier: interviewAccess?.tier });
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "template_click",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
@@ -397,7 +403,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   const handleJoinInterview = async (interview: UserInterview) => {
     if (!interviewAccess?.hasAccess) {
-      analytics.track("mock_interview_upgrade_dialog_shown", { trigger: "join_attempt", tier: interviewAccess?.tier });
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "join_attempt",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
@@ -572,12 +581,20 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
       // Debounce the API call
       searchDebounceRef.current = setTimeout(() => {
-        if (value) analytics.track("mock_interview_filter_applied", { filter_type: "search", query_length: value.length });
+        if (value)
+          analytics.track("mock_interview_filter_applied", {
+            filter_type: "search",
+            query_length: value.length,
+          });
         setPagination({ size: 10, skip: 0 });
       }, 300);
     } else {
       // For other filters, update immediately
-      if (value) analytics.track("mock_interview_filter_applied", { filter_type: key, value });
+      if (value)
+        analytics.track("mock_interview_filter_applied", {
+          filter_type: key,
+          value,
+        });
       setFilters((prev) => ({ ...prev, [key]: value }));
       setPagination({ size: 10, skip: 0 });
     }
@@ -604,40 +621,62 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   // Load existing bookmarks once on mount
   useEffect(() => {
-    store.getBookmarks().then((bookmarks) => {
-      const ids = new Set<string>();
-      bookmarks.forEach((b: any) => {
-        if (b.mockInterviewTemplateId) {
-          ids.add(b.mockInterviewTemplateId);
-          bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
-        }
-      });
-      setSavedIds(ids);
-    }).catch(() => {});
+    store
+      .getBookmarks()
+      .then((bookmarks) => {
+        const ids = new Set<string>();
+        bookmarks.forEach((b: any) => {
+          if (b.mockInterviewTemplateId) {
+            ids.add(b.mockInterviewTemplateId);
+            bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
+          }
+        });
+        setSavedIds(ids);
+      })
+      .catch(() => {});
   }, []);
 
-  const handleToggleSave = useCallback(async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (savingIds.has(id)) return;
-    setSavingIds((prev) => new Set(prev).add(id));
+  const handleToggleSave = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (savingIds.has(id)) return;
+      setSavingIds((prev) => new Set(prev).add(id));
 
-    const alreadySaved = savedIds.has(id);
-    try {
-      if (alreadySaved) {
-        await store.deleteBookmark({ mockInterviewTemplateId: id });
-        setSavedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-        bookmarkIdMapRef.current.delete(id);
-      } else {
-        const created = await store.createBookmark({ type: "MOCK_INTERVIEW", bookmarkType: "BOOKMARK", mockInterviewTemplateId: id });
-        setSavedIds((prev) => new Set(prev).add(id));
-        if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+      const alreadySaved = savedIds.has(id);
+      try {
+        if (alreadySaved) {
+          await store.deleteBookmark({ mockInterviewTemplateId: id });
+          setSavedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          bookmarkIdMapRef.current.delete(id);
+        } else {
+          const created = await store.createBookmark({
+            type: "MOCK_INTERVIEW",
+            bookmarkType: "BOOKMARK",
+            mockInterviewTemplateId: id,
+          });
+          setSavedIds((prev) => new Set(prev).add(id));
+          if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+        }
+      } catch {
+        toast.error(
+          alreadySaved
+            ? "Failed to remove bookmark."
+            : "Failed to save bookmark.",
+        );
+      } finally {
+        setSavingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
       }
-    } catch {
-      toast.error(alreadySaved ? "Failed to remove bookmark." : "Failed to save bookmark.");
-    } finally {
-      setSavingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-    }
-  }, [savedIds, savingIds, store]);
+    },
+    [savedIds, savingIds, store],
+  );
 
   // Derived lists
   const savedTemplates = templates.filter((t) => savedIds.has(t.id));
@@ -687,33 +726,51 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               Mock Interviews
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {({
-                Backend: "Practice with Kap AI · Land your next backend engineering role",
-                DevOps: "Practice with Kap AI · Nail your next DevOps interview",
-                Cybersecurity: "Practice with Kap AI · Sharpen your security engineering edge",
-                Fullstack: "Practice with Kap AI · Stand out as a fullstack engineer",
-              } as Record<string, string>)[filters.category] ??
+              {(
+                {
+                  Backend:
+                    "Practice with Kap AI · Land your next backend engineering role",
+                  DevOps:
+                    "Practice with Kap AI · Nail your next DevOps interview",
+                  Cybersecurity:
+                    "Practice with Kap AI · Sharpen your security engineering edge",
+                  Fullstack:
+                    "Practice with Kap AI · Stand out as a fullstack engineer",
+                } as Record<string, string>
+              )[filters.category] ??
                 "Practice with Kap AI · Ace your next engineering interview"}
             </p>
             {/* Stats row */}
             {stats && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                 <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{stats.totalInterviews ?? 0}</span> completed
+                  <span className="font-semibold text-foreground">
+                    {stats.totalInterviews ?? 0}
+                  </span>{" "}
+                  completed
                 </span>
                 <span className="text-muted-foreground/40 text-xs">·</span>
                 <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{stats.averageScore ?? 0}%</span> avg score
+                  <span className="font-semibold text-foreground">
+                    {stats.averageScore ?? 0}%
+                  </span>{" "}
+                  avg score
                 </span>
                 <span className="text-muted-foreground/40 text-xs">·</span>
                 <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{stats.practicedHours ?? 0}h</span> practiced
+                  <span className="font-semibold text-foreground">
+                    {stats.practicedHours ?? 0}h
+                  </span>{" "}
+                  practiced
                 </span>
                 {stats.bestScore != null && (
                   <>
                     <span className="text-muted-foreground/40 text-xs">·</span>
                     <span className="text-sm text-muted-foreground">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">{stats.bestScore}%</span> best
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {stats.bestScore}%
+                      </span>{" "}
+                      best
                     </span>
                   </>
                 )}
@@ -721,7 +778,17 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <>
                     <span className="text-muted-foreground/40 text-xs">·</span>
                     <span className="text-sm text-muted-foreground">
-                      <span className={cn("font-semibold", stats.passRate >= 70 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>{stats.passRate}%</span> pass rate
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          stats.passRate >= 70
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-amber-600 dark:text-amber-400",
+                        )}
+                      >
+                        {stats.passRate}%
+                      </span>{" "}
+                      pass rate
                     </span>
                   </>
                 )}
@@ -729,9 +796,18 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <>
                     <span className="text-muted-foreground/40 text-xs">·</span>
                     <span className="text-sm text-muted-foreground">
-                      <span className={cn("font-semibold", stats.scoreImprovement >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500")}>
-                        {stats.scoreImprovement >= 0 ? "+" : ""}{stats.scoreImprovement}%
-                      </span> improvement
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          stats.scoreImprovement >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-500",
+                        )}
+                      >
+                        {stats.scoreImprovement >= 0 ? "+" : ""}
+                        {stats.scoreImprovement}%
+                      </span>{" "}
+                      improvement
                     </span>
                   </>
                 )}
@@ -739,7 +815,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <>
                     <span className="text-muted-foreground/40 text-xs">·</span>
                     <span className="text-sm text-muted-foreground">
-                      top: <span className="font-semibold text-foreground">{stats.topCategory}</span>
+                      top:{" "}
+                      <span className="font-semibold text-foreground">
+                        {stats.topCategory}
+                      </span>
                     </span>
                   </>
                 )}
@@ -778,7 +857,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               variant="outline"
               className="shrink-0 gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
               onClick={() => {
-                analytics.track("mock_interview_upgrade_cta_clicked", { from: "practice_cta_header", tier: "free" });
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "practice_cta_header",
+                  tier: "free",
+                });
                 onNavigate("/subscription/plans");
               }}
             >
@@ -789,7 +871,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <Button
               className="shrink-0 gap-2"
               onClick={() => {
-                analytics.track("mock_interview_practice_for_job_clicked", { tier: interviewAccess?.tier ?? "pro" });
+                analytics.track("mock_interview_practice_for_job_clicked", {
+                  tier: interviewAccess?.tier ?? "pro",
+                });
                 onNavigate("/mock-interviews/prepare");
               }}
             >
@@ -851,7 +935,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 count: totalTemplates,
               },
               { value: "saved", label: "Saved", count: savedIds.size },
-              { value: "my-templates", label: "My Templates", count: myTemplates.length },
+              {
+                value: "my-templates",
+                label: "My Templates",
+                count: myTemplates.length,
+              },
               {
                 value: "booked",
                 label: "Booked",
@@ -868,7 +956,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <button
               key={chip.value}
               onClick={() => {
-                analytics.track("mock_interview_tab_changed", { tab: chip.value, from: activeTab });
+                analytics.track("mock_interview_tab_changed", {
+                  tab: chip.value,
+                  from: activeTab,
+                });
                 setActiveTab(chip.value);
               }}
               className={cn(
@@ -1235,71 +1326,87 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             ) : myTemplates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No custom templates yet</h3>
+                <h3 className="text-lg font-semibold mb-1">
+                  No custom templates yet
+                </h3>
                 <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                  Analyze a job description to generate a personalized interview template tailored to the role.
+                  Analyze a job description to generate a personalized interview
+                  template tailored to the role.
                 </p>
-                <Button onClick={() => onNavigate("/mock-interviews/prepare")} className="gap-2">
+                <Button
+                  onClick={() => onNavigate("/mock-interviews/prepare")}
+                  className="gap-2"
+                >
                   <Sparkles className="h-4 w-4" />
                   Practice for a real job
                 </Button>
               </div>
-            ) : (() => {
-              const totalPages = Math.ceil(myTemplates.length / MY_TEMPLATES_PAGE_SIZE);
-              const paged = myTemplates.slice(
-                myTemplatesPage * MY_TEMPLATES_PAGE_SIZE,
-                (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
-              );
-              return (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {paged.map((template) => (
-                      <MockInterviewTemplateCard
-                        key={template.id}
-                        template={template}
-                        onSelect={() => handleBookInterview(template)}
-                        onDelete={(e) => {
-                          e.stopPropagation();
-                          analytics.track("my_template_delete_initiated", { template_id: template.id });
-                          setDeleteTemplateId(template.id);
-                        }}
-                        actionLabel="Practice"
-                      />
-                    ))}
-                  </div>
-
-                  {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
-                    <div className="flex items-center justify-between mt-6">
-                      <p className="text-sm text-muted-foreground">
-                        Showing {myTemplatesPage * MY_TEMPLATES_PAGE_SIZE + 1}–
-                        {Math.min((myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE, myTemplates.length)} of{" "}
-                        {myTemplates.length} templates
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setMyTemplatesPage((p) => p - 1)}
-                          disabled={myTemplatesPage === 0}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setMyTemplatesPage((p) => p + 1)}
-                          disabled={myTemplatesPage >= totalPages - 1}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
+            ) : (
+              (() => {
+                const totalPages = Math.ceil(
+                  myTemplates.length / MY_TEMPLATES_PAGE_SIZE,
+                );
+                const paged = myTemplates.slice(
+                  myTemplatesPage * MY_TEMPLATES_PAGE_SIZE,
+                  (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
+                );
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {paged.map((template) => (
+                        <MockInterviewTemplateCard
+                          key={template.id}
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          onDelete={(e) => {
+                            e.stopPropagation();
+                            analytics.track("my_template_delete_initiated", {
+                              template_id: template.id,
+                            });
+                            setDeleteTemplateId(template.id);
+                          }}
+                          actionLabel="Practice"
+                        />
+                      ))}
                     </div>
-                  )}
-                </>
-              );
-            })()}
+
+                    {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {myTemplatesPage * MY_TEMPLATES_PAGE_SIZE + 1}
+                          –
+                          {Math.min(
+                            (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
+                            myTemplates.length,
+                          )}{" "}
+                          of {myTemplates.length} templates
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMyTemplatesPage((p) => p - 1)}
+                            disabled={myTemplatesPage === 0}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMyTemplatesPage((p) => p + 1)}
+                            disabled={myTemplatesPage >= totalPages - 1}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </>
         )}
       </div>
@@ -1370,10 +1477,15 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             >
               Cancel
             </Button>
-            <Button onClick={() => {
-              analytics.track("mock_interview_upgrade_cta_clicked", { from: "upgrade_dialog", tier: interviewAccess?.tier });
-              onNavigate("/subscription/plans");
-            }}>
+            <Button
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "upgrade_dialog",
+                  tier: interviewAccess?.tier,
+                });
+                onNavigate("/subscription/plans");
+              }}
+            >
               <Crown className="h-4 w-4 mr-2" />
               View Plans
             </Button>
@@ -1382,7 +1494,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       </Dialog>
 
       {/* Delete My Template Confirmation */}
-      <Dialog open={!!deleteTemplateId} onOpenChange={(open) => { if (!open) setDeleteTemplateId(null); }}>
+      <Dialog
+        open={!!deleteTemplateId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTemplateId(null);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1390,15 +1507,28 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               Delete Template
             </DialogTitle>
             <DialogDescription>
-              This template will be permanently deleted. This action cannot be undone.
+              This template will be permanently deleted. This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeleteTemplateId(null)} disabled={deletingTemplate}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTemplateId(null)}
+              disabled={deletingTemplate}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteMyTemplate} disabled={deletingTemplate}>
-              {deletingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMyTemplate}
+              disabled={deletingTemplate}
+            >
+              {deletingTemplate ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
               Delete
             </Button>
           </DialogFooter>

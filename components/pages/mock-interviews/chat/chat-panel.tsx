@@ -102,17 +102,21 @@ export function ChatPanel({
             </p>
           )}
 
-          {messages.map((message) => (
-            <ChatMessageBubble
-              key={message.id}
-              message={message}
-              analysis={getUserAnalysis(message)}
-              isStreaming={message.id === streamingMsgId}
-              sessionId={session.sessionId}
-              userName={userName}
-              userAvatar={userAvatar}
-            />
-          ))}
+          {messages.map((message, idx) => {
+            // Skip the empty AI placeholder — TypingIndicator renders in its place
+            if (showTypingIndicator && idx === messages.length - 1) return null;
+            return (
+              <ChatMessageBubble
+                key={message.id}
+                message={message}
+                analysis={getUserAnalysis(message)}
+                isStreaming={message.id === streamingMsgId}
+                sessionId={session.sessionId}
+                userName={userName}
+                userAvatar={userAvatar}
+              />
+            );
+          })}
 
           {showTypingIndicator && <TypingIndicator />}
 
