@@ -8,21 +8,14 @@ import {
   ChatInterviewSession,
   ChatArtifactRef,
 } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { ChatInterviewHeader } from "./chat-interview-header";
 import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import {
-  Loader2,
-  Code2,
-  PenTool,
-  Lock,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import { Loader2, Code2, PenTool } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +39,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [isComplete, setIsComplete] = useState(false);
   const [resultsData, setResultsData] = useState<ReportData | null>(null);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
-  const [isResultsStreaming, setIsResultsStreaming] = useState(false);
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [resultsProgress, setResultsProgress] = useState<string | null>(null);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -61,13 +53,23 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const [questionAnalysis, setQuestionAnalysis] = useState<
     Array<{ score: number; feedback: string }>
   >([]);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+  const [showAccessDeniedDialog, setShowAccessDeniedDialog] = useState(false);
+
+  const router = useRouter();
 
   const sessionIdRef = useRef<string | null>(null);
+  const sessionRef = useRef<ChatInterviewSession | null>(null);
+  const endedManuallyRef = useRef(false);
   const messagesRef = useRef(messages);
   const autoResultFiredRef = useRef(false);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -82,6 +84,16 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           data.status === "COMPLETED" || data.status === "ENDED";
         setIsComplete(alreadyDone);
         sessionIdRef.current = data.sessionId;
+        analytics.track("chat_interview_session_started", {
+          template_id: data.template?.id,
+          position: data.template?.position,
+          company: data.template?.company,
+          difficulty: data.template?.difficulty,
+          duration: data.template?.duration,
+          category: data.template?.category,
+          session_id: data.sessionId,
+          is_resuming: alreadyDone,
+        });
 
         if (alreadyDone) {
           // Session was already complete before this mount — fetch stored report
@@ -117,6 +129,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           setInitError(
             err?.message ?? "Failed to start interview. Please try again.",
           );
+          analytics.track("chat_interview_session_start_failed", {
+            error_code: code,
+            error_message: err?.message,
+          });
         }
       } finally {
         if (!cancelled) setIsInitializing(false);
@@ -140,6 +156,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
       const userMsgId = `user-${Date.now()}`;
       const aiMsgId = `ai-${Date.now() + 1}`;
+
+      if (!artifactRef) {
+        const questionNum = messagesRef.current.filter((m) => m.role === "user").length + 1;
+        analytics.track("chat_interview_message_sent", {
+          template_id: sessionRef.current?.template?.id,
+          question_number: questionNum,
+        });
+      }
 
       const userMsg: ChatMessage = {
         id: userMsgId,
@@ -192,6 +216,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
               } else if (parsed.type === "done") {
                 if (parsed.isComplete) setIsComplete(true);
               }
+              // note: completion funnel tracked in the isComplete useEffect below
             } catch {
               // Skip malformed JSON lines
             }
@@ -210,6 +235,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const handleEndInterview = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
+    endedManuallyRef.current = true;
+    analytics.track("chat_interview_ended_manually", {
+      template_id: sessionRef.current?.template?.id,
+      user_answers_given: messagesRef.current.filter((m) => m.role === "user").length,
+    });
     try {
       await store.endChatInterviewSession(sessionId);
     } catch {
@@ -218,8 +248,36 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsComplete(true);
   }, [store]);
 
+  const handleTimerExpired = useCallback(() => {
+    analytics.track("chat_interview_timer_expired", {
+      template_id: sessionRef.current?.template?.id,
+      user_answers_given: messagesRef.current.filter((m) => m.role === "user").length,
+    });
+    handleEndInterview();
+  }, [handleEndInterview]);
+
   const handleRestart = useCallback(async () => {
-    // Reset all session state
+    // Check access BEFORE resetting any state so the user's current results
+    // are preserved if they've hit their limit.
+    setIsCheckingAccess(true);
+    try {
+      const access = await store.getInterviewAccess();
+      if (!access?.hasAccess) {
+        analytics.track("chat_interview_restart_blocked", {
+          template_id: sessionRef.current?.template?.id,
+          tier: access?.tier,
+        });
+        setShowAccessDeniedDialog(true);
+        return;
+      }
+    } catch {
+      // Access check network failure — let the restart attempt surface the error
+    } finally {
+      setIsCheckingAccess(false);
+    }
+
+    // Access confirmed — reset state and start new session
+    setIsInitializing(true);
     setMessages([]);
     setIsComplete(false);
     setResultsData(null);
@@ -231,8 +289,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setInsufficientAnswers(false);
     setQuestionAnalysis([]);
     autoResultFiredRef.current = false;
-    sessionIdRef.current = null;
-    setIsInitializing(true);
 
     try {
       const data = await store.startChatInterview(userInterviewId);
@@ -240,11 +296,23 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       setMessages(data.chatMessages ?? []);
       const alreadyDone = data.status === "COMPLETED" || data.status === "ENDED";
       setIsComplete(alreadyDone);
+      // Set ref only after the session is confirmed — prevents null-ref race
       sessionIdRef.current = data.sessionId;
+      endedManuallyRef.current = false;
+      autoResultFiredRef.current = false;
+      analytics.track("chat_interview_restarted", {
+        template_id: data.template?.id,
+        session_id: data.sessionId,
+      });
     } catch (err: any) {
       const code = err?.response?.data?.code ?? null;
-      setInitErrorCode(code);
-      setInitError(err?.message ?? "Failed to restart interview. Please try again.");
+      if (code === "TRIAL_EXHAUSTED" || code === "SESSION_LIMIT_REACHED") {
+        // Show dialog — never replace the screen for limit errors
+        setShowAccessDeniedDialog(true);
+      } else {
+        setInitErrorCode(code);
+        setInitError(err?.message ?? "Failed to restart interview. Please try again.");
+      }
     } finally {
       setIsInitializing(false);
     }
@@ -256,6 +324,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsLoadingResults(true);
     setResultsError(null);
     setResultsProgress(null);
+    analytics.track("chat_interview_results_requested", {
+      template_id: sessionRef.current?.template?.id,
+      session_id: sessionId,
+    });
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
@@ -274,11 +346,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           try {
             const event = JSON.parse(jsonStr);
             if (event.type === "token") {
-              setIsResultsStreaming(true);
+              // streaming in progress — cycling timer handles UX
             } else if (event.type === "progress") {
               setResultsProgress(event.message);
             } else if (event.type === "result") {
-              setIsResultsStreaming(false);
               const report = event.data;
               setResultsData(report);
               if (report?.questionAnalysis) {
@@ -291,8 +362,22 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 setResultsRevealed(true);
               }
               setResultsProgress(null);
+              analytics.track("chat_interview_results_generated", {
+                template_id: sessionRef.current?.template?.id,
+                overall_score: report?.overallScore,
+                result: report?.result,
+                technical_score: report?.technicalScore,
+                communication_score: report?.communicationScore,
+                problem_solving_score: report?.problemSolvingScore,
+                triggered_by: endedManuallyRef.current ? "manual" : "ai",
+              });
             } else if (event.type === "error") {
-              setResultsError(event.message ?? "Failed to generate report.");
+              const errMsg = event.message ?? "Failed to generate report.";
+              setResultsError(errMsg);
+              analytics.track("chat_interview_results_failed", {
+                template_id: sessionRef.current?.template?.id,
+                error_message: errMsg,
+              });
             }
           } catch {
             // skip malformed lines
@@ -306,12 +391,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     } finally {
       if (reader) reader.cancel().catch(() => {});
       setIsLoadingResults(false);
-      setIsResultsStreaming(false);
     }
   }, [store]);
 
   const handleWhiteboardSend = useCallback(
     (diagramJSON: string) => {
+      analytics.track("chat_interview_whiteboard_submitted", {
+        template_id: sessionRef.current?.template?.id,
+      });
       handleSend(
         "Here's my diagram:",
         { type: "whiteboard", data: diagramJSON },
@@ -323,6 +410,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const handleCodeSend = useCallback(
     (code: string, language: string) => {
+      analytics.track("chat_interview_code_submitted", {
+        template_id: sessionRef.current?.template?.id,
+        language,
+      });
       handleSend(
         "Here's my code solution:",
         { type: "code", data: code, language },
@@ -348,16 +439,48 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   useEffect(() => {
     if (isComplete) {
       if (!autoResultFiredRef.current) {
-        autoResultFiredRef.current = true;
         const userAnswerCount = messagesRef.current.filter((m) => m.role === "user").length;
+        analytics.track("chat_interview_completed", {
+          template_id: sessionRef.current?.template?.id,
+          user_answers_given: userAnswerCount,
+          triggered_by: endedManuallyRef.current ? "manual" : "ai",
+        });
         if (userAnswerCount >= 3) {
-          handleGetResults();
+          autoResultFiredRef.current = true;
+          handleGetResults().catch(() => {
+            // Allow retry if generation fails
+            autoResultFiredRef.current = false;
+          });
         } else {
+          autoResultFiredRef.current = true;
+          analytics.track("chat_interview_insufficient_answers", {
+            template_id: sessionRef.current?.template?.id,
+            user_answers_given: userAnswerCount,
+          });
           setInsufficientAnswers(true);
         }
       }
     }
   }, [isComplete, handleGetResults]);
+
+  // Auto-cycle progress messages while results are loading
+  useEffect(() => {
+    if (!isLoadingResults) return;
+    const cycleMessages = [
+      "Analyzing your responses…",
+      "Evaluating technical depth…",
+      "Building your performance report…",
+      "Finalizing scores and feedback…",
+      "Almost ready…",
+    ];
+    let idx = 0;
+    setResultsProgress(cycleMessages[0]);
+    const timer = setInterval(() => {
+      idx = (idx + 1) % cycleMessages.length;
+      setResultsProgress(cycleMessages[idx]);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [isLoadingResults]);
 
   if (isInitializing) {
     return (
@@ -377,76 +500,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
     if (isUpgradePrompt) {
       return (
-        <div className="flex h-screen items-center justify-center bg-background px-4">
-          <div className="max-w-md w-full text-center space-y-6">
-            {/* Logo */}
-            <div className="flex justify-center">
-              <div className="relative w-14 h-14">
-                <Image
-                  src="/blue-icon-logo.png"
-                  alt="Mastering Backend"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            </div>
-
-            {/* Icon badge */}
-            <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Lock className="w-7 h-7 text-primary" />
-              </div>
-            </div>
-
-            {/* Headline */}
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-foreground">
-                {initErrorCode === "TRIAL_EXHAUSTED"
-                  ? "Free Trial Complete"
-                  : "Monthly Limit Reached"}
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {initError}
-              </p>
-            </div>
-
-            {/* Pro features */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-left space-y-2">
-              {[
-                "Unlimited mock interviews",
-                "AI-powered detailed feedback",
-                "Code editor & whiteboard",
-                "Performance analytics",
-              ].map((f) => (
-                <div
-                  key={f}
-                  className="flex items-center gap-2 text-sm text-foreground"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  {f}
-                </div>
-              ))}
-            </div>
-
-            {/* CTAs */}
-            <div className="space-y-2">
-              <Link href="/pricing" className="block">
-                <Button className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2">
-                  Upgrade to Pro
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/mock-interviews" className="block">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-muted-foreground"
-                >
-                  Back to interviews
-                </Button>
-              </Link>
-            </div>
-          </div>
+        <div className="h-screen bg-background">
+          <InterviewCompletionDialog
+            open={true}
+            onClose={() => router.push("/mock-interviews")}
+            currentTemplateId={undefined}
+            currentCategory={undefined}
+            overallScore={null}
+          />
         </div>
       );
     }
@@ -481,6 +542,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <ChatInterviewHeader
         template={session.template}
         onEndInterview={handleEndInterview}
+        onTimerExpired={handleTimerExpired}
         onExitRoom={() => setShowCompletionDialog(true)}
         isComplete={isComplete}
         resultsReady={!!resultsData || insufficientAnswers}
@@ -507,7 +569,6 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             onSend={handleSend}
             resultsData={resultsData}
             isLoadingResults={isLoadingResults}
-            isResultsStreaming={isResultsStreaming}
             resultsProgress={resultsProgress}
             resultsError={resultsError}
             onGetResults={handleGetResults}
@@ -518,6 +579,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             userAvatar={userAvatar}
             onExit={() => setShowCompletionDialog(true)}
             onRestart={handleRestart}
+            isRestartLoading={isCheckingAccess}
           />
         </ResizablePanel>
 
@@ -534,7 +596,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           {/* Tab switcher */}
           <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
             <button
-              onClick={() => setActivePanel("code")}
+              onClick={() => { setActivePanel("code"); analytics.track("chat_interview_panel_switched", { panel: "code", template_id: session.template?.id }); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "code"
@@ -546,7 +608,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
               Code Editor
             </button>
             <button
-              onClick={() => setActivePanel("whiteboard")}
+              onClick={() => { setActivePanel("whiteboard"); analytics.track("chat_interview_panel_switched", { panel: "whiteboard", template_id: session.template?.id }); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "whiteboard"
@@ -582,10 +644,17 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <InterviewCompletionDialog
         open={showCompletionDialog}
         onClose={() => setShowCompletionDialog(false)}
-        currentTemplateId={
-          session.template ? (session as any).templateId : undefined
-        }
-        currentCategory={(session.template as any)?.category}
+        currentTemplateId={session.template?.id}
+        currentCategory={session.template?.category}
+        overallScore={resultsData?.overallScore ?? null}
+      />
+
+      {/* Blocking upgrade dialog — shown when restart limit is hit */}
+      <InterviewCompletionDialog
+        open={showAccessDeniedDialog}
+        onClose={() => setShowAccessDeniedDialog(false)}
+        currentTemplateId={session?.template?.id}
+        currentCategory={session?.template?.category}
         overallScore={resultsData?.overallScore ?? null}
       />
     </div>

@@ -68,17 +68,23 @@ export function SubscriptionManagementPage({
   const [months, setMonths] = useState<string>("");
   const [enterprisePlan, setEnterprisePlan] = useState<any>();
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [subscription, setSubscription] = useState<any>(
-    user?.isPremium
-      ? user?.subscription
-      : {
-          plan: { name: "Free", monthlyPrice: 0 },
-          expiry: "Free forever",
-          status: "active",
-          paymentMethod: "No card added",
-          startDate: user?.createdAt,
-        },
-  );
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      setSubscription(
+        user.isPremium
+          ? user.subscription
+          : {
+              plan: { name: "Free", monthlyPrice: 0 },
+              expiry: "Free forever",
+              status: "active",
+              paymentMethod: "No card added",
+              startDate: user.createdAt,
+            },
+      );
+    }
+  }, [user]);
 
   const [stats, setStats] = useState<{
     amount: number;
@@ -223,6 +229,12 @@ export function SubscriptionManagementPage({
 
         {/* Subscription Tab */}
         <TabsContent value="subscription" className="space-y-6">
+          {!subscription ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              Loading subscription…
+            </div>
+          ) : <>
           {/* Current Plan */}
           <Card>
             <CardHeader className="pb-3">
@@ -652,6 +664,7 @@ export function SubscriptionManagementPage({
               </div>
             </CardContent>
           </Card>
+          </>}
         </TabsContent>
 
         {/* Billing History Tab */}

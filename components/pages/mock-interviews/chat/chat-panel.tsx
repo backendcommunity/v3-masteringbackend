@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { ChatMessage, ChatInterviewSession } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -23,12 +24,12 @@ interface ChatPanelProps {
   onSend: (content: string) => void;
   resultsData: ReportData | null;
   isLoadingResults: boolean;
-  isResultsStreaming: boolean;
   resultsProgress: string | null;
   resultsError: string | null;
   onGetResults: () => void;
   onExit?: () => void;
   onRestart?: () => void;
+  isRestartLoading?: boolean;
   questionAnalysis: Array<{ score: number; feedback: string }>;
   resultsRevealed: boolean;
   insufficientAnswers?: boolean;
@@ -44,7 +45,6 @@ export function ChatPanel({
   onSend,
   resultsData,
   isLoadingResults,
-  isResultsStreaming,
   resultsProgress,
   resultsError,
   onGetResults,
@@ -55,6 +55,7 @@ export function ChatPanel({
   userAvatar,
   onExit,
   onRestart,
+  isRestartLoading,
 }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -101,17 +102,21 @@ export function ChatPanel({
             </p>
           )}
 
-          {messages.map((message) => (
-            <ChatMessageBubble
-              key={message.id}
-              message={message}
-              analysis={getUserAnalysis(message)}
-              isStreaming={message.id === streamingMsgId}
-              sessionId={session.sessionId}
-              userName={userName}
-              userAvatar={userAvatar}
-            />
-          ))}
+          {messages.map((message, idx) => {
+            // Skip the empty AI placeholder — TypingIndicator renders in its place
+            if (showTypingIndicator && idx === messages.length - 1) return null;
+            return (
+              <ChatMessageBubble
+                key={message.id}
+                message={message}
+                analysis={getUserAnalysis(message)}
+                isStreaming={message.id === streamingMsgId}
+                sessionId={session.sessionId}
+                userName={userName}
+                userAvatar={userAvatar}
+              />
+            );
+          })}
 
           {showTypingIndicator && <TypingIndicator />}
 
@@ -135,17 +140,22 @@ export function ChatPanel({
                     {onRestart && (
                       <Button
                         size="sm"
-                        onClick={onRestart}
+                        onClick={() => { analytics.track("chat_interview_restart_clicked"); onRestart(); }}
+                        disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Restart Interview
+                        {isRestartLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        )}
+                        {isRestartLoading ? "Checking…" : "Restart Interview"}
                       </Button>
                     )}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={onExit}
+                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "insufficient_answers" }); onExit?.(); }}
                       className="h-8 text-xs gap-1.5"
                     >
                       <LogOut className="w-3.5 h-3.5" />
@@ -161,17 +171,22 @@ export function ChatPanel({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={onRestart}
+                        onClick={() => { analytics.track("chat_interview_restart_clicked"); onRestart(); }}
+                        disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Restart
+                        {isRestartLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        )}
+                        {isRestartLoading ? "Checking…" : "Restart"}
                       </Button>
                     )}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={onExit}
+                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "post_results" }); onExit?.(); }}
                       className="h-8 text-xs gap-1.5"
                     >
                       <LogOut className="w-3.5 h-3.5" />
@@ -180,18 +195,12 @@ export function ChatPanel({
                   </div>
                 </>
               ) : isLoadingResults ? (
-                isResultsStreaming ? (
-                  <div className="px-1">
-                    <TypingIndicator />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-                    <p className="text-sm text-muted-foreground">
-                      {resultsProgress ?? "Generating your feedback report…"}
-                    </p>
-                  </div>
-                )
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-muted/30">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    {resultsProgress ?? "Analyzing your responses…"}
+                  </p>
+                </div>
               ) : resultsError ? (
                 <div className="flex flex-col gap-2 p-4 rounded-xl border border-destructive/30 bg-destructive/5">
                   <div className="flex items-center gap-2">
@@ -220,7 +229,7 @@ export function ChatPanel({
                   </div>
                   <Button
                     size="sm"
-                    onClick={onGetResults}
+                    onClick={() => { analytics.track("chat_interview_get_results_clicked"); onGetResults(); }}
                     disabled={isLoadingResults}
                     className="h-8 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
                   >

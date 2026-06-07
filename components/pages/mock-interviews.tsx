@@ -31,14 +31,12 @@ import {
   Star,
   Trophy,
   BookOpen,
-  Plus,
   Building2,
   Briefcase,
   FileText,
   Sparkles,
   Layout,
   Play,
-  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -46,15 +44,16 @@ import {
   Crown,
   AlertTriangle,
   Lock,
-  MessageSquare,
-  Bookmark,
   CheckCircle2,
-  ArrowRight,
+  Trash2,
 } from "lucide-react";
+import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
+import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
+import { analytics } from "@/lib/analytics";
 
 interface MockInterviewsPageProps {
   onNavigate: (path: string) => void;
@@ -151,18 +150,20 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   const [interviewAccess, setInterviewAccess] =
     useState<InterviewAccess | null>(null);
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
   const [creating, setCreating] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedMode, setSelectedMode] = useState<"chat" | "video" | "audio">(
-    "chat",
-  );
-  const [showScheduleForm, setShowScheduleForm] = useState(false);
 
   const [pagination, setPagination] = useState({ size: 10, skip: 0 });
   const [totalTemplates, setTotalTemplates] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+
+  const PAGE_SIZE = 12;
+  const [bookedPage, setBookedPage] = useState(0);
+  const [bookedTotal, setBookedTotal] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [savedPage, setSavedPage] = useState(0);
+  const [savedTotal, setSavedTotal] = useState(0);
 
   const [filters, setFilters] = useState({
     difficulty: "",
@@ -197,10 +198,43 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [topicInput, setTopicInput] = useState("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [myTemplates, setMyTemplates] = useState<InterviewTemplate[]>([]);
+  const [myTemplatesLoading, setMyTemplatesLoading] = useState(false);
+  const [myTemplatesPage, setMyTemplatesPage] = useState(0);
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
+
+  const MY_TEMPLATES_PAGE_SIZE = 12;
+
   // Load templates when pagination or filters change
   useEffect(() => {
     loadTemplates();
   }, [pagination, filters]);
+
+  // Load my templates when switching to that tab
+  useEffect(() => {
+    if (activeTab === "my-templates") {
+      loadMyTemplates();
+      setMyTemplatesPage(0);
+    }
+    if (activeTab === "completed") {
+      setCompletedPage(0);
+      loadCompletedInterviews(0);
+    }
+    if (activeTab === "booked") {
+      setBookedPage(0);
+      loadBookedInterviews(0);
+    }
+    if (activeTab === "saved") {
+      setSavedPage(0);
+      loadBookmarks(0);
+    }
+  }, [activeTab]);
+
+  // Re-fetch when page changes
+  useEffect(() => { loadBookedInterviews(bookedPage); }, [bookedPage]);
+  useEffect(() => { loadCompletedInterviews(completedPage); }, [completedPage]);
+  useEffect(() => { loadBookmarks(savedPage); }, [savedPage]);
 
   // Load stats, booked, completed interviews, and access on initial mount
   useEffect(() => {
@@ -209,6 +243,8 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadCompletedInterviews();
     loadInterviewAccess();
     loadCategories();
+    loadMyTemplates();
+    analytics.page("Mock Interviews");
   }, []);
 
   // Cleanup debounce timeout on unmount
@@ -280,11 +316,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadBookedInterviews = async () => {
+  const loadBookedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserBookedInterviews();
-      setBookedInterviews(data || []);
+      const res = await store.getUserBookedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setBookedInterviews(res.data || []);
+      setBookedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load booked interviews");
     } finally {
@@ -292,13 +329,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadCompletedInterviews = async () => {
+  const loadCompletedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserCompletedInterviews();
-      setCompletedInterviews(data || []);
-
-      console.log("Completed Interviews:", data);
+      const res = await store.getUserCompletedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setCompletedInterviews(res.data || []);
+      setCompletedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load completed interviews");
     } finally {
@@ -333,108 +369,66 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
+  const loadMyTemplates = async () => {
+    try {
+      setMyTemplatesLoading(true);
+      const data = await store.getMyTemplates();
+      setMyTemplates(data || []);
+    } catch {
+      toast.error("Failed to load your templates");
+    } finally {
+      setMyTemplatesLoading(false);
+    }
+  };
+
+  const handleDeleteMyTemplate = async () => {
+    if (!deleteTemplateId) return;
+    try {
+      setDeletingTemplate(true);
+      await store.deleteMyTemplate(deleteTemplateId);
+      analytics.track("my_template_deleted", { template_id: deleteTemplateId });
+      setMyTemplates((prev) => prev.filter((t) => t.id !== deleteTemplateId));
+      toast.success("Template deleted");
+    } catch {
+      toast.error("Failed to delete template");
+    } finally {
+      setDeletingTemplate(false);
+      setDeleteTemplateId(null);
+    }
+  };
+
   const handleBookInterview = (template: InterviewTemplate) => {
     if (
       interviewAccess?.remainingSessions! >= 1 &&
       !interviewAccess?.hasAccess
     ) {
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "template_click",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
+    analytics.track("mock_interview_booking_started", {
+      template_id: template.id,
+      template_name: template.name,
+      company: template.company,
+      position: template.position,
+      category: template.category,
+      difficulty: template.difficulty,
+      duration: template.duration,
+      is_custom: !!template.addedBy,
+    });
     setSelectedTemplate(template);
     setIsBookingDialogOpen(true);
   };
 
-  const handleStartNow = async (templateId: string) => {
-    if (!templateId) return;
-
-    try {
-      setCreating(true);
-      const result = await store.scheduleInterviewFromTemplate(templateId, {});
-
-      if (!result || !result.session?.id) {
-        toast.error("Failed to start interview");
-        return;
-      }
-
-      toast.success("Interview started successfully!");
-      setIsBookingDialogOpen(false);
-
-      onNavigate(`/mock-interviews/${result.session.id}`);
-    } catch (error: any) {
-      if (error?.response?.status === 402) {
-        setIsBookingDialogOpen(false);
-        setShowUpgradeDialog(true);
-      } else {
-        toast.error("Failed to start interview");
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleStartChatNow = async (templateId: string) => {
-    if (!templateId) return;
-
-    try {
-      setCreating(true);
-      const result = await store.scheduleInterviewFromTemplate(templateId, {});
-
-      if (!result?.interview?.id) {
-        toast.error("Failed to start chat interview");
-        return;
-      }
-
-      toast.success("Chat interview started!");
-      setIsBookingDialogOpen(false);
-      onNavigate(`/mock-interviews/${result.interview.id}/chat`);
-    } catch (error: any) {
-      if (error?.response?.status === 402) {
-        setIsBookingDialogOpen(false);
-        setShowUpgradeDialog(true);
-      } else {
-        toast.error("Failed to start chat interview");
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleScheduleInterview = async (templateId: string) => {
-    try {
-      if (!scheduledDate || !scheduledTime) {
-        toast.error("Please select date and time");
-        return;
-      }
-
-      setCreating(true);
-      const isoDate = new Date(
-        `${scheduledDate}T${scheduledTime}:00`,
-      ).toISOString();
-
-      const result = await store.scheduleInterviewFromTemplate(templateId, {
-        scheduledTime: isoDate,
-      });
-
-      if (result) {
-        toast.success("Interview scheduled successfully!");
-        setIsBookingDialogOpen(false);
-        setScheduledDate("");
-        setScheduledTime("");
-        setShowScheduleForm(false);
-        setSelectedTemplate(null);
-        setActiveTab("booked");
-        loadBookedInterviews();
-      }
-    } catch (error) {
-      toast.error("Failed to schedule interview");
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const handleJoinInterview = async (interview: UserInterview) => {
     if (!interviewAccess?.hasAccess) {
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "join_attempt",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
@@ -609,10 +603,20 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
       // Debounce the API call
       searchDebounceRef.current = setTimeout(() => {
+        if (value)
+          analytics.track("mock_interview_filter_applied", {
+            filter_type: "search",
+            query_length: value.length,
+          });
         setPagination({ size: 10, skip: 0 });
       }, 300);
     } else {
       // For other filters, update immediately
+      if (value)
+        analytics.track("mock_interview_filter_applied", {
+          filter_type: key,
+          value,
+        });
       setFilters((prev) => ({ ...prev, [key]: value }));
       setPagination({ size: 10, skip: 0 });
     }
@@ -631,29 +635,85 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }));
   };
 
-  // ─── Saved interviews (bookmark) state ───────────────────────────────────
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem("mb_saved_interviews");
-      return new Set(stored ? JSON.parse(stored) : []);
-    } catch {
-      return new Set();
-    }
-  });
+  // ─── Saved interviews (bookmark) state — API-backed ─────────────────────
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [savedTemplates, setSavedTemplates] = useState<InterviewTemplate[]>([]);
+  // templateId → bookmarkId (needed for delete)
+  const bookmarkIdMapRef = useRef<Map<string, string>>(new Map());
 
-  const toggleSaved = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      localStorage.setItem("mb_saved_interviews", JSON.stringify([...next]));
-      return next;
-    });
+  const loadBookmarks = (page = 0) => {
+    store
+      .getBookmarks(PAGE_SIZE, page * PAGE_SIZE)
+      .then(({ bookmarks, meta }) => {
+        const ids = new Set<string>();
+        const tpls: InterviewTemplate[] = [];
+        bookmarks.forEach((b: any) => {
+          if (b.mockInterviewTemplateId && b.mockInterviewTemplate) {
+            ids.add(b.mockInterviewTemplateId);
+            bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
+            tpls.push(b.mockInterviewTemplate as InterviewTemplate);
+          }
+        });
+        setSavedIds(ids);
+        setSavedTemplates(tpls);
+        setSavedTotal(meta?.total ?? 0);
+      })
+      .catch(() => {});
+  };
+
+  // Load existing bookmarks once on mount
+  useEffect(() => {
+    loadBookmarks(0);
   }, []);
 
-  // Derived lists
-  const savedTemplates = templates.filter((t) => savedIds.has(t.id));
+  const handleToggleSave = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (savingIds.has(id)) return;
+      setSavingIds((prev) => new Set(prev).add(id));
+
+      const alreadySaved = savedIds.has(id);
+      try {
+        if (alreadySaved) {
+          await store.deleteBookmark({ mockInterviewTemplateId: id });
+          setSavedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setSavedTemplates((prev) => prev.filter((t) => t.id !== id));
+          bookmarkIdMapRef.current.delete(id);
+        } else {
+          const created = await store.createBookmark({
+            type: "MOCK_INTERVIEW",
+            bookmarkType: "BOOKMARK",
+            mockInterviewTemplateId: id,
+          });
+          setSavedIds((prev) => new Set(prev).add(id));
+          if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+          // Add the template to savedTemplates from the current paginated list
+          const tpl = templates.find((t) => t.id === id);
+          if (tpl) setSavedTemplates((prev) => [tpl, ...prev]);
+        }
+      } catch {
+        toast.error(
+          alreadySaved
+            ? "Failed to remove bookmark."
+            : "Failed to save bookmark.",
+        );
+      } finally {
+        setSavingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [savedIds, savingIds, store],
+  );
+
+  // Derived lists (savedTemplates is API-backed state, not derived from paginated templates)
 
   // ─── Difficulty badge helper ──────────────────────────────────────────────
   const difficultyBadge = (difficulty: string) => {
@@ -700,23 +760,86 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               Mock Interviews
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Practice with Kap AI · Land your next backend role
+              {(
+                {
+                  Backend:
+                    "Practice with Kap AI · Land your next backend engineering role",
+                  DevOps:
+                    "Practice with Kap AI · Nail your next DevOps interview",
+                  Cybersecurity:
+                    "Practice with Kap AI · Sharpen your security engineering edge",
+                  Fullstack:
+                    "Practice with Kap AI · Stand out as a fullstack engineer",
+                } as Record<string, string>
+              )[filters.category] ??
+                "Practice with Kap AI · Ace your next engineering interview"}
             </p>
-            {/* Inline stats row */}
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="font-semibold text-foreground">
-                {stats?.totalInterviews ?? 0}
-              </span>{" "}
-              completed ·{" "}
-              <span className="font-semibold text-foreground">
-                {stats?.averageScore ?? 0}%
-              </span>{" "}
-              avg score ·{" "}
-              <span className="font-semibold text-foreground">
-                {stats?.practicedHours ?? 0}h
-              </span>{" "}
-              practiced
-            </p>
+            {/* Stats row */}
+            {stats && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {stats.averageScore ?? 0}%
+                  </span>{" "}
+                  avg score
+                </span>
+                <span className="text-muted-foreground/40 text-xs">·</span>
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {stats.practicedHours ?? 0}h
+                  </span>{" "}
+                  practiced
+                </span>
+                {stats.bestScore != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {stats.bestScore}%
+                      </span>{" "}
+                      best
+                    </span>
+                  </>
+                )}
+                {stats.passRate != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          stats.passRate >= 70
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-amber-600 dark:text-amber-400",
+                        )}
+                      >
+                        {stats.passRate}%
+                      </span>{" "}
+                      pass rate
+                    </span>
+                  </>
+                )}
+                {stats.scoreImprovement != null && (
+                  <>
+                    <span className="text-muted-foreground/40 text-xs">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          stats.scoreImprovement >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-500",
+                        )}
+                      >
+                        {stats.scoreImprovement >= 0 ? "+" : ""}
+                        {stats.scoreImprovement}%
+                      </span>{" "}
+                      improvement
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             {/* Session access badge */}
             {interviewAccess &&
               (interviewAccess.tier === "free" ||
@@ -744,11 +867,36 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             )} */}
           </div>
 
-          {/* Right: Create Custom button */}
-          <Button disabled={true} className="shrink-0">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Custom
-          </Button>
+          {/* Right: Practice for a real job CTA */}
+          {interviewAccess?.tier === "free" ? (
+            <Button
+              variant="outline"
+              className="shrink-0 gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "practice_cta_header",
+                  tier: "free",
+                });
+                onNavigate("/subscription/plans");
+              }}
+            >
+              <Sparkles className="h-4 w-4" />
+              Practice for a real job
+            </Button>
+          ) : (
+            <Button
+              className="shrink-0 gap-2"
+              onClick={() => {
+                analytics.track("mock_interview_practice_for_job_clicked", {
+                  tier: interviewAccess?.tier ?? "pro",
+                });
+                onNavigate("/mock-interviews/prepare");
+              }}
+            >
+              <Sparkles className="h-4 w-4" />
+              Practice for a real job
+            </Button>
+          )}
         </div>
       </div>
 
@@ -804,6 +952,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               },
               { value: "saved", label: "Saved", count: savedIds.size },
               {
+                value: "my-templates",
+                label: "My Templates",
+                count: myTemplates.length,
+              },
+              {
                 value: "booked",
                 label: "Booked",
                 count: bookedInterviews.length,
@@ -811,14 +964,19 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               {
                 value: "completed",
                 label: "Completed",
-                count: completedInterviews.filter((i) => i.completedSessionId)
-                  .length,
+                count: completedTotal,
               },
             ] as { value: string; label: string; count: number }[]
           ).map((chip) => (
             <button
               key={chip.value}
-              onClick={() => setActiveTab(chip.value)}
+              onClick={() => {
+                analytics.track("mock_interview_tab_changed", {
+                  tab: chip.value,
+                  from: activeTab,
+                });
+                setActiveTab(chip.value);
+              }}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm transition-colors",
                 activeTab === chip.value
@@ -851,9 +1009,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </Select>
 
               <Select
-                value={filters.style || "all"}
+                value={filters.format || "all"}
                 onValueChange={(v) =>
-                  handleFilterChange("style", v === "all" ? "" : v)
+                  handleFilterChange("format", v === "all" ? "" : v)
                 }
               >
                 <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
@@ -861,10 +1019,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All styles</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="behavioral">Behavioral</SelectItem>
-                  <SelectItem value="coding">Coding</SelectItem>
-                  <SelectItem value="system-design">System Design</SelectItem>
+                  <SelectItem value="Technical">Technical</SelectItem>
+                  <SelectItem value="Behavioral">Behavioral</SelectItem>
+                  <SelectItem value="Coding">Coding</SelectItem>
+                  <SelectItem value="System Design">System Design</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -945,84 +1103,50 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     {/* Card grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {list.map((template) => (
-                        <div
+                        <MockInterviewTemplateCard
                           key={template.id}
-                          onClick={() => handleBookInterview(template)}
-                          className="group bg-card rounded-2xl border border-border p-5 flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
-                        >
-                          {/* Top row: category + bookmark */}
-                          <div className="flex items-start justify-between">
-                            <span className="text-[11px] text-muted-foreground font-medium">
-                              {template.category ||
-                                template.style ||
-                                "Interview"}
-                            </span>
-                            <button
-                              onClick={(e) => toggleSaved(template.id, e)}
-                              className="p-0.5 -mt-0.5 rounded transition-colors hover:text-primary"
-                              aria-label="Bookmark"
-                            >
-                              <Bookmark
-                                className={cn(
-                                  "w-4 h-4",
-                                  savedIds.has(template.id)
-                                    ? "fill-primary text-primary"
-                                    : "text-muted-foreground/40",
-                                )}
-                              />
-                            </button>
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
-                            {template.name ||
-                              `${template.position} at ${template.company}`}
-                          </h3>
-
-                          {/* Description */}
-                          <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-4 flex-1 mt-2">
-                            {template.description || template.summary || ""}
-                          </p>
-
-                          {/* Footer */}
-                          <div className="border-t border-border/50 pt-3 mt-3 flex items-center justify-between">
-                            <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
-                              <Clock className="w-3.5 h-3.5" />
-                              {template.duration} min
-                            </span>
-                            {difficultyBadge(template.difficulty)}
-                          </div>
-                        </div>
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          isSaved={savedIds.has(template.id)}
+                          isSaving={savingIds.has(template.id)}
+                          onToggleSave={(e) => handleToggleSave(template.id, e)}
+                        />
                       ))}
                     </div>
 
-                    {/* Pagination — only for templates tab */}
+                    {/* Pagination — templates tab */}
                     {activeTab === "templates" && (
                       <div className="flex items-center justify-between mt-6">
                         <p className="text-sm text-muted-foreground">
                           Showing {pagination.skip + 1}–
-                          {Math.min(
-                            pagination.skip + pagination.size,
-                            totalTemplates,
-                          )}{" "}
+                          {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
                           of {totalTemplates} templates
                         </p>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePrevPage}
-                            disabled={pagination.skip === 0}
-                          >
+                          <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={pagination.skip === 0}>
                             <ChevronLeft className="h-4 w-4" />
                             Previous
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleNextPage}
-                            disabled={!hasMore}
-                          >
+                          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasMore}>
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pagination — saved tab */}
+                    {activeTab === "saved" && savedTotal > PAGE_SIZE && (
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {savedPage * PAGE_SIZE + 1}–{Math.min((savedPage + 1) * PAGE_SIZE, savedTotal)} of {savedTotal} saved
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p - 1)} disabled={savedPage === 0}>
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p + 1)} disabled={(savedPage + 1) * PAGE_SIZE >= savedTotal}>
                             Next
                             <ChevronRight className="h-4 w-4" />
                           </Button>
@@ -1132,6 +1256,23 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 ))}
               </div>
             )}
+            {bookedTotal > PAGE_SIZE && bookedInterviews.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-muted-foreground">
+                  Showing {bookedPage * PAGE_SIZE + 1}–{Math.min((bookedPage + 1) * PAGE_SIZE, bookedTotal)} of {bookedTotal} booked
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p - 1)} disabled={bookedPage === 0}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p + 1)} disabled={(bookedPage + 1) * PAGE_SIZE >= bookedTotal}>
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -1142,8 +1283,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : completedInterviews.filter((i) => i.completedSessionId)
-                .length === 0 ? (
+            ) : completedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-1">
@@ -1158,9 +1298,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {completedInterviews
-                  .filter((i) => i.completedSessionId)
-                  .map((interview) => (
+                {completedInterviews.map((interview) => (
                     <div
                       key={interview.id}
                       className="bg-card rounded-2xl border border-border p-5 flex flex-col"
@@ -1211,6 +1349,116 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   ))}
               </div>
             )}
+            {completedTotal > PAGE_SIZE && completedInterviews.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-muted-foreground">
+                  Showing {completedPage * PAGE_SIZE + 1}–{Math.min((completedPage + 1) * PAGE_SIZE, completedTotal)} of {completedTotal} completed
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p - 1)} disabled={completedPage === 0}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p + 1)} disabled={(completedPage + 1) * PAGE_SIZE >= completedTotal}>
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {/* ── My Templates tab ─────────────────────────────────────────────── */}
+        {activeTab === "my-templates" && (
+          <>
+            {myTemplatesLoading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : myTemplates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-1">
+                  No custom templates yet
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
+                  Analyze a job description to generate a personalized interview
+                  template tailored to the role.
+                </p>
+                <Button
+                  onClick={() => onNavigate("/mock-interviews/prepare")}
+                  className="gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Practice for a real job
+                </Button>
+              </div>
+            ) : (
+              (() => {
+                const totalPages = Math.ceil(
+                  myTemplates.length / MY_TEMPLATES_PAGE_SIZE,
+                );
+                const paged = myTemplates.slice(
+                  myTemplatesPage * MY_TEMPLATES_PAGE_SIZE,
+                  (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
+                );
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {paged.map((template) => (
+                        <MockInterviewTemplateCard
+                          key={template.id}
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          onDelete={(e) => {
+                            e.stopPropagation();
+                            analytics.track("my_template_delete_initiated", {
+                              template_id: template.id,
+                            });
+                            setDeleteTemplateId(template.id);
+                          }}
+                          actionLabel="Practice"
+                        />
+                      ))}
+                    </div>
+
+                    {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
+                      <div className="flex items-center justify-between mt-6">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {myTemplatesPage * MY_TEMPLATES_PAGE_SIZE + 1}
+                          –
+                          {Math.min(
+                            (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
+                            myTemplates.length,
+                          )}{" "}
+                          of {myTemplates.length} templates
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMyTemplatesPage((p) => p - 1)}
+                            disabled={myTemplatesPage === 0}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMyTemplatesPage((p) => p + 1)}
+                            disabled={myTemplatesPage >= totalPages - 1}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </>
         )}
       </div>
@@ -1218,320 +1466,19 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       {/* ── Dialogs ──────────────────────────────────────────────────────────── */}
 
       {/* Booking Dialog */}
-      <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md p-0 overflow-hidden gap-0">
-          {/* Template overview */}
-
-          <div className="px-6 pt-6 pb-5 border-b border-border">
-            <div className="flex items-center gap-2 mb-2">
-              {selectedTemplate?.category && (
-                <span className="text-[11px] text-muted-foreground font-medium">
-                  {selectedTemplate.category}
-                </span>
-              )}
-              {selectedTemplate?.difficulty && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                  {difficultyBadge(selectedTemplate.difficulty)}
-                </span>
-              )}
-            </div>
-            <DialogTitle>
-              <h2 className="text-base font-bold text-foreground leading-tight">
-                {selectedTemplate?.name ||
-                  `${selectedTemplate?.position} Interview`}
-              </h2>
-            </DialogTitle>
-            {selectedTemplate?.company && (
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {selectedTemplate.company}
-              </p>
-            )}
-            <div className="flex items-center gap-4 mt-3 text-[13px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                {selectedTemplate?.duration} min
-              </span>
-              {selectedTemplate?.topics &&
-                selectedTemplate.topics.length > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <Layout className="w-3.5 h-3.5" />
-                    {selectedTemplate.topics.length} topics
-                  </span>
-                )}
-            </div>
-            {selectedTemplate?.topics && selectedTemplate.topics.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {selectedTemplate.topics.slice(0, 5).map((t, i) => (
-                  <span
-                    key={i}
-                    className="text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full"
-                  >
-                    {t}
-                  </span>
-                ))}
-                {selectedTemplate.topics.length > 5 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    +{selectedTemplate.topics.length - 5} more
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Mode + action */}
-          <div className="px-6 py-5 space-y-5">
-            {/* Interview type selector */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Interview type
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    {
-                      key: "chat",
-                      icon: MessageSquare,
-                      label: "Text",
-                      available: true,
-                    },
-                    {
-                      key: "video",
-                      icon: Video,
-                      label: "Video",
-                      available: false,
-                    },
-                    {
-                      key: "audio",
-                      icon: Play,
-                      label: "Audio",
-                      available: false,
-                    },
-                  ] as const
-                ).map(({ key, icon: Icon, label, available }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={!available}
-                    onClick={() => setSelectedMode(key)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all text-sm font-medium",
-                      !available && "opacity-40 cursor-not-allowed",
-                      available && selectedMode === key
-                        ? "border-primary bg-primary/8 text-primary"
-                        : available
-                          ? "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
-                          : "border-border/50 text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {label}
-                    {!available && (
-                      <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full -mt-1">
-                        Soon
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                When
-              </p>
-
-              {/* Start now */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowScheduleForm(false);
-                  selectedTemplate && handleStartChatNow(selectedTemplate.id);
-                }}
-                disabled={creating || selectedMode !== "chat"}
-                className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed",
-                  !showScheduleForm && selectedMode === "chat"
-                    ? "border-primary bg-primary/5 hover:bg-primary/10"
-                    : "border-border bg-muted/20 hover:border-primary/40",
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                    !showScheduleForm && selectedMode === "chat"
-                      ? "bg-primary/15"
-                      : "bg-muted",
-                  )}
-                >
-                  <Play
-                    className={cn(
-                      "w-4 h-4",
-                      !showScheduleForm && selectedMode === "chat"
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    Start Now
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Jump in immediately
-                  </p>
-                </div>
-                {creating ? (
-                  <Loader2
-                    className={cn(
-                      "w-4 h-4 animate-spin flex-shrink-0",
-                      !showScheduleForm && selectedMode === "chat"
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                ) : (
-                  <ArrowRight
-                    className={cn(
-                      "w-4 h-4 flex-shrink-0",
-                      !showScheduleForm && selectedMode === "chat"
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                )}
-              </button>
-
-              {/* Schedule for later */}
-              {selectedMode === "chat" ? (
-                <div
-                  className={cn(
-                    "rounded-xl border-2 transition-all overflow-hidden",
-                    showScheduleForm
-                      ? "border-primary bg-primary/5"
-                      : "border-border",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setShowScheduleForm((v) => !v)}
-                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-primary/5 transition-colors"
-                  >
-                    <div
-                      className={cn(
-                        "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                        showScheduleForm ? "bg-primary/15" : "bg-muted",
-                      )}
-                    >
-                      <CalendarClock
-                        className={cn(
-                          "w-4 h-4",
-                          showScheduleForm
-                            ? "text-primary"
-                            : "text-muted-foreground",
-                        )}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        Book for Later
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Pick a date and time that works for you
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className={cn(
-                        "w-4 h-4 flex-shrink-0 transition-transform",
-                        showScheduleForm
-                          ? "text-primary rotate-90"
-                          : "text-muted-foreground",
-                      )}
-                    />
-                  </button>
-
-                  {showScheduleForm && (
-                    <div className="px-4 pb-4 space-y-3 border-t border-border/50">
-                      <div className="grid grid-cols-2 gap-3 pt-3">
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="schedule-date"
-                            className="text-xs font-medium"
-                          >
-                            Date
-                          </Label>
-                          <Input
-                            id="schedule-date"
-                            type="date"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                            min={new Date().toISOString().split("T")[0]}
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="schedule-time"
-                            className="text-xs font-medium"
-                          >
-                            Time
-                          </Label>
-                          <Input
-                            id="schedule-time"
-                            type="time"
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        className="w-full h-9 text-sm"
-                        onClick={() =>
-                          selectedTemplate &&
-                          handleScheduleInterview(selectedTemplate.id)
-                        }
-                        disabled={creating || !scheduledDate || !scheduledTime}
-                      >
-                        {creating ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
-                            Scheduling…
-                          </>
-                        ) : (
-                          <>
-                            <Calendar className="w-3.5 h-3.5 mr-2" />
-                            Schedule Interview
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-border/60 bg-muted/20 opacity-40 cursor-not-allowed select-none">
-                  <div className="flex items-center gap-4 p-4">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <CalendarClock className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        Schedule for Later
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Select Text mode to schedule
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Cancel */}
-          <div className="px-6 pb-5"></div>
-        </DialogContent>
-      </Dialog>
+      <InterviewBookingDialog
+        open={isBookingDialogOpen}
+        onOpenChange={(open) => {
+          setIsBookingDialogOpen(open);
+          if (!open) setSelectedTemplate(null);
+        }}
+        template={selectedTemplate}
+        onNavigate={onNavigate}
+        onBooked={() => {
+          setActiveTab("booked");
+          loadBookedInterviews();
+        }}
+      />
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
@@ -1582,9 +1529,59 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             >
               Cancel
             </Button>
-            <Button onClick={() => onNavigate("/subscription/plans")}>
+            <Button
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "upgrade_dialog",
+                  tier: interviewAccess?.tier,
+                });
+                onNavigate("/subscription/plans");
+              }}
+            >
               <Crown className="h-4 w-4 mr-2" />
               View Plans
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete My Template Confirmation */}
+      <Dialog
+        open={!!deleteTemplateId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTemplateId(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Template
+            </DialogTitle>
+            <DialogDescription>
+              This template will be permanently deleted. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTemplateId(null)}
+              disabled={deletingTemplate}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMyTemplate}
+              disabled={deletingTemplate}
+            >
+              {deletingTemplate ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

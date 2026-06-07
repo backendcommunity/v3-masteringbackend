@@ -80,9 +80,11 @@ export interface ChatArtifactRef {
 }
 
 export interface ChatInterviewTemplate {
+  id: string;
   name: string | null;
   position: string | null;
   company: string | null;
+  category: string | null;
   seniority: string | null;
   difficulty: string;
   duration: number;
@@ -171,8 +173,10 @@ interface AppState {
     filters?: any;
   }) => any;
   getMockInterviewCategories: () => Promise<string[]>;
-  getUserBookedInterviews: () => any;
-  getUserCompletedInterviews: () => any;
+  getUserBookedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getUserCompletedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getMyTemplates: () => any;
+  deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
   getUserInterviewStats: () => any;
   getInterviewAccess: () => any;
@@ -270,6 +274,16 @@ interface AppState {
     id: string,
     data: { scheduledTime?: Date | string; interviewConfig?: any },
   ) => any;
+  getBookmarks: (size?: number, skip?: number) => Promise<{ bookmarks: any[]; meta: { total: number } }>;
+  createBookmark: (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -286,6 +300,8 @@ interface AppState {
     scheduledTime: string;
     interviewConfig?: string;
   }) => any;
+  analyzeJD: (jdText: string, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  analyzeJDFile: (file: File, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   handleProjectEnrollment: (slug: string) => Project | any;
   updateUserProject: (slug: string, payload: any) => Project | any;
   updateChallenge: (id: string, updates: Partial<Challenge>) => void;
@@ -884,14 +900,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data ?? [];
   },
 
-  getUserBookedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/booked");
-    return data?.data;
+  getUserBookedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/booked?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
   },
 
-  getUserCompletedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/completed");
-    return data?.data;
+  getUserCompletedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/completed?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
   },
 
   getMockInterviewTemplate: async (id: string) => {
@@ -902,6 +918,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   getUserInterviewStats: async () => {
     const { data } = await api.get("/mock-interviews/user/stats");
     return data?.data;
+  },
+
+  getMyTemplates: async () => {
+    const { data } = await api.get("/mock-interviews/my-templates");
+    return data?.data;
+  },
+
+  deleteMyTemplate: async (id: string) => {
+    await api.delete(`/mock-interviews/my-templates/${id}`);
   },
 
   getInterviewAccess: async () => {
@@ -1046,6 +1071,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  getBookmarks: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
+    return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
+  },
+
+  createBookmark: async (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => {
+    const { data } = await api.post("/bookmarks", input);
+    return data?.data;
+  },
+
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string }) => {
+    const params = new URLSearchParams();
+    if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
+    if (opts.courseId) params.set("courseId", opts.courseId);
+    await api.delete(`/bookmarks?${params.toString()}`);
+  },
+
   scheduleInterviewFromTemplate: async (
     id: string,
     payload: { scheduledTime?: string; interviewConfig?: any },
@@ -1071,6 +1120,43 @@ export const useAppStore = create<AppState>((set, get) => ({
   }) => {
     const { data } = await api.post("/mock-interviews/schedules/jd", payload);
     return data?.data;
+  },
+
+  analyzeJD: async (jdText: string, duration: number, style: string) => {
+    const baseURL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const response = await fetch(`${baseURL}/mock-interviews/analyze-jd`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jdText, duration, style }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(err.message || `Request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  analyzeJDFile: async (file: File, duration: number, style: string) => {
+    const baseURL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("duration", String(duration));
+    formData.append("style", style);
+    const response = await fetch(`${baseURL}/mock-interviews/analyze-jd/upload`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(err.message || `Request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
   },
 
   markDayComplete: async (slug: string, videoId: string, payload: any) => {

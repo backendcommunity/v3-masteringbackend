@@ -30,27 +30,36 @@ import {
 import {
   MessageSquare,
   Clock,
-  Star,
   BarChart2,
   Info,
   Timer,
+  Code2,
+  PenTool,
 } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 import Image from "next/image";
 import { ChatInterviewTemplate } from "@/lib/store";
 
 interface ChatInterviewHeaderProps {
   template: ChatInterviewTemplate;
   onEndInterview: () => void;
+  onTimerExpired?: () => void;
   onExitRoom?: () => void;
   isComplete?: boolean;
   resultsReady?: boolean;
   startedAt?: string | null;
 }
 
-function useCountdown(durationMinutes: number, startedAt: string | null | undefined, onExpire: () => void) {
+function useCountdown(
+  durationMinutes: number,
+  startedAt: string | null | undefined,
+  onExpire: () => void,
+) {
   const [secondsLeft, setSecondsLeft] = useState<number>(() => {
     if (!startedAt) return durationMinutes * 60;
-    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    const elapsed = Math.floor(
+      (Date.now() - new Date(startedAt).getTime()) / 1000,
+    );
     return Math.max(0, durationMinutes * 60 - elapsed);
   });
   const expiredRef = useRef(false);
@@ -62,7 +71,7 @@ function useCountdown(durationMinutes: number, startedAt: string | null | undefi
       setSecondsLeft((s) => Math.max(0, s - 1));
     }, 1000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -81,46 +90,74 @@ const HELP_ITEMS = [
   {
     value: "chat",
     icon: MessageSquare,
-    title: "Chat",
+    title: "Answering Questions",
     content:
-      "Type your answers in the chat box. Press Enter or click Send to submit each response. Kap AI will ask follow-up questions based on your answers.",
+      "Kap AI asks questions one at a time. Type your answer in the input at the bottom and press Enter or click Send. Your progress (e.g. 2 / 5 responses) is shown above the input. Kap may ask follow-ups — just keep responding naturally.",
+  },
+  {
+    value: "code",
+    icon: Code2,
+    title: "Code Editor",
+    content:
+      "On desktop, use the Code Editor panel on the right to write code solutions. Pick your language, write your code, then click 'Submit to Kap' — your code is sent directly into the chat for Kap to evaluate.",
+  },
+  {
+    value: "whiteboard",
+    icon: PenTool,
+    title: "Whiteboard",
+    content:
+      "Switch to the Whiteboard tab (desktop only) to sketch system diagrams or architecture drawings. Click 'Submit to Kap' to share your diagram in the conversation.",
   },
   {
     value: "timer",
     icon: Timer,
-    title: "Timer Functionality",
+    title: "Timer",
     content:
-      "The countdown timer shows your remaining interview time. When time expires the session ends automatically. A warning appears at 5 minutes and 1 minute remaining.",
+      "The countdown shows remaining interview time. It turns amber at 5 minutes and red at 1 minute remaining. When it hits zero the session ends automatically — equivalent to clicking 'End Interview'.",
   },
   {
     value: "feedback",
-    icon: Star,
-    title: "Feedback",
-    content:
-      "After the interview ends, click 'Get your feedback' to receive a detailed performance report. Per-answer analysis will also be revealed in the chat.",
-  },
-  {
-    value: "rating",
     icon: BarChart2,
-    title: "Rating",
+    title: "Feedback & Score",
     content:
-      "Each of your answers receives an individual score. The overall rating is calculated from your technical accuracy, communication clarity, and problem-solving approach.",
+      "Your performance report generates automatically once the interview ends (requires at least 3 answered questions). It shows an overall score, subscores for Technical / Communication / Problem Solving, and per-question feedback revealed inline in the chat.",
   },
 ];
 
 export function ChatInterviewHeader({
   template,
   onEndInterview,
+  onTimerExpired,
   onExitRoom,
   isComplete,
   resultsReady,
   startedAt,
 }: ChatInterviewHeaderProps) {
+  const warned5minRef = useRef(false);
+  const warned1minRef = useRef(false);
+
+  const handleTimerExpire = useCallback(() => {
+    onTimerExpired?.();
+    onEndInterview();
+  }, [onTimerExpired, onEndInterview]);
+
   const { display, secondsLeft } = useCountdown(
     template.duration || 30,
     startedAt,
-    onEndInterview,
+    handleTimerExpire,
   );
+
+  useEffect(() => {
+    if (isComplete) return;
+    if (secondsLeft < 300 && secondsLeft > 0 && !warned5minRef.current) {
+      warned5minRef.current = true;
+      analytics.track("chat_interview_timer_warning", { template_id: template.id, minutes_remaining: 5 });
+    }
+    if (secondsLeft < 60 && secondsLeft > 0 && !warned1minRef.current) {
+      warned1minRef.current = true;
+      analytics.track("chat_interview_timer_warning", { template_id: template.id, minutes_remaining: 1 });
+    }
+  }, [secondsLeft, isComplete, template.id]);
 
   const timerColor =
     secondsLeft < 60
@@ -148,7 +185,9 @@ export function ChatInterviewHeader({
           </p>
           {(template.position || template.company) && (
             <p className="text-[11px] text-muted-foreground truncate leading-tight">
-              {[template.position, template.company].filter(Boolean).join(" · ")}
+              {[template.position, template.company]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
         </div>
@@ -173,14 +212,17 @@ export function ChatInterviewHeader({
       {/* Right: controls */}
       <div className="flex items-center gap-2">
         {/* Help sidebar */}
-        <Sheet>
+        <Sheet onOpenChange={(open) => { if (open) analytics.track("chat_interview_help_opened", { template_id: template.id }); }}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="w-8 h-8">
               <Info className="w-4 h-4" />
               <span className="sr-only">Help</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[320px] sm:w-[320px] p-0 flex flex-col">
+          <SheetContent
+            side="right"
+            className="w-[320px] sm:w-[320px] p-0 flex flex-col"
+          >
             <SheetHeader className="px-4 py-3 border-b border-border">
               <SheetTitle className="text-sm">Interview Help</SheetTitle>
             </SheetHeader>
@@ -206,7 +248,9 @@ export function ChatInterviewHeader({
             <div className="px-4 py-3 border-t border-border">
               <div className="rounded-lg bg-muted/50 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground">Pro tip:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    Pro tip:
+                  </span>{" "}
                   This help panel is always available during your interview.
                 </p>
               </div>
@@ -217,23 +261,35 @@ export function ChatInterviewHeader({
         {/* End interview / Exit room */}
         {isComplete ? (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs px-3 opacity-50 cursor-default" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-3 opacity-50 cursor-default"
+              disabled
+            >
               Interview Ended
             </Button>
             {resultsReady && onExitRoom && (
               <Button
                 size="sm"
                 className="h-8 text-xs px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
-                onClick={onExitRoom}
+                onClick={() => {
+                  analytics.track("chat_interview_exit_room_clicked", { template_id: template.id });
+                  onExitRoom();
+                }}
               >
                 Exit Room
               </Button>
             )}
           </div>
         ) : (
-          <AlertDialog>
+          <AlertDialog onOpenChange={(open) => { if (open) analytics.track("chat_interview_end_clicked", { template_id: template.id }); }}>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="h-8 text-xs px-3">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs px-3"
+              >
                 End Interview
               </Button>
             </AlertDialogTrigger>
@@ -241,13 +297,17 @@ export function ChatInterviewHeader({
               <AlertDialogHeader>
                 <AlertDialogTitle>End interview?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to end the interview now? Your progress will be saved and you can still get your feedback report.
+                  Are you sure you want to end the interview now? Your progress
+                  will be saved and you can still get your feedback report.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={onEndInterview}
+                  onClick={() => {
+                    analytics.track("chat_interview_end_confirmed", { template_id: template.id });
+                    onEndInterview();
+                  }}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   End Interview
