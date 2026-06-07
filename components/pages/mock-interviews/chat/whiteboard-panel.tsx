@@ -58,7 +58,7 @@ const ExcalidrawWithWelcome = dynamic(
 );
 
 interface WhiteboardPanelProps {
-  onSendToKap: (diagramJSON: string) => void;
+  onSendToKap: (diagramJSON: string, svg?: string) => void;
   disabled?: boolean;
   savedDiagram?: unknown;
 }
@@ -84,7 +84,18 @@ export function WhiteboardPanel({
       const elements = excalidrawAPIRef.current.getSceneElements();
       const appState = excalidrawAPIRef.current.getAppState();
       const files = excalidrawAPIRef.current.getFiles();
-      onSendToKap(JSON.stringify({ elements, appState, files }));
+      const diagramJSON = JSON.stringify({ elements, appState, files });
+
+      let svgString: string | undefined;
+      try {
+        const { exportToSvg } = await import("@excalidraw/excalidraw");
+        const svgEl = await exportToSvg({ elements, appState, files });
+        svgString = new XMLSerializer().serializeToString(svgEl);
+      } catch {
+        // SVG export optional — preview falls back to badge
+      }
+
+      onSendToKap(diagramJSON, svgString);
     } finally {
       setTimeout(() => setIsSending(false), 1000);
     }

@@ -395,14 +395,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }, [store]);
 
   const handleWhiteboardSend = useCallback(
-    (diagramJSON: string) => {
+    (diagramJSON: string, svg?: string) => {
       analytics.track("chat_interview_whiteboard_submitted", {
         template_id: sessionRef.current?.template?.id,
       });
       handleSend(
         "Here's my diagram:",
         { type: "whiteboard", data: diagramJSON },
-        { type: "whiteboard" },
+        { type: "whiteboard", svg },
       );
     },
     [handleSend],
