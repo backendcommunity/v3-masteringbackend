@@ -982,8 +982,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               {
                 value: "completed",
                 label: "Completed",
-                count: completedInterviews.filter((i) => i.completedSessionId)
-                  .length,
+                count: completedTotal,
               },
             ] as { value: string; label: string; count: number }[]
           ).map((chip) => (
@@ -1302,8 +1301,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : completedInterviews.filter((i) => i.completedSessionId)
-                .length === 0 ? (
+            ) : completedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-1">
@@ -1318,9 +1316,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {completedInterviews
-                  .filter((i) => i.completedSessionId)
-                  .map((interview) => (
+                {completedInterviews.map((interview) => (
                     <div
                       key={interview.id}
                       className="bg-card rounded-2xl border border-border p-5 flex flex-col"
