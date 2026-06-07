@@ -1,4 +1,5 @@
 import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 interface BrandLogoProps {
   size?: "sm" | "md" | "lg";
@@ -12,6 +13,8 @@ export function BrandLogo({
   variant = "default",
 }: BrandLogoProps) {
   const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const sizeClasses = {
     sm: "w-8 h-8",
@@ -54,11 +57,10 @@ export function BrandLogo({
             variant === "white" ? "text-[#0E1F33]" : "text-white"
           } font-bold ${size === "sm" ? "text-xs" : "text-sm"}`}
         >
-          {theme === "light" ? (
-            <img src="/blue-icon-logo.png" alt="logo" />
-          ) : (
-            <img src="/logo.png" alt="logo" />
-          )}
+          <img
+            src={mounted && theme === "light" ? "/blue-icon-logo.png" : "/logo.png"}
+            alt="logo"
+          />
         </span>
       </div>
     </div>

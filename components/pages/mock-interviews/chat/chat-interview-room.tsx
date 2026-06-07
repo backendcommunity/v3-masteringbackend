@@ -395,14 +395,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   }, [store]);
 
   const handleWhiteboardSend = useCallback(
-    (diagramJSON: string) => {
+    (diagramJSON: string, svg?: string) => {
       analytics.track("chat_interview_whiteboard_submitted", {
         template_id: sessionRef.current?.template?.id,
       });
       handleSend(
         "Here's my diagram:",
         { type: "whiteboard", data: diagramJSON },
-        { type: "whiteboard" },
+        { type: "whiteboard", svg },
       );
     },
     [handleSend],
@@ -625,6 +625,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           <div className="flex-1 min-h-0">
             {activePanel === "code" ? (
               <CodeEditorPanel
+                key={messages.filter((m) => m.role === "user").length}
                 onSendToKap={handleCodeSend}
                 disabled={isComplete}
                 savedCode={session.codeArtifact}

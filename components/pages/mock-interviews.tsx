@@ -144,8 +144,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] =
     useState(false);
-  const [isCreateInterviewDialogOpen, setIsCreateInterviewDialogOpen] =
-    useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const [interviewAccess, setInterviewAccess] =
@@ -172,18 +170,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     search: "",
     category: "",
   });
-
-  const [customInterviewData, setCustomInterviewData] =
-    useState<CustomInterviewFormData>({
-      company: "",
-      position: "",
-      seniority: "",
-      description: "",
-      style: "",
-      difficulty: "",
-      duration: 15,
-      format: "audio",
-    });
 
   const [templateFormData, setTemplateFormData] = useState<TemplateFormData>({
     name: "",
@@ -465,12 +451,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     onNavigate(`/mock-interviews/${sessionId}/results`);
   };
 
-  const handleCustomInterviewChange = (
-    field: keyof CustomInterviewFormData,
-    value: string | number,
-  ) => {
-    setCustomInterviewData((prev) => ({ ...prev, [field]: value }));
-  };
 
   const handleTemplateFormChange = (
     field: keyof TemplateFormData,
@@ -494,63 +474,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       ...prev,
       topics: prev.topics.filter((_, i) => i !== index),
     }));
-  };
-
-  const handleCreateCustomInterview = async () => {
-    if (!interviewAccess?.hasAccess) {
-      setShowUpgradeDialog(true);
-      return;
-    }
-
-    try {
-      if (
-        !customInterviewData.company ||
-        !customInterviewData.position ||
-        !customInterviewData.description
-      ) {
-        toast.error("Please fill in all required fields");
-        return;
-      }
-
-      setCreating(true);
-      const result = await store.scheduleInterviewFromJD({
-        ...customInterviewData,
-        scheduledTime: new Date().toISOString(),
-      });
-
-      if (!result) {
-        toast.error("Failed to create interview");
-        return;
-      }
-      toast.success("Interview created and scheduled!");
-      setIsCreateInterviewDialogOpen(false);
-      setCustomInterviewData({
-        company: "",
-        position: "",
-        seniority: "",
-        description: "",
-        style: "",
-        difficulty: "",
-        duration: 15,
-        format: "",
-      });
-
-      // Reload data
-      await loadTemplates();
-      await loadBookedInterviews();
-      await loadStats();
-
-      // Switch to booked tab to show the new interview
-      setActiveTab("booked");
-
-      // onNavigate(`/mock-interviews/${result.interview.id}`);
-      setSelectedTemplate(result.template);
-      setIsBookingDialogOpen(true);
-    } catch (error) {
-      toast.error("Failed to create interview");
-    } finally {
-      setCreating(false);
-    }
   };
 
   const handleCreateTemplate = async () => {
@@ -1582,192 +1505,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create from JD Dialog */}
-      <Dialog
-        open={isCreateInterviewDialogOpen}
-        onOpenChange={setIsCreateInterviewDialogOpen}
-      >
-        <DialogContent className="w-[75vw] max-w-[80vw] h-[90vh] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Custom Mock Interview</DialogTitle>
-            <DialogDescription>
-              Customize your mock interview experience by providing details
-              about the role you're preparing for.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="company" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                Company *
-              </Label>
-              <Input
-                id="company"
-                placeholder="e.g., Google, Amazon, Stripe"
-                value={customInterviewData.company}
-                onChange={(e) =>
-                  handleCustomInterviewChange("company", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="position" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-                Position *
-              </Label>
-              <Input
-                id="position"
-                placeholder="e.g., Senior Backend Engineer"
-                value={customInterviewData.position}
-                onChange={(e) =>
-                  handleCustomInterviewChange("position", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="seniority" className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                Seniority Level
-              </Label>
-              <Select
-                value={customInterviewData.seniority}
-                onValueChange={(value) =>
-                  handleCustomInterviewChange("seniority", value)
-                }
-              >
-                <SelectTrigger id="seniority">
-                  <SelectValue placeholder="Select seniority level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="junior">Junior</SelectItem>
-                  <SelectItem value="mid">Mid-Level</SelectItem>
-                  <SelectItem value="senior">Senior</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="style" className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
-                Interview Style
-              </Label>
-              <Select
-                value={customInterviewData.style}
-                onValueChange={(value) =>
-                  handleCustomInterviewChange("style", value)
-                }
-              >
-                <SelectTrigger id="style">
-                  <SelectValue placeholder="Select interview style" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="behavioral">Behavioral</SelectItem>
-                  <SelectItem value="coding">Coding</SelectItem>
-                  <SelectItem value="system-design">System Design</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="difficulty" className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-muted-foreground" />
-                Difficulty
-              </Label>
-              <Select
-                value={customInterviewData.difficulty}
-                onValueChange={(value) =>
-                  handleCustomInterviewChange("difficulty", value)
-                }
-              >
-                <SelectTrigger id="difficulty">
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Easy">Easy</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="duration" className="flex items-center gap-2">
-                <Layout className="h-4 w-4 text-muted-foreground" />
-                Duration
-              </Label>
-              <Select
-                value={customInterviewData.duration + ""}
-                onValueChange={(value) =>
-                  handleCustomInterviewChange("duration", value)
-                }
-              >
-                <SelectTrigger id="duration">
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[15, 30, 45, 60].map((d) => (
-                    <SelectItem
-                      key={d}
-                      value={d + ""}
-                      disabled={
-                        interviewAccess?.hasAccess === true &&
-                        !interviewAccess.allowedDurations.includes(d)
-                      }
-                    >
-                      {d} min
-                      {interviewAccess?.hasAccess &&
-                        !interviewAccess.allowedDurations.includes(d) &&
-                        " (Enterprise)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="description" className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                Job Description *
-              </Label>
-              <Textarea
-                id="description"
-                placeholder="Paste the job description here..."
-                rows={8}
-                value={customInterviewData.description}
-                onChange={(e) =>
-                  handleCustomInterviewChange("description", e.target.value)
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateInterviewDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateCustomInterview} disabled={creating}>
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Video className="h-4 w-4 mr-2" />
-                  Create & Start
-                </>
-              )}
             </Button>
           </DialogFooter>
         </DialogContent>
