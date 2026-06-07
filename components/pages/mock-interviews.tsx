@@ -779,13 +779,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                 <span className="text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">
-                    {stats.totalInterviews ?? 0}
-                  </span>{" "}
-                  completed
-                </span>
-                <span className="text-muted-foreground/40 text-xs">·</span>
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
                     {stats.averageScore ?? 0}%
                   </span>{" "}
                   avg score
