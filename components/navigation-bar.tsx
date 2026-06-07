@@ -74,12 +74,9 @@ export function NavigationBar({
   const [seenNotificationIds] = useState(() => new Set<string>());
   const user = useUser();
 
-  // Mock subscription data
-  const subscription = user?.isPremium
-    ? user?.subscription
-    : {
-        name: "Free",
-      };
+  const subscriptionName = user?.isPremium
+    ? user?.subscription?.plan?.name ?? "Pro"
+    : "Free";
   async function load() {
     try {
       setIsActivitiesLoading(true);
@@ -929,10 +926,10 @@ export function NavigationBar({
               className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:bg-gradient-to- hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
               onClick={() => onNavigate(routes.subscriptionManagement)}
             >
-              {!subscription?.name?.includes("Free") && (
+              {!subscriptionName.includes("Free") && (
                 <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
               )}
-              {!isMobile && subscription?.name}
+              {!isMobile && subscriptionName}
             </Button>
 
             {/* MB Balance - Compact on mobile */}
