@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { ChatMessage, ChatInterviewSession } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -135,7 +136,7 @@ export function ChatPanel({
                     {onRestart && (
                       <Button
                         size="sm"
-                        onClick={onRestart}
+                        onClick={() => { analytics.track("chat_interview_restart_clicked"); onRestart(); }}
                         disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
@@ -150,7 +151,7 @@ export function ChatPanel({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={onExit}
+                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "insufficient_answers" }); onExit?.(); }}
                       className="h-8 text-xs gap-1.5"
                     >
                       <LogOut className="w-3.5 h-3.5" />
@@ -166,7 +167,7 @@ export function ChatPanel({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={onRestart}
+                        onClick={() => { analytics.track("chat_interview_restart_clicked"); onRestart(); }}
                         disabled={isRestartLoading}
                         className="h-8 text-xs gap-1.5"
                       >
@@ -181,7 +182,7 @@ export function ChatPanel({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={onExit}
+                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "post_results" }); onExit?.(); }}
                       className="h-8 text-xs gap-1.5"
                     >
                       <LogOut className="w-3.5 h-3.5" />
@@ -224,7 +225,7 @@ export function ChatPanel({
                   </div>
                   <Button
                     size="sm"
-                    onClick={onGetResults}
+                    onClick={() => { analytics.track("chat_interview_get_results_clicked"); onGetResults(); }}
                     disabled={isLoadingResults}
                     className="h-8 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
                   >

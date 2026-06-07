@@ -8,6 +8,7 @@ import {
   ChatInterviewSession,
   ChatArtifactRef,
 } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { ChatInterviewHeader } from "./chat-interview-header";
 import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
@@ -58,11 +59,17 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const router = useRouter();
 
   const sessionIdRef = useRef<string | null>(null);
+  const sessionRef = useRef<ChatInterviewSession | null>(null);
+  const endedManuallyRef = useRef(false);
   const messagesRef = useRef(messages);
   const autoResultFiredRef = useRef(false);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -77,6 +84,16 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           data.status === "COMPLETED" || data.status === "ENDED";
         setIsComplete(alreadyDone);
         sessionIdRef.current = data.sessionId;
+        analytics.track("chat_interview_session_started", {
+          template_id: data.template?.id,
+          position: data.template?.position,
+          company: data.template?.company,
+          difficulty: data.template?.difficulty,
+          duration: data.template?.duration,
+          category: data.template?.category,
+          session_id: data.sessionId,
+          is_resuming: alreadyDone,
+        });
 
         if (alreadyDone) {
           // Session was already complete before this mount — fetch stored report
@@ -112,6 +129,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           setInitError(
             err?.message ?? "Failed to start interview. Please try again.",
           );
+          analytics.track("chat_interview_session_start_failed", {
+            error_code: code,
+            error_message: err?.message,
+          });
         }
       } finally {
         if (!cancelled) setIsInitializing(false);
@@ -135,6 +156,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
       const userMsgId = `user-${Date.now()}`;
       const aiMsgId = `ai-${Date.now() + 1}`;
+
+      if (!artifactRef) {
+        const questionNum = messagesRef.current.filter((m) => m.role === "user").length + 1;
+        analytics.track("chat_interview_message_sent", {
+          template_id: sessionRef.current?.template?.id,
+          question_number: questionNum,
+        });
+      }
 
       const userMsg: ChatMessage = {
         id: userMsgId,
@@ -187,6 +216,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
               } else if (parsed.type === "done") {
                 if (parsed.isComplete) setIsComplete(true);
               }
+              // note: completion funnel tracked in the isComplete useEffect below
             } catch {
               // Skip malformed JSON lines
             }
@@ -205,6 +235,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   const handleEndInterview = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
+    endedManuallyRef.current = true;
+    analytics.track("chat_interview_ended_manually", {
+      template_id: sessionRef.current?.template?.id,
+      user_answers_given: messagesRef.current.filter((m) => m.role === "user").length,
+    });
     try {
       await store.endChatInterviewSession(sessionId);
     } catch {
@@ -213,6 +248,14 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsComplete(true);
   }, [store]);
 
+  const handleTimerExpired = useCallback(() => {
+    analytics.track("chat_interview_timer_expired", {
+      template_id: sessionRef.current?.template?.id,
+      user_answers_given: messagesRef.current.filter((m) => m.role === "user").length,
+    });
+    handleEndInterview();
+  }, [handleEndInterview]);
+
   const handleRestart = useCallback(async () => {
     // Check access BEFORE resetting any state so the user's current results
     // are preserved if they've hit their limit.
@@ -220,6 +263,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     try {
       const access = await store.getInterviewAccess();
       if (!access?.hasAccess) {
+        analytics.track("chat_interview_restart_blocked", {
+          template_id: sessionRef.current?.template?.id,
+          tier: access?.tier,
+        });
         setShowAccessDeniedDialog(true);
         return;
       }
@@ -251,6 +298,12 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       setIsComplete(alreadyDone);
       // Set ref only after the session is confirmed — prevents null-ref race
       sessionIdRef.current = data.sessionId;
+      endedManuallyRef.current = false;
+      autoResultFiredRef.current = false;
+      analytics.track("chat_interview_restarted", {
+        template_id: data.template?.id,
+        session_id: data.sessionId,
+      });
     } catch (err: any) {
       const code = err?.response?.data?.code ?? null;
       if (code === "TRIAL_EXHAUSTED" || code === "SESSION_LIMIT_REACHED") {
@@ -271,6 +324,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     setIsLoadingResults(true);
     setResultsError(null);
     setResultsProgress(null);
+    analytics.track("chat_interview_results_requested", {
+      template_id: sessionRef.current?.template?.id,
+      session_id: sessionId,
+    });
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
@@ -305,8 +362,22 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
                 setResultsRevealed(true);
               }
               setResultsProgress(null);
+              analytics.track("chat_interview_results_generated", {
+                template_id: sessionRef.current?.template?.id,
+                overall_score: report?.overallScore,
+                result: report?.result,
+                technical_score: report?.technicalScore,
+                communication_score: report?.communicationScore,
+                problem_solving_score: report?.problemSolvingScore,
+                triggered_by: endedManuallyRef.current ? "manual" : "ai",
+              });
             } else if (event.type === "error") {
-              setResultsError(event.message ?? "Failed to generate report.");
+              const errMsg = event.message ?? "Failed to generate report.";
+              setResultsError(errMsg);
+              analytics.track("chat_interview_results_failed", {
+                template_id: sessionRef.current?.template?.id,
+                error_message: errMsg,
+              });
             }
           } catch {
             // skip malformed lines
@@ -325,6 +396,9 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const handleWhiteboardSend = useCallback(
     (diagramJSON: string) => {
+      analytics.track("chat_interview_whiteboard_submitted", {
+        template_id: sessionRef.current?.template?.id,
+      });
       handleSend(
         "Here's my diagram:",
         { type: "whiteboard", data: diagramJSON },
@@ -336,6 +410,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   const handleCodeSend = useCallback(
     (code: string, language: string) => {
+      analytics.track("chat_interview_code_submitted", {
+        template_id: sessionRef.current?.template?.id,
+        language,
+      });
       handleSend(
         "Here's my code solution:",
         { type: "code", data: code, language },
@@ -362,6 +440,11 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     if (isComplete) {
       if (!autoResultFiredRef.current) {
         const userAnswerCount = messagesRef.current.filter((m) => m.role === "user").length;
+        analytics.track("chat_interview_completed", {
+          template_id: sessionRef.current?.template?.id,
+          user_answers_given: userAnswerCount,
+          triggered_by: endedManuallyRef.current ? "manual" : "ai",
+        });
         if (userAnswerCount >= 3) {
           autoResultFiredRef.current = true;
           handleGetResults().catch(() => {
@@ -370,6 +453,10 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           });
         } else {
           autoResultFiredRef.current = true;
+          analytics.track("chat_interview_insufficient_answers", {
+            template_id: sessionRef.current?.template?.id,
+            user_answers_given: userAnswerCount,
+          });
           setInsufficientAnswers(true);
         }
       }
@@ -455,6 +542,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       <ChatInterviewHeader
         template={session.template}
         onEndInterview={handleEndInterview}
+        onTimerExpired={handleTimerExpired}
         onExitRoom={() => setShowCompletionDialog(true)}
         isComplete={isComplete}
         resultsReady={!!resultsData || insufficientAnswers}
@@ -508,7 +596,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
           {/* Tab switcher */}
           <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
             <button
-              onClick={() => setActivePanel("code")}
+              onClick={() => { setActivePanel("code"); analytics.track("chat_interview_panel_switched", { panel: "code", template_id: session.template?.id }); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "code"
@@ -520,7 +608,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
               Code Editor
             </button>
             <button
-              onClick={() => setActivePanel("whiteboard")}
+              onClick={() => { setActivePanel("whiteboard"); analytics.track("chat_interview_panel_switched", { panel: "whiteboard", template_id: session.template?.id }); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 activePanel === "whiteboard"

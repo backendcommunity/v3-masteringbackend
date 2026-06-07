@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
+import { analytics } from "@/lib/analytics";
 
 interface MockInterviewsPageProps {
   onNavigate: (path: string) => void;
@@ -217,6 +218,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadCompletedInterviews();
     loadInterviewAccess();
     loadCategories();
+    analytics.page("Mock Interviews");
   }, []);
 
   // Cleanup debounce timeout on unmount
@@ -359,6 +361,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     try {
       setDeletingTemplate(true);
       await store.deleteMyTemplate(deleteTemplateId);
+      analytics.track("my_template_deleted", { template_id: deleteTemplateId });
       setMyTemplates((prev) => prev.filter((t) => t.id !== deleteTemplateId));
       toast.success("Template deleted");
     } catch {
@@ -374,15 +377,27 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       interviewAccess?.remainingSessions! >= 1 &&
       !interviewAccess?.hasAccess
     ) {
+      analytics.track("mock_interview_upgrade_dialog_shown", { trigger: "template_click", tier: interviewAccess?.tier });
       setShowUpgradeDialog(true);
       return;
     }
+    analytics.track("mock_interview_booking_started", {
+      template_id: template.id,
+      template_name: template.name,
+      company: template.company,
+      position: template.position,
+      category: template.category,
+      difficulty: template.difficulty,
+      duration: template.duration,
+      is_custom: !!template.addedBy,
+    });
     setSelectedTemplate(template);
     setIsBookingDialogOpen(true);
   };
 
   const handleJoinInterview = async (interview: UserInterview) => {
     if (!interviewAccess?.hasAccess) {
+      analytics.track("mock_interview_upgrade_dialog_shown", { trigger: "join_attempt", tier: interviewAccess?.tier });
       setShowUpgradeDialog(true);
       return;
     }
@@ -557,10 +572,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
       // Debounce the API call
       searchDebounceRef.current = setTimeout(() => {
+        if (value) analytics.track("mock_interview_filter_applied", { filter_type: "search", query_length: value.length });
         setPagination({ size: 10, skip: 0 });
       }, 300);
     } else {
       // For other filters, update immediately
+      if (value) analytics.track("mock_interview_filter_applied", { filter_type: key, value });
       setFilters((prev) => ({ ...prev, [key]: value }));
       setPagination({ size: 10, skip: 0 });
     }
@@ -760,7 +777,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <Button
               variant="outline"
               className="shrink-0 gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
-              onClick={() => onNavigate("/subscription/plans")}
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", { from: "practice_cta_header", tier: "free" });
+                onNavigate("/subscription/plans");
+              }}
             >
               <Sparkles className="h-4 w-4" />
               Practice for a real job
@@ -768,7 +788,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           ) : (
             <Button
               className="shrink-0 gap-2"
-              onClick={() => onNavigate("/mock-interviews/prepare")}
+              onClick={() => {
+                analytics.track("mock_interview_practice_for_job_clicked", { tier: interviewAccess?.tier ?? "pro" });
+                onNavigate("/mock-interviews/prepare");
+              }}
             >
               <Sparkles className="h-4 w-4" />
               Practice for a real job
@@ -844,7 +867,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           ).map((chip) => (
             <button
               key={chip.value}
-              onClick={() => setActiveTab(chip.value)}
+              onClick={() => {
+                analytics.track("mock_interview_tab_changed", { tab: chip.value, from: activeTab });
+                setActiveTab(chip.value);
+              }}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm transition-colors",
                 activeTab === chip.value
@@ -1232,7 +1258,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                         key={template.id}
                         template={template}
                         onSelect={() => handleBookInterview(template)}
-                        onDelete={(e) => { e.stopPropagation(); setDeleteTemplateId(template.id); }}
+                        onDelete={(e) => {
+                          e.stopPropagation();
+                          analytics.track("my_template_delete_initiated", { template_id: template.id });
+                          setDeleteTemplateId(template.id);
+                        }}
                         actionLabel="Practice"
                       />
                     ))}
@@ -1340,7 +1370,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             >
               Cancel
             </Button>
-            <Button onClick={() => onNavigate("/subscription/plans")}>
+            <Button onClick={() => {
+              analytics.track("mock_interview_upgrade_cta_clicked", { from: "upgrade_dialog", tier: interviewAccess?.tier });
+              onNavigate("/subscription/plans");
+            }}>
               <Crown className="h-4 w-4 mr-2" />
               View Plans
             </Button>

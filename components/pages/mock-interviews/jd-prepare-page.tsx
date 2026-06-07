@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,6 +44,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 import {
   InterviewBookingDialog,
   type BookingTemplate,
@@ -153,6 +154,10 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    analytics.page("JD Prepare");
+  }, []);
+
   const handleFile = useCallback((file: File) => {
     const allowed = [
       "application/pdf",
@@ -169,6 +174,7 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
     }
     setSelectedFile(file);
     setErrorMsg(null);
+    analytics.track("jd_file_uploaded", { file_type: file.type, file_size_kb: Math.round(file.size / 1024) });
   }, []);
 
   const handleDrop = useCallback(
@@ -202,6 +208,13 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
       return;
     }
 
+    analytics.track("jd_analysis_started", {
+      tab,
+      duration: dur,
+      style: interviewStyle,
+      ...(tab === "paste" ? { jd_length: jdText.trim().length } : { file_type: selectedFile?.type }),
+    });
+
     setIsRunning(true);
 
     try {
@@ -215,11 +228,31 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
 
       await readSSEStream(reader, (event) => {
         if (event.stage === "complete" && event.success) {
-          setResult(event.data as JDAnalysisResult);
+          const analysisResult = event.data as JDAnalysisResult;
+          setResult(analysisResult);
           setCurrentProgress(100);
+          analytics.track("jd_analysis_completed", {
+            template_id: analysisResult.templateId,
+            company: analysisResult.template.company,
+            position: analysisResult.template.position,
+            seniority: analysisResult.template.seniority,
+            format: analysisResult.template.format,
+            difficulty: analysisResult.template.difficulty,
+            duration: analysisResult.template.duration,
+            style: interviewStyle,
+            question_count: analysisResult.template.questions,
+            tab,
+          });
           setBookingOpen(true);
         } else if (event.stage === "error") {
-          setErrorMsg((event.message as string) || "Something went wrong.");
+          const errMsg = (event.message as string) || "Something went wrong.";
+          analytics.track("jd_analysis_failed", {
+            error_message: errMsg,
+            tab,
+            duration: dur,
+            style: interviewStyle,
+          });
+          setErrorMsg(errMsg);
         } else if (event.stage && event.message) {
           const progressEvent: ProgressEvent = {
             stage: event.stage as string,
@@ -232,6 +265,13 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to analyze JD.";
+      analytics.track("jd_analysis_failed", {
+        error_message: msg,
+        tab,
+        duration: dur,
+        style: interviewStyle,
+        error_source: "network",
+      });
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -245,6 +285,7 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
   };
 
   const handleReset = () => {
+    analytics.track("jd_analysis_reset");
     setResult(null);
     setProgressEvents([]);
     setCurrentProgress(0);
@@ -320,7 +361,10 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
               <CardContent className="pt-6 space-y-5">
                 <Tabs
                   value={tab}
-                  onValueChange={(v) => setTab(v as "paste" | "upload")}
+                  onValueChange={(v) => {
+                    setTab(v as "paste" | "upload");
+                    analytics.track("jd_input_tab_changed", { tab: v });
+                  }}
                 >
                   <TabsList className="w-full">
                     <TabsTrigger value="paste" className="flex-1 gap-2">
@@ -385,7 +429,10 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
                   </div>
                   <Select
                     value={duration}
-                    onValueChange={setDuration}
+                    onValueChange={(v) => {
+                      setDuration(v);
+                      analytics.track("interview_duration_changed", { duration: Number(v), style: interviewStyle });
+                    }}
                     disabled={isRunning}
                   >
                     <SelectTrigger className="w-40">
@@ -416,7 +463,10 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setInterviewStyle(key)}
+                          onClick={() => {
+                            setInterviewStyle(key);
+                            analytics.track("interview_style_selected", { style: key, duration: Number(duration) });
+                          }}
                           disabled={isRunning}
                           className={cn(
                             "flex flex-col gap-1 p-3 rounded-xl border-2 text-left transition-all",

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
+import { analytics } from "@/lib/analytics";
 
 type Template = MockInterviewTemplateCardData;
 
@@ -63,6 +64,10 @@ export function InterviewCompletionDialog({
 
   useEffect(() => {
     if (!open) return;
+    analytics.track("chat_interview_completion_dialog_shown", {
+      overall_score: overallScore,
+      category: currentCategory,
+    });
 
     store
       .getMockInterviewTemplates({ size: 9 })
@@ -88,6 +93,7 @@ export function InterviewCompletionDialog({
   }, [open, currentTemplateId, currentCategory]);
 
   const handleExit = () => {
+    analytics.track("chat_interview_exit_to_interviews");
     router.push("/mock-interviews");
   };
 
@@ -104,6 +110,11 @@ export function InterviewCompletionDialog({
           toast.error("Failed to start interview. Please try again.");
           return;
         }
+        analytics.track("chat_interview_next_template_started", {
+          template_id: templateId,
+          is_same_category: currentCategory != null,
+          from_score: overallScore,
+        });
         onClose();
         router.push(`/mock-interviews/${result.interview.id}/chat`);
       } catch (err: any) {
@@ -135,6 +146,7 @@ export function InterviewCompletionDialog({
           mockInterviewTemplateId: templateId,
         });
         setSavedTemplates((prev) => ({ ...prev, [templateId]: true }));
+        analytics.track("chat_interview_template_bookmarked_from_completion", { template_id: templateId });
         toast.success("Interview saved to bookmarks.");
       } catch {
         toast.error("Failed to save. Please try again.");
@@ -157,6 +169,7 @@ export function InterviewCompletionDialog({
           courseId,
         });
         setSavedCourses((prev) => ({ ...prev, [courseId]: true }));
+        analytics.track("chat_interview_course_bookmarked_from_completion", { course_id: courseId });
         toast.success("Course saved to bookmarks.");
       } catch {
         toast.error("Failed to save. Please try again.");
@@ -342,6 +355,7 @@ export function InterviewCompletionDialog({
                       <button
                         key={c.id}
                         onClick={() => {
+                          analytics.track("chat_interview_course_clicked_from_completion", { course_id: c.id, slug: c.slug });
                           router.push(`/courses/${c.slug}`);
                           onClose();
                         }}
@@ -396,7 +410,10 @@ export function InterviewCompletionDialog({
           <div className="flex items-center justify-end px-6 py-4 border-t border-border flex-shrink-0">
             <Button
               className="h-9 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm"
-              onClick={() => router.push("/subscription/plans")}
+              onClick={() => {
+                analytics.track("chat_interview_unlock_full_access_clicked", { from_score: overallScore });
+                router.push("/subscription/plans");
+              }}
             >
               Unlock Full Access
             </Button>
