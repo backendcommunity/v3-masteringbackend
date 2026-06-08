@@ -1574,6 +1574,22 @@ export function LearningPathDetailPage({
                     <Play className="mr-2 h-4 w-4" />
                     {navigating ? "Loading…" : "Continue Learning"}
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      analytics.track("path_workspace_opened", {
+                        pathId,
+                        topicId: currentTopic.id,
+                        source: "current_card",
+                      });
+                      onNavigate?.(`/paths/${pathId}/learn`);
+                    }}
+                  >
+                    <Zap className="mr-2 h-4 w-4" />
+                    Continue in workspace
+                  </Button>
                 </div>
               </CardContent>
             </Card>
