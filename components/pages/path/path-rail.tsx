@@ -5,7 +5,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PathSession } from "@/lib/path-types";
 import { PathMeters } from "./path-meters";
@@ -30,27 +29,44 @@ export function PathRail({
   );
 
   return (
-    <aside className="w-80 shrink-0 border-r flex flex-col">
-      <PathMeters session={session} />
+    <aside className="w-80 shrink-0 border-r border-border bg-sidebar flex flex-col">
+      <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+        <PathMeters session={session} />
+      </div>
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-2 space-y-1 no-scrollbar">
           <Accordion
             type="multiple"
             defaultValue={activeGroup ? [activeGroup.id] : []}
           >
-            {session.groups.map((g) => {
+            {session.groups.map((g, i) => {
               const gs = groupStateById.get(g.id);
+              const isActiveGroup = activeGroup?.id === g.id;
               return (
-                <AccordionItem key={g.id} value={g.id} className="border-0">
-                  <AccordionTrigger className="px-3 py-2 hover:no-underline rounded-lg hover:bg-muted/30">
-                    <div className="flex items-center justify-between w-full pr-2">
-                      <span className="text-xs font-bold uppercase tracking-wide truncate">
-                        {g.title}
+                <AccordionItem
+                  key={g.id}
+                  value={g.id}
+                  className="border-0 animate-in fade-in slide-in-from-left-2 duration-300"
+                  style={{ animationDelay: `${80 + i * 40}ms` }}
+                >
+                  <AccordionTrigger className="px-3 py-2 hover:no-underline rounded-lg hover:bg-primary/10">
+                    <div className="flex items-center justify-between w-full pr-2 gap-2">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary/60" />
+                        <span
+                          className={`text-[11px] font-bold uppercase tracking-wider truncate ${
+                            isActiveGroup
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {g.title}
+                        </span>
                       </span>
                       {gs && (
-                        <Badge variant="outline" className="text-[10px]">
+                        <span className="badge-level shrink-0 text-[10px]">
                           {gs.progressPct}%
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </AccordionTrigger>
@@ -71,13 +87,20 @@ export function PathRail({
               );
             })}
           </Accordion>
-          {standalone.map((s) => (
-            <StepRow
+          {standalone.map((s, i) => (
+            <div
               key={s.id}
-              step={s}
-              active={s.id === currentStepId}
-              onSelect={() => onSelectStep(s.id)}
-            />
+              className="animate-in fade-in slide-in-from-left-2 duration-300"
+              style={{
+                animationDelay: `${80 + (session.groups.length + i) * 40}ms`,
+              }}
+            >
+              <StepRow
+                step={s}
+                active={s.id === currentStepId}
+                onSelect={() => onSelectStep(s.id)}
+              />
+            </div>
           ))}
         </div>
       </ScrollArea>

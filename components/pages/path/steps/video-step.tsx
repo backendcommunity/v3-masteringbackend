@@ -38,17 +38,19 @@ export function VideoStep({
         {loading ? (
           <Loader isFull={false} />
         ) : video ? (
-          <VimeoPlayer
-            video={video}
-            onComplete={() => onComplete(step.id)}
-            onTimeUpdate={(secs) => {
-              if (Math.floor(secs) % 15 === 0) {
-                store
-                  .updatePathStepProgress(pathId, step.id, { duration: secs })
-                  .catch(() => {});
-              }
-            }}
-          />
+          <div className="rounded-2xl overflow-hidden border border-border bg-black glow-subtle">
+            <VimeoPlayer
+              video={video}
+              onComplete={() => onComplete(step.id)}
+              onTimeUpdate={(secs) => {
+                if (Math.floor(secs) % 15 === 0) {
+                  store
+                    .updatePathStepProgress(pathId, step.id, { duration: secs })
+                    .catch(() => {});
+                }
+              }}
+            />
+          </div>
         ) : (
           <p className="text-muted-foreground">Video unavailable.</p>
         )}

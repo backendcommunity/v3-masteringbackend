@@ -1,4 +1,5 @@
 "use client";
+import { Compass } from "lucide-react";
 import { PathSessionStep } from "@/lib/path-types";
 import { VideoStep } from "./steps/video-step";
 import { ArticleStep } from "./steps/article-step";
@@ -23,7 +24,14 @@ export function StepStage({
 }) {
   if (!step)
     return (
-      <div className="p-6 text-muted-foreground">Select a step to begin.</div>
+      <div className="flex flex-col items-center justify-center min-h-full gap-3 p-10 text-center">
+        <span className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center glow-subtle">
+          <Compass className="w-7 h-7" />
+        </span>
+        <p className="text-muted-foreground font-medium">
+          Select a step to begin.
+        </p>
+      </div>
     );
 
   const render = () => {
@@ -54,8 +62,14 @@ export function StepStage({
   };
 
   return (
-    <div key={step.id} className="min-h-full">
-      {render()}
+    <div className="relative min-h-full">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_20%_0%,hsl(var(--mb-blue)/0.06),transparent)]"
+      />
+      <div key={step.id} className="relative interview-panel-enter min-h-full">
+        {render()}
+      </div>
     </div>
   );
 }
