@@ -644,6 +644,12 @@ export function CourseWatchPage({
                       toast.info("You need to pass this quiz. Try again");
                     if (passed) handleMarkComplete();
                   }}
+                  onClose={() => {
+                    // "Close Quiz" only renders after passing — advance to the
+                    // next video/chapter, then ensure the overlay is dismissed.
+                    handleContinueNext();
+                    setShowNextOverlay(false);
+                  }}
                 />
               </Card>
             )}

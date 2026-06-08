@@ -26,6 +26,9 @@ interface CourseQuizPageProps {
   onNavigate: (path: string) => void;
   showNav?: boolean;
   handleQuizSubmit: (passed: boolean) => void;
+  // Called when the learner closes the quiz after passing — lets the parent
+  // advance to the next video/chapter automatically.
+  onClose?: () => void;
 }
 
 export function CourseQuizPage({
@@ -34,6 +37,7 @@ export function CourseQuizPage({
   onNavigate,
   showNav = true,
   handleQuizSubmit,
+  onClose,
 }: CourseQuizPageProps) {
   const store = useAppStore();
 
@@ -177,7 +181,11 @@ export function CourseQuizPage({
     setTimeLeft((quiz?.timeLimit ?? 20) * 60);
   };
 
-  const handleClose = () => setQuizStatus("not_started");
+  const handleClose = () => {
+    setQuizStatus("not_started");
+    // After a pass, closing should auto-advance to the next video/chapter.
+    onClose?.();
+  };
 
   // ===============================
   // Render Logic
