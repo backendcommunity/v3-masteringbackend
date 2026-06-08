@@ -3,11 +3,13 @@ import { PathSessionStep } from "@/lib/path-types";
 import { VideoStep } from "./steps/video-step";
 import { ArticleStep } from "./steps/article-step";
 import { ResourceStep } from "./steps/resource-step";
+import { QuizStep } from "./steps/quiz-step";
 
 export function StepStage({
   pathId,
   step,
   onComplete,
+  onNavigate,
 }: {
   pathId: string;
   step?: PathSessionStep;
@@ -27,6 +29,8 @@ export function StepStage({
       return <ArticleStep step={step} onComplete={onComplete} />;
     case "RESOURCE":
       return <ResourceStep step={step} onComplete={onComplete} />;
+    case "QUIZ":
+      return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
     default:
       return (
         <div className="p-6 text-muted-foreground">
