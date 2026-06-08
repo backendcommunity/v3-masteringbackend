@@ -6,6 +6,8 @@ import { ResourceStep } from "./steps/resource-step";
 import { QuizStep } from "./steps/quiz-step";
 import { ExerciseStep } from "./steps/exercise-step";
 import { ProjectStep } from "./steps/project-step";
+import { MockStep } from "./steps/mock-step";
+import { BootcampStep } from "./steps/bootcamp-step";
 
 export function StepStage({
   pathId,
@@ -37,6 +39,10 @@ export function StepStage({
       return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
     case "PROJECT":
       return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+    case "MOCK_INTERVIEW":
+      return <MockStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+    case "BOOTCAMP":
+      return <BootcampStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
     default:
       return (
         <div className="p-6 text-muted-foreground">
