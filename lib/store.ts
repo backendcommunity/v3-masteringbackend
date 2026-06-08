@@ -395,6 +395,20 @@ interface AppState {
 
   // Sync user points/level from a mutation response without an extra API call
   syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
+
+  // Path (Learning Path) actions
+  getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
+  getPathItem: (endpoint: string) => Promise<any>;
+  completePathStep: (
+    slug: string,
+    stepId: string,
+    payload?: Record<string, any>,
+  ) => Promise<import("./path-types").PathSessionDelta>;
+  updatePathStepProgress: (
+    slug: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<{ stepId: string; currentDuration?: number }>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -1438,5 +1452,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
     Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+  },
+
+  getPathSession: async (slug) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/session`);
+    return data?.data;
+  },
+
+  getPathItem: async (endpoint: string) => {
+    const path = endpoint.replace(/^\/api\/v3/, "");
+    const { data } = await api.get(path);
+    return data?.data;
+  },
+
+  completePathStep: async (slug, stepId, payload = {}) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.post(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/complete`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  updatePathStepProgress: async (slug, stepId, payload) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.patch(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/progress`,
+      payload,
+    );
+    return data?.data;
   },
 }));
