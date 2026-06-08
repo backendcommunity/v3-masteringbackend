@@ -7,9 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 export default function PathLearnRoute() {
   const router = useRouter();
   const params = useParams() as { pathId: string; stepId?: string[] };
-  const stepId = params.stepId?.[0]
-    ? decodeURIComponent(params.stepId[0])
-    : undefined;
+  const stepId = params.stepId?.[0] ?? undefined;
 
   return (
     <DashboardLayout>

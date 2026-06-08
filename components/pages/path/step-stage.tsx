@@ -26,28 +26,36 @@ export function StepStage({
       <div className="p-6 text-muted-foreground">Select a step to begin.</div>
     );
 
-  switch (step.type) {
-    case "VIDEO":
-      return <VideoStep pathId={pathId} step={step} onComplete={onComplete} />;
-    case "ARTICLE":
-      return <ArticleStep step={step} onComplete={onComplete} />;
-    case "RESOURCE":
-      return <ResourceStep step={step} onComplete={onComplete} />;
-    case "QUIZ":
-      return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
-    case "EXERCISE":
-      return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
-    case "PROJECT":
-      return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
-    case "MOCK_INTERVIEW":
-      return <MockStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
-    case "BOOTCAMP":
-      return <BootcampStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
-    default:
-      return (
-        <div className="p-6 text-muted-foreground">
-          {step.type} renderer coming next…
-        </div>
-      );
-  }
+  const render = () => {
+    switch (step.type) {
+      case "VIDEO":
+        return <VideoStep pathId={pathId} step={step} onComplete={onComplete} />;
+      case "ARTICLE":
+        return <ArticleStep step={step} onComplete={onComplete} />;
+      case "RESOURCE":
+        return <ResourceStep step={step} onComplete={onComplete} />;
+      case "QUIZ":
+        return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+      case "EXERCISE":
+        return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+      case "PROJECT":
+        return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+      case "MOCK_INTERVIEW":
+        return <MockStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+      case "BOOTCAMP":
+        return <BootcampStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+      default:
+        return (
+          <div className="p-6 text-muted-foreground">
+            {step.type} renderer coming next…
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div key={step.id} className="min-h-full">
+      {render()}
+    </div>
+  );
 }

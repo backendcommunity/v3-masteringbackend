@@ -19,7 +19,7 @@ export function QuizStep({
         showNav={false}
         onNavigate={onNavigate}
         handleQuizSubmit={(passed) => {
-          onComplete(step.id, { passed });
+          if (passed) onComplete(step.id, { passed });
         }}
       />
     </div>

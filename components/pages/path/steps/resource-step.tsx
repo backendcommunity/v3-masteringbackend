@@ -19,7 +19,7 @@ export function ResourceStep({
     >
       <div className="p-6 max-w-2xl mx-auto text-center space-y-4">
         <p className="text-muted-foreground">External resource</p>
-        <Button asChild onClick={() => onComplete(step.id)}>
+        <Button asChild>
           <a href={step.url ?? "#"} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="w-4 h-4 mr-2" /> Open resource
           </a>
