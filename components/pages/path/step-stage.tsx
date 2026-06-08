@@ -4,6 +4,8 @@ import { VideoStep } from "./steps/video-step";
 import { ArticleStep } from "./steps/article-step";
 import { ResourceStep } from "./steps/resource-step";
 import { QuizStep } from "./steps/quiz-step";
+import { ExerciseStep } from "./steps/exercise-step";
+import { ProjectStep } from "./steps/project-step";
 
 export function StepStage({
   pathId,
@@ -31,6 +33,10 @@ export function StepStage({
       return <ResourceStep step={step} onComplete={onComplete} />;
     case "QUIZ":
       return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+    case "EXERCISE":
+      return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+    case "PROJECT":
+      return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
     default:
       return (
         <div className="p-6 text-muted-foreground">
