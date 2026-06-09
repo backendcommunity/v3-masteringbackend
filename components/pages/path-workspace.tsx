@@ -138,7 +138,13 @@ export function PathWorkspace({
   if (!session) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    // Match watch-v2 exactly: the mockup renders in system-ui (Satoshi isn't
+    // installed), while the app body is Inter — which has a larger x-height and
+    // makes fonts/buttons look bigger. Override the font for this page only.
+    <div
+      className="flex flex-col h-screen bg-background"
+      style={{ fontFamily: "Satoshi, system-ui, sans-serif" }}
+    >
       <PathTopBar
         crumbs={[
           "Learn",
