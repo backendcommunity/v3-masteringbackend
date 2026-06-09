@@ -43,24 +43,6 @@ const LANGUAGES = [
   "CSS",
 ];
 
-const EXT: Record<string, string> = {
-  python: "py",
-  javascript: "js",
-  node: "js",
-  typescript: "ts",
-  java: "java",
-  go: "go",
-  rust: "rs",
-  ruby: "rb",
-  php: "php",
-  c: "c",
-  cpp: "cpp",
-  csharp: "cs",
-  sql: "sql",
-  html: "html",
-  css: "css",
-};
-
 // Editor surface matches the chrome (#171B26) so the panel reads as one piece.
 const EDITOR_BG = "#171B26";
 
@@ -70,15 +52,15 @@ interface TestResult {
   passed: boolean;
 }
 
-// Visible, draggable divider with a centred grip — minimal width, clear affordance.
+// Draggable gutter — no grip icon, a small gap (page bg shows through) that
+// highlights on hover, giving each pane a little breathing room.
 function Handle({ vertical }: { vertical?: boolean }) {
   return (
     <ResizableHandle
-      withHandle
       className={
         vertical
-          ? "h-2 w-full bg-[#2A3042] data-[panel-group-orientation=vertical]:h-2 data-[panel-group-orientation=vertical]:w-full hover:bg-[#323b50]"
-          : "w-2 bg-[#2A3042] hover:bg-[#323b50]"
+          ? "h-2 w-full bg-background data-[panel-group-orientation=vertical]:h-2 data-[panel-group-orientation=vertical]:w-full hover:bg-primary/40 active:bg-primary/60"
+          : "w-2 bg-background hover:bg-primary/40 active:bg-primary/60"
       }
     />
   );
@@ -111,6 +93,16 @@ export function PathExerciseIde({
     );
   });
   const [showHint, setShowHint] = useState(false);
+  // Below lg the three-pane horizontal split is too cramped — stack vertically.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [outTab, setOutTab] = useState<OutTab>("Output");
@@ -119,10 +111,9 @@ export function PathExerciseIde({
 
   const monacoLanguage =
     language.toLowerCase() === "c++" ? "cpp" : language.toLowerCase();
-  const filename = `script.${EXT[monacoLanguage] ?? "txt"}`;
   const points: number | undefined = exercise?.points;
-  // Hint cost is proportional to the reward so the two XP figures are consistent.
-  const hintCost = Math.max(1, Math.round((points ?? 50) * 0.3));
+  // Hint cost equals the step's reward, so both XP figures show the same value.
+  const hintCost = Math.max(1, points ?? 50);
   const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
 
   useEffect(() => {
@@ -197,7 +188,7 @@ export function PathExerciseIde({
     : "";
 
   const editor = (
-    <div className="flex h-full min-h-0 flex-col" style={{ background: EDITOR_BG }}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md" style={{ background: EDITOR_BG }}>
       {/* Editor header */}
       <div
         className="flex flex-shrink-0 items-center justify-between border-b border-border px-3 py-2"
@@ -214,7 +205,6 @@ export function PathExerciseIde({
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           )}
-          <span className="text-xs font-medium text-slate-300">{filename}</span>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -248,7 +238,7 @@ export function PathExerciseIde({
       </div>
 
       {/* Monaco */}
-      <div className="min-h-0 flex-1" style={{ background: EDITOR_BG }}>
+      <div className="min-h-0 w-full min-w-0 flex-1" style={{ background: EDITOR_BG }}>
         <Editor
           language={monacoLanguage}
           theme={editorTheme}
@@ -291,7 +281,7 @@ export function PathExerciseIde({
 
       {/* Editor footer controls — no top border, blends with editor */}
       <div
-        className="flex flex-shrink-0 items-center justify-between gap-2 px-3 py-2"
+        className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2"
         style={{ background: EDITOR_BG }}
       >
         {!outputOpen ? (
@@ -342,18 +332,18 @@ export function PathExerciseIde({
   );
 
   const outputPanel = (
-    <div className="flex h-full min-h-0 flex-col bg-[#10131d]">
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-border bg-[#171B26] px-3 py-1.5">
-        <div className="flex items-center gap-1">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md bg-[#10131d]">
+      <div className="flex flex-shrink-0 items-center justify-between bg-[#171B26] px-3 py-2">
+        <div className="flex items-center gap-5">
           {(["Output", "Tests"] as OutTab[]).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setOutTab(t)}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+              className={`text-xs transition-colors ${
                 outTab === t
-                  ? "bg-primary/15 text-primary"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "font-semibold text-slate-100"
+                  : "font-medium text-slate-500 hover:text-slate-300"
               }`}
             >
               {t === "Tests" && tests.length
@@ -402,128 +392,129 @@ export function PathExerciseIde({
     </div>
   );
 
+  const instructions = (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border bg-card">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
+        <span className="text-sm font-semibold">Exercise</span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="text-muted-foreground hover:text-foreground"
+          title="Collapse"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <h1 className="text-lg font-bold leading-snug">
+          {exercise?.title ?? step.title}
+        </h1>
+        {exercise?.description && (
+          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+            {exercise.description}
+          </p>
+        )}
+
+        {/* Separator between description and instructions */}
+        <div className="my-5 h-px bg-border" />
+
+        <div className="rounded-lg border border-border">
+          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold">
+              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+              Instructions
+            </span>
+            {points != null && (
+              <span className="rounded-full bg-[#F2C94C] px-2 py-0.5 text-[10px] font-extrabold text-[#3d2e00]">
+                {points} XP
+              </span>
+            )}
+          </div>
+          <div className="p-3">
+            {instructionsHtml ? (
+              <div
+                className="text-[13px] leading-relaxed text-foreground [&_li]:ml-4 [&_li]:list-disc [&_li]:py-0.5 [&_ol]:space-y-1 [&_ul]:space-y-1 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]"
+                dangerouslySetInnerHTML={{ __html: instructionsHtml }}
+              />
+            ) : (
+              <p className="text-[13px] text-muted-foreground">
+                Complete the code, then submit.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {hintHtml && (
+          <div className="mt-4">
+            {showHint ? (
+              <div
+                className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(hintHtml),
+                }}
+              />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHint(true)}
+                className="gap-1.5"
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
+                Take Hint
+                <span className="font-bold text-[#a87900]">−{hintCost} XP</span>
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full min-h-0 w-full p-2">
-      <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-border">
-        <ResizablePanelGroup
-          key={collapsed ? "collapsed" : "open"}
-          orientation="horizontal"
-          className="h-full"
+      <ResizablePanelGroup
+        // Remount when orientation or pane count changes — required by the lib.
+        key={`${narrow ? "v" : "h"}-${collapsed ? "c" : "o"}`}
+        orientation={narrow ? "vertical" : "horizontal"}
+        className="h-full"
+      >
+        {/* Instructions — left on wide screens, top on narrow ones */}
+        {!collapsed && (
+          <>
+            <ResizablePanel
+              defaultSize={narrow ? "30" : "34"}
+              minSize={narrow ? "14" : "22"}
+              maxSize={narrow ? "60" : "48"}
+              className="min-h-0"
+            >
+              {instructions}
+            </ResizablePanel>
+            <Handle vertical={narrow} />
+          </>
+        )}
+
+        {/* Editor (+ output stacked below it) */}
+        <ResizablePanel
+          defaultSize={collapsed ? "100" : narrow ? "70" : "66"}
+          className="min-h-0"
         >
-          {/* LEFT — instructions */}
-          {!collapsed && (
-            <>
-              <ResizablePanel
-                defaultSize="34"
-                minSize="22"
-                maxSize="48"
-                className="min-h-0"
-              >
-                <div className="flex h-full min-h-0 flex-col bg-card">
-                  <div className="flex flex-shrink-0 items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
-                    <span className="text-sm font-semibold">Exercise</span>
-                    <button
-                      type="button"
-                      onClick={() => setCollapsed(true)}
-                      className="text-muted-foreground hover:text-foreground"
-                      title="Collapse"
-                    >
-                      <PanelLeftClose className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                    <h1 className="text-lg font-bold leading-snug">
-                      {exercise?.title ?? step.title}
-                    </h1>
-                    {exercise?.description && (
-                      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                        {exercise.description}
-                      </p>
-                    )}
-
-                    {/* Separator between description and instructions */}
-                    <div className="my-5 h-px bg-border" />
-
-                    <div className="rounded-lg border border-border">
-                      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
-                        <span className="flex items-center gap-1.5 text-xs font-semibold">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                          Instructions
-                        </span>
-                        {points != null && (
-                          <span className="rounded-full bg-[#F2C94C] px-2 py-0.5 text-[10px] font-extrabold text-[#3d2e00]">
-                            {points} XP
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        {instructionsHtml ? (
-                          <div
-                            className="text-[13px] leading-relaxed text-foreground [&_li]:ml-4 [&_li]:list-disc [&_li]:py-0.5 [&_ol]:space-y-1 [&_ul]:space-y-1 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]"
-                            dangerouslySetInnerHTML={{ __html: instructionsHtml }}
-                          />
-                        ) : (
-                          <p className="text-[13px] text-muted-foreground">
-                            Complete the code on the right, then submit.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {hintHtml && (
-                      <div className="mt-4">
-                        {showHint ? (
-                          <div
-                            className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
-                            dangerouslySetInnerHTML={{
-                              __html: DOMPurify.sanitize(hintHtml),
-                            }}
-                          />
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowHint(true)}
-                            className="gap-1.5"
-                          >
-                            <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
-                            Take Hint
-                            <span className="font-bold text-[#a87900]">
-                              −{hintCost} XP
-                            </span>
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {outputOpen ? (
+            <ResizablePanelGroup orientation="vertical" className="h-full">
+              <ResizablePanel defaultSize="62" minSize="25" className="min-h-0">
+                {editor}
               </ResizablePanel>
-              <Handle />
-            </>
+              <Handle vertical />
+              <ResizablePanel defaultSize="38" minSize="12" className="min-h-0">
+                {outputPanel}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            editor
           )}
-
-          {/* RIGHT — editor (+ output) */}
-          <ResizablePanel
-            defaultSize={collapsed ? "100" : "66"}
-            className="min-h-0"
-          >
-            {outputOpen ? (
-              <ResizablePanelGroup orientation="vertical" className="h-full">
-                <ResizablePanel defaultSize="62" minSize="25" className="min-h-0">
-                  {editor}
-                </ResizablePanel>
-                <Handle vertical />
-                <ResizablePanel defaultSize="38" minSize="12" className="min-h-0">
-                  {outputPanel}
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            ) : (
-              editor
-            )}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

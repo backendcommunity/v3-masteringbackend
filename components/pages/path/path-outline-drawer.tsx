@@ -25,7 +25,7 @@ export function PathOutlineDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
-        className="flex w-[360px] flex-col gap-0 bg-sidebar p-0 sm:max-w-[360px]"
+        className="flex w-[88vw] max-w-[360px] flex-col gap-0 bg-sidebar p-0 sm:w-[360px] sm:max-w-[360px]"
       >
         <SheetHeader className="border-b px-4 py-3 text-left">
           <SheetTitle className="text-gradient text-base font-bold tracking-tight">

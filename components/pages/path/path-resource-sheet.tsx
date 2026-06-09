@@ -56,7 +56,7 @@ export function PathResourceSheet({ step }: { step?: PathSessionStep }) {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-[340px] sm:w-[340px] p-0 flex flex-col"
+        className="w-[88vw] max-w-[340px] sm:w-[340px] p-0 flex flex-col"
       >
         <SheetHeader className="px-4 py-3 border-b border-border">
           <SheetTitle className="text-sm">Resources</SheetTitle>

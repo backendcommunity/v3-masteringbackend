@@ -32,7 +32,7 @@ export function PathFeedbackDialog() {
           <span className="sr-only">Feedback</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[440px] sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>Send feedback</DialogTitle>
           <DialogDescription>

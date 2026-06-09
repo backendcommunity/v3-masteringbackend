@@ -62,7 +62,10 @@ export function StepStage({
   };
 
   return (
-    <div key={step.id} className="interview-panel-enter min-h-full">
+    <div
+      key={step.id}
+      className="interview-panel-enter min-h-full w-full min-w-0 flex-1"
+    >
       {render()}
     </div>
   );

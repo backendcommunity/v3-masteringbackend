@@ -72,7 +72,7 @@ export function PathHelpSheet() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-[320px] sm:w-[320px] p-0 flex flex-col"
+        className="w-[88vw] max-w-[320px] sm:w-[320px] p-0 flex flex-col"
       >
         <SheetHeader className="px-4 py-3 border-b border-border">
           <SheetTitle className="text-sm">Help</SheetTitle>

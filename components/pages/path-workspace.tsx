@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  PanelRightClose,
+  PanelRightOpen,
+  PanelBottomClose,
+  PanelBottomOpen,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import {
   PathSession,
@@ -37,6 +43,8 @@ export function PathWorkspace({
     initialStepId,
   );
   const [outlineOpen, setOutlineOpen] = useState(false);
+  // Overview/Transcript pane is collapsible — hidden lets the player go full.
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -118,6 +126,16 @@ export function PathWorkspace({
     g.stepIds.includes(currentStepId ?? ""),
   );
 
+  // Full-bleed steps own their layout (exercise IDE, project, quiz) — no side
+  // pane and no action-bar Next. Build-type steps relabel the breadcrumb root.
+  const fullBleed =
+    currentStep?.type === "EXERCISE" ||
+    currentStep?.type === "PROJECT" ||
+    currentStep?.type === "QUIZ";
+  const isBuild =
+    currentStep?.type === "EXERCISE" || currentStep?.type === "PROJECT";
+  const hasContext = !!currentStep && !fullBleed;
+
   const milestoneSteps = ordered.filter(
     (s) => s.topicId === currentStep?.topicId,
   );
@@ -146,7 +164,7 @@ export function PathWorkspace({
     >
       <PathTopBar
         crumbs={[
-          { label: "Learn", href: "/paths" },
+          { label: isBuild ? "Build" : "Learn", href: "/paths" },
           { label: session.path.title, href: `/paths/${pathId}` },
           { label: activeGroup?.title },
           { label: currentStep?.title },
@@ -166,20 +184,36 @@ export function PathWorkspace({
 
       <div className="flex flex-1 min-h-0 overflow-hidden bg-muted/20">
         {/* Lesson context panel — hidden for full-bleed steps (exercise/project)
-            which render their own instructions panel. */}
-        {currentStep?.type !== "EXERCISE" &&
-          currentStep?.type !== "PROJECT" && (
-            <>
-              <div className="hidden lg:flex w-[20%] min-w-[220px] max-w-[320px] shrink-0 p-3">
-                <PathContextPanel step={currentStep} />
-              </div>
-              {/* 1px divider */}
-              <div className="hidden lg:block w-px shrink-0 bg-border" />
-            </>
-          )}
+            which render their own instructions panel, and collapsible elsewhere. */}
+        {hasContext && panelOpen && (
+          <>
+            <div className="hidden lg:flex w-[22%] min-w-[240px] max-w-[340px] shrink-0 p-3">
+              <PathContextPanel step={currentStep} />
+            </div>
+            {/* 1px divider */}
+            <div className="hidden lg:block w-px shrink-0 bg-border" />
+          </>
+        )}
 
         {/* Main stage + action bar */}
-        <div className="flex flex-1 min-w-0 flex-col min-h-0">
+        <div className="relative flex flex-1 min-w-0 flex-col min-h-0">
+          {/* Desktop pane toggle — collapse for a full-width player */}
+          {hasContext && (
+            <button
+              type="button"
+              onClick={() => setPanelOpen((v) => !v)}
+              className="absolute right-3 top-3 z-20 hidden items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground lg:inline-flex"
+              title={panelOpen ? "Hide panel" : "Show panel"}
+            >
+              {panelOpen ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRightOpen className="h-4 w-4" />
+              )}
+              {panelOpen ? "Hide panel" : "Show panel"}
+            </button>
+          )}
+
           <PathStage step={currentStep}>
             <StepStage
               pathId={pathId}
@@ -190,6 +224,29 @@ export function PathWorkspace({
             />
           </PathStage>
 
+          {/* Mobile pane toggle + collapsible Overview/Transcript below player */}
+          {hasContext && (
+            <button
+              type="button"
+              onClick={() => setPanelOpen((v) => !v)}
+              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-border bg-muted/30 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+            >
+              {panelOpen ? (
+                <PanelBottomClose className="h-4 w-4" />
+              ) : (
+                <PanelBottomOpen className="h-4 w-4" />
+              )}
+              {panelOpen
+                ? "Hide overview & transcript"
+                : "Show overview & transcript"}
+            </button>
+          )}
+          {hasContext && panelOpen && (
+            <div className="flex h-[50vh] min-h-0 shrink-0 px-3 pb-3 lg:hidden">
+              <PathContextPanel step={currentStep} />
+            </div>
+          )}
+
           <PathActionBar
             step={currentStep}
             segments={segments}
@@ -198,10 +255,7 @@ export function PathWorkspace({
             onPrev={() => prev && selectStep(prev.id)}
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
-            hideNext={
-              currentStep?.type === "EXERCISE" ||
-              currentStep?.type === "PROJECT"
-            }
+            hideNext={fullBleed}
           />
         </div>
       </div>

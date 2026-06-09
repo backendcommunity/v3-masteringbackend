@@ -38,7 +38,7 @@ export function PathActionBar({
   // Compact bar (e.g. exercise IDE owns its own Submit) — just centered progress.
   if (hideNext) {
     return (
-      <div className="flex flex-shrink-0 items-center justify-center bg-transparent px-8 py-2">
+      <div className="flex w-full min-w-0 flex-shrink-0 items-center justify-center bg-transparent px-4 py-2 sm:px-8">
         <div className="flex items-center gap-1.5">
           {segments.map((s, i) => (
             <span
@@ -58,7 +58,7 @@ export function PathActionBar({
   }
 
   return (
-    <div className="relative z-10 flex flex-shrink-0 items-center bg-transparent px-8 py-4 lg:px-16">
+    <div className="relative z-10 flex w-full min-w-0 flex-shrink-0 items-center bg-transparent px-4 py-3 sm:px-8 sm:py-4 lg:px-16">
       {/* Centered milestone progress */}
       <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5">
         {segments.map((s, i) => (
