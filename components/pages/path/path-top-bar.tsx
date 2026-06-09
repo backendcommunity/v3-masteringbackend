@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ArrowLeft, ArrowRight, Menu, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PathHelpSheet } from "./path-help-sheet";
+import { PathFeedbackDialog } from "./path-feedback-dialog";
 
 export interface PathTopBarProps {
   crumbs: (string | undefined)[];
@@ -123,6 +125,10 @@ export function PathTopBar({
           <Zap className="w-3.5 h-3.5" />
           {earnedPoints} pts
         </span>
+        <div className="flex items-center gap-0.5">
+          <PathHelpSheet />
+          <PathFeedbackDialog />
+        </div>
       </div>
     </header>
   );
