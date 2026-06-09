@@ -9,8 +9,15 @@ import {
   PathSessionDelta,
 } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
-import { PathRail } from "@/components/pages/path/path-rail";
 import { StepStage } from "@/components/pages/path/step-stage";
+import { PathTopBar } from "@/components/pages/path/path-top-bar";
+import { PathContextPanel } from "@/components/pages/path/path-context-panel";
+import { PathStage } from "@/components/pages/path/path-stage";
+import {
+  PathActionBar,
+  SegmentStatus,
+} from "@/components/pages/path/path-action-bar";
+import { PathOutlineDrawer } from "@/components/pages/path/path-outline-drawer";
 
 export interface PathWorkspaceProps {
   pathId: string;
@@ -29,6 +36,7 @@ export function PathWorkspace({
   const [currentStepId, setCurrentStepId] = useState<string | undefined>(
     initialStepId,
   );
+  const [outlineOpen, setOutlineOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -97,25 +105,95 @@ export function PathWorkspace({
     [pathId, store, applyDelta],
   );
 
+  const ordered = useMemo(
+    () => (session ? [...session.steps].sort((a, b) => a.order - b.order) : []),
+    [session],
+  );
+  const idx = ordered.findIndex((s) => s.id === currentStepId);
+  const prev = idx > 0 ? ordered[idx - 1] : undefined;
+  const next = idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : undefined;
+
+  const activeGroup = session?.groups.find((g) =>
+    g.stepIds.includes(currentStepId ?? ""),
+  );
+
+  const milestoneSteps = ordered.filter(
+    (s) => s.topicId === currentStep?.topicId,
+  );
+  const segments = milestoneSteps.map((s) => ({
+    status: (s.status === "DONE"
+      ? "DONE"
+      : s.id === currentStep?.id
+        ? "CURRENT"
+        : "UPCOMING") as SegmentStatus,
+  }));
+  const milestoneIndex = milestoneSteps.findIndex(
+    (s) => s.id === currentStep?.id,
+  );
+  const segmentLabel = `This milestone · ${milestoneIndex + 1} of ${
+    milestoneSteps.length || 1
+  }`;
+
   if (loading && !session) return <Loader />;
   if (!session) return null;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      <PathRail
+    <div className="flex h-screen flex-col overflow-hidden">
+      <PathTopBar
+        crumbs={[
+          "Learn",
+          session.path.title,
+          activeGroup?.title,
+          currentStep?.title,
+        ]}
+        position={idx >= 0 ? idx + 1 : 0}
+        total={ordered.length}
+        earnedPoints={session.path.earnedPoints}
+        masteryPct={session.path.masteryPct}
+        hasPrev={!!prev}
+        hasNext={!!next}
+        onPrev={() => prev && selectStep(prev.id)}
+        onNext={() => next && selectStep(next.id)}
+        onOpenOutline={() => setOutlineOpen(true)}
+      />
+
+      <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+        <PathContextPanel step={currentStep} />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <PathStage step={currentStep}>
+            <StepStage
+              pathId={pathId}
+              step={currentStep}
+              onComplete={completeStep}
+              onSelectStep={selectStep}
+              onNavigate={onNavigate}
+            />
+          </PathStage>
+
+          <PathActionBar
+            step={currentStep}
+            segments={segments}
+            segmentLabel={segmentLabel}
+            hasPrev={!!prev}
+            hasNext={!!next}
+            onPrev={() => prev && selectStep(prev.id)}
+            onNext={() => next && selectStep(next.id)}
+            onComplete={() => currentStep && completeStep(currentStep.id)}
+          />
+        </div>
+      </div>
+
+      <PathOutlineDrawer
+        open={outlineOpen}
+        onOpenChange={setOutlineOpen}
         session={session}
         currentStepId={currentStepId}
-        onSelectStep={selectStep}
+        onSelectStep={(id) => {
+          selectStep(id);
+          setOutlineOpen(false);
+        }}
       />
-      <div className="flex-1 overflow-y-auto">
-        <StepStage
-          pathId={pathId}
-          step={currentStep}
-          onComplete={completeStep}
-          onSelectStep={selectStep}
-          onNavigate={onNavigate}
-        />
-      </div>
     </div>
   );
 }
