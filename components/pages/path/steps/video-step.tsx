@@ -41,7 +41,7 @@ export function VideoStep({
         {loading ? (
           <Loader isFull={false} />
         ) : video ? (
-          <div className="mx-auto w-full max-w-[min(1040px,calc((100vh-17rem)*1.7778))] rounded-2xl overflow-hidden border border-border bg-[#0d1019] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
+          <div className="mx-auto w-full max-w-[min(1200px,calc((100vh-15rem)*1.7778))] rounded-2xl overflow-hidden border border-border bg-[#0d1019] shadow-[0_10px_30px_-15px_rgba(0,0,0,0.35)]">
             <VimeoPlayer
               video={video}
               onComplete={() => onComplete(step.id)}

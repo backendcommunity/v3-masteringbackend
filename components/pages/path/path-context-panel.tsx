@@ -63,7 +63,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const tabs: Tab[] = ["Overview", "Transcript"];
 
   return (
-    <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_20px_-8px_rgba(0,0,0,0.5)]">
+    <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_4px_16px_-10px_rgba(0,0,0,0.3)]">
       {/* Tab bar */}
       <div className="flex items-center gap-1 px-4 py-3 border-b border-border bg-muted/20 flex-shrink-0">
         {tabs.map((t) => {
