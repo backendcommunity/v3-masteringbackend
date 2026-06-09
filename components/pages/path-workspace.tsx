@@ -177,7 +177,7 @@ export function PathWorkspace({
           <PathContextPanel step={currentStep} />
         </ResizablePanel>
 
-        <ResizableHandle withHandle className="hidden lg:flex" />
+        <ResizableHandle className="hidden lg:flex" />
 
         {/* Main stage + action bar */}
         <ResizablePanel
