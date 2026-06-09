@@ -4,6 +4,7 @@ import { VimeoPlayer } from "@/components/ui/vimeo-player";
 import { PathSessionStep } from "@/lib/path-types";
 import { StepFrame } from "../step-frame";
 import { useAppStore } from "@/lib/store";
+import { useVideoTime } from "@/lib/video-time-store";
 import { Loader } from "@/components/ui/loader";
 import { Video } from "@/lib/data";
 
@@ -17,10 +18,12 @@ export function VideoStep({
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
 }) {
   const store = useAppStore();
+  const setVideoTime = useVideoTime((s) => s.setVideoTime);
   const [video, setVideo] = useState<Partial<Video> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setVideoTime(0); // reset transcript sync for the new step
     (async () => {
       try {
         const data = await store.getPathItem(step.payloadRef.endpoint);
@@ -43,6 +46,7 @@ export function VideoStep({
               video={video}
               onComplete={() => onComplete(step.id)}
               onTimeUpdate={(secs) => {
+                setVideoTime(secs); // feed the sidebar transcript
                 if (Math.floor(secs) % 15 === 0) {
                   store
                     .updatePathStepProgress(pathId, step.id, { duration: secs })

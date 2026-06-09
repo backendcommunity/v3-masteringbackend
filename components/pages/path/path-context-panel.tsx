@@ -1,20 +1,58 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
 import { Lightbulb, Send, Sparkles } from "lucide-react";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
+import { useVideoTime } from "@/lib/video-time-store";
+import { fetchVideoCaption } from "@/lib/courses";
 
-type Tab = "Overview" | "Notes" | "Resources";
+type Tab = "Overview" | "Transcript";
 
 interface PanelItem {
   description?: string;
   summary?: string;
   body?: string;
   content?: string;
-  resources?: { title?: string; name?: string; url: string }[];
   title?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  video?: any; // Vimeo numeric id for VIDEO items
+}
+
+interface CaptionCue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+function vttTimeToSec(t: string): number {
+  const parts = t.split(":").map(parseFloat);
+  return parts.length === 3
+    ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+    : parts[0] * 60 + parts[1];
+}
+
+function parseVTT(vtt: string): CaptionCue[] {
+  const cues: CaptionCue[] = [];
+  const blocks = vtt.split(/\n{2,}/);
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const tsIdx = lines.findIndex((l) => l?.includes("-->"));
+    if (tsIdx === -1) continue;
+    const [startStr, endStr] = lines[tsIdx].split("-->").map((s) => s.trim());
+    const text = lines
+      .slice(tsIdx + 1)
+      .join(" ")
+      .trim();
+    if (!text) continue;
+    cues.push({
+      start: vttTimeToSec(startStr),
+      end: vttTimeToSec(endStr),
+      text,
+    });
+  }
+  return cues;
 }
 
 function stripHtml(raw: string): string {
@@ -24,18 +62,24 @@ function stripHtml(raw: string): string {
 
 export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const store = useAppStore();
+  const videoTime = useVideoTime((s) => s.videoTime);
   const [tab, setTab] = useState<Tab>("Overview");
   const [item, setItem] = useState<PanelItem | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captions, setCaptions] = useState<CaptionCue[]>([]);
+  const captionListRef = useRef<HTMLDivElement>(null);
 
+  // Fetch the step's item (description for Overview + the Vimeo id for captions).
   useEffect(() => {
     if (!step) {
       setItem(null);
+      setCaptions([]);
       return;
     }
     let active = true;
     setLoading(true);
     setItem(null);
+    setCaptions([]);
     (async () => {
       try {
         const data = await store.getPathItem(step.payloadRef.endpoint);
@@ -52,16 +96,37 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step?.id]);
 
+  // Fetch + parse captions once we know the Vimeo id.
+  useEffect(() => {
+    if (!item?.video) {
+      setCaptions([]);
+      return;
+    }
+    let active = true;
+    fetchVideoCaption(Number(item.video))
+      .then((vtt) => active && setCaptions(vtt ? parseVTT(vtt) : []))
+      .catch(() => active && setCaptions([]));
+    return () => {
+      active = false;
+    };
+  }, [item?.video]);
+
+  // Keep the active caption scrolled into view.
+  useEffect(() => {
+    if (tab !== "Transcript" || !captionListRef.current) return;
+    const active = captionListRef.current.querySelector("[data-active='true']");
+    active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [videoTime, tab]);
+
   const rawDesc =
     item?.description ?? item?.summary ?? item?.body ?? item?.content ?? "";
   const description = rawDesc ? stripHtml(rawDesc) : "";
-  const resources = item?.resources ?? [];
 
-  const tabs: Tab[] = ["Overview", "Notes", "Resources"];
+  const tabs: Tab[] = ["Overview", "Transcript"];
 
   return (
     <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_20px_-8px_rgba(0,0,0,0.5)]">
-      {/* Tab bar — mirrors chat tools panel */}
+      {/* Tab bar */}
       <div className="flex items-center gap-1 px-4 py-3 border-b border-border bg-muted/20 flex-shrink-0">
         {tabs.map((t) => {
           const active = t === tab;
@@ -84,9 +149,9 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
       </div>
 
       {/* Tab body */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-5">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {tab === "Overview" && (
-          <div className="animate-in fade-in duration-200">
+          <div className="animate-in fade-in duration-200 p-5">
             {step ? (
               <>
                 <h3 className="mb-3 text-[15px] font-bold leading-snug">
@@ -126,32 +191,41 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
           </div>
         )}
 
-        {tab === "Notes" && (
-          <div className="animate-in fade-in duration-200 text-[13px] leading-relaxed text-muted-foreground">
-            Your notes for this lesson will appear here.
-          </div>
-        )}
-
-        {tab === "Resources" && (
-          <div className="animate-in fade-in duration-200">
-            {resources.length > 0 ? (
-              <ul className="space-y-2">
-                {resources.map((r, i) => (
-                  <li key={`${r.url}-${i}`}>
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate rounded-lg border bg-card px-3 py-2 text-[13px] text-primary underline-offset-2 transition-colors hover:border-primary hover:underline"
-                    >
-                      {r.title ?? r.name ?? r.url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+        {tab === "Transcript" && (
+          <div
+            ref={captionListRef}
+            className="animate-in fade-in duration-200 p-2 space-y-0.5"
+          >
+            {captions.length > 0 ? (
+              captions.map((cue, i) => {
+                const isActive =
+                  videoTime >= cue.start && videoTime < cue.end;
+                return (
+                  <div
+                    key={i}
+                    data-active={isActive ? "true" : undefined}
+                    className={`flex gap-2.5 rounded-md p-2 transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-foreground font-medium"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="shrink-0 w-10 pt-0.5 text-right text-[11px] tabular-nums">
+                      {new Date(cue.start * 1000)
+                        .toISOString()
+                        .substring(14, 19)}
+                    </span>
+                    <span className="text-[13px] leading-relaxed">
+                      {cue.text}
+                    </span>
+                  </div>
+                );
+              })
             ) : (
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                No extra resources for this lesson yet.
+              <p className="p-3 text-[13px] leading-relaxed text-muted-foreground">
+                {item?.video
+                  ? "No transcript is available for this video yet."
+                  : "A transcript is available for video lessons."}
               </p>
             )}
           </div>
