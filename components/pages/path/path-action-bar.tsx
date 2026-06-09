@@ -28,7 +28,7 @@ export function PathActionBar({
   const isDone = step.status === "DONE";
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center gap-5 border-t bg-background/85 px-8 py-3 backdrop-blur">
+    <div className="flex-shrink-0 z-10 flex items-center gap-5 border-t border-border bg-background/85 px-6 py-3 backdrop-blur">
       {/* Segmented milestone progress */}
       <div className="flex items-center gap-1.5">
         {segments.map((s, i) => (

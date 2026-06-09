@@ -60,9 +60,9 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const tabs: Tab[] = ["Overview", "Notes", "Resources"];
 
   return (
-    <aside className="flex w-[340px] flex-none flex-col border-r bg-sidebar p-4">
-      {/* Tabs */}
-      <div className="mb-3.5 flex gap-1.5">
+    <aside className="flex h-full min-h-0 flex-col bg-card">
+      {/* Tab bar — mirrors chat tools panel */}
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
         {tabs.map((t) => {
           const active = t === tab;
           return (
@@ -70,10 +70,10 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 active
-                  ? "bg-gradient-brand text-[#06222b] glow-subtle"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               }`}
             >
               {t}
@@ -83,7 +83,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
       </div>
 
       {/* Tab body */}
-      <div className="min-h-0 flex-1 overflow-auto no-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {tab === "Overview" && (
           <div className="animate-in fade-in duration-200">
             {step ? (
@@ -163,7 +163,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
           e.preventDefault();
           toast("AI assistant coming soon");
         }}
-        className="mt-auto flex items-center gap-2 rounded-xl border bg-card px-3 py-2.5"
+        className="flex-shrink-0 m-4 mt-0 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5"
       >
         <input
           placeholder="Ask anything about this lesson…"
