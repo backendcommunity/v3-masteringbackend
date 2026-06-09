@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
-import { Lightbulb, Send } from "lucide-react";
+import { Lightbulb, Send, Sparkles } from "lucide-react";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
 
@@ -60,7 +60,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const tabs: Tab[] = ["Overview", "Notes", "Resources"];
 
   return (
-    <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_6px_20px_-8px_rgba(0,0,0,0.5)]">
       {/* Tab bar — mirrors chat tools panel */}
       <div className="flex items-center gap-1 px-4 py-3 border-b border-border bg-muted/20 flex-shrink-0">
         {tabs.map((t) => {
@@ -76,6 +76,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
                   : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               }`}
             >
+              {t === "Overview" && <Sparkles className="h-3.5 w-3.5" />}
               {t}
             </button>
           );
