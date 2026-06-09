@@ -538,6 +538,11 @@ export function CourseWatchPage({
                     onEnded={() => setShowNextOverlay(true)}
                     onComplete={handleMarkComplete}
                     onTimeUpdate={handleTimeUpdate}
+                    onError={() =>
+                      toast.error(
+                        "This video failed to load. It may be unavailable or restricted.",
+                      )
+                    }
                   />
                   )}
 

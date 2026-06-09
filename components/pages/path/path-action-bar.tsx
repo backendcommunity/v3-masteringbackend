@@ -8,14 +8,12 @@ export type SegmentStatus = "DONE" | "CURRENT" | "UPCOMING";
 export function PathActionBar({
   step,
   segments,
-  segmentLabel,
   hasNext,
   onNext,
   onComplete,
 }: {
   step?: PathSessionStep;
   segments: { status: SegmentStatus }[];
-  segmentLabel: string;
   hasPrev: boolean;
   hasNext: boolean;
   onPrev: () => void;
@@ -51,9 +49,6 @@ export function PathActionBar({
             }`}
           />
         ))}
-        <span className="ml-2 text-xs text-muted-foreground">
-          {segmentLabel}
-        </span>
       </div>
 
       <span className="flex-1" />

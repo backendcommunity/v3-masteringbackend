@@ -12,6 +12,7 @@ interface VimeoPlayerProps {
   onPause?: () => void;
   onComplete?: () => void;
   onTimeUpdate?: (seconds: number) => void;
+  onError?: (error: unknown) => void;
 }
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
@@ -25,6 +26,7 @@ const VimeoPlayer = ({
   onPause,
   onComplete,
   onTimeUpdate,
+  onError,
 }: VimeoPlayerProps) => {
   const playerRef = useRef<HTMLDivElement | null>(null);
   const completedRef = useRef(false);
@@ -55,38 +57,58 @@ const VimeoPlayer = ({
 
     playerInstanceRef.current = player;
 
-    player.ready().then(() => {
-      if (initialTime > 0) {
-        player.setCurrentTime(initialTime).catch(() => {});
-      }
-      player.setPlaybackRate(speed).catch(() => {});
-    });
+    player
+      .ready()
+      .then(() => {
+        player.on("play", () => {
+          console.log("[VimeoPlayer] embed play");
+          onPlay?.();
+        });
 
-    player.play();
+        console.log("[VimeoPlayer] embed ready");
+        if (initialTime > 0) {
+          player.setCurrentTime(initialTime).catch(() => {});
+        }
+        player.setPlaybackRate(speed).catch(() => {});
 
-    player.on("ended", () => {
-      if (!completedRef.current) {
-        completedRef.current = true;
-        onComplete?.();
-      }
-      onEnded?.();
-    });
+        player.on("ended", () => {
+          console.log("[VimeoPlayer] embed ended");
+          if (!completedRef.current) {
+            completedRef.current = true;
+            onComplete?.();
+          }
+          onEnded?.();
+        });
 
-    player.on("play", () => {
-      onPlay?.();
-    });
+        player.on("pause", () => {
+          onPause?.();
+        });
 
-    player.on("pause", () => {
-      onPause?.();
-    });
+        player.on("timeupdate", (data) => {
+          onTimeUpdate?.(data.seconds);
+          if (data.percent >= 0.9 && !completedRef.current) {
+            completedRef.current = true;
+            onComplete?.();
+          }
+        });
 
-    player.on("timeupdate", (data) => {
-      onTimeUpdate?.(data.seconds);
-      if (data.percent >= 0.9 && !completedRef.current) {
-        completedRef.current = true;
-        onComplete?.();
-      }
-    });
+        // Fired by the Vimeo SDK on embed/playback errors (private video, domain
+        // restriction, removed video). Without this the player fails invisibly.
+        player.on("error", (err: unknown) => {
+          console.error("[VimeoPlayer] player error:", err);
+          onError?.(err);
+        });
+      })
+      .catch((err) => {
+        // ready() rejects when the embed is blocked (e.g. Vimeo privacy / 403).
+        // Surface it instead of dying silently — no event ever fires otherwise.
+        console.error("[VimeoPlayer] failed to initialise embed:", err);
+        onError?.(err);
+      });
+
+    // Autoplay-with-sound is blocked by most browsers; the rejection is benign
+    // (user just presses play). A privacy/embed failure is caught by ready() above.
+    player.play().catch(() => {});
 
     return () => {
       playerInstanceRef.current = null;

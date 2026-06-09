@@ -27,8 +27,6 @@ export interface PathTopBarProps {
 
 export function PathTopBar({
   crumbs,
-  position,
-  total,
   earnedPoints,
   step,
   hasPrev,
@@ -105,9 +103,6 @@ export function PathTopBar({
           <Menu className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="truncate font-medium text-foreground">
             {stepTitle}
-          </span>
-          <span className="text-muted-foreground font-medium flex-shrink-0">
-            · {position} / {total}
           </span>
         </Button>
         <Button

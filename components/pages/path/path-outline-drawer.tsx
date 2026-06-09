@@ -6,7 +6,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { PathSession } from "@/lib/path-types";
-import { PathRail } from "./path-rail";
+import { PathOutline } from "./path-outline";
 
 export function PathOutlineDrawer({
   open,
@@ -32,8 +32,8 @@ export function PathOutlineDrawer({
             Path Outline
           </SheetTitle>
         </SheetHeader>
-        <div className="flex min-h-0 flex-1 overflow-hidden [&>aside]:w-full [&>aside]:border-r-0">
-          <PathRail
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <PathOutline
             session={session}
             currentStepId={currentStepId}
             onSelectStep={onSelectStep}

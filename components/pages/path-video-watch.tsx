@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   Share2,
   ChevronRight,
+  Lock,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import {
@@ -98,6 +100,23 @@ export function RoadmapVideoWatchPage({
   const [userVideos, setUserVideos] = useState<any[]>();
   const [currentVideo, setCurrentVideo] = useState<Video>();
   const [chapter, setChapter] = useState<Chapter>();
+  const [activating, setActivating] = useState(false);
+
+  // Backend strips playable content + sets `locked` when the user has not
+  // activated this learning path. Premium does NOT bypass — activation only.
+  const isLocked = !!(course as any)?.locked;
+
+  async function handleActivatePath() {
+    try {
+      setActivating(true);
+      await store.enrollInRoadmap(slug, false);
+      toast.success("Learning path activated — enjoy full access!");
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not activate this path. Try again.");
+      setActivating(false);
+    }
+  }
 
   async function loadMilestone() {
     try {
@@ -174,6 +193,49 @@ export function RoadmapVideoWatchPage({
             Back to Learning Paths
           </Button>
         </div>
+      </div>
+    );
+  }
+  console.log("Current Video:", currentVideo);
+  // Paywall: content is locked until the user activates the learning path.
+  if (isLocked) {
+    return (
+      <div className="flex-1 p-6 flex items-center justify-center">
+        <Card className="max-w-lg w-full text-center">
+          <CardHeader>
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Lock className="h-7 w-7 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">
+              Activate this learning path
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-muted-foreground">
+              {course.title} is part of the{" "}
+              <span className="font-semibold">{roadmap?.title}</span> path.
+              Activate the path to unlock every course, project, quiz, exercise,
+              bootcamp and mock interview inside it.
+            </p>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={handleActivatePath}
+              disabled={activating}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {activating ? "Activating…" : "Activate path & unlock everything"}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => onNavigate?.(`/paths/${slug}`)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to path overview
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -282,6 +344,40 @@ export function RoadmapVideoWatchPage({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // Navigate to the next milestone item the backend resolved — the next item in
+  // this milestone, or the first item of the next milestone once this one is done.
+  const navigateToNextItem = (nextItem: any) => {
+    if (!nextItem || !onNavigate) return;
+    const t = nextItem.topicId ?? topicId;
+    switch (nextItem.itemType) {
+      case "COURSE":
+        if (nextItem.courseSlug && nextItem.chapterSlug && nextItem.videoSlug) {
+          return onNavigate(
+            routes.pathVideoWatch(
+              slug,
+              t,
+              nextItem.courseSlug,
+              nextItem.chapterSlug,
+              nextItem.videoSlug,
+            ),
+          );
+        }
+        return onNavigate(routes.pathContinue(slug, t));
+      case "QUIZ":
+        return onNavigate(routes.pathQuiz(slug, t, nextItem.itemId));
+      case "EXERCISE":
+        return onNavigate(routes.pathExercise(slug, t, nextItem.itemId));
+      case "PROJECT":
+        return onNavigate(
+          nextItem.slug
+            ? routes.projectDetail(nextItem.slug)
+            : routes.pathDetail(slug),
+        );
+      default:
+        return onNavigate(routes.pathContinue(slug, t));
+    }
+  };
+
   const handleMarkComplete = async () => {
     console.log("Completed Triggered");
     if (!currentVideo || !course || !chapter) return;
@@ -340,11 +436,22 @@ export function RoadmapVideoWatchPage({
 
     try {
       if (isChapterCompleted) {
-        await store.markRoadmapItemCompleted(slug, topicId, course.slug, {
-          type: "COURSE",
-          courseId: course.slug,
-        });
-        toast.success("You just earned some points!");
+        const res = await store.markRoadmapItemCompleted(
+          slug,
+          topicId,
+          course.slug,
+          {
+            type: "COURSE",
+            courseId: course.slug,
+          },
+        );
+        toast.success(
+          res?.topicAutoCompleted
+            ? "Milestone complete! Moving to the next one…"
+            : "Course complete — on to the next item!",
+        );
+        // Advance to the next milestone item (or next milestone's first item).
+        if (res?.nextItem) navigateToNextItem(res.nextItem);
         return;
       }
 
@@ -368,14 +475,16 @@ export function RoadmapVideoWatchPage({
   };
 
   const markQuizAsCompleted = async (isChapterCompleted?: boolean) => {
-    await store.markRoadmapVideoCompleted(slug, topicId, {
+    const res = await store.markRoadmapVideoCompleted(slug, topicId, {
       itemId: currentVideo?.id!,
       type: "QUIZ",
       isChapterCompleted,
       courseId: currentVideo?.quizId!,
     });
 
-    handleVideoClick(nextVideo!);
+    // Prefer the backend-resolved next milestone item; fall back to next video.
+    if (res?.nextItem) navigateToNextItem(res.nextItem);
+    else handleVideoClick(nextVideo!);
 
     return;
   };
