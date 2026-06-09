@@ -6,6 +6,7 @@ import {
   BarChart2,
   MousePointerClick,
   MessageSquare,
+  Code2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +50,14 @@ const HELP_ITEMS = [
     icon: MessageSquare,
     title: "Lesson Panel",
     content:
-      "The left panel holds the lesson Overview, your Notes, and Resources. You can also ask a question about the lesson from the box at the bottom.",
+      "The left panel holds the lesson Overview and the video Transcript. You can also ask a question about the lesson from the box at the bottom.",
+  },
+  {
+    value: "exercise",
+    icon: Code2,
+    title: "Coding Exercises",
+    content:
+      "Read the brief on the left, then write your solution in the editor. 'Run Code' executes it and shows the result in the Output panel below; 'Submit Answer' checks it and completes the step. Stuck? 'Take Hint' costs a little XP. Toggle the editor between dark and light, collapse the instructions or the output, and drag the dividers to resize each panel.",
   },
 ];
 

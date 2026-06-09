@@ -197,6 +197,10 @@ export function PathWorkspace({
             onPrev={() => prev && selectStep(prev.id)}
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
+            hideNext={
+              currentStep?.type === "EXERCISE" ||
+              currentStep?.type === "PROJECT"
+            }
           />
         </div>
       </div>

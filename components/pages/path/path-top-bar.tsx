@@ -125,7 +125,8 @@ export function PathTopBar({
           {earnedPoints} pts
         </span>
         <div className="flex items-center gap-0.5">
-          <PathCodeSheet step={step} />
+          {/* Exercise steps already are a code editor — hide the slide-in one. */}
+          {step?.type !== "EXERCISE" && <PathCodeSheet step={step} />}
           <PathResourceSheet step={step} />
           <PathHelpSheet />
           <PathFeedbackDialog />

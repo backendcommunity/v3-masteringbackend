@@ -11,6 +11,7 @@ export function PathActionBar({
   hasNext,
   onNext,
   onComplete,
+  hideNext = false,
 }: {
   step?: PathSessionStep;
   segments: { status: SegmentStatus }[];
@@ -19,6 +20,7 @@ export function PathActionBar({
   onPrev: () => void;
   onNext: () => void;
   onComplete: () => void;
+  hideNext?: boolean;
 }) {
   if (!step) return null;
   const isDone = step.status === "DONE";
@@ -32,6 +34,28 @@ export function PathActionBar({
       onComplete();
     }
   };
+
+  // Compact bar (e.g. exercise IDE owns its own Submit) — just centered progress.
+  if (hideNext) {
+    return (
+      <div className="flex flex-shrink-0 items-center justify-center bg-transparent px-8 py-2">
+        <div className="flex items-center gap-1.5">
+          {segments.map((s, i) => (
+            <span
+              key={i}
+              className={`h-1.5 w-8 rounded-full ${
+                s.status === "DONE"
+                  ? "bg-gradient-to-r from-[#347474] to-[#5fb0b0]"
+                  : s.status === "CURRENT"
+                    ? "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8]"
+                    : "bg-muted-foreground/30"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative z-10 flex flex-shrink-0 items-center bg-transparent px-8 py-4 lg:px-16">
