@@ -130,9 +130,7 @@ export function PathWorkspace({
   const milestoneIndex = milestoneSteps.findIndex(
     (s) => s.id === currentStep?.id,
   );
-  const segmentLabel = `This milestone · ${milestoneIndex + 1} of ${
-    milestoneSteps.length || 1
-  }`;
+  const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
 
   if (loading && !session) return <Loader />;
   if (!session) return null;

@@ -47,7 +47,7 @@ export function PathActionBar({
                 ? "bg-gradient-to-r from-[#347474] to-[#5fb0b0]"
                 : s.status === "CURRENT"
                   ? "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8]"
-                  : "bg-white/10"
+                  : "bg-muted-foreground/30"
             }`}
           />
         ))}

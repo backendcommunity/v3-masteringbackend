@@ -123,9 +123,6 @@ export function PathTopBar({
           <Zap className="w-3.5 h-3.5" />
           {earnedPoints} pts
         </span>
-        <span className="hidden sm:inline text-[11px] text-muted-foreground">
-          {masteryPct}% mastery
-        </span>
       </div>
     </header>
   );
