@@ -143,7 +143,7 @@ export function PathWorkspace({
     // makes fonts/buttons look bigger. Override the font for this page only.
     <div
       className="flex flex-col h-screen bg-background"
-      style={{ fontFamily: "Satoshi, system-ui, sans-serif" }}
+      style={{ fontFamily: "Satoshi, system-ui, sans-serif", fontSize: "14px" }}
     >
       <PathTopBar
         crumbs={[
