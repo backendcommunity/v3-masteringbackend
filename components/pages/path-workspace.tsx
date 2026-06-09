@@ -168,8 +168,9 @@ export function PathWorkspace({
       >
         {/* Left context panel */}
         <ResizablePanel
-          defaultSize="26"
+          defaultSize="20"
           minSize="0"
+          maxSize="26"
           collapsible
           className="hidden lg:flex min-h-0 p-3"
         >

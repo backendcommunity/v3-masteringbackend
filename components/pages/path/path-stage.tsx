@@ -10,12 +10,12 @@ export function PathStage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex flex-1 min-h-0 justify-center overflow-auto px-6 py-4">
+    <div className="relative flex flex-1 min-h-0 justify-center overflow-auto px-8 py-6 lg:px-12 lg:py-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_75%_-5%,hsl(var(--primary)/0.06),transparent),radial-gradient(40%_35%_at_0%_0%,hsl(var(--mb-blue)/0.05),transparent)]"
       />
-      <div className="relative w-full max-w-[1280px]">
+      <div className="relative mx-auto w-full max-w-[1280px]">
         {step ? (
           children
         ) : (
