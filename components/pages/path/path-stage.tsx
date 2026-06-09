@@ -17,15 +17,7 @@ export function PathStage({
       />
       <div className="relative w-full max-w-[1280px]">
         {step ? (
-          <>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-              {step.type.replace("_", " ")}
-            </p>
-            <h1 className="mb-4 mt-1 text-xl font-extrabold tracking-tight">
-              {step.title}
-            </h1>
-            {children}
-          </>
+          children
         ) : (
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary glow-subtle">

@@ -36,7 +36,7 @@ export function PathActionBar({
   };
 
   return (
-    <div className="relative z-10 flex flex-shrink-0 items-center bg-background/85 px-8 py-4 lg:px-12 backdrop-blur">
+    <div className="relative z-10 flex flex-shrink-0 items-center bg-transparent px-8 py-4 lg:px-12">
       {/* Centered milestone progress */}
       <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5">
         {segments.map((s, i) => (

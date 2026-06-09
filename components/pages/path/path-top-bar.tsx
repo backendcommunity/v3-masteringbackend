@@ -40,11 +40,11 @@ export function PathTopBar({
   // crumbs = [ "Learn", pathTitle, groupTitle, stepTitle ]
   const items = crumbs.filter(Boolean) as string[];
   const stepTitle = items[items.length - 1] ?? "Learning Path";
-  const subtitle = items.length > 1 ? items[items.length - 2] : items[0];
+  const context = items.slice(0, -1); // [ Learn, pathTitle, groupTitle ]
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-      {/* Left: brand + step title */}
+      {/* Left: brand + context breadcrumb */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
           <Image
@@ -55,24 +55,33 @@ export function PathTopBar({
             className="object-contain"
           />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate leading-tight">
-            {stepTitle}
-          </p>
-          {subtitle && subtitle !== stepTitle && (
-            <p className="text-[11px] text-muted-foreground truncate leading-tight">
-              {subtitle}
-            </p>
-          )}
-        </div>
+        <nav className="min-w-0 flex items-center gap-1.5 text-sm">
+          {context.map((c, i) => {
+            const last = i === context.length - 1;
+            return (
+              <span key={i} className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className={`truncate ${
+                    last
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {c}
+                </span>
+                {!last && <span className="text-muted-foreground/50">/</span>}
+              </span>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Center: linear nav */}
-      <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
+      {/* Center: step-title pagination (prev · outline+title+position · next) */}
+      <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2 max-w-[50vw]">
         <Button
           variant="ghost"
           size="icon"
-          className="w-8 h-8"
+          className="w-8 h-8 flex-shrink-0"
           onClick={onPrev}
           disabled={!hasPrev}
           title="Previous"
@@ -83,19 +92,22 @@ export function PathTopBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-xs gap-1.5"
+          className="h-8 px-3 text-xs gap-1.5 min-w-0 max-w-[420px]"
           onClick={onOpenOutline}
+          title="Open outline"
         >
-          <Menu className="w-3.5 h-3.5" />
-          Outline
-          <span className="text-muted-foreground font-medium">
+          <Menu className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="truncate font-medium text-foreground">
+            {stepTitle}
+          </span>
+          <span className="text-muted-foreground font-medium flex-shrink-0">
             · {position} / {total}
           </span>
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="w-8 h-8"
+          className="w-8 h-8 flex-shrink-0"
           onClick={onNext}
           disabled={!hasNext}
           title="Next"
