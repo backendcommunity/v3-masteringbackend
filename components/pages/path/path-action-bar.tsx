@@ -46,8 +46,8 @@ export function PathActionBar({
               s.status === "DONE"
                 ? "bg-gradient-to-r from-[#347474] to-[#5fb0b0]"
                 : s.status === "CURRENT"
-                  ? "bg-gradient-to-r from-primary to-[#2BB8D8] glow-subtle"
-                  : "bg-muted"
+                  ? "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8]"
+                  : "bg-white/10"
             }`}
           />
         ))}
@@ -62,7 +62,7 @@ export function PathActionBar({
         type="button"
         onClick={handleNext}
         disabled={atEnd}
-        className="btn-primary glow-subtle h-11 px-6 text-sm font-bold disabled:pointer-events-none disabled:opacity-40"
+        className="h-11 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-6 text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110 hover:from-[#13AECE] hover:to-[#2BB8D8] disabled:pointer-events-none disabled:opacity-40"
       >
         Next <ArrowRight className="ml-1.5 h-4 w-4" />
       </Button>

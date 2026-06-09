@@ -11,10 +11,6 @@ export function PathStage({
 }) {
   return (
     <div className="relative flex flex-1 min-h-0 items-center justify-center overflow-auto px-8 py-8 lg:px-16 lg:py-10">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_75%_-5%,hsl(var(--primary)/0.06),transparent),radial-gradient(40%_35%_at_0%_0%,hsl(var(--mb-blue)/0.05),transparent)]"
-      />
       <div className="relative mx-auto w-full max-w-[1280px]">
         {step ? (
           children
