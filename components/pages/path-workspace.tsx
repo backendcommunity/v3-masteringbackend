@@ -111,7 +111,8 @@ export function PathWorkspace({
   );
   const idx = ordered.findIndex((s) => s.id === currentStepId);
   const prev = idx > 0 ? ordered[idx - 1] : undefined;
-  const next = idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : undefined;
+  const next =
+    idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : undefined;
 
   const activeGroup = session?.groups.find((g) =>
     g.stepIds.includes(currentStepId ?? ""),
@@ -130,7 +131,7 @@ export function PathWorkspace({
   const milestoneIndex = milestoneSteps.findIndex(
     (s) => s.id === currentStep?.id,
   );
-  const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
+  // const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
 
   if (loading && !session) return <Loader />;
   if (!session) return null;
@@ -154,6 +155,7 @@ export function PathWorkspace({
         total={ordered.length}
         earnedPoints={session.path.earnedPoints}
         masteryPct={session.path.masteryPct}
+        step={currentStep}
         hasPrev={!!prev}
         hasNext={!!next}
         onPrev={() => prev && selectStep(prev.id)}
@@ -185,7 +187,6 @@ export function PathWorkspace({
           <PathActionBar
             step={currentStep}
             segments={segments}
-            segmentLabel={segmentLabel}
             hasPrev={!!prev}
             hasNext={!!next}
             onPrev={() => prev && selectStep(prev.id)}

@@ -5,8 +5,11 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ArrowLeft, ArrowRight, Menu, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PathSessionStep } from "@/lib/path-types";
 import { PathHelpSheet } from "./path-help-sheet";
 import { PathFeedbackDialog } from "./path-feedback-dialog";
+import { PathCodeSheet } from "./path-code-sheet";
+import { PathResourceSheet } from "./path-resource-sheet";
 
 export interface PathTopBarProps {
   crumbs: (string | undefined)[];
@@ -14,6 +17,7 @@ export interface PathTopBarProps {
   total: number;
   earnedPoints: number;
   masteryPct: number;
+  step?: PathSessionStep;
   hasPrev: boolean;
   hasNext: boolean;
   onPrev: () => void;
@@ -26,7 +30,7 @@ export function PathTopBar({
   position,
   total,
   earnedPoints,
-  masteryPct,
+  step,
   hasPrev,
   hasNext,
   onPrev,
@@ -126,6 +130,8 @@ export function PathTopBar({
           {earnedPoints} pts
         </span>
         <div className="flex items-center gap-0.5">
+          <PathCodeSheet step={step} />
+          <PathResourceSheet step={step} />
           <PathHelpSheet />
           <PathFeedbackDialog />
         </div>
