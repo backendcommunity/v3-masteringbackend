@@ -1,5 +1,5 @@
 "use client";
-import { ArrowLeft, ArrowRight, Check, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PathSessionStep } from "@/lib/path-types";
 
@@ -9,9 +9,7 @@ export function PathActionBar({
   step,
   segments,
   segmentLabel,
-  hasPrev,
   hasNext,
-  onPrev,
   onNext,
   onComplete,
 }: {
@@ -26,11 +24,21 @@ export function PathActionBar({
 }) {
   if (!step) return null;
   const isDone = step.status === "DONE";
+  const atEnd = isDone && !hasNext;
+
+  // One action: completes the step (which auto-advances), or moves on if already done.
+  const handleNext = () => {
+    if (isDone) {
+      if (hasNext) onNext();
+    } else {
+      onComplete();
+    }
+  };
 
   return (
-    <div className="flex-shrink-0 z-10 flex items-center gap-5 border-t border-border bg-background/85 px-8 py-4 lg:px-12 backdrop-blur">
-      {/* Segmented milestone progress */}
-      <div className="flex items-center gap-1.5">
+    <div className="relative z-10 flex flex-shrink-0 items-center bg-background/85 px-8 py-4 lg:px-12 backdrop-blur">
+      {/* Centered milestone progress */}
+      <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5">
         {segments.map((s, i) => (
           <span
             key={i}
@@ -43,7 +51,7 @@ export function PathActionBar({
             }`}
           />
         ))}
-        <span className="ml-1.5 text-xs text-muted-foreground">
+        <span className="ml-2 text-xs text-muted-foreground">
           {segmentLabel}
         </span>
       </div>
@@ -52,42 +60,12 @@ export function PathActionBar({
 
       <Button
         type="button"
-        onClick={onPrev}
-        disabled={!hasPrev}
-        className="h-10 border bg-transparent px-4 font-semibold text-foreground transition-colors hover:border-primary hover:bg-transparent hover:text-primary disabled:pointer-events-none disabled:opacity-40"
-        variant="outline"
+        onClick={handleNext}
+        disabled={atEnd}
+        className="btn-primary glow-subtle h-11 px-6 text-sm font-bold disabled:pointer-events-none disabled:opacity-40"
       >
-        <ArrowLeft className="mr-1.5 h-4 w-4" /> Previous
+        Next <ArrowRight className="ml-1.5 h-4 w-4" />
       </Button>
-
-      {isDone ? (
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#347474]/15 px-3 py-1.5 text-sm font-semibold text-[#5fb0b0]">
-            <Check className="h-4 w-4" /> Completed
-          </span>
-          <Button
-            type="button"
-            onClick={onNext}
-            disabled={!hasNext}
-            className="btn-primary glow-subtle h-10 px-5 disabled:pointer-events-none disabled:opacity-40"
-          >
-            Next <ArrowRight className="ml-1.5 h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          onClick={onComplete}
-          className="btn-primary glow-subtle h-11 gap-2.5 px-5 text-sm font-extrabold"
-        >
-          Mark complete &amp; continue
-          {step.maxPoints > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#06222b]/25 px-2 py-0.5 text-xs">
-              <Zap className="h-3 w-3" />+{step.maxPoints} pts
-            </span>
-          )}
-        </Button>
-      )}
     </div>
   );
 }
