@@ -1,16 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ExercisePage } from "@/components/exercise";
 import { Exercise } from "@/lib/data";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
 import { Loader } from "@/components/ui/loader";
-import { StepFrame } from "../step-frame";
+import { PathExerciseIde } from "../path-exercise-ide";
 
 export function ExerciseStep({
   step,
   onComplete,
-  onNavigate,
 }: {
   step: PathSessionStep;
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
@@ -39,16 +37,10 @@ export function ExerciseStep({
     );
 
   return (
-    <StepFrame
+    <PathExerciseIde
       step={step}
-      onComplete={() => onComplete(step.id)}
-      completeLabel="Mark complete & continue"
-    >
-      <ExercisePage
-        courseId={step.groupId ?? ""}
-        exercise={exercise}
-        onNavigate={onNavigate}
-      />
-    </StepFrame>
+      exercise={exercise}
+      onComplete={(id) => onComplete(id)}
+    />
   );
 }

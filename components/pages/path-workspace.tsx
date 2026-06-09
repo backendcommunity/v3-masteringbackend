@@ -164,13 +164,18 @@ export function PathWorkspace({
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden bg-muted/20">
-        {/* Left context panel — fixed 20% / min 220 / max 320, matching the mockup */}
-        <div className="hidden lg:flex w-[20%] min-w-[220px] max-w-[320px] shrink-0 p-3">
-          <PathContextPanel step={currentStep} />
-        </div>
-
-        {/* 1px divider */}
-        <div className="hidden lg:block w-px shrink-0 bg-border" />
+        {/* Lesson context panel — hidden for full-bleed steps (exercise/project)
+            which render their own instructions panel. */}
+        {currentStep?.type !== "EXERCISE" &&
+          currentStep?.type !== "PROJECT" && (
+            <>
+              <div className="hidden lg:flex w-[20%] min-w-[220px] max-w-[320px] shrink-0 p-3">
+                <PathContextPanel step={currentStep} />
+              </div>
+              {/* 1px divider */}
+              <div className="hidden lg:block w-px shrink-0 bg-border" />
+            </>
+          )}
 
         {/* Main stage + action bar */}
         <div className="flex flex-1 min-w-0 flex-col min-h-0">
