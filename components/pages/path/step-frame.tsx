@@ -9,5 +9,5 @@ export function StepFrame({
   children: React.ReactNode;
   completeLabel?: string;
 }) {
-  return <div className="flex min-h-full flex-1 flex-col">{children}</div>;
+  return <div className="min-h-full">{children}</div>;
 }

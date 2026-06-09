@@ -34,11 +34,11 @@ export function VideoStep({
 
   return (
     <StepFrame step={step} onComplete={() => onComplete(step.id)}>
-      <div className="flex h-full w-full items-center justify-center bg-black">
+      <div className="p-2">
         {loading ? (
           <Loader isFull={false} />
         ) : video ? (
-          <div className="h-full w-full overflow-hidden bg-black">
+          <div className="w-full rounded-2xl overflow-hidden border border-border bg-black shadow-xl glow-subtle">
             <VimeoPlayer
               video={video}
               onComplete={() => onComplete(step.id)}

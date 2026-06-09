@@ -62,8 +62,12 @@ export function StepStage({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-auto">
-      <div key={step.id} className="interview-panel-enter flex min-h-full flex-1 flex-col">
+    <div className="relative min-h-full">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_20%_0%,hsl(var(--mb-blue)/0.06),transparent)]"
+      />
+      <div key={step.id} className="relative interview-panel-enter min-h-full">
         {render()}
       </div>
     </div>

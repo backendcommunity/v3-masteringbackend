@@ -18,6 +18,11 @@ import {
   SegmentStatus,
 } from "@/components/pages/path/path-action-bar";
 import { PathOutlineDrawer } from "@/components/pages/path/path-outline-drawer";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 export interface PathWorkspaceProps {
   pathId: string;
@@ -157,14 +162,28 @@ export function PathWorkspace({
         onOpenOutline={() => setOutlineOpen(true)}
       />
 
-      <div className="flex flex-1 min-h-0 gap-4 overflow-hidden bg-muted/40 p-4">
-        {/* Left floating AI / Transcript card */}
-        <div className="hidden lg:flex">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="flex-1 min-h-0 overflow-hidden"
+      >
+        {/* Left context panel */}
+        <ResizablePanel
+          defaultSize="26"
+          minSize="0"
+          collapsible
+          className="hidden lg:block min-h-0"
+        >
           <PathContextPanel step={currentStep} />
-        </div>
+        </ResizablePanel>
 
-        {/* Main area: content card + action bar */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ResizableHandle withHandle className="hidden lg:flex" />
+
+        {/* Main stage + action bar */}
+        <ResizablePanel
+          defaultSize="74"
+          minSize="55"
+          className="flex flex-col min-h-0"
+        >
           <PathStage step={currentStep}>
             <StepStage
               pathId={pathId}
@@ -185,8 +204,8 @@ export function PathWorkspace({
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
           />
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <PathOutlineDrawer
         open={outlineOpen}
