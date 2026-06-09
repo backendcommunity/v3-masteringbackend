@@ -11,8 +11,13 @@ import { PathFeedbackDialog } from "./path-feedback-dialog";
 import { PathCodeSheet } from "./path-code-sheet";
 import { PathResourceSheet } from "./path-resource-sheet";
 
+export interface Crumb {
+  label?: string;
+  href?: string;
+}
+
 export interface PathTopBarProps {
-  crumbs: (string | undefined)[];
+  crumbs: Crumb[];
   position: number;
   total: number;
   earnedPoints: number;
@@ -23,6 +28,7 @@ export interface PathTopBarProps {
   onPrev: () => void;
   onNext: () => void;
   onOpenOutline: () => void;
+  onNavigate: (path: string) => void;
 }
 
 export function PathTopBar({
@@ -34,6 +40,7 @@ export function PathTopBar({
   onPrev,
   onNext,
   onOpenOutline,
+  onNavigate,
 }: PathTopBarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -41,9 +48,9 @@ export function PathTopBar({
   const logoSrc =
     mounted && theme === "light" ? "/blue-icon-logo.png" : "/logo.png";
 
-  // crumbs = [ "Learn", pathTitle, groupTitle, stepTitle ]
-  const items = crumbs.filter(Boolean) as string[];
-  const stepTitle = items[items.length - 1] ?? "Learning Path";
+  // crumbs = [ Learn, pathTitle, groupTitle, stepTitle ]
+  const items = crumbs.filter((c) => c?.label);
+  const stepTitle = items[items.length - 1]?.label ?? "Learning Path";
   const context = items.slice(0, -1); // [ Learn, pathTitle, groupTitle ]
 
   return (
@@ -62,17 +69,22 @@ export function PathTopBar({
         <nav className="min-w-0 flex items-center gap-1.5 text-sm">
           {context.map((c, i) => {
             const last = i === context.length - 1;
+            const base = `truncate ${
+              last ? "font-semibold text-foreground" : "text-muted-foreground"
+            }`;
             return (
               <span key={i} className="flex items-center gap-1.5 min-w-0">
-                <span
-                  className={`truncate ${
-                    last
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {c}
-                </span>
+                {c.href ? (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(c.href!)}
+                    className={`${base} underline-offset-2 hover:text-foreground hover:underline`}
+                  >
+                    {c.label}
+                  </button>
+                ) : (
+                  <span className={base}>{c.label}</span>
+                )}
                 {!last && <span className="text-muted-foreground/50">/</span>}
               </span>
             );

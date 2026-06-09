@@ -30,6 +30,19 @@ import { PathSessionStep } from "@/lib/path-types";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Exercise = any;
 
+const LANGUAGES = [
+  "JavaScript",
+  "TypeScript",
+  "Python",
+  "Java",
+  "Go",
+  "Rust",
+  "C++",
+  "SQL",
+  "HTML",
+  "CSS",
+];
+
 const EXT: Record<string, string> = {
   python: "py",
   javascript: "js",
@@ -37,14 +50,19 @@ const EXT: Record<string, string> = {
   typescript: "ts",
   java: "java",
   go: "go",
+  rust: "rs",
   ruby: "rb",
   php: "php",
   c: "c",
   cpp: "cpp",
   csharp: "cs",
+  sql: "sql",
+  html: "html",
+  css: "css",
 };
 
-const HINT_COST = 30;
+// Editor surface matches the chrome (#171B26) so the panel reads as one piece.
+const EDITOR_BG = "#171B26";
 
 type OutTab = "Output" | "Tests";
 interface TestResult {
@@ -52,14 +70,15 @@ interface TestResult {
   passed: boolean;
 }
 
-// Flush, thin, draggable divider — no breathing-room gap.
+// Visible, draggable divider with a centred grip — minimal width, clear affordance.
 function Handle({ vertical }: { vertical?: boolean }) {
   return (
     <ResizableHandle
+      withHandle
       className={
         vertical
-          ? "h-[3px] w-full bg-border data-[panel-group-orientation=vertical]:h-[3px] data-[panel-group-orientation=vertical]:w-full hover:bg-primary/60 active:bg-primary"
-          : "w-[3px] bg-border hover:bg-primary/60 active:bg-primary"
+          ? "h-2 w-full bg-[#2A3042] data-[panel-group-orientation=vertical]:h-2 data-[panel-group-orientation=vertical]:w-full hover:bg-[#323b50]"
+          : "w-2 bg-[#2A3042] hover:bg-[#323b50]"
       }
     />
   );
@@ -80,7 +99,17 @@ export function PathExerciseIde({
   const [code, setCode] = useState<string>("");
   const [collapsed, setCollapsed] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
-  const [editorTheme, setEditorTheme] = useState<"vs-dark" | "light">("vs-dark");
+  const [editorTheme, setEditorTheme] = useState<"mb-dark" | "mb-light">(
+    "mb-dark",
+  );
+  const [language, setLanguage] = useState<string>(() => {
+    const init = String(exercise?.language ?? "").toLowerCase();
+    return (
+      LANGUAGES.find((l) => l.toLowerCase().replace("c++", "cpp") === init) ??
+      LANGUAGES.find((l) => l.toLowerCase() === init) ??
+      "Python"
+    );
+  });
   const [showHint, setShowHint] = useState(false);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -88,9 +117,12 @@ export function PathExerciseIde({
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
 
-  const language: string = exercise?.language ?? "python";
-  const filename = `script.${EXT[language] ?? "txt"}`;
+  const monacoLanguage =
+    language.toLowerCase() === "c++" ? "cpp" : language.toLowerCase();
+  const filename = `script.${EXT[monacoLanguage] ?? "txt"}`;
   const points: number | undefined = exercise?.points;
+  // Hint cost is proportional to the reward so the two XP figures are consistent.
+  const hintCost = Math.max(1, Math.round((points ?? 50) * 0.3));
   const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
 
   useEffect(() => {
@@ -105,7 +137,10 @@ export function PathExerciseIde({
     setOutputOpen(true);
     setOutTab("Output");
     try {
-      const data = await store.executeCode({ language, code: btoa(code) });
+      const data = await store.executeCode({
+        language: monacoLanguage,
+        code: btoa(code),
+      });
       const out =
         data?.stdout || data?.stderr || data?.output || "Ran with no output.";
       setOutput(typeof out === "string" ? out : JSON.stringify(out, null, 2));
@@ -126,7 +161,10 @@ export function PathExerciseIde({
     setOutputOpen(true);
     setOutTab("Tests");
     try {
-      const data = await store.executeCode({ language, code: btoa(code) });
+      const data = await store.executeCode({
+        language: monacoLanguage,
+        code: btoa(code),
+      });
       const ok = !data?.stderr;
       const cases: { description?: string }[] = exercise?.testCases ?? [];
       setTests(
@@ -159,10 +197,13 @@ export function PathExerciseIde({
     : "";
 
   const editor = (
-    <div className="flex h-full min-h-0 flex-col bg-[#1E2330]">
+    <div className="flex h-full min-h-0 flex-col" style={{ background: EDITOR_BG }}>
       {/* Editor header */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-border bg-[#171B26] px-3 py-2">
-        <div className="flex items-center gap-2">
+      <div
+        className="flex flex-shrink-0 items-center justify-between border-b border-border px-3 py-2"
+        style={{ background: EDITOR_BG }}
+      >
+        <div className="flex items-center gap-3">
           {collapsed && (
             <button
               type="button"
@@ -174,15 +215,27 @@ export function PathExerciseIde({
             </button>
           )}
           <span className="text-xs font-medium text-slate-300">{filename}</span>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
+            title="Language"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
         </div>
         <button
           type="button"
           onClick={() =>
-            setEditorTheme((t) => (t === "vs-dark" ? "light" : "vs-dark"))
+            setEditorTheme((t) => (t === "mb-dark" ? "mb-light" : "mb-dark"))
           }
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-slate-300 hover:bg-white/5 hover:text-foreground"
         >
-          {editorTheme === "vs-dark" ? (
+          {editorTheme === "mb-dark" ? (
             <>
               <Sun className="h-3.5 w-3.5" /> Light Mode
             </>
@@ -195,12 +248,31 @@ export function PathExerciseIde({
       </div>
 
       {/* Monaco */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1" style={{ background: EDITOR_BG }}>
         <Editor
-          language={language === "node" ? "javascript" : language}
+          language={monacoLanguage}
           theme={editorTheme}
           value={code}
           onChange={(v) => setCode(v ?? "")}
+          beforeMount={(monaco) => {
+            monaco.editor.defineTheme("mb-dark", {
+              base: "vs-dark",
+              inherit: true,
+              rules: [],
+              colors: {
+                "editor.background": EDITOR_BG,
+                "editorGutter.background": EDITOR_BG,
+                "minimap.background": EDITOR_BG,
+                "editorWidget.background": EDITOR_BG,
+              },
+            });
+            monaco.editor.defineTheme("mb-light", {
+              base: "vs",
+              inherit: true,
+              rules: [],
+              colors: { "editor.background": "#ffffff" },
+            });
+          }}
           onMount={(ed) => {
             editorRef.current = ed;
             ed.updateOptions({
@@ -217,8 +289,11 @@ export function PathExerciseIde({
         />
       </div>
 
-      {/* Editor footer controls */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-t border-border bg-[#171B26] px-3 py-2">
+      {/* Editor footer controls — no top border, blends with editor */}
+      <div
+        className="flex flex-shrink-0 items-center justify-between gap-2 px-3 py-2"
+        style={{ background: EDITOR_BG }}
+      >
         {!outputOpen ? (
           <button
             type="button"
@@ -415,7 +490,7 @@ export function PathExerciseIde({
                             <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
                             Take Hint
                             <span className="font-bold text-[#a87900]">
-                              −{HINT_COST} XP
+                              −{hintCost} XP
                             </span>
                           </Button>
                         )}

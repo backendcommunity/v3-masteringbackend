@@ -146,10 +146,10 @@ export function PathWorkspace({
     >
       <PathTopBar
         crumbs={[
-          "Learn",
-          session.path.title,
-          activeGroup?.title,
-          currentStep?.title,
+          { label: "Learn", href: "/paths" },
+          { label: session.path.title, href: `/paths/${pathId}` },
+          { label: activeGroup?.title },
+          { label: currentStep?.title },
         ]}
         position={idx >= 0 ? idx + 1 : 0}
         total={ordered.length}
@@ -161,6 +161,7 @@ export function PathWorkspace({
         onPrev={() => prev && selectStep(prev.id)}
         onNext={() => next && selectStep(next.id)}
         onOpenOutline={() => setOutlineOpen(true)}
+        onNavigate={onNavigate}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden bg-muted/20">
