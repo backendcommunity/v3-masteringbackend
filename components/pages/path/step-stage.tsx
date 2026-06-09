@@ -62,14 +62,8 @@ export function StepStage({
   };
 
   return (
-    <div className="relative min-h-full">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_20%_0%,hsl(var(--mb-blue)/0.06),transparent)]"
-      />
-      <div key={step.id} className="relative interview-panel-enter min-h-full">
-        {render()}
-      </div>
+    <div key={step.id} className="interview-panel-enter min-h-full">
+      {render()}
     </div>
   );
 }
