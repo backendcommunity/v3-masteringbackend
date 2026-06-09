@@ -60,9 +60,9 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const tabs: Tab[] = ["Overview", "Notes", "Resources"];
 
   return (
-    <aside className="flex h-full min-h-0 flex-col bg-card">
+    <aside className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Tab bar — mirrors chat tools panel */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+      <div className="flex items-center gap-1 px-4 py-3 border-b border-border bg-muted/20 flex-shrink-0">
         {tabs.map((t) => {
           const active = t === tab;
           return (
@@ -83,12 +83,12 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
       </div>
 
       {/* Tab body */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-5">
         {tab === "Overview" && (
           <div className="animate-in fade-in duration-200">
             {step ? (
               <>
-                <h3 className="mb-2 text-[15px] font-bold leading-snug">
+                <h3 className="mb-3 text-[15px] font-bold leading-snug">
                   {step.title}
                 </h3>
                 {loading ? (
@@ -106,7 +106,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
                     move on.
                   </p>
                 )}
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs text-foreground">
                     <Lightbulb className="h-3.5 w-3.5 text-primary" /> Key
                     takeaways
@@ -163,7 +163,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
           e.preventDefault();
           toast("AI assistant coming soon");
         }}
-        className="flex-shrink-0 m-4 mt-0 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5"
+        className="flex-shrink-0 m-5 mt-0 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-3"
       >
         <input
           placeholder="Ask anything about this lesson…"

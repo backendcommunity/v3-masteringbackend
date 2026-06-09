@@ -10,18 +10,18 @@ export function PathStage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex flex-1 min-h-0 justify-center overflow-auto px-6 py-6">
+    <div className="relative flex flex-1 min-h-0 justify-center overflow-auto px-6 py-8 lg:px-12 lg:py-10">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_75%_-5%,hsl(var(--primary)/0.06),transparent),radial-gradient(40%_35%_at_0%_0%,hsl(var(--mb-blue)/0.05),transparent)]"
       />
-      <div className="relative w-full max-w-[1180px]">
+      <div className="relative w-full max-w-[1040px]">
         {step ? (
           <>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
               {step.type.replace("_", " ")}
             </p>
-            <h1 className="mb-5 mt-1.5 text-xl font-extrabold tracking-tight">
+            <h1 className="mb-7 mt-2 text-xl font-extrabold tracking-tight">
               {step.title}
             </h1>
             {children}

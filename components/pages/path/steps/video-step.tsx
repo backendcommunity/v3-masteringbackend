@@ -34,7 +34,7 @@ export function VideoStep({
 
   return (
     <StepFrame step={step} onComplete={() => onComplete(step.id)}>
-      <div className="p-2">
+      <div>
         {loading ? (
           <Loader isFull={false} />
         ) : video ? (

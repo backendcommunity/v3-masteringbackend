@@ -164,14 +164,14 @@ export function PathWorkspace({
 
       <ResizablePanelGroup
         orientation="horizontal"
-        className="flex-1 min-h-0 overflow-hidden"
+        className="flex-1 min-h-0 overflow-hidden bg-muted/20"
       >
         {/* Left context panel */}
         <ResizablePanel
           defaultSize="26"
           minSize="0"
           collapsible
-          className="hidden lg:block min-h-0"
+          className="hidden lg:flex min-h-0 p-3"
         >
           <PathContextPanel step={currentStep} />
         </ResizablePanel>

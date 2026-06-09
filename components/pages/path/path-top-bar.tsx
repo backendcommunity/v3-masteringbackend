@@ -43,9 +43,9 @@ export function PathTopBar({
   const subtitle = items.length > 1 ? items[items.length - 2] : items[0];
 
   return (
-    <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+    <header className="flex items-center justify-between px-6 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
       {/* Left: brand + step title */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
           <Image
             src={logoSrc}
@@ -106,7 +106,7 @@ export function PathTopBar({
       </div>
 
       {/* Right: points + mastery */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-xs font-bold glow-subtle">
           <Zap className="w-3.5 h-3.5" />
           {earnedPoints} pts
