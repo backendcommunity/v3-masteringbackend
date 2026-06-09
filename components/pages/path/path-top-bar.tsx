@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { ArrowLeft, ArrowRight, Menu, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight, Menu, FileText, Trophy } from "lucide-react";
 
 export interface PathTopBarProps {
   crumbs: (string | undefined)[];
@@ -40,79 +39,78 @@ export function PathTopBar({
   // crumbs = [ "Learn", pathTitle, groupTitle, stepTitle ]
   const items = crumbs.filter(Boolean) as string[];
   const stepTitle = items[items.length - 1] ?? "Learning Path";
-  const subtitle = items.length > 1 ? items[items.length - 2] : items[0];
+  const section = items.length > 2 ? items[items.length - 2] : items[1] ?? items[0];
 
   return (
-    <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-      {/* Left: brand + step title */}
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
-          <Image
-            src={logoSrc}
-            alt="Mastering Backend"
-            width={26}
-            height={26}
-            className="object-contain"
-          />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate leading-tight">
-            {stepTitle}
-          </p>
-          {subtitle && subtitle !== stepTitle && (
-            <p className="text-[11px] text-muted-foreground truncate leading-tight">
-              {subtitle}
-            </p>
+    <header className="relative flex h-14 flex-none items-center justify-between border-b border-border bg-background px-4">
+      {/* Left: brand + breadcrumb */}
+      <div className="flex min-w-0 items-center gap-3">
+        <Image
+          src={logoSrc}
+          alt="Mastering Backend"
+          width={26}
+          height={26}
+          className="h-[26px] w-[26px] flex-none object-contain"
+        />
+        <p className="min-w-0 truncate text-sm">
+          <span className="text-muted-foreground">Learn / </span>
+          {section && (
+            <span className="text-muted-foreground">{section} / </span>
           )}
-        </div>
+          <span className="font-semibold text-foreground">{stepTitle}</span>
+        </p>
       </div>
 
-      {/* Center: linear nav */}
-      <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8"
-          onClick={onPrev}
-          disabled={!hasPrev}
-          title="Previous"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="sr-only">Previous</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 px-3 text-xs gap-1.5"
-          onClick={onOpenOutline}
-        >
-          <Menu className="w-3.5 h-3.5" />
-          Outline
-          <span className="text-muted-foreground font-medium">
-            · {position} / {total}
-          </span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8"
-          onClick={onNext}
-          disabled={!hasNext}
-          title="Next"
-        >
-          <ArrowRight className="w-4 h-4" />
-          <span className="sr-only">Next</span>
-        </Button>
+      {/* Center: segmented Course Outline pill */}
+      <div className="absolute left-1/2 -translate-x-1/2">
+        <div className="inline-flex items-center overflow-hidden rounded-xl border border-border">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={!hasPrev}
+            title="Previous"
+            className="flex h-9 w-9 items-center justify-center text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Previous</span>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenOutline}
+            className="flex h-9 items-center gap-2 border-l border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Menu className="h-4 w-4" />
+            Course Outline
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!hasNext}
+            title="Next"
+            className="flex h-9 w-9 items-center justify-center border-l border-border text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ArrowRight className="h-4 w-4" />
+            <span className="sr-only">Next</span>
+          </button>
+        </div>
       </div>
 
       {/* Right: points + mastery */}
-      <div className="flex items-center gap-2.5">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-xs font-bold glow-subtle">
-          <Zap className="w-3.5 h-3.5" />
-          {earnedPoints} pts
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Notes"
+          className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+        >
+          <FileText className="h-4 w-4" />
+        </button>
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+          <Trophy className="h-4 w-4 text-primary" />
+          <span className="text-primary">{earnedPoints}</span>
+          <span className="text-muted-foreground">pts</span>
         </span>
-        <span className="hidden sm:inline text-[11px] text-muted-foreground">
-          {masteryPct}% mastery
+        <span className="hidden text-xs text-muted-foreground sm:inline">
+          · {masteryPct}%
         </span>
       </div>
     </header>
