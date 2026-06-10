@@ -6,13 +6,14 @@ import {
   useState,
   useCallback,
   useLayoutEffect,
+  useMemo,
 } from "react";
 import {
   useTranscriptions,
   useLocalParticipant,
 } from "@livekit/components-react";
 import { cn } from "@/lib/utils";
-import { Bot, User, ChevronDown, MessageSquare } from "lucide-react";
+import { Bot, User, ChevronDown, MessageSquare, Code2, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface TranscriptEntry {
@@ -22,16 +23,23 @@ export interface TranscriptEntry {
   text: string;
   timestamp: number;
   isFinal: boolean;
+  // Locally-injected shares (code / whiteboard) render as rich bubbles.
+  kind?: "text" | "code" | "whiteboard";
+  language?: string;
 }
 
 interface InterviewTranscriptPanelProps {
   className?: string;
   transcriptRef: React.RefObject<TranscriptEntry[] | null>;
+  // Locally-injected entries (e.g. code / whiteboard the candidate shared)
+  // merged into the live transcript by timestamp.
+  injected?: TranscriptEntry[];
 }
 
 export function InterviewTranscriptPanel({
   className,
   transcriptRef,
+  injected,
 }: InterviewTranscriptPanelProps) {
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -126,6 +134,13 @@ export function InterviewTranscriptPanel({
     }
   }, [transcriptions, transcriptRef]);
 
+  // Live transcript merged with locally-injected shares, ordered by time.
+  const allEntries = useMemo(() => {
+    const merged =
+      injected && injected.length ? [...entries, ...injected] : entries;
+    return [...merged].sort((a, b) => a.timestamp - b.timestamp);
+  }, [entries, injected]);
+
   // Scroll to bottom function
   const scrollToBottom = useCallback((smooth = true) => {
     const container = scrollContainerRef.current;
@@ -149,9 +164,9 @@ export function InterviewTranscriptPanel({
     }
   }, []);
 
-  // Auto-scroll when entries change
+  // Auto-scroll to the bottom whenever a new entry (live or injected) arrives.
   useLayoutEffect(() => {
-    if (!shouldAutoScroll || entries.length === 0) return;
+    if (!shouldAutoScroll || allEntries.length === 0) return;
 
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -159,7 +174,7 @@ export function InterviewTranscriptPanel({
     queueMicrotask(() => {
       scrollToBottom(false);
     });
-  }, [entries, shouldAutoScroll, scrollToBottom]);
+  }, [allEntries, shouldAutoScroll, scrollToBottom]);
 
   // Handle manual scroll - detect if user scrolled away from bottom
   const handleScroll = useCallback(() => {
@@ -198,7 +213,9 @@ export function InterviewTranscriptPanel({
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-xs text-muted-foreground">
-            {entries.length > 0 ? `${entries.length} messages` : "Recording"}
+            {allEntries.length > 0
+              ? `${allEntries.length} messages`
+              : "Recording"}
           </span>
         </div>
       </div>
@@ -211,15 +228,15 @@ export function InterviewTranscriptPanel({
         onScroll={handleScroll}
       >
         <div ref={contentRef} className="px-4 py-4 space-y-4">
-          {entries.length === 0 ? (
+          {allEntries.length === 0 ? (
             <EmptyState />
           ) : (
-            entries.map((entry, idx) => (
+            allEntries.map((entry, idx) => (
               <Message
                 key={entry.id}
                 entry={entry}
                 showHeader={
-                  idx === 0 || entry.speaker !== entries[idx - 1]?.speaker
+                  idx === 0 || entry.speaker !== allEntries[idx - 1]?.speaker
                 }
               />
             ))
@@ -228,7 +245,7 @@ export function InterviewTranscriptPanel({
       </div>
 
       {/* Scroll to bottom button */}
-      {!shouldAutoScroll && entries.length > 0 && (
+      {!shouldAutoScroll && allEntries.length > 0 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
           <Button
             size="sm"
@@ -304,26 +321,43 @@ function Message({
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
         )}
-        <div
-          className={cn(
-            "px-3 py-2 rounded-xl text-sm",
-            isAI
-              ? "bg-secondary text-foreground rounded-tl-none"
-              : "bg-primary text-primary-foreground rounded-tr-none",
-            !entry.isFinal && "opacity-70",
-          )}
-        >
-          <p className="leading-relaxed">
-            {entry.text}
-            {!entry.isFinal && (
-              <span className="inline-flex ml-1 gap-0.5">
-                <span className="w-1 h-1 rounded-full bg-current animate-bounce" />
-                <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:0.1s]" />
-                <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
-              </span>
+        {entry.kind === "code" ? (
+          <div className="max-w-full overflow-hidden rounded-xl border border-border bg-[#0d1019] rounded-tr-none">
+            <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-1.5 text-[11px] font-medium text-slate-400">
+              <Code2 className="w-3.5 h-3.5" />
+              Shared code{entry.language ? ` · ${entry.language}` : ""}
+            </div>
+            <pre className="max-h-48 overflow-auto px-3 py-2.5 font-mono text-[12px] leading-relaxed text-slate-200">
+              {entry.text}
+            </pre>
+          </div>
+        ) : entry.kind === "whiteboard" ? (
+          <div className="flex items-center gap-2 rounded-xl rounded-tr-none border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground">
+            <PenTool className="h-4 w-4 text-primary" />
+            Shared a whiteboard diagram
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "px-3 py-2 rounded-xl text-sm",
+              isAI
+                ? "bg-secondary text-foreground rounded-tl-none"
+                : "bg-primary text-primary-foreground rounded-tr-none",
+              !entry.isFinal && "opacity-70",
             )}
-          </p>
-        </div>
+          >
+            <p className="leading-relaxed">
+              {entry.text}
+              {!entry.isFinal && (
+                <span className="inline-flex ml-1 gap-0.5">
+                  <span className="w-1 h-1 rounded-full bg-current animate-bounce" />
+                  <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:0.1s]" />
+                  <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
+                </span>
+              )}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

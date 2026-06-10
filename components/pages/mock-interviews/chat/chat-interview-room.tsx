@@ -9,7 +9,8 @@ import {
   ChatArtifactRef,
 } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
-import { ChatInterviewHeader } from "./chat-interview-header";
+import { ChatInterviewHeader, useCountdown } from "./chat-interview-header";
+import { useInterviewTimer } from "@/lib/interview-timer-store";
 import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
@@ -26,11 +27,21 @@ import {
 
 interface ChatInterviewRoomProps {
   userInterviewId: string;
+  // Fired once when the interview reaches a completed state — lets an embedder
+  // (e.g. a learning-path step) mark itself complete and advance.
+  onComplete?: () => void;
+  // Embedded in a Path step: hide the room's own header; the Path top bar shows
+  // the timer + End Interview and the Path help slide-in shows the tips.
+  embedded?: boolean;
 }
 
 type ActivePanel = "code" | "whiteboard";
 
-export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
+export function ChatInterviewRoom({
+  userInterviewId,
+  onComplete,
+  embedded = false,
+}: ChatInterviewRoomProps) {
   const store = useAppStore();
 
   const [session, setSession] = useState<ChatInterviewSession | null>(null);
@@ -70,6 +81,15 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  // Notify an embedder once the interview completes (path-step integration).
+  const completeFiredRef = useRef(false);
+  useEffect(() => {
+    if (isComplete && !completeFiredRef.current) {
+      completeFiredRef.current = true;
+      onComplete?.();
+    }
+  }, [isComplete, onComplete]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -255,6 +275,37 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     });
     handleEndInterview();
   }, [handleEndInterview]);
+
+  // Embedded mode runs the countdown here (the header that normally owns it is
+  // hidden) and publishes the timer + end handler to the Path top bar.
+  const { secondsLeft } = useCountdown(
+    session?.template?.duration || 30,
+    session?.startedAt,
+    embedded ? handleTimerExpired : () => {},
+  );
+  const setTimerSeconds = useInterviewTimer((s) => s.setSeconds);
+  const setTimerOnEnd = useInterviewTimer((s) => s.setOnEnd);
+  useEffect(() => {
+    if (!embedded || !session || isComplete) {
+      setTimerSeconds(null);
+      setTimerOnEnd(null);
+      return;
+    }
+    setTimerSeconds(secondsLeft);
+    setTimerOnEnd(handleEndInterview);
+    return () => {
+      setTimerSeconds(null);
+      setTimerOnEnd(null);
+    };
+  }, [
+    embedded,
+    session,
+    isComplete,
+    secondsLeft,
+    handleEndInterview,
+    setTimerSeconds,
+    setTimerOnEnd,
+  ]);
 
   const handleRestart = useCallback(async () => {
     // Check access BEFORE resetting any state so the user's current results
@@ -484,7 +535,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
   if (isInitializing) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Starting interview…</p>
@@ -500,7 +551,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
 
     if (isUpgradePrompt) {
       return (
-        <div className="h-screen bg-background">
+        <div className="h-full bg-background">
           <InterviewCompletionDialog
             open={true}
             onClose={() => router.push("/mock-interviews")}
@@ -513,7 +564,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
     }
 
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center space-y-3 px-4">
           <p className="text-sm font-semibold text-foreground">
             Unable to start interview
@@ -537,17 +588,19 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
       : undefined;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <ChatInterviewHeader
-        template={session.template}
-        onEndInterview={handleEndInterview}
-        onTimerExpired={handleTimerExpired}
-        onExitRoom={() => setShowCompletionDialog(true)}
-        isComplete={isComplete}
-        resultsReady={!!resultsData || insufficientAnswers}
-        startedAt={session.startedAt}
-      />
+    <div className="flex flex-col h-full bg-background">
+      {/* Header — hidden in the Path embed (top bar owns timer + End). */}
+      {!embedded && (
+        <ChatInterviewHeader
+          template={session.template}
+          onEndInterview={handleEndInterview}
+          onTimerExpired={handleTimerExpired}
+          onExitRoom={() => setShowCompletionDialog(true)}
+          isComplete={isComplete}
+          resultsReady={!!resultsData || insufficientAnswers}
+          startedAt={session.startedAt}
+        />
+      )}
 
       {/* Main content */}
       <ResizablePanelGroup
@@ -577,7 +630,7 @@ export function ChatInterviewRoom({ userInterviewId }: ChatInterviewRoomProps) {
             insufficientAnswers={insufficientAnswers}
             userName={userName}
             userAvatar={userAvatar}
-            onExit={() => setShowCompletionDialog(true)}
+            onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
             onRestart={handleRestart}
             isRestartLoading={isCheckingAccess}
           />

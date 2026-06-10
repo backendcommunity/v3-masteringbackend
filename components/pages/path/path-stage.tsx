@@ -4,7 +4,14 @@ import { PathSessionStep } from "@/lib/path-types";
 
 // These step types render their own full-bleed IDE/workspace and should fill
 // the stage edge-to-edge instead of the centered, max-width content layout.
-const FULL_BLEED = new Set(["EXERCISE", "PROJECT", "QUIZ"]);
+const FULL_BLEED = new Set([
+  "EXERCISE",
+  "PROJECT",
+  "QUIZ",
+  "ARTICLE",
+  "RESOURCE",
+  "MOCK_INTERVIEW",
+]);
 
 export function PathStage({
   step,

@@ -7,6 +7,7 @@ import {
   MousePointerClick,
   MessageSquare,
   Code2,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +59,13 @@ const HELP_ITEMS = [
     title: "Coding Exercises",
     content:
       "Read the brief on the left, then write your solution in the editor. 'Run Code' executes it and shows the result in the Output panel below; 'Submit Answer' checks it and completes the step. Stuck? 'Take Hint' costs a little XP. Toggle the editor between dark and light, collapse the instructions or the output, and drag the dividers to resize each panel.",
+  },
+  {
+    value: "mock-interview",
+    icon: Mic,
+    title: "Mock Interviews",
+    content:
+      "Kap, your AI interviewer, runs the session in whichever format this interview uses. Voice/video: speak with Kap — the video is on the left with a live transcript below it (drag the divider to resize). Chat: read Kap's questions and type your answers in the message box; replies stream into the conversation. Either way, use the Code Editor and Whiteboard tabs on the right and hit 'Send to Kap' to share your code or diagram during the interview — it appears in the transcript. The countdown next to your points shows the time left and the interview ends automatically at zero; use 'End Interview' (top right) to finish early. For voice/video, allow microphone (and camera) access when prompted.",
   },
 ];
 

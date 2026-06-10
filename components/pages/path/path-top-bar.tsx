@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { ArrowLeft, ArrowRight, Menu, MoreVertical, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Menu,
+  MoreVertical,
+  Zap,
+  Clock,
+  PhoneOff,
+} from "lucide-react";
+import { useInterviewTimer } from "@/lib/interview-timer-store";
 import { Button } from "@/components/ui/button";
 import { PathSessionStep } from "@/lib/path-types";
 import { PathHelpSheet } from "./path-help-sheet";
@@ -45,7 +54,21 @@ export function PathTopBar({
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const interviewSeconds = useInterviewTimer((s) => s.seconds);
+  const interviewOnEnd = useInterviewTimer((s) => s.onEnd);
   useEffect(() => setMounted(true), []);
+
+  const fmtTimer = (s: number) => {
+    const m = Math.floor(Math.max(0, s) / 60);
+    const sec = Math.max(0, s) % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+  const timerColor =
+    interviewSeconds != null && interviewSeconds <= 60
+      ? "text-red-500"
+      : interviewSeconds != null && interviewSeconds <= 300
+        ? "text-amber-500"
+        : "text-foreground";
   const logoSrc =
     mounted && theme === "light" ? "/blue-icon-logo.png" : "/logo.png";
 
@@ -137,6 +160,27 @@ export function PathTopBar({
 
       {/* Right: full cluster on desktop, collapsed menu on mobile */}
       <div className="hidden md:flex items-center gap-3">
+        {interviewOnEnd && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => interviewOnEnd()}
+            className="h-8 gap-1.5 px-3 text-xs"
+          >
+            <PhoneOff className="w-3.5 h-3.5" />
+            End Interview
+          </Button>
+        )}
+        {interviewSeconds != null && (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-bold tabular-nums ${timerColor} ${
+              interviewSeconds <= 60 ? "animate-pulse" : ""
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            {fmtTimer(interviewSeconds)}
+          </span>
+        )}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-xs font-bold">
           <Zap className="w-3.5 h-3.5" />
           {earnedPoints} pts
@@ -172,6 +216,17 @@ export function PathTopBar({
               onClick={() => setMobileOpen(false)}
             />
             <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-popover p-2 shadow-lg">
+              {interviewSeconds != null && (
+                <div className="flex items-center justify-between rounded-lg px-2 py-2">
+                  <span className="text-xs text-muted-foreground">Time left</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-bold tabular-nums ${timerColor}`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {fmtTimer(interviewSeconds)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between rounded-lg px-2 py-2">
                 <span className="text-xs text-muted-foreground">Points</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2.5 py-1 text-xs font-bold">
@@ -179,6 +234,18 @@ export function PathTopBar({
                   {earnedPoints} pts
                 </span>
               </div>
+              {interviewOnEnd && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    interviewOnEnd();
+                    setMobileOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10"
+                >
+                  <PhoneOff className="w-4 h-4" /> End Interview
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {

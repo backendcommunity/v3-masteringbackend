@@ -50,7 +50,7 @@ interface ChatInterviewHeaderProps {
   startedAt?: string | null;
 }
 
-function useCountdown(
+export function useCountdown(
   durationMinutes: number,
   startedAt: string | null | undefined,
   onExpire: () => void,

@@ -131,9 +131,17 @@ export function PathWorkspace({
   const fullBleed =
     currentStep?.type === "EXERCISE" ||
     currentStep?.type === "PROJECT" ||
-    currentStep?.type === "QUIZ";
+    currentStep?.type === "QUIZ" ||
+    currentStep?.type === "ARTICLE" ||
+    currentStep?.type === "RESOURCE" ||
+    currentStep?.type === "MOCK_INTERVIEW";
+  // Learn → Build → Grow breadcrumb root.
   const isBuild =
     currentStep?.type === "EXERCISE" || currentStep?.type === "PROJECT";
+  const isGrow =
+    currentStep?.type === "MOCK_INTERVIEW" ||
+    currentStep?.type === "BOOTCAMP";
+  const contextLabel = isBuild ? "Build" : isGrow ? "Grow" : "Learn";
   const hasContext = !!currentStep && !fullBleed;
 
   const milestoneSteps = ordered.filter(
@@ -164,7 +172,7 @@ export function PathWorkspace({
     >
       <PathTopBar
         crumbs={[
-          { label: isBuild ? "Build" : "Learn", href: "/paths" },
+          { label: contextLabel, href: "/paths" },
           { label: session.path.title, href: `/paths/${pathId}` },
           { label: activeGroup?.title },
           { label: currentStep?.title },

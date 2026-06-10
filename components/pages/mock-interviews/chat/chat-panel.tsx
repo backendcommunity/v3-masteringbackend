@@ -152,15 +152,17 @@ export function ChatPanel({
                         {isRestartLoading ? "Checking…" : "Restart Interview"}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "insufficient_answers" }); onExit?.(); }}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Exit room
-                    </Button>
+                    {onExit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "insufficient_answers" }); onExit(); }}
+                        className="h-8 text-xs gap-1.5"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Exit room
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : resultsData ? (
@@ -183,15 +185,17 @@ export function ChatPanel({
                         {isRestartLoading ? "Checking…" : "Restart"}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "post_results" }); onExit?.(); }}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Exit room
-                    </Button>
+                    {onExit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { analytics.track("chat_interview_exit_clicked", { context: "post_results" }); onExit(); }}
+                        className="h-8 text-xs gap-1.5"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Exit room
+                      </Button>
+                    )}
                   </div>
                 </>
               ) : isLoadingResults ? (

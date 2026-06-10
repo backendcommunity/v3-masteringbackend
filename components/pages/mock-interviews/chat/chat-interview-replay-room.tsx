@@ -26,6 +26,8 @@ import {
 
 interface ChatInterviewReplayRoomProps {
   sessionId: string;
+  // Fill the parent (h-full) instead of the viewport when embedded in a path step.
+  embedded?: boolean;
 }
 
 type ActivePanel = "code" | "whiteboard";
@@ -44,9 +46,13 @@ function ScorePill({ score }: { score: number }) {
   );
 }
 
-export function ChatInterviewReplayRoom({ sessionId }: ChatInterviewReplayRoomProps) {
+export function ChatInterviewReplayRoom({
+  sessionId,
+  embedded = false,
+}: ChatInterviewReplayRoomProps) {
   const router = useRouter();
   const store = useAppStore();
+  const fill = embedded ? "h-full" : "h-screen";
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [session, setSession] = useState<ChatInterviewSession | null>(null);
@@ -102,7 +108,7 @@ export function ChatInterviewReplayRoom({ sessionId }: ChatInterviewReplayRoomPr
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className={`flex ${fill} items-center justify-center`}>
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Loading interview…</p>
@@ -113,7 +119,7 @@ export function ChatInterviewReplayRoom({ sessionId }: ChatInterviewReplayRoomPr
 
   if (loadError || !session) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className={`flex ${fill} items-center justify-center`}>
         <div className="text-center space-y-3 px-4">
           <p className="text-sm font-semibold text-foreground">Unable to load interview</p>
           <p className="text-xs text-muted-foreground">{loadError}</p>
@@ -141,7 +147,7 @@ export function ChatInterviewReplayRoom({ sessionId }: ChatInterviewReplayRoomPr
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className={`flex flex-col ${fill} bg-background`}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 flex-shrink-0">
         {/* Left */}

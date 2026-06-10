@@ -30,3 +30,4 @@ next-env.d.ts
 .env.sentry-build-plugin
 
 .superpowers
+/app/preview/
