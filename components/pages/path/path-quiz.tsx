@@ -35,6 +35,24 @@ interface AnsweredResult {
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
+// Quiz data comes in two shapes: seeded path quizzes use `answer` (an index into
+// options); older quizzes use `correctAnswer` (the option's text). Normalise both.
+function correctIndexOf(q: QuizQuestion): number {
+  const a = (q as unknown as { answer?: number }).answer;
+  if (typeof a === "number") return a;
+  const ca = q.correctAnswer;
+  if (ca != null && q.options) {
+    const byText = q.options.indexOf(ca);
+    if (byText >= 0) return byText;
+    const n = Number(ca);
+    if (!Number.isNaN(n)) return n;
+  }
+  return -1;
+}
+function correctTextOf(q: QuizQuestion): string {
+  return q.options?.[correctIndexOf(q)] ?? q.correctAnswer ?? "";
+}
+
 export function PathQuiz({
   step,
   quizId,
@@ -126,8 +144,14 @@ export function PathQuiz({
   const current = questions[index];
 
   const computeScore = (final: AnsweredResult[]) => {
-    const earned = final.reduce((s, r) => s + (r.passed ? r.points : 0), 0);
-    return totalPoints > 0 ? Math.round((earned / totalPoints) * 100) : 0;
+    const totalPts = final.reduce((s, r) => s + (r.points || 0), 0);
+    if (totalPts > 0) {
+      const earned = final.reduce((s, r) => s + (r.passed ? r.points : 0), 0);
+      return Math.round((earned / totalPts) * 100);
+    }
+    // No per-question points defined → score by the share of correct answers.
+    const correct = final.filter((r) => r.passed).length;
+    return final.length ? Math.round((correct / final.length) * 100) : 0;
   };
 
   const submitAttempt = async (final: AnsweredResult[], finalScore: number) => {
@@ -146,13 +170,13 @@ export function PathQuiz({
   const check = () => {
     if (selected == null || !current) return;
     const userAnswer = current.options?.[selected] ?? "";
-    const passed = userAnswer === current.correctAnswer;
+    const passed = selected === correctIndexOf(current);
     const updated: AnsweredResult[] = [
       ...results,
       {
         question: current.question,
         userAnswer,
-        correctAnswer: current.correctAnswer,
+        correctAnswer: correctTextOf(current),
         explanation: current.explanation,
         points: current.points || 0,
         passed,
@@ -185,10 +209,10 @@ export function PathQuiz({
       return {
         question: q.question,
         userAnswer,
-        correctAnswer: q.correctAnswer,
+        correctAnswer: correctTextOf(q),
         explanation: q.explanation,
         points: q.points || 0,
-        passed: userAnswer === q.correctAnswer,
+        passed: answers[i] === correctIndexOf(q),
       };
     });
     finalize(final);
@@ -263,49 +287,61 @@ export function PathQuiz({
 
   // ── Intro (group quizzes) ─────────────────────────────────────────────
   if (status === "intro") {
+    const stats = [
+      { icon: ListChecks, value: String(questions.length), label: "Questions" },
+      {
+        icon: Clock,
+        value: quiz.timeLimit ? `${quiz.timeLimit} min` : "Untimed",
+        label: "Time limit",
+      },
+      { icon: Target, value: `${passingScore}%`, label: "To pass" },
+    ];
+
     return (
-      <Shell max="max-w-[620px]">
+      <Shell max="max-w-[480px]">
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_40px_-20px_rgba(0,0,0,0.5)]">
-          <div className="border-b border-border bg-muted/20 px-6 py-5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary">
-              <ListChecks className="h-3.5 w-3.5" /> Knowledge Check
+          {/* Hero */}
+          <div className="flex flex-col items-center px-8 pt-10 text-center">
+            <span className="relative grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl"
+              />
+              <ListChecks className="relative h-7 w-7" />
             </span>
-            <h1 className="mt-3 text-xl font-bold leading-snug">
+            <span className="mt-5 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+              Knowledge Check
+            </span>
+            <h1 className="mt-2 text-2xl font-bold leading-tight">
               {quiz.title}
             </h1>
             {quiz.description && (
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-2 max-w-[40ch] text-sm leading-relaxed text-muted-foreground">
                 {quiz.description}
               </p>
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 px-6 py-5">
-            <Stat
-              icon={<ListChecks className="h-4 w-4" />}
-              label="Questions"
-              value={String(questions.length)}
-            />
-            <Stat
-              icon={<Clock className="h-4 w-4" />}
-              label="Time"
-              value={quiz.timeLimit ? `${quiz.timeLimit}m` : "Untimed"}
-            />
-            <Stat
-              icon={<Target className="h-4 w-4" />}
-              label="To pass"
-              value={`${passingScore}%`}
-            />
+          {/* Stat strip */}
+          <div className="mx-8 mt-7 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-background/40">
+            {stats.map(({ icon: Icon, value, label }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center gap-1 px-2 py-4"
+              >
+                <Icon className="h-4 w-4 text-muted-foreground/80" />
+                <span className="text-base font-bold leading-none">{value}</span>
+                <span className="text-[11px] text-muted-foreground">{label}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="px-6 pb-6">
-            <div className="rounded-xl border border-border bg-background/40 p-4 text-[13px] leading-relaxed text-muted-foreground">
-              <ul className="space-y-1.5">
-                <li>• Answer each question, then check it instantly.</li>
-                <li>• You need {passingScore}% to pass and move on.</li>
-                <li>• You can retake the quiz as many times as you like.</li>
-              </ul>
-            </div>
+          {/* Note + CTA */}
+          <div className="px-8 pb-9 pt-6">
+            <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
+              Answer all {questions.length} questions, then submit to see your
+              score. You need {passingScore}% to pass — retake anytime.
+            </p>
             <Button
               onClick={begin}
               disabled={starting}
@@ -454,7 +490,7 @@ export function PathQuiz({
           <div className="mt-5 space-y-2.5">
             {current?.options?.map((option, i) => {
               const isSelected = currentSelected === i;
-              const isCorrect = option === current.correctAnswer;
+              const isCorrect = i === correctIndexOf(current);
               const showCorrect = showFeedback && isCorrect;
               const showWrong = showFeedback && isSelected && !isCorrect;
 
@@ -606,26 +642,6 @@ export function PathQuiz({
         </div>
       </div>
     </Shell>
-  );
-}
-
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background/40 px-3 py-3 text-center">
-      <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        {icon}
-      </span>
-      <div className="text-base font-bold leading-tight">{value}</div>
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-    </div>
   );
 }
 

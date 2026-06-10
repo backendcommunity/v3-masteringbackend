@@ -353,6 +353,7 @@ interface AppState {
   ) => any;
   executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
+  ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
 
@@ -399,6 +400,9 @@ interface AppState {
   // Path (Learning Path) actions
   getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
   getPathItem: (endpoint: string) => Promise<any>;
+  getArticleById: (id: string) => Promise<any>;
+  createArticle: (payload: any) => Promise<any>;
+  updateArticle: (id: string, payload: any) => Promise<any>;
   completePathStep: (
     slug: string,
     stepId: string,
@@ -1085,6 +1089,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  // Idempotent ensure-or-create: returns the user's in-progress UserMockInterview
+  // for this template (or creates one), with the template (incl. format) embedded.
+  // Used by the path MOCK_INTERVIEW step. Path-granted templates skip the paywall.
+  ensurePathMockInterview: async (templateId: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/schedules/${templateId}`,
+      {},
+    );
+    return data?.data; // { interview: {...template}, session }
+  },
+
   getBookmarks: async (size = 12, skip = 0) => {
     const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
     return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
@@ -1463,6 +1478,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   getPathItem: async (endpoint: string) => {
     const path = endpoint.replace(/^\/api\/v3/, "");
     const { data } = await api.get(path);
+    return data?.data;
+  },
+
+  getArticleById: async (id: string) => {
+    const { data } = await api.get(`/courses/articles/${id}`);
+    return data?.data;
+  },
+
+  createArticle: async (payload: any) => {
+    const { data } = await api.post(`/courses/articles`, payload);
+    return data?.data;
+  },
+
+  updateArticle: async (id: string, payload: any) => {
+    const { data } = await api.put(`/courses/articles/${id}`, payload);
     return data?.data;
   },
 
