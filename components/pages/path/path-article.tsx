@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
+import { marked } from "marked";
 import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
@@ -32,6 +33,16 @@ interface ArticleItem {
   cover?: string;
   image?: string;
   blocks?: ArticleBlock[];
+}
+
+// Article prose (both the `content` fallback and each html block) is authored
+// as Markdown — optionally with embedded HTML. Render it to HTML the same way
+// everywhere: GitHub-flavored Markdown → sanitize → PROSE styles. marked passes
+// raw HTML through, so legacy HTML-only articles keep rendering unchanged.
+marked.setOptions({ gfm: true, breaks: true });
+function mdToHtml(raw: string): string {
+  if (!raw) return "";
+  return DOMPurify.sanitize(marked.parse(raw, { async: false }) as string);
 }
 
 // Strip tags to estimate reading time and to fall back to a description.
@@ -114,9 +125,7 @@ export function PathArticle({
   }, [step.id, itemData]);
 
   const rawHtml = item?.content ?? item?.body ?? item?.summary ?? "";
-  const html = useMemo(() => (rawHtml ? DOMPurify.sanitize(rawHtml) : ""), [
-    rawHtml,
-  ]);
+  const html = useMemo(() => mdToHtml(rawHtml), [rawHtml]);
 
   const blocks = item?.blocks;
   const blocksText = useMemo(
@@ -203,9 +212,7 @@ export function PathArticle({
                     <article
                       key={i}
                       className={PROSE}
-                      dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(b.html),
-                      }}
+                      dangerouslySetInnerHTML={{ __html: mdToHtml(b.html) }}
                     />
                   );
                 })}

@@ -480,7 +480,7 @@ function BlockCard({
           <textarea
             value={row.html ?? ""}
             onChange={(e) => onUpdate({ html: e.target.value })}
-            placeholder="<h2>Section heading</h2>\n<p>Write HTML here…</p>"
+            placeholder={"## Section heading\n\nWrite **Markdown** here… (HTML also works)"}
             rows={6}
             className="w-full resize-y rounded-lg border border-border bg-background p-3 font-mono text-[13px] outline-none focus:border-primary"
           />

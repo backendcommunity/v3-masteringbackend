@@ -6308,6 +6308,11 @@ magic-string@^0.30.3, magic-string@~0.30.8:
   dependencies:
     "@jridgewell/sourcemap-codec" "^1.5.5"
 
+marked@14:
+  version "14.1.4"
+  resolved "https://registry.yarnpkg.com/marked/-/marked-14.1.4.tgz#5e348de817bfa35a11e71de7e41dd7c3fdb186a9"
+  integrity sha512-vkVZ8ONmUdPnjCKc5uTRvmkRbx4EAi2OkTOXmfTDhZz3OFqMNBM1oTTWwTr4HY4uAEojhzPf+Fy8F1DWa3Sndg==
+
 marked@14.0.0:
   version "14.0.0"
   resolved "https://registry.npmjs.org/marked/-/marked-14.0.0.tgz#79a1477358a59e0660276f8fec76de2c33f35d83"
