@@ -8,7 +8,6 @@ import {
   RoomAudioRenderer,
   useConnectionState,
   useTracks,
-  useParticipants,
   useLocalParticipant,
   useRoomContext,
   VideoTrack,
@@ -213,7 +212,6 @@ function VoiceAssistantStage() {
 // INTERVIEW STAGE - Main Video/Audio Stage
 // =============================================================================
 function InterviewStage({ className }: { className?: string }) {
-  const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
@@ -229,11 +227,6 @@ function InterviewStage({ className }: { className?: string }) {
     (t) =>
       t.participant.identity === localParticipant?.identity &&
       t.source === Track.Source.Camera,
-  );
-
-  // Find remote participant (AI agent)
-  const remoteParticipant = participants.find(
-    (p) => p.identity !== localParticipant?.identity,
   );
 
   // Find remote tracks
@@ -267,17 +260,6 @@ function InterviewStage({ className }: { className?: string }) {
         ) : (
           <VoiceAssistantStage />
         )}
-
-        {/* AI Label */}
-        <div className="absolute top-4 left-4 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm font-medium text-white">
-              {remoteParticipant?.identity || "Kap AI"}
-            </span>
-            <Bot className="w-4 h-4 text-primary" />
-          </div>
-        </div>
 
         {/* Connection Status */}
         <div className="absolute top-4 right-4 z-10 hidden md:block">
