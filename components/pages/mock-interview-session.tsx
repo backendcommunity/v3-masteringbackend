@@ -54,7 +54,6 @@ import {
   VolumeX,
   Code2,
   PenTool,
-  X,
 } from "lucide-react";
 
 // Custom Components
@@ -523,10 +522,12 @@ function InterviewRoom({
   // Locally-injected transcript bubbles for shared code / diagrams.
   const [sharedEntries, setSharedEntries] = useState<TranscriptEntry[]>([]);
   // Viewport ≥1024px → side-by-side desktop layout; below → stacked mobile
-  // layout with a bottom control bar and the work tools in a full-screen
-  // overlay. Gating here means the heavy panels mount in exactly one layout.
+  // layout with a bottom tab switcher between the interview and the work tools.
+  // Gating on lgUp means the heavy panels mount in exactly one layout.
   const [lgUp, setLgUp] = useState(true);
-  const [showWorkTools, setShowWorkTools] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"interview" | "workspace">(
+    "interview",
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -538,7 +539,7 @@ function InterviewRoom({
   }, []);
 
   useEffect(() => {
-    if (lgUp) setShowWorkTools(false);
+    if (lgUp) setMobileTab("interview");
   }, [lgUp]);
 
   // Best-effort: deliver a chat message to the live Kap agent over LiveKit's
@@ -821,70 +822,88 @@ function InterviewRoom({
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        /* Mobile: video on top (contained 16:9), transcript below, sticky
-           control bar at the bottom, work tools via a full-screen overlay. */
-        <div className="flex-1 min-h-0 flex flex-col">
-          {/* Video stage — contained aspect, no overflow */}
-          <div className="flex-shrink-0 p-3 pb-2">
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
-              <InterviewStage className="h-full w-full" />
+        /* Mobile: a bottom tab switcher flips between the interview and the
+           work tools. Both sections stay mounted (toggled with `hidden`) so the
+           editor/whiteboard keep their state across switches; only this mobile
+           branch renders (desktop is gated off), so panels mount exactly once. */
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* INTERVIEW section */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "interview" ? "flex" : "hidden",
+            )}
+          >
+            <div className="flex-shrink-0 p-3 pb-2">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
+                <InterviewStage className="h-full w-full" />
+                <span
+                  className="absolute left-3 top-3 z-20 rounded-lg bg-black/55 px-2 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur"
+                  aria-label="Time remaining"
+                >
+                  {fmtTime(timeRemaining)}
+                </span>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
+                  <MediaControls
+                    onEndInterview={handleEndInterview}
+                    isEnding={isEnding}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Live transcript fills remaining space */}
-          <div className="flex-1 min-h-0 px-3 pb-2">
-            <InterviewTranscriptPanel
-              className="h-full"
-              transcriptRef={transcriptRef}
-              injected={sharedEntries}
-            />
-          </div>
-
-          {/* Sticky bottom control bar — timer, mic/camera/speaker, tools, end */}
-          <div className="flex-shrink-0 border-t border-border bg-card/95 backdrop-blur-xl px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className="flex-shrink-0 rounded-lg bg-muted px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground"
-                aria-label="Time remaining"
-              >
-                {fmtTime(timeRemaining)}
-              </span>
-              <MediaControls
-                onEndInterview={handleEndInterview}
-                isEnding={isEnding}
+            <div className="min-h-0 flex-1 px-3 pb-2">
+              <InterviewTranscriptPanel
+                className="h-full"
+                transcriptRef={transcriptRef}
+                injected={sharedEntries}
               />
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Mobile FAB — opens the code editor / whiteboard work tools. */}
-      {!lgUp && !showWorkTools && (
-        <button
-          type="button"
-          onClick={() => setShowWorkTools(true)}
-          aria-label="Open code editor and whiteboard"
-          className="fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-white shadow-lg shadow-[#13AECE]/30 transition-transform active:scale-95"
-        >
-          <Code2 className="h-6 w-6" />
-        </button>
-      )}
+          {/* WORKSPACE section (code editor / whiteboard) */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "workspace" ? "flex" : "hidden",
+            )}
+          >
+            <div className="flex flex-shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-3 py-2">
+              {workToolsTabs}
+            </div>
+            <div className="min-h-0 flex-1">{activeWorkPanel}</div>
+          </div>
 
-      {/* Mobile work-tools overlay — full screen, single panel instance. */}
-      {!lgUp && showWorkTools && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-background">
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            {workToolsTabs}
+          {/* Bottom tab switcher */}
+          <div className="flex flex-shrink-0 gap-1 border-t border-border bg-card p-1.5">
             <button
               type="button"
-              onClick={() => setShowWorkTools(false)}
-              aria-label="Close work tools"
-              className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+              aria-selected={mobileTab === "interview"}
+              onClick={() => setMobileTab("interview")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "interview"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
             >
-              <X className="h-5 w-5" />
+              <Video className="h-[18px] w-[18px]" />
+              Interview
+            </button>
+            <button
+              type="button"
+              aria-selected={mobileTab === "workspace"}
+              onClick={() => setMobileTab("workspace")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "workspace"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Code2 className="h-[18px] w-[18px]" />
+              Workspace
             </button>
           </div>
-          <div className="flex-1 min-h-0">{activeWorkPanel}</div>
         </div>
       )}
 
