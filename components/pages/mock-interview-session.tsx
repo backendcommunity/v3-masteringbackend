@@ -341,9 +341,11 @@ function InterviewStage({ className }: { className?: string }) {
 function MediaControls({
   onEndInterview,
   isEnding,
+  compact = false,
 }: {
   onEndInterview: () => void;
   isEnding?: boolean;
+  compact?: boolean;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
@@ -368,9 +370,17 @@ function MediaControls({
     });
   }, [isSpeakerMuted]);
 
+  const btn = compact ? "w-9 h-9 rounded-lg" : "w-12 h-12 rounded-xl";
+  const ic = compact ? "w-[17px] h-[17px]" : "w-5 h-5";
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex items-center justify-center  gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl">
+      <div
+        className={cn(
+          "flex items-center justify-center gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl",
+          compact && "gap-1 p-1.5 rounded-xl shadow-lg",
+        )}
+      >
         {/* Microphone */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -379,16 +389,17 @@ function MediaControls({
               size="icon"
               onClick={toggleMicrophone}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isMicrophoneEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isMicrophoneEnabled ? (
-                <Mic className="w-5 h-5" />
+                <Mic className={ic} />
               ) : (
-                <MicOff className="w-5 h-5" />
+                <MicOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -405,16 +416,17 @@ function MediaControls({
               size="icon"
               onClick={toggleCamera}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isCameraEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isCameraEnabled ? (
-                <Video className="w-5 h-5" />
+                <Video className={ic} />
               ) : (
-                <VideoOff className="w-5 h-5" />
+                <VideoOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -431,16 +443,17 @@ function MediaControls({
               size="icon"
               onClick={toggleSpeaker}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 !isSpeakerMuted
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {!isSpeakerMuted ? (
-                <Volume2 className="w-5 h-5" />
+                <Volume2 className={ic} />
               ) : (
-                <VolumeX className="w-5 h-5" />
+                <VolumeX className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -449,7 +462,7 @@ function MediaControls({
           </TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-8 bg-border/50 mx-1" />
+        <div className={cn("w-px bg-border/50 mx-1", compact ? "h-6" : "h-8")} />
 
         {/* End Interview */}
         <Tooltip>
@@ -459,12 +472,12 @@ function MediaControls({
               size="icon"
               onClick={onEndInterview}
               disabled={isEnding}
-              className="w-12 h-12 rounded-xl shadow-lg shadow-destructive/20"
+              className={cn(btn, "shadow-lg shadow-destructive/20")}
             >
               {isEnding ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -827,15 +840,16 @@ function InterviewRoom({
            editor/whiteboard keep their state across switches; only this mobile
            branch renders (desktop is gated off), so panels mount exactly once. */
         <div className="flex flex-1 min-h-0 flex-col">
-          {/* INTERVIEW section */}
+          {/* INTERVIEW section — video pane larger than the transcript */}
           <div
             className={cn(
               "min-h-0 flex-1 flex-col",
               mobileTab === "interview" ? "flex" : "hidden",
             )}
           >
-            <div className="flex-shrink-0 p-3 pb-2">
-              <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
+            {/* Video stage (~1.7×) + compact controls below it */}
+            <div className="flex min-h-0 flex-[1.7] flex-col p-3 pb-1.5">
+              <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black/40">
                 <InterviewStage className="h-full w-full" />
                 <span
                   className="absolute left-3 top-3 z-20 rounded-lg bg-black/55 px-2 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur"
@@ -843,14 +857,16 @@ function InterviewRoom({
                 >
                   {fmtTime(timeRemaining)}
                 </span>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
-                  <MediaControls
-                    onEndInterview={handleEndInterview}
-                    isEnding={isEnding}
-                  />
-                </div>
+              </div>
+              <div className="mt-2 flex flex-shrink-0 justify-center">
+                <MediaControls
+                  compact
+                  onEndInterview={handleEndInterview}
+                  isEnding={isEnding}
+                />
               </div>
             </div>
+            {/* Transcript (~1×) — smaller than the video */}
             <div className="min-h-0 flex-1 px-3 pb-2">
               <InterviewTranscriptPanel
                 className="h-full"
