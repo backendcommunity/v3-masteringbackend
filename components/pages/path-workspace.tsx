@@ -217,11 +217,9 @@ export function PathWorkspace({
   );
   // const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
 
-  if (loading && !session) return <Loader />;
-  if (!session) return null;
-
   // Stable callbacks so PathCelebrations' terminal effect doesn't re-run on
   // every workspace render (the queue identity drives its lifecycle instead).
+  // NOTE: must stay above the early returns below — hooks run every render.
   const onCertUnlocked = useCallback(() => {
     setShowCertificate(true);
     setCelebrationQueue([]);
@@ -231,6 +229,9 @@ export function PathWorkspace({
     if (pendingNextId) setCurrentStepId(pendingNextId);
     else setShowCertificate(true);
   }, [pendingNextId]);
+
+  if (loading && !session) return <Loader />;
+  if (!session) return null;
 
   // Always mounted: renders nothing when the queue is empty. When a step
   // completes, plays the queued celebrations and THEN advances sequentially.
