@@ -101,9 +101,9 @@ export function PathOutline({
   let courseNum = 0;
 
   return (
-    <div className="relative px-4 py-3">
+    <div className="relative px-3 py-3 sm:px-4">
       {/* Timeline line */}
-      <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+      <div className="absolute left-[1.375rem] top-5 bottom-5 w-px bg-border sm:left-[1.625rem]" />
 
       <div className="space-y-3">
         {items.map((item) => {

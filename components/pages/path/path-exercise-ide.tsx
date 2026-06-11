@@ -98,7 +98,12 @@ export function PathExerciseIde({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 1023px)");
-    const update = () => setNarrow(mq.matches);
+    const update = () => {
+      setNarrow(mq.matches);
+      // On narrow screens give the editor the room: start with the
+      // instructions collapsed (the learner can reopen them any time).
+      setCollapsed(mq.matches);
+    };
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);

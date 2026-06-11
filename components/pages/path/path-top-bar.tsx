@@ -83,7 +83,7 @@ export function PathTopBar({
     <Button
       variant="outline"
       size="sm"
-      className="h-8 px-2.5 text-xs gap-1.5 min-w-0 max-w-[420px]"
+      className="h-8 px-2.5 text-xs gap-1.5 min-w-0 max-w-[55vw] sm:max-w-[420px]"
       onClick={onOpenOutline}
       title="Open outline"
     >

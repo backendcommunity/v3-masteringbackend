@@ -142,6 +142,10 @@ export function ProjectPlaygroundPage({
   const [deleteFile, setDeleteFile] = useState<FileNode | null>();
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
+  // Mobile (≤900px): one full-width pane at a time, switched by the bottom bar.
+  const [mobilePane, setMobilePane] = useState<"rail" | "editor" | "right">(
+    "editor",
+  );
   const [activeTab, setActiveTab] = useState("tasks");
   const [railTab, setRailTab] = useState<"tasks" | "explorer" | "kap">("tasks");
   const [rightTab, setRightTab] = useState<"preview" | "tests">("preview");
@@ -1700,7 +1704,7 @@ export function ProjectPlaygroundPage({
       )}
 
       {/* ── WORKSPACE ── */}
-      <div className="ws">
+      <div className="ws" data-mp={mobilePane}>
         {/* LEFT RAIL */}
         <div className="rail col border-r border-border" ref={railRef} style={{ boxShadow: "inset -1px 0 0 var(--line)" }}>
           <div
@@ -2485,6 +2489,40 @@ export function ProjectPlaygroundPage({
         </div>
       </div>
 
+      {/* Mobile pane switcher — shows one full-width pane at a time (≤900px) */}
+      <div className="mtabs" role="tablist" aria-label="Workspace panes">
+        <button
+          role="tab"
+          aria-selected={mobilePane === "rail"}
+          data-on={mobilePane === "rail"}
+          onClick={() => setMobilePane("rail")}
+        >
+          {I.files}
+          <span>Panel</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={mobilePane === "editor"}
+          data-on={mobilePane === "editor"}
+          onClick={() => setMobilePane("editor")}
+        >
+          {I.fileIco}
+          <span>Editor</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={mobilePane === "right"}
+          data-on={mobilePane === "right"}
+          onClick={() => {
+            setIsRightPanelVisible(true);
+            setMobilePane("right");
+          }}
+        >
+          {I.preview}
+          <span>Preview</span>
+        </button>
+      </div>
+
 
       <Dialog
         open={markAsCompleted}
@@ -2900,6 +2938,79 @@ export function ProjectPlaygroundPage({
         }
         .pg-root .resizer.row::after {
           inset: 2px 0;
+        }
+
+        /* ── mobile: one pane at a time + bottom switcher (≤900px) ── */
+        .pg-root .mtabs {
+          display: none;
+        }
+        @media (max-width: 900px) {
+          .pg-root .ws {
+            display: block;
+            position: relative;
+          }
+          .pg-root .resizer {
+            display: none !important;
+          }
+          .pg-root .rail,
+          .pg-root .center,
+          .pg-root .right {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+            box-shadow: none !important;
+          }
+          .pg-root .ws .rail,
+          .pg-root .ws .center,
+          .pg-root .ws .right {
+            display: none;
+          }
+          .pg-root .ws[data-mp="rail"] .rail {
+            display: flex;
+          }
+          .pg-root .ws[data-mp="editor"] .center {
+            display: flex;
+          }
+          .pg-root .ws[data-mp="right"] .right {
+            display: flex;
+          }
+          .pg-root .mtabs {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 4px;
+            padding: 6px;
+            border-top: 1px solid var(--line);
+            background: var(--panel-2);
+          }
+          .pg-root .mtabs button {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            height: 46px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+          .pg-root .mtabs button :global(svg.i) {
+            width: 18px;
+            height: 18px;
+          }
+          .pg-root .mtabs button[data-on="true"] {
+            background: rgba(19, 174, 206, 0.12);
+            color: var(--cyan);
+          }
         }
 
         /* ── left rail ── */

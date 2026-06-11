@@ -76,10 +76,11 @@ export const PROSE = [
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:font-mono [&_pre_code]:text-slate-200",
   // blockquote → callout
   "[&_blockquote]:my-5 [&_blockquote]:rounded-r-lg [&_blockquote]:border-l-[3px] [&_blockquote]:border-primary [&_blockquote]:bg-primary/[0.06] [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-foreground/80 [&_blockquote_p]:my-1",
-  // media + rules + tables
-  "[&_img]:my-6 [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-[0_8px_30px_-16px_rgba(0,0,0,0.4)]",
+  // media + rules + tables — keep wide media inside the column on mobile
+  "[&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-[0_8px_30px_-16px_rgba(0,0,0,0.4)]",
+  "[&_iframe]:my-6 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:max-w-full [&_iframe]:rounded-xl [&_iframe]:border [&_iframe]:border-border",
   "[&_hr]:my-9 [&_hr]:border-border",
-  "[&_table]:my-5 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm",
+  "[&_table]:my-5 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-sm",
   "[&_th]:border [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold",
   "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2",
 ].join(" ");
