@@ -71,7 +71,9 @@ export function PathMockInterview({
         const interview = res?.interview;
         if (!interview?.id) throw new Error("no interview");
         setUserInterviewId(interview.id);
-        setFormat(interview.template?.format ?? null);
+        // Modality comes from the path-link type (step.interviewFormat); fall
+        // back to the template format only for legacy links without a type.
+        setFormat(step.interviewFormat ?? interview.template?.format ?? null);
         setTemplate((interview.template ?? null) as ChatInterviewTemplate | null);
         setCompletedSessionId(interview.completedSessionId ?? null);
         // Returning to an already-finished interview → show its results.

@@ -23,6 +23,9 @@ export interface PathSessionStep {
   url?: string | null;
   maxPoints: number;
   optional: boolean;
+  // MOCK_INTERVIEW only: per-link modality (chat | audio | video) chosen when the
+  // interview was assigned to the topic. Drives which interview UI runs.
+  interviewFormat?: string | null;
   status: PathStepStatus;
   recommended: boolean;
   earnedPoints: number;
