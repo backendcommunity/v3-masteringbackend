@@ -10,7 +10,7 @@ import { Loader } from "@/components/ui/loader";
 import { ChatInterviewRoom } from "@/components/pages/mock-interviews/chat/chat-interview-room";
 import { ChatInterviewWelcome } from "@/components/pages/mock-interviews/chat/chat-interview-welcome";
 import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session";
-import { ChatInterviewReplayRoom } from "@/components/pages/mock-interviews/chat/chat-interview-replay-room";
+import { AvResults } from "@/components/pages/mock-interviews/av-results";
 
 // Modality comes from the template's `format` — the learner doesn't choose it.
 // Everything (room + results) happens inside the path step; advancing only
@@ -168,14 +168,15 @@ export function PathMockInterview({
   const isVideo = (format ?? "").toLowerCase().includes("video");
   const ModeIcon = isVideo ? Video : Mic;
 
-  // Finished → show the results replay in-path (or a fallback card), + Continue.
+  // Finished → show the results (same ResultCard as chat) in-path, + Continue.
+  // AvResults has no header of its own, so there's no extra top nav.
   if (finished) {
     const resultsSessionId = avSessionId ?? completedSessionId;
     if (resultsSessionId) {
       return (
         <div className="flex h-full w-full flex-col">
           <div className="min-h-0 flex-1">
-            <ChatInterviewReplayRoom sessionId={resultsSessionId} embedded />
+            <AvResults sessionId={resultsSessionId} embedded />
           </div>
           <ContinueBar onClick={advance} />
         </div>
