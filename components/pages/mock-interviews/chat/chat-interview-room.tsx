@@ -17,7 +17,7 @@ import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import { Loader2, Code2, PenTool } from "lucide-react";
+import { Loader2, Code2, PenTool, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
@@ -75,8 +75,28 @@ export function ChatInterviewRoom({
   } | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [isStartingSession, setIsStartingSession] = useState(false);
+  // Tracks viewport ≥1024px so the work tools (code/whiteboard) are rendered as
+  // a side panel on desktop and as a full-screen overlay (opened via FAB) on
+  // mobile/tablet — never both at once (avoids two Monaco instances).
+  const [lgUp, setLgUp] = useState(true);
+  const [showWorkTools, setShowWorkTools] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLgUp(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Crossing into desktop closes the mobile overlay so the panel never mounts
+  // in two places simultaneously.
+  useEffect(() => {
+    if (lgUp) setShowWorkTools(false);
+  }, [lgUp]);
 
   const sessionIdRef = useRef<string | null>(null);
   const sessionRef = useRef<ChatInterviewSession | null>(null);
@@ -638,6 +658,79 @@ export function ChatInterviewRoom({
       ? session.whiteboardArtifact
       : undefined;
 
+  // Tab switcher for the work tools (Code Editor / Whiteboard). Shared by the
+  // desktop side panel and the mobile overlay so they stay in sync.
+  const workToolsTabs = (
+    <>
+      <button
+        onClick={() => {
+          setActivePanel("code");
+          analytics.track("chat_interview_panel_switched", {
+            panel: "code",
+            template_id: session.template?.id,
+          });
+        }}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+          activePanel === "code"
+            ? "bg-background text-foreground shadow-sm border border-border"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+        )}
+      >
+        <Code2 className="w-3.5 h-3.5" />
+        Code Editor
+      </button>
+      <button
+        onClick={() => {
+          setActivePanel("whiteboard");
+          analytics.track("chat_interview_panel_switched", {
+            panel: "whiteboard",
+            template_id: session.template?.id,
+          });
+        }}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+          activePanel === "whiteboard"
+            ? "bg-background text-foreground shadow-sm border border-border"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+        )}
+      >
+        <PenTool className="w-3.5 h-3.5" />
+        Whiteboard
+      </button>
+    </>
+  );
+
+  // The active work-tool panel itself. Mounted in EXACTLY ONE place at a time
+  // (desktop side panel OR mobile overlay) so we never have two Monaco editors.
+  const activeWorkPanel =
+    activePanel === "code" ? (
+      <CodeEditorPanel
+        key={messages.filter((m) => m.role === "user").length}
+        onSendToKap={handleCodeSend}
+        disabled={isComplete}
+        savedCode={session.codeArtifact}
+        savedLanguage={session.codeLanguage}
+      />
+    ) : (
+      <WhiteboardPanel
+        onSendToKap={handleWhiteboardSend}
+        disabled={isComplete}
+        savedDiagram={savedDiagram}
+      />
+    );
+
+  // Full body of the work tools (tabs + active panel) — reused on desktop and
+  // inside the mobile overlay.
+  const rightPanelBody = (
+    <>
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+        {workToolsTabs}
+      </div>
+      <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+    </>
+  );
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header — hidden in the Path embed (top bar owns timer + End). */}
@@ -654,17 +747,56 @@ export function ChatInterviewRoom({
       )}
 
       {/* Main content */}
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="flex-1 min-h-0 overflow-hidden"
-      >
-        {/* Chat panel */}
-        <ResizablePanel
-          defaultSize="55"
-          minSize="25"
-          maxSize="75"
-          className="flex flex-col min-h-0"
+      {lgUp ? (
+        // Desktop: chat + resizable work-tools side panel.
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
         >
+          {/* Chat panel */}
+          <ResizablePanel
+            defaultSize="55"
+            minSize="25"
+            maxSize="75"
+            className="flex flex-col min-h-0"
+          >
+            <ChatPanel
+              messages={messages}
+              session={session}
+              isComplete={isComplete}
+              isStreaming={isStreaming}
+              onSend={handleSend}
+              resultsData={resultsData}
+              isLoadingResults={isLoadingResults}
+              resultsProgress={resultsProgress}
+              resultsError={resultsError}
+              onGetResults={handleGetResults}
+              questionAnalysis={questionAnalysis}
+              resultsRevealed={resultsRevealed}
+              insufficientAnswers={insufficientAnswers}
+              userName={userName}
+              userAvatar={userAvatar}
+              onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
+              onRestart={handleRestart}
+              isRestartLoading={isCheckingAccess}
+            />
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Right panels */}
+          <ResizablePanel
+            defaultSize="45"
+            minSize="25"
+            maxSize="75"
+            className="flex flex-col min-h-0"
+          >
+            {rightPanelBody}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        // Mobile/tablet: chat fills the screen; work tools open in an overlay.
+        <div className="flex-1 min-h-0 flex flex-col">
           <ChatPanel
             messages={messages}
             session={session}
@@ -685,66 +817,38 @@ export function ChatInterviewRoom({
             onRestart={handleRestart}
             isRestartLoading={isCheckingAccess}
           />
-        </ResizablePanel>
+        </div>
+      )}
 
-        {/* Resize handle (desktop only) */}
-        <ResizableHandle withHandle className="hidden lg:flex" />
-
-        {/* Right panels (desktop only) */}
-        <ResizablePanel
-          defaultSize="45"
-          minSize="25"
-          maxSize="75"
-          className="hidden lg:flex flex-col min-h-0"
+      {/* Mobile FAB — opens the code editor / whiteboard work tools. */}
+      {!lgUp && !showWorkTools && (
+        <button
+          type="button"
+          onClick={() => setShowWorkTools(true)}
+          aria-label="Open code editor and whiteboard"
+          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-white shadow-lg shadow-[#13AECE]/30 transition-transform active:scale-95"
         >
-          {/* Tab switcher */}
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            <button
-              onClick={() => { setActivePanel("code"); analytics.track("chat_interview_panel_switched", { panel: "code", template_id: session.template?.id }); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                activePanel === "code"
-                  ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              Code Editor
-            </button>
-            <button
-              onClick={() => { setActivePanel("whiteboard"); analytics.track("chat_interview_panel_switched", { panel: "whiteboard", template_id: session.template?.id }); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                activePanel === "whiteboard"
-                  ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              Whiteboard
-            </button>
-          </div>
+          <Code2 className="h-6 w-6" />
+        </button>
+      )}
 
-          {/* Active panel */}
-          <div className="flex-1 min-h-0">
-            {activePanel === "code" ? (
-              <CodeEditorPanel
-                key={messages.filter((m) => m.role === "user").length}
-                onSendToKap={handleCodeSend}
-                disabled={isComplete}
-                savedCode={session.codeArtifact}
-                savedLanguage={session.codeLanguage}
-              />
-            ) : (
-              <WhiteboardPanel
-                onSendToKap={handleWhiteboardSend}
-                disabled={isComplete}
-                savedDiagram={savedDiagram}
-              />
-            )}
+      {/* Mobile work-tools overlay — full screen, single panel instance. */}
+      {!lgUp && showWorkTools && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-background">
+          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+            {workToolsTabs}
+            <button
+              type="button"
+              onClick={() => setShowWorkTools(false)}
+              aria-label="Close work tools"
+              className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+        </div>
+      )}
 
       <InterviewCompletionDialog
         open={showCompletionDialog}
