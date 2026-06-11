@@ -129,8 +129,32 @@ export function PathTopBar({
             );
           })}
         </nav>
-        {/* Mobile: course outline sits inline next to the logo */}
-        <div className="md:hidden min-w-0">{outlineButton}</div>
+        {/* Mobile: prev / outline / next sit inline next to the logo */}
+        <div className="flex md:hidden min-w-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={onPrev}
+            disabled={!hasPrev}
+            title="Previous"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Previous</span>
+          </Button>
+          {outlineButton}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={onNext}
+            disabled={!hasNext}
+            title="Next"
+          >
+            <ArrowRight className="h-4 w-4" />
+            <span className="sr-only">Next</span>
+          </Button>
+        </div>
       </div>
 
       {/* Center: step-title pagination (desktop only) */}

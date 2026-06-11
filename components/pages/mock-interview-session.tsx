@@ -8,6 +8,7 @@ import {
   RoomAudioRenderer,
   useConnectionState,
   useTracks,
+  useParticipants,
   useLocalParticipant,
   useRoomContext,
   VideoTrack,
@@ -212,6 +213,9 @@ function VoiceAssistantStage() {
 // INTERVIEW STAGE - Main Video/Audio Stage
 // =============================================================================
 function InterviewStage({ className }: { className?: string }) {
+  // Subscribe to the participant list so the stage re-renders when the AI agent
+  // joins/leaves the room (and its camera track becomes available below).
+  const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
@@ -227,6 +231,11 @@ function InterviewStage({ className }: { className?: string }) {
     (t) =>
       t.participant.identity === localParticipant?.identity &&
       t.source === Track.Source.Camera,
+  );
+
+  // The remote participant (AI agent) — present once it has joined the room.
+  const remoteParticipant = participants.find(
+    (p) => p.identity !== localParticipant?.identity,
   );
 
   // Find remote tracks
