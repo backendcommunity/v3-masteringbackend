@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -29,6 +30,21 @@ export function PathOutlineDrawer({
   onSelectStep: (id: string) => void;
 }) {
   const unlocked = !!certEligible;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // When the outline opens, bring the current step into view (its course
+  // accordion is already expanded by default).
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const el = scrollRef.current?.querySelector<HTMLElement>(
+        '[data-path-active="true"]',
+      );
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 280); // wait out the sheet slide-in + accordion expand
+    return () => clearTimeout(t);
+  }, [open, currentStepId]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -40,7 +56,7 @@ export function PathOutlineDrawer({
             Path Outline
           </SheetTitle>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
           <PathOutline
             session={session}
             currentStepId={currentStepId}

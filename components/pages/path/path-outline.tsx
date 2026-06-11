@@ -159,6 +159,7 @@ export function PathOutline({
                               <button
                                 key={s.id}
                                 type="button"
+                                data-path-active={active ? "true" : undefined}
                                 onClick={() => onSelectStep(s.id)}
                                 className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
                                   active
@@ -204,6 +205,7 @@ export function PathOutline({
               />
               <button
                 type="button"
+                data-path-active={active ? "true" : undefined}
                 onClick={() => onSelectStep(s.id)}
                 className={`flex-1 overflow-hidden rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:bg-muted/30 ${
                   active ? "ring-1 ring-primary" : ""
