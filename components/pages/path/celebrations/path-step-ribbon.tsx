@@ -54,10 +54,11 @@ export function PathStepRibbon({ nextTitle, onDone }: PathStepRibbonProps) {
     confetti({
       particleCount: 40,
       spread: 55,
-      startVelocity: 28,
+      startVelocity: 32,
+      angle: 135,
       gravity: 0.9,
       ticks: 90,
-      origin: { y: 0.1 },
+      origin: { x: 0.95, y: 0.95 },
       colors: ["#13AECE", "#2BB8D8", "#F2C94C"],
       disableForReducedMotion: true,
     });
@@ -78,18 +79,18 @@ export function PathStepRibbon({ nextTitle, onDone }: PathStepRibbonProps) {
 
   return (
     <div
-      // Container spans top-center but never blocks the page — only the
-      // dismiss button below re-enables pointer events.
-      className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2"
+      // Bottom-right corner; never blocks the page — only the dismiss button
+      // below re-enables pointer events.
+      className="pointer-events-none fixed bottom-6 right-6 z-[60]"
       role="status"
       aria-live="polite"
     >
       <div
         className={cn(
           "flex items-center gap-2.5 rounded-full border border-border bg-card/95 py-2 pl-3 pr-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80",
-          "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-4 motion-safe:duration-300",
+          "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:slide-in-from-right-4 motion-safe:duration-300",
           exiting &&
-            "motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-top-2 motion-safe:duration-200"
+            "motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-200"
         )}
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">

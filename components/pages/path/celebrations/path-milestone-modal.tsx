@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Flag, Rocket, Trophy } from "lucide-react";
+import { CheckCircle2, Flag, Rocket, Trophy, X } from "lucide-react";
+import { CelebrationToast, useCelebrationDismiss } from "./celebration-toast";
 
 type MilestoneEvent =
   | { kind: "percent"; bracket: 25 | 50 | 75 | 100 }
@@ -45,127 +44,108 @@ function prefersReducedMotion() {
 
 export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
   const firedRef = useRef(false);
+  const dismiss = useCelebrationDismiss(onDone, 5000);
 
-  // Silent confetti burst on open, honoring reduced-motion.
+  // Silent confetti burst from the bottom-right corner, honoring reduced-motion.
   useEffect(() => {
     if (firedRef.current) return;
     firedRef.current = true;
-
     if (prefersReducedMotion()) return;
 
-    const colors = ["#13AECE", "#2BB8D8", "#F2C94C"];
-    const burst = (originX: number, angle: number) =>
-      confetti({
-        particleCount: 60,
-        spread: 70,
-        startVelocity: 45,
-        ticks: 120,
-        angle,
-        origin: { x: originX, y: 0.6 },
-        colors,
-        disableForReducedMotion: true,
-        zIndex: 100,
-      });
-
-    burst(0.3, 60);
-    burst(0.7, 120);
-    const followUp = window.setTimeout(() => {
-      confetti({
-        particleCount: 50,
-        spread: 100,
-        startVelocity: 35,
-        ticks: 120,
-        origin: { x: 0.5, y: 0.4 },
-        colors,
-        disableForReducedMotion: true,
-        zIndex: 100,
-      });
-    }, 180);
-
-    return () => window.clearTimeout(followUp);
+    confetti({
+      particleCount: 55,
+      spread: 70,
+      startVelocity: 42,
+      ticks: 120,
+      angle: 135,
+      origin: { x: 0.95, y: 0.95 },
+      colors: ["#13AECE", "#2BB8D8", "#F2C94C"],
+      disableForReducedMotion: true,
+      zIndex: 100,
+    });
   }, []);
 
   const { Icon, headline, subtext, eyebrow } = useMemo(() => {
     if (event.kind === "percent") {
       const copy = BRACKET_COPY[event.bracket];
       const PercentIcon =
-        event.bracket === 100
-          ? Trophy
-          : event.bracket === 25
-          ? Rocket
-          : Flag;
+        event.bracket === 100 ? Trophy : event.bracket === 25 ? Rocket : Flag;
       return {
         Icon: PercentIcon,
         headline: copy.headline,
         subtext: copy.subtext,
-        eyebrow: `${event.bracket}%`,
+        eyebrow: `${event.bracket}% complete`,
       };
     }
     return {
       Icon: Trophy,
       headline: `${event.title} complete`,
       subtext: "Topic mastered. Keep the streak alive and tackle the next one.",
-      eyebrow: null as string | null,
+      eyebrow: "Topic complete" as string | null,
     };
   }, [event]);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onDone()}>
-      <DialogContent
-        className={cn(
-          "max-w-sm gap-0 overflow-hidden rounded-2xl border-border bg-card p-0",
-          "text-center"
-        )}
-      >
-        {/* Brand accent header band */}
-        <div className="relative bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-6 pb-6 pt-8">
-          <div
-            className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/30 backdrop-blur-sm"
-            aria-hidden="true"
-          >
-            <Icon className="h-8 w-8 text-white" strokeWidth={2.25} />
-          </div>
-
+    <CelebrationToast>
+      {/* Brand accent header band */}
+      <div className="relative flex items-center gap-3 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-4 py-3">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 ring-2 ring-white/30"
+          aria-hidden="true"
+        >
+          <Icon className="h-5 w-5 text-white" strokeWidth={2.25} />
+        </span>
+        <div className="min-w-0">
+          {eyebrow && (
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/80">
+              {eyebrow}
+            </p>
+          )}
           {event.kind === "percent" && (
-            <div className="mt-4 flex items-baseline justify-center gap-0.5">
-              <span className="text-5xl font-extrabold leading-none tracking-tight text-white">
+            <p className="flex items-baseline gap-0.5 leading-none">
+              <span className="text-2xl font-extrabold tracking-tight text-white">
                 {event.bracket}
               </span>
-              <span className="text-2xl font-bold text-[#F2C94C]">%</span>
-            </div>
+              <span className="text-base font-bold text-[#F2C94C]">%</span>
+            </p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss"
+          className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
-        <div className="px-6 pb-6 pt-5">
-          <h2
-            id="path-milestone-title"
-            className="text-xl font-bold tracking-tight text-foreground"
-          >
-            {headline}
-          </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-            {subtext}
-          </p>
+      <div className="px-4 pb-4 pt-3">
+        <h2 className="text-base font-bold tracking-tight text-foreground">
+          {headline}
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {subtext}
+        </p>
 
-          {event.kind === "topicCompleted" && (
-            <div className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#F2C94C]/15 px-3 py-1 text-xs font-medium text-[#946C00] dark:text-[#F2C94C]">
-              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Topic completed
-            </div>
+        {event.kind === "topicCompleted" && (
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#F2C94C]/15 px-2.5 py-1 text-xs font-medium text-[#946C00] dark:text-[#F2C94C]">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Topic completed
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={dismiss}
+          className={cn(
+            "mt-4 h-9 w-full rounded-lg border-0 text-sm font-semibold text-white",
+            "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8] transition-opacity hover:opacity-90"
           )}
-
-          <Button
-            onClick={onDone}
-            className={cn(
-              "mt-6 h-11 w-full rounded-xl border-0 text-base font-semibold text-white",
-              "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8]",
-              "transition-opacity hover:opacity-90"
-            )}
-          >
-            Keep going
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        >
+          Keep going
+        </button>
+      </div>
+    </CelebrationToast>
   );
 }
