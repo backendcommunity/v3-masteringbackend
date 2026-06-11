@@ -1,15 +1,25 @@
 import axios from "axios";
+import { registerActivitySource } from "@/lib/activity";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3",
   withCredentials: true,
 });
 
+// An in-flight request is a short-lived activity SOURCE, not a clock reset.
+// Holding a source keeps the user "active" only while a request is pending, so a
+// genuine long-running operation prevents idle — but routine background polling
+// (e.g. the notification bell every 10s) releases in ~50ms and does NOT keep the
+// session alive forever. Using markActivity() here would defeat idle detection
+// entirely for any tab with background polling.
 api.interceptors.request.use((config) => {
-  // lazy import avoids any load-order coupling
-  import("@/lib/activity").then((m) => m.markActivity()).catch(() => {});
+  (config as { __activityRelease?: () => void }).__activityRelease =
+    registerActivitySource();
   return config;
 });
+const releaseActivity = (config: unknown) => {
+  (config as { __activityRelease?: () => void } | undefined)?.__activityRelease?.();
+};
 
 let isRefreshing = false;
 let isHandlingAuthFailure = false;
@@ -58,9 +68,13 @@ export const handleAuthFailure = async () => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    releaseActivity(response.config);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    releaseActivity(originalRequest);
 
     const is401 = error?.response?.status === 401;
     const isRefreshEndpoint = originalRequest?.url?.includes("/auth/refresh");
