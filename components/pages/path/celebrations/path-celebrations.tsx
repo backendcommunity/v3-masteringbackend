@@ -71,15 +71,26 @@ export function PathCelebrations({
 
   if (queue.length === 0 || current === null) return null;
 
+  // `key={index}` forces a fresh instance per queued pop. Without it React
+  // reuses the same component across same-type events (e.g. percent → topic),
+  // carrying over the dismissed-latch + spent timer so the next pop can't close.
   switch (current.kind) {
     case "stepUnlocked":
-      return <PathStepRibbon nextTitle={current.nextTitle} onDone={advance} />;
+      return (
+        <PathStepRibbon
+          key={index}
+          nextTitle={current.nextTitle}
+          onDone={advance}
+        />
+      );
     case "percent":
     case "topicCompleted":
-      return <PathMilestoneModal event={current} onDone={advance} />;
+      return <PathMilestoneModal key={index} event={current} onDone={advance} />;
     case "achievement":
     case "levelUp":
-      return <PathAchievementModal event={current} onDone={advance} />;
+      return (
+        <PathAchievementModal key={index} event={current} onDone={advance} />
+      );
     case "certUnlocked":
       // Terminal: handled by the effect above; render nothing and stop.
       return null;
