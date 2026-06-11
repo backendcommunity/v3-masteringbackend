@@ -220,20 +220,25 @@ export function PathWorkspace({
   if (loading && !session) return <Loader />;
   if (!session) return null;
 
+  // Stable callbacks so PathCelebrations' terminal effect doesn't re-run on
+  // every workspace render (the queue identity drives its lifecycle instead).
+  const onCertUnlocked = useCallback(() => {
+    setShowCertificate(true);
+    setCelebrationQueue([]);
+  }, []);
+  const onAllDone = useCallback(() => {
+    setCelebrationQueue([]);
+    if (pendingNextId) setCurrentStepId(pendingNextId);
+    else setShowCertificate(true);
+  }, [pendingNextId]);
+
   // Always mounted: renders nothing when the queue is empty. When a step
   // completes, plays the queued celebrations and THEN advances sequentially.
   const celebrations = (
     <PathCelebrations
       queue={celebrationQueue}
-      onCertUnlocked={() => {
-        setShowCertificate(true);
-        setCelebrationQueue([]);
-      }}
-      onAllDone={() => {
-        setCelebrationQueue([]);
-        if (pendingNextId) setCurrentStepId(pendingNextId);
-        else setShowCertificate(true);
-      }}
+      onCertUnlocked={onCertUnlocked}
+      onAllDone={onAllDone}
     />
   );
 
