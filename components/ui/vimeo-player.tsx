@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Player from "@vimeo/player";
 import { Video } from "@/lib/data";
-import { registerActivitySource, markActivity } from "@/lib/activity";
+import { registerActivitySource } from "@/lib/activity";
 
 interface VimeoPlayerProps {
   video: Partial<Video>;
@@ -94,7 +94,6 @@ const VimeoPlayer = ({
         });
 
         player.on("timeupdate", (data) => {
-          markActivity();
           onTimeUpdate?.(data.seconds);
           if (data.percent >= 0.9 && !completedRef.current) {
             completedRef.current = true;
