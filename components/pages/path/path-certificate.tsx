@@ -11,10 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader } from "@/components/ui/loader";
 import { useAppStore } from "@/lib/store";
-import type {
-  PathCertificate as PathCertificateData,
-  PathStepType,
-} from "@/lib/path-types";
+import type { PathCertificate as PathCertificateData } from "@/lib/path-types";
 import { cn } from "@/lib/utils";
 import {
   Award,
@@ -22,6 +19,7 @@ import {
   CheckCircle2,
   Copy,
   Check,
+  Crown,
   Download,
   GraduationCap,
   Linkedin,
@@ -38,17 +36,8 @@ import {
 const BRAND = "#13AECE";
 const BRAND_2 = "#2BB8D8";
 const GOLD = "#F2C94C";
-
-const STEP_TYPE_LABELS: Record<PathStepType, string> = {
-  VIDEO: "Video",
-  ARTICLE: "Article",
-  QUIZ: "Quiz",
-  EXERCISE: "Exercise",
-  PROJECT: "Project",
-  MOCK_INTERVIEW: "Mock Interview",
-  BOOTCAMP: "Bootcamp",
-  RESOURCE: "Resource",
-};
+const LOUNGE_BG =
+  "linear-gradient(135deg, #0B1626 0%, #0E1F33 55%, #102A3D 100%)";
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -450,6 +439,12 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
             {copiedResume ? "Copied!" : "Add to Resume"}
           </Button>
         </div>
+
+        {/* Alumni Lounge — accepted */}
+        <AlumniLoungeCard
+          unlocked
+          firstName={data.recipientName.split(" ")[0]}
+        />
       </div>
     );
   }
@@ -525,45 +520,142 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
         </CardContent>
       </Card>
 
-      {/* What's left */}
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
-            What&apos;s left
-          </h2>
-          {data.remaining.length > 0 ? (
-            <ul className="space-y-2">
-              {data.remaining.map((item, index) => (
-                <li
-                  key={`${item.type}-${item.title}-${index}`}
-                  className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2.5"
-                >
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 text-[10px] font-medium uppercase tracking-wide"
-                  >
-                    {STEP_TYPE_LABELS[item.type] ?? item.type}
-                  </Badge>
-                  <span className="truncate text-sm text-foreground">
-                    {item.title}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <Trophy className="h-8 w-8 text-primary" />
-              <p className="text-sm font-medium text-foreground">
-                You&apos;re almost there — keep going!
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Earn a few more points to unlock your certificate.
-              </p>
-            </div>
+      {/* Alumni Lounge — locked elite tier */}
+      <AlumniLoungeCard
+        certThreshold={data.certThreshold}
+        pct={pct}
+        pointsToGo={data.pointsToGo}
+      />
+    </div>
+  );
+}
+
+// The highest stage of the path: an exclusive Alumni Lounge, gated behind the
+// same mastery cut-off as the certificate. Rendered locked (aspirational) until
+// the threshold is reached, then as an acceptance into the circle.
+function AlumniLoungeCard({
+  unlocked = false,
+  firstName,
+  certThreshold,
+  pct = 100,
+  pointsToGo = 0,
+}: {
+  unlocked?: boolean;
+  firstName?: string;
+  certThreshold?: number;
+  pct?: number;
+  pointsToGo?: number;
+}) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border p-6 sm:p-8"
+      style={{
+        background: LOUNGE_BG,
+        borderColor: unlocked ? GOLD : "rgba(242,201,76,0.22)",
+        boxShadow: unlocked
+          ? `0 0 0 1px rgba(242,201,76,0.25), 0 20px 60px -30px ${GOLD}`
+          : "0 16px 50px -30px rgba(0,0,0,0.7)",
+      }}
+    >
+      {/* Decorative gold glow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full blur-3xl"
+        style={{ background: `radial-gradient(closest-side, ${GOLD}, transparent)`, opacity: unlocked ? 0.28 : 0.12 }}
+      />
+
+      <div className="relative flex flex-col items-center gap-4 text-center">
+        {/* Crest */}
+        <div className="relative">
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-2xl ring-1"
+            style={{
+              background: unlocked
+                ? `linear-gradient(135deg, ${GOLD} 0%, #d9a93b 100%)`
+                : "rgba(255,255,255,0.06)",
+              // @ts-expect-error -- ring color via custom prop
+              "--tw-ring-color": "rgba(242,201,76,0.35)",
+            }}
+          >
+            <Crown
+              className="h-8 w-8"
+              style={{ color: unlocked ? "#1a1305" : GOLD }}
+              strokeWidth={2}
+            />
+          </div>
+          {!unlocked && (
+            <span className="absolute -bottom-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1626] ring-1 ring-[rgba(242,201,76,0.3)]">
+              <Lock className="h-3.5 w-3.5" style={{ color: GOLD }} />
+            </span>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Eyebrow */}
+        <span
+          className="text-[11px] font-bold uppercase tracking-[0.28em]"
+          style={{ color: GOLD }}
+        >
+          Highest tier
+        </span>
+
+        <div className="space-y-1.5">
+          <h2 className="text-2xl font-extrabold tracking-tight text-white">
+            Alumni Lounge
+          </h2>
+          {unlocked ? (
+            <p className="mx-auto max-w-md text-sm leading-relaxed text-white/70">
+              {firstName ? `${firstName}, you've ` : "You've "}been accepted into
+              the Alumni Lounge — the final, most exclusive stage of this path.
+              Reserved for those who reach true mastery.
+            </p>
+          ) : (
+            <p className="mx-auto max-w-md text-sm leading-relaxed text-white/65">
+              An exclusive circle reserved for learners who fully master this
+              path. There&apos;s no shortcut in — only mastery earns a seat.
+            </p>
+          )}
+        </div>
+
+        {unlocked ? (
+          <>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#1a1305]"
+              style={{ background: `linear-gradient(135deg, ${GOLD} 0%, #d9a93b 100%)` }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Accepted
+            </span>
+            <div className="flex items-center gap-2 text-xs text-white/55">
+              <Star className="h-3.5 w-3.5" style={{ color: GOLD }} />
+              Your seat is reserved — alumni perks unlock here soon.
+            </div>
+          </>
+        ) : (
+          <div className="w-full max-w-sm space-y-2.5 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-white/70">
+                Acceptance at {certThreshold} pts
+              </span>
+              <span className="font-bold" style={{ color: GOLD }}>
+                {pct}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${pct}%`,
+                  background: `linear-gradient(90deg, ${GOLD}, #d9a93b)`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-white/60">
+              <span className="font-semibold text-white">{pointsToGo} points</span>{" "}
+              from your seat in the lounge.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
