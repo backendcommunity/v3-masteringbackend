@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Player from "@vimeo/player";
 import { Video } from "@/lib/data";
+import { registerActivitySource, markActivity } from "@/lib/activity";
 
 interface VimeoPlayerProps {
   video: Partial<Video>;
@@ -31,6 +32,7 @@ const VimeoPlayer = ({
   const playerRef = useRef<HTMLDivElement | null>(null);
   const completedRef = useRef(false);
   const playerInstanceRef = useRef<Player | null>(null);
+  const releaseActivityRef = useRef<(() => void) | null>(null);
   const [speed, setSpeed] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
     return parseFloat(localStorage.getItem(SPEED_KEY) ?? "1") || 1;
@@ -61,6 +63,9 @@ const VimeoPlayer = ({
       .ready()
       .then(() => {
         player.on("play", () => {
+          if (!releaseActivityRef.current) {
+            releaseActivityRef.current = registerActivitySource();
+          }
           console.log("[VimeoPlayer] embed play");
           onPlay?.();
         });
@@ -72,6 +77,8 @@ const VimeoPlayer = ({
         player.setPlaybackRate(speed).catch(() => {});
 
         player.on("ended", () => {
+          releaseActivityRef.current?.();
+          releaseActivityRef.current = null;
           console.log("[VimeoPlayer] embed ended");
           if (!completedRef.current) {
             completedRef.current = true;
@@ -81,10 +88,13 @@ const VimeoPlayer = ({
         });
 
         player.on("pause", () => {
+          releaseActivityRef.current?.();
+          releaseActivityRef.current = null;
           onPause?.();
         });
 
         player.on("timeupdate", (data) => {
+          markActivity();
           onTimeUpdate?.(data.seconds);
           if (data.percent >= 0.9 && !completedRef.current) {
             completedRef.current = true;
@@ -111,6 +121,8 @@ const VimeoPlayer = ({
     player.play().catch(() => {});
 
     return () => {
+      releaseActivityRef.current?.();
+      releaseActivityRef.current = null;
       playerInstanceRef.current = null;
       try {
         player.destroy();
