@@ -42,7 +42,7 @@ const LOUNGE_BG =
 // The Alumni Lounge is a private Discord channel. Override per-environment.
 const ALUMNI_LOUNGE_DISCORD_URL =
   process.env.NEXT_PUBLIC_ALUMNI_LOUNGE_DISCORD_URL ||
-  "https://discord.gg/masteringbackend";
+  "https://discord.gg/d9kBH3kvs";
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
