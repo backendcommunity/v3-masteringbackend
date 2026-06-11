@@ -86,9 +86,6 @@ export function PathWorkspace({
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationEvent[]>(
     [],
   );
-  // The strictly-sequential next step from the delta; consumed once the queue
-  // finishes playing (never recomputed from local order).
-  const [pendingNextId, setPendingNextId] = useState<string | null>(null);
   // Path-branded certificate landing takes over the stage when true.
   const [showCertificate, setShowCertificate] = useState(false);
 
@@ -151,19 +148,18 @@ export function PathWorkspace({
         setSession(fresh);
 
         const cel = delta.celebrations ?? [];
-        // Remember the strictly-sequential next step; advancing is deferred
-        // until the celebration queue has finished playing.
-        setPendingNextId(delta.cursor.nextStepId);
+        const certUnlocked = cel.some((c) => c.kind === "certUnlocked");
 
-        if (cel.length > 0) {
-          // PathCelebrations.onAllDone / onCertUnlocked drive the advance.
-          setCelebrationQueue(cel);
+        // Advance immediately to the next step in order. Celebrations are
+        // non-blocking bottom-right toasts, so they play over the new step
+        // rather than gating the advance.
+        if (certUnlocked || !delta.cursor.nextStepId) {
+          setShowCertificate(true);
         } else {
-          // Defensive: backend always emits at least `stepUnlocked`, but if the
-          // queue is empty advance (or open the cert landing) immediately.
-          if (delta.cursor.nextStepId) setCurrentStepId(delta.cursor.nextStepId);
-          else setShowCertificate(true);
+          setCurrentStepId(delta.cursor.nextStepId);
         }
+        // Cert routing is handled above; the rest play as corner toasts.
+        setCelebrationQueue(cel.filter((c) => c.kind !== "certUnlocked"));
       } catch {
         toast.error("Could not mark this step complete.");
       }
@@ -217,18 +213,16 @@ export function PathWorkspace({
   );
   // const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
 
-  // Stable callbacks so PathCelebrations' terminal effect doesn't re-run on
-  // every workspace render (the queue identity drives its lifecycle instead).
-  // NOTE: must stay above the early returns below — hooks run every render.
+  // The advance already happened in completeStep; these just tidy up the
+  // non-blocking corner toasts. Stable identities keep PathCelebrations'
+  // terminal effect from re-running on every render.
   const onCertUnlocked = useCallback(() => {
     setShowCertificate(true);
     setCelebrationQueue([]);
   }, []);
   const onAllDone = useCallback(() => {
     setCelebrationQueue([]);
-    if (pendingNextId) setCurrentStepId(pendingNextId);
-    else setShowCertificate(true);
-  }, [pendingNextId]);
+  }, []);
 
   if (loading && !session) return <Loader />;
   if (!session) return null;
