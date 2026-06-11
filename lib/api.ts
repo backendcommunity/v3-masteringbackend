@@ -5,6 +5,12 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  // lazy import avoids any load-order coupling
+  import("@/lib/activity").then((m) => m.markActivity()).catch(() => {});
+  return config;
+});
+
 let isRefreshing = false;
 let isHandlingAuthFailure = false;
 let failedQueue: Array<{
