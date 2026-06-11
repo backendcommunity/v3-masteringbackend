@@ -400,6 +400,9 @@ interface AppState {
 
   // Path (Learning Path) actions
   getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
+  getPathCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -1480,6 +1483,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   getPathSession: async (slug) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.get(`/paths/${resolvedSlug}/session`);
+    return data?.data;
+  },
+
+  getPathCertificate: async (slug: string) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/certificate`);
     return data?.data;
   },
 
