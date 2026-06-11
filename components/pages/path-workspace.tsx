@@ -17,6 +17,7 @@ import {
   PathSession,
   PathSessionStep,
   PathSessionDelta,
+  CelebrationEvent,
 } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
 import { StepStage } from "@/components/pages/path/step-stage";
@@ -28,6 +29,8 @@ import {
   SegmentStatus,
 } from "@/components/pages/path/path-action-bar";
 import { PathOutlineDrawer } from "@/components/pages/path/path-outline-drawer";
+import { PathCelebrations } from "@/components/pages/path/celebrations/path-celebrations";
+import { PathCertificate } from "@/components/pages/path/path-certificate";
 
 export interface PathWorkspaceProps {
   pathId: string;
@@ -79,6 +82,15 @@ export function PathWorkspace({
   const [outlineOpen, setOutlineOpen] = useState(false);
   // Overview/Transcript pane is collapsible — hidden lets the player go full.
   const [panelOpen, setPanelOpen] = useState(true);
+  // Celebration queue plays after a step completes, THEN advances sequentially.
+  const [celebrationQueue, setCelebrationQueue] = useState<CelebrationEvent[]>(
+    [],
+  );
+  // The strictly-sequential next step from the delta; consumed once the queue
+  // finishes playing (never recomputed from local order).
+  const [pendingNextId, setPendingNextId] = useState<string | null>(null);
+  // Path-branded certificate landing takes over the stage when true.
+  const [showCertificate, setShowCertificate] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -108,6 +120,8 @@ export function PathWorkspace({
 
   const selectStep = useCallback(
     (stepId: string) => {
+      // Selecting any normal step always exits the certificate landing.
+      setShowCertificate(false);
       setCurrentStepId(stepId);
       onNavigate(`/paths/${pathId}/learn/${encodeURIComponent(stepId)}`);
     },
@@ -135,10 +149,20 @@ export function PathWorkspace({
         applyDelta(delta);
         const fresh = await store.getPathSession(pathId);
         setSession(fresh);
-        const next = delta.cursor.nextStepId;
-        if (next) setCurrentStepId(next);
-        if (delta.path.certEligible) {
-          toast.success("You've unlocked your certificate!");
+
+        const cel = delta.celebrations ?? [];
+        // Remember the strictly-sequential next step; advancing is deferred
+        // until the celebration queue has finished playing.
+        setPendingNextId(delta.cursor.nextStepId);
+
+        if (cel.length > 0) {
+          // PathCelebrations.onAllDone / onCertUnlocked drive the advance.
+          setCelebrationQueue(cel);
+        } else {
+          // Defensive: backend always emits at least `stepUnlocked`, but if the
+          // queue is empty advance (or open the cert landing) immediately.
+          if (delta.cursor.nextStepId) setCurrentStepId(delta.cursor.nextStepId);
+          else setShowCertificate(true);
         }
       } catch {
         toast.error("Could not mark this step complete.");
@@ -196,6 +220,79 @@ export function PathWorkspace({
   if (loading && !session) return <Loader />;
   if (!session) return null;
 
+  // Always mounted: renders nothing when the queue is empty. When a step
+  // completes, plays the queued celebrations and THEN advances sequentially.
+  const celebrations = (
+    <PathCelebrations
+      queue={celebrationQueue}
+      onCertUnlocked={() => {
+        setShowCertificate(true);
+        setCelebrationQueue([]);
+      }}
+      onAllDone={() => {
+        setCelebrationQueue([]);
+        if (pendingNextId) setCurrentStepId(pendingNextId);
+        else setShowCertificate(true);
+      }}
+    />
+  );
+
+  const outlineDrawer = (
+    <PathOutlineDrawer
+      open={outlineOpen}
+      onOpenChange={setOutlineOpen}
+      session={session}
+      currentStepId={showCertificate ? undefined : currentStepId}
+      certEligible={session.path.certEligible}
+      onOpenCertificate={() => {
+        setShowCertificate(true);
+        setOutlineOpen(false);
+      }}
+      onSelectStep={(id) => {
+        selectStep(id);
+        setOutlineOpen(false);
+      }}
+    />
+  );
+
+  // Certificate landing takes over the stage, but KEEPS the PathTopBar + outline
+  // so the learner can navigate back to any step (selecting a step exits here).
+  if (showCertificate) {
+    return (
+      <div
+        className="flex h-screen w-full flex-col bg-background"
+        style={{
+          fontFamily: "Satoshi, system-ui, sans-serif",
+          fontSize: "14px",
+        }}
+      >
+        <PathTopBar
+          crumbs={[
+            { label: contextLabel, href: "/paths" },
+            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: "Certificate" },
+          ]}
+          position={idx >= 0 ? idx + 1 : 0}
+          total={ordered.length}
+          earnedPoints={session.path.earnedPoints}
+          masteryPct={session.path.masteryPct}
+          step={currentStep}
+          hasPrev={!!prev}
+          hasNext={!!next}
+          onPrev={() => prev && selectStep(prev.id)}
+          onNext={() => next && selectStep(next.id)}
+          onOpenOutline={() => setOutlineOpen(true)}
+          onNavigate={onNavigate}
+        />
+        <div className="flex-1 min-h-0 w-full overflow-y-auto">
+          <PathCertificate slug={pathId} pathTitle={session.path.title} />
+        </div>
+        {outlineDrawer}
+        {celebrations}
+      </div>
+    );
+  }
+
   // PROJECT steps take over the screen with the playground, but KEEP the course
   // outline / path nav up top (PathTopBar). No side panel, no bottom action bar.
   if (currentStep?.type === "PROJECT") {
@@ -236,16 +333,8 @@ export function PathWorkspace({
             onNavigate={onNavigate}
           />
         </div>
-        <PathOutlineDrawer
-          open={outlineOpen}
-          onOpenChange={setOutlineOpen}
-          session={session}
-          currentStepId={currentStepId}
-          onSelectStep={(id) => {
-            selectStep(id);
-            setOutlineOpen(false);
-          }}
-        />
+        {outlineDrawer}
+        {celebrations}
       </div>
     );
   }
@@ -356,16 +445,8 @@ export function PathWorkspace({
         </div>
       </div>
 
-      <PathOutlineDrawer
-        open={outlineOpen}
-        onOpenChange={setOutlineOpen}
-        session={session}
-        currentStepId={currentStepId}
-        onSelectStep={(id) => {
-          selectStep(id);
-          setOutlineOpen(false);
-        }}
-      />
+      {outlineDrawer}
+      {celebrations}
     </div>
   );
 }
