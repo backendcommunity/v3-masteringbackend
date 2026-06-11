@@ -6,8 +6,10 @@ import {
   useAppStore,
   ChatMessage,
   ChatInterviewSession,
+  ChatInterviewTemplate,
   ChatArtifactRef,
 } from "@/lib/store";
+import { ChatInterviewWelcome } from "./chat-interview-welcome";
 import { analytics } from "@/lib/analytics";
 import { ChatInterviewHeader, useCountdown } from "./chat-interview-header";
 import { useInterviewTimer } from "@/lib/interview-timer-store";
@@ -66,6 +68,13 @@ export function ChatInterviewRoom({
   >([]);
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const [showAccessDeniedDialog, setShowAccessDeniedDialog] = useState(false);
+  // Pre-join welcome screen — shown before the session (and clock) starts.
+  const [preview, setPreview] = useState<{
+    template: ChatInterviewTemplate;
+    sessionStatus: string | null;
+  } | null>(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isStartingSession, setIsStartingSession] = useState(false);
 
   const router = useRouter();
 
@@ -91,74 +100,101 @@ export function ChatInterviewRoom({
     }
   }, [isComplete, onComplete]);
 
-  // Initialize session on mount
-  useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      try {
-        const data = await store.startChatInterview(userInterviewId);
-        if (cancelled) return;
-        setSession(data);
-        setMessages(data.chatMessages ?? []);
-        const alreadyDone =
-          data.status === "COMPLETED" || data.status === "ENDED";
-        setIsComplete(alreadyDone);
-        sessionIdRef.current = data.sessionId;
-        analytics.track("chat_interview_session_started", {
-          template_id: data.template?.id,
-          position: data.template?.position,
-          company: data.template?.company,
-          difficulty: data.template?.difficulty,
-          duration: data.template?.duration,
-          category: data.template?.category,
-          session_id: data.sessionId,
-          is_resuming: alreadyDone,
-        });
+  // Start (or resume) the session. Called from the welcome screen CTA, or
+  // automatically when an already-completed session is reopened. This is the
+  // ONLY place the clock starts and an access slot is consumed.
+  const beginInterview = useCallback(async () => {
+    setIsStartingSession(true);
+    setInitError(null);
+    setInitErrorCode(null);
+    try {
+      const data = await store.startChatInterview(userInterviewId);
+      setSession(data);
+      setMessages(data.chatMessages ?? []);
+      const alreadyDone =
+        data.status === "COMPLETED" || data.status === "ENDED";
+      setIsComplete(alreadyDone);
+      sessionIdRef.current = data.sessionId;
+      setHasStarted(true);
+      analytics.track("chat_interview_session_started", {
+        template_id: data.template?.id,
+        position: data.template?.position,
+        company: data.template?.company,
+        difficulty: data.template?.difficulty,
+        duration: data.template?.duration,
+        category: data.template?.category,
+        session_id: data.sessionId,
+        is_resuming: alreadyDone,
+      });
 
-        if (alreadyDone) {
-          // Session was already complete before this mount — fetch stored report
-          // directly from DB/cache without triggering AI generation.
-          autoResultFiredRef.current = true; // prevent useEffect from also firing
-          try {
-            const report = await store.getChatSessionReport(data.sessionId);
-            if (cancelled) return;
-            if (report) {
-              setResultsData(report);
-              if (report.questionAnalysis?.length) {
-                setQuestionAnalysis(
-                  report.questionAnalysis.map((q: any) => ({
-                    score: q.score,
-                    feedback: q.feedback,
-                  })),
-                );
-                setResultsRevealed(true);
-              }
-            } else {
-              // Report not yet generated — let useEffect trigger generation
-              autoResultFiredRef.current = false;
+      if (alreadyDone) {
+        // Session was already complete before this mount — fetch stored report
+        // directly from DB/cache without triggering AI generation.
+        autoResultFiredRef.current = true; // prevent useEffect from also firing
+        try {
+          const report = await store.getChatSessionReport(data.sessionId);
+          if (report) {
+            setResultsData(report);
+            if (report.questionAnalysis?.length) {
+              setQuestionAnalysis(
+                report.questionAnalysis.map((q: any) => ({
+                  score: q.score,
+                  feedback: q.feedback,
+                })),
+              );
+              setResultsRevealed(true);
             }
-          } catch {
-            // Report doesn't exist yet — fall through to generation via useEffect
+          } else {
+            // Report not yet generated — let useEffect trigger generation
             autoResultFiredRef.current = false;
           }
+        } catch {
+          // Report doesn't exist yet — fall through to generation via useEffect
+          autoResultFiredRef.current = false;
         }
-      } catch (err: any) {
-        if (!cancelled) {
-          const code = err?.response?.data?.code ?? null;
-          setInitErrorCode(code);
-          setInitError(
-            err?.message ?? "Failed to start interview. Please try again.",
-          );
-          analytics.track("chat_interview_session_start_failed", {
-            error_code: code,
-            error_message: err?.message,
-          });
+      }
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? null;
+      setInitErrorCode(code);
+      setInitError(
+        err?.message ?? "Failed to start interview. Please try again.",
+      );
+      analytics.track("chat_interview_session_start_failed", {
+        error_code: code,
+        error_message: err?.message,
+      });
+    } finally {
+      setIsStartingSession(false);
+      setIsInitializing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, userInterviewId]);
+
+  // On mount, fetch a lightweight preview (template + session status) WITHOUT
+  // starting anything, so we can show the welcome screen first. An already
+  // completed/ended session skips the welcome and jumps straight to results.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPreview() {
+      try {
+        const data = await store.getChatInterviewPreview(userInterviewId);
+        if (cancelled) return;
+        setPreview(data);
+        if (
+          data?.sessionStatus === "COMPLETED" ||
+          data?.sessionStatus === "ENDED"
+        ) {
+          beginInterview(); // keeps the full-screen spinner, lands on results
+        } else {
+          setIsInitializing(false);
         }
-      } finally {
-        if (!cancelled) setIsInitializing(false);
+      } catch {
+        if (cancelled) return;
+        // Preview failed — fall back to legacy behavior (start immediately).
+        beginInterview();
       }
     }
-    init();
+    loadPreview();
     return () => {
       cancelled = true;
     };
@@ -538,8 +574,23 @@ export function ChatInterviewRoom({
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Starting interview…</p>
+          <p className="text-sm text-muted-foreground">Loading interview…</p>
         </div>
+      </div>
+    );
+  }
+
+  // Pre-join welcome screen — shown until the learner starts (or resumes).
+  if (!hasStarted && !initError && preview?.template) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <ChatInterviewWelcome
+          template={preview.template}
+          resuming={preview.sessionStatus === "IN_PROGRESS"}
+          starting={isStartingSession}
+          onStart={beginInterview}
+          onBack={embedded ? undefined : () => router.push("/mock-interviews")}
+        />
       </div>
     );
   }

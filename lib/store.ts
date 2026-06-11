@@ -367,6 +367,7 @@ interface AppState {
   search: (query: string) => Promise<SearchResults>;
 
   // Chat-based Mock Interview
+  getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
   startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
   streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
@@ -737,6 +738,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Chat-based Mock Interview implementations
+  getChatInterviewPreview: async (userInterviewId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/${userInterviewId}/preview`,
+    );
+    return data?.data;
+  },
+
   startChatInterview: async (userInterviewId: string, interviewType?: string) => {
     const { data } = await api.post(
       `/mock-interviews/chat/${userInterviewId}/start`,

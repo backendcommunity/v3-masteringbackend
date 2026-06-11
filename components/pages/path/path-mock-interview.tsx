@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Mic, Video, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, ChatInterviewTemplate } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
 import { ChatInterviewRoom } from "@/components/pages/mock-interviews/chat/chat-interview-room";
+import { ChatInterviewWelcome } from "@/components/pages/mock-interviews/chat/chat-interview-welcome";
 import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session";
 import { ChatInterviewReplayRoom } from "@/components/pages/mock-interviews/chat/chat-interview-replay-room";
 
@@ -47,7 +48,11 @@ export function PathMockInterview({
     null,
   );
   const [format, setFormat] = useState<string | null>(null);
+  const [template, setTemplate] = useState<ChatInterviewTemplate | null>(null);
   const [avSessionId, setAvSessionId] = useState<string | null>(null);
+  // Audio/video pre-join gate: the LiveKit room (and clock) only starts after
+  // the learner hits "Start interview" on the welcome screen.
+  const [avStarted, setAvStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +72,7 @@ export function PathMockInterview({
         if (!interview?.id) throw new Error("no interview");
         setUserInterviewId(interview.id);
         setFormat(interview.template?.format ?? null);
+        setTemplate((interview.template ?? null) as ChatInterviewTemplate | null);
         setCompletedSessionId(interview.completedSessionId ?? null);
         // Returning to an already-finished interview → show its results.
         if (interview.status === "COMPLETED" || step.status === "DONE") {
@@ -88,11 +94,13 @@ export function PathMockInterview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id]);
 
-  // Audio/video: create the LiveKit room once, then embed it (no redirect).
+  // Audio/video: create the LiveKit room once the learner starts, then embed
+  // it (no redirect). Gated on avStarted so the welcome screen shows first.
   const enteredRef = useRef(false);
   useEffect(() => {
     if (loading || error || finished || !userInterviewId) return;
-    if (isChatFormat(format)) return; // chat embeds directly
+    if (isChatFormat(format)) return; // chat embeds directly (own welcome)
+    if (!avStarted) return; // wait for the welcome-screen CTA
     if (avSessionId || enteredRef.current) return;
     enteredRef.current = true;
     (async () => {
@@ -110,7 +118,7 @@ export function PathMockInterview({
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, error, finished, userInterviewId, format, avSessionId]);
+  }, [loading, error, finished, userInterviewId, format, avSessionId, avStarted]);
 
   if (loading) {
     return (
@@ -193,6 +201,25 @@ export function PathMockInterview({
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Pre-join welcome screen — shown before the live room (and clock) starts.
+  if (!avStarted) {
+    return (
+      <div className="flex h-full w-full flex-col">
+        {template ? (
+          <ChatInterviewWelcome
+            template={template}
+            starting={false}
+            onStart={() => setAvStarted(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Loader isFull={false} />
+          </div>
+        )}
       </div>
     );
   }
