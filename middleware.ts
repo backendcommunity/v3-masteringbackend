@@ -7,9 +7,20 @@ const AUTH_PATHS = ["/auth/", "/xpayment", "/ai/payment"];
 async function isTokenValid(token: string): Promise<boolean> {
   const secret = process.env.AUTH_TOKEN_SECRET;
   if (!secret) {
-    // Secret not configured in this environment — fall back to cookie-existence check.
-    // Log once so it's visible in deployment logs without spamming.
-    console.warn("[middleware] AUTH_TOKEN_SECRET not set — skipping JWT verification");
+    // Local/dev convenience only. In any deployed context, a missing secret must
+    // NOT silently authenticate everyone — fail closed.
+    const isLocal =
+      process.env.NEXT_PUBLIC_APP_ENV === "local" ||
+      process.env.NODE_ENV === "development";
+    if (!isLocal) {
+      console.error(
+        "[middleware] AUTH_TOKEN_SECRET missing in deployed env — failing closed",
+      );
+      return false;
+    }
+    console.warn(
+      "[middleware] AUTH_TOKEN_SECRET not set — dev fallback, skipping JWT verification",
+    );
     return true;
   }
   try {
@@ -58,8 +69,9 @@ export async function middleware(request: NextRequest) {
   // Not authenticated + protected route → redirect to login
   if (!isAuthenticated && isProtected) {
     const loginUrl = new URL("/auth/login", request.url);
+    const here = pathname + (request.nextUrl.search || "");
     if (pathname !== "/") {
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirect", here);
     }
     return NextResponse.redirect(loginUrl);
   }
