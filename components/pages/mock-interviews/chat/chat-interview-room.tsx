@@ -17,7 +17,7 @@ import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import { Loader2, Code2, PenTool, X } from "lucide-react";
+import { Loader2, Code2, PenTool, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
@@ -76,10 +76,10 @@ export function ChatInterviewRoom({
   const [hasStarted, setHasStarted] = useState(false);
   const [isStartingSession, setIsStartingSession] = useState(false);
   // Tracks viewport ≥1024px so the work tools (code/whiteboard) are rendered as
-  // a side panel on desktop and as a full-screen overlay (opened via FAB) on
-  // mobile/tablet — never both at once (avoids two Monaco instances).
+  // a side panel on desktop, and via a bottom tab switcher (Chat ↔ Workspace)
+  // on mobile/tablet — never both at once (avoids two Monaco instances).
   const [lgUp, setLgUp] = useState(true);
-  const [showWorkTools, setShowWorkTools] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"chat" | "workspace">("chat");
 
   const router = useRouter();
 
@@ -92,10 +92,9 @@ export function ChatInterviewRoom({
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // Crossing into desktop closes the mobile overlay so the panel never mounts
-  // in two places simultaneously.
+  // Reset to the chat tab when returning to the desktop layout.
   useEffect(() => {
-    if (lgUp) setShowWorkTools(false);
+    if (lgUp) setMobileTab("chat");
   }, [lgUp]);
 
   const sessionIdRef = useRef<string | null>(null);
@@ -795,58 +794,81 @@ export function ChatInterviewRoom({
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        // Mobile/tablet: chat fills the screen; work tools open in an overlay.
-        <div className="flex-1 min-h-0 flex flex-col">
-          <ChatPanel
-            messages={messages}
-            session={session}
-            isComplete={isComplete}
-            isStreaming={isStreaming}
-            onSend={handleSend}
-            resultsData={resultsData}
-            isLoadingResults={isLoadingResults}
-            resultsProgress={resultsProgress}
-            resultsError={resultsError}
-            onGetResults={handleGetResults}
-            questionAnalysis={questionAnalysis}
-            resultsRevealed={resultsRevealed}
-            insufficientAnswers={insufficientAnswers}
-            userName={userName}
-            userAvatar={userAvatar}
-            onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
-            onRestart={handleRestart}
-            isRestartLoading={isCheckingAccess}
-          />
-        </div>
-      )}
+        // Mobile/tablet: a bottom tab switcher flips between Chat and Workspace.
+        // Both sections stay mounted (toggled with `hidden`) so chat + editor
+        // state survive switches; only this branch renders below lg, so the
+        // panels mount exactly once.
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* CHAT section */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "chat" ? "flex" : "hidden",
+            )}
+          >
+            <ChatPanel
+              messages={messages}
+              session={session}
+              isComplete={isComplete}
+              isStreaming={isStreaming}
+              onSend={handleSend}
+              resultsData={resultsData}
+              isLoadingResults={isLoadingResults}
+              resultsProgress={resultsProgress}
+              resultsError={resultsError}
+              onGetResults={handleGetResults}
+              questionAnalysis={questionAnalysis}
+              resultsRevealed={resultsRevealed}
+              insufficientAnswers={insufficientAnswers}
+              userName={userName}
+              userAvatar={userAvatar}
+              onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
+              onRestart={handleRestart}
+              isRestartLoading={isCheckingAccess}
+            />
+          </div>
 
-      {/* Mobile FAB — opens the code editor / whiteboard work tools. */}
-      {!lgUp && !showWorkTools && (
-        <button
-          type="button"
-          onClick={() => setShowWorkTools(true)}
-          aria-label="Open code editor and whiteboard"
-          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-white shadow-lg shadow-[#13AECE]/30 transition-transform active:scale-95"
-        >
-          <Code2 className="h-6 w-6" />
-        </button>
-      )}
+          {/* WORKSPACE section (code editor / whiteboard) */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "workspace" ? "flex" : "hidden",
+            )}
+          >
+            {rightPanelBody}
+          </div>
 
-      {/* Mobile work-tools overlay — full screen, single panel instance. */}
-      {!lgUp && showWorkTools && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-background">
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            {workToolsTabs}
+          {/* Bottom tab switcher */}
+          <div className="flex flex-shrink-0 gap-1 border-t border-border bg-card p-1.5">
             <button
               type="button"
-              onClick={() => setShowWorkTools(false)}
-              aria-label="Close work tools"
-              className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+              aria-selected={mobileTab === "chat"}
+              onClick={() => setMobileTab("chat")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "chat"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
             >
-              <X className="h-5 w-5" />
+              <MessageSquare className="h-[18px] w-[18px]" />
+              Interview
+            </button>
+            <button
+              type="button"
+              aria-selected={mobileTab === "workspace"}
+              onClick={() => setMobileTab("workspace")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "workspace"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Code2 className="h-[18px] w-[18px]" />
+              Workspace
             </button>
           </div>
-          <div className="flex-1 min-h-0">{activeWorkPanel}</div>
         </div>
       )}
 
