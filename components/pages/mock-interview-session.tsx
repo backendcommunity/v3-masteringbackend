@@ -840,16 +840,16 @@ function InterviewRoom({
            editor/whiteboard keep their state across switches; only this mobile
            branch renders (desktop is gated off), so panels mount exactly once. */
         <div className="flex flex-1 min-h-0 flex-col">
-          {/* INTERVIEW section — video pane larger than the transcript */}
+          {/* INTERVIEW section */}
           <div
             className={cn(
               "min-h-0 flex-1 flex-col",
               mobileTab === "interview" ? "flex" : "hidden",
             )}
           >
-            {/* Video stage (~1.7×) + compact controls below it */}
-            <div className="flex min-h-0 flex-[1.7] flex-col p-3 pb-1.5">
-              <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-black/40">
+            {/* Video stage + compact controls below it */}
+            <div className="flex-shrink-0 p-3 pb-1.5">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40">
                 <InterviewStage className="h-full w-full" />
                 <span
                   className="absolute left-3 top-3 z-20 rounded-lg bg-black/55 px-2 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur"
@@ -866,7 +866,7 @@ function InterviewRoom({
                 />
               </div>
             </div>
-            {/* Transcript (~1×) — smaller than the video */}
+            {/* Transcript fills the remaining space */}
             <div className="min-h-0 flex-1 px-3 pb-2">
               <InterviewTranscriptPanel
                 className="h-full"
