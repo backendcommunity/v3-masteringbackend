@@ -9,7 +9,9 @@
     "lint": "next lint",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:debug": "playwright test --debug"
+    "e2e:debug": "playwright test --debug",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@asyncpay/checkout": "^0.0.37",
@@ -107,9 +109,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   },
   "resolutions": {
     "react-error-overlay": "6.0.9"
