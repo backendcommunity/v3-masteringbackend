@@ -5,17 +5,23 @@ import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 // Auto-dismiss after `ms`, with a manual `dismiss()` for buttons. onDone fires
-// exactly once (whichever happens first). The timer clears on unmount.
+// exactly once (whichever happens first). The timer is armed ONCE on mount and
+// is not restarted when `onDone`'s identity changes between renders — otherwise
+// a re-rendering parent would keep resetting the countdown and the toast would
+// never close.
 export function useCelebrationDismiss(onDone: () => void, ms = 4500) {
   const doneRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Always call the latest onDone without depending on its identity.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   const dismiss = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
-    onDone();
-  }, [onDone]);
+    onDoneRef.current();
+  }, []);
 
   useEffect(() => {
     timerRef.current = setTimeout(dismiss, ms);

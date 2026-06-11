@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PathStepRibbon } from "@/components/pages/path/celebrations/path-step-ribbon";
 import { PathMilestoneModal } from "@/components/pages/path/celebrations/path-milestone-modal";
 import { PathAchievementModal } from "@/components/pages/path/celebrations/path-achievement-modal";
@@ -26,6 +26,10 @@ export function PathCelebrations({
   onAllDone,
 }: PathCelebrationsProps) {
   const [index, setIndex] = useState(0);
+
+  // Stable so children's auto-dismiss timers (which depend on onDone) aren't
+  // reset on every re-render — otherwise the toast would never close.
+  const advance = useCallback(() => setIndex((prev) => prev + 1), []);
 
   // Latches guard against double-firing the terminal callbacks.
   const allDoneFired = useRef(false);
@@ -66,8 +70,6 @@ export function PathCelebrations({
   }, [current, queue.length, onAllDone, onCertUnlocked]);
 
   if (queue.length === 0 || current === null) return null;
-
-  const advance = () => setIndex((prev) => prev + 1);
 
   switch (current.kind) {
     case "stepUnlocked":
