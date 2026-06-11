@@ -44,7 +44,11 @@ export const handleAuthFailure = async () => {
   // (page reload resets the module anyway, but this prevents silent failure in edge cases)
   setTimeout(() => { isHandlingAuthFailure = false; }, 5000);
 
-  window.location.href = "/auth/login";
+  const { pathname, search } = window.location;
+  const here = pathname + search;
+  const redirect =
+    here && here !== "/" ? `?redirect=${encodeURIComponent(here)}` : "";
+  window.location.href = `/auth/login${redirect}`;
 };
 
 api.interceptors.response.use(
@@ -77,7 +81,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post("/auth/refresh");
+        const { refreshSession } = await import("@/lib/auth-refresh");
+        await refreshSession();
         processQueue(null);
         isRefreshing = false;
         return api(originalRequest);
