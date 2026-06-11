@@ -54,6 +54,7 @@ import {
   VolumeX,
   Code2,
   PenTool,
+  X,
 } from "lucide-react";
 
 // Custom Components
@@ -521,6 +522,24 @@ function InterviewRoom({
   const [activePanel, setActivePanel] = useState<"code" | "whiteboard">("code");
   // Locally-injected transcript bubbles for shared code / diagrams.
   const [sharedEntries, setSharedEntries] = useState<TranscriptEntry[]>([]);
+  // Viewport ≥1024px → side-by-side desktop layout; below → stacked mobile
+  // layout with a bottom control bar and the work tools in a full-screen
+  // overlay. Gating here means the heavy panels mount in exactly one layout.
+  const [lgUp, setLgUp] = useState(true);
+  const [showWorkTools, setShowWorkTools] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLgUp(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (lgUp) setShowWorkTools(false);
+  }, [lgUp]);
 
   // Best-effort: deliver a chat message to the live Kap agent over LiveKit's
   // text stream (the `lk.chat` topic agents listen on). Falls back to a raw
@@ -676,6 +695,51 @@ function InterviewRoom({
         : "text-muted-foreground hover:text-foreground hover:bg-background/50",
     );
 
+  const fmtTime = (s: number) => {
+    const safe = Math.max(0, s);
+    const m = Math.floor(safe / 60);
+    const sec = safe % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  // Tab switcher for the work tools — shared by desktop panel + mobile overlay.
+  const workToolsTabs = (
+    <>
+      <button
+        onClick={() => setActivePanel("code")}
+        className={tabBtn(activePanel === "code")}
+      >
+        <Code2 className="w-3.5 h-3.5" />
+        Code Editor
+      </button>
+      <button
+        onClick={() => setActivePanel("whiteboard")}
+        className={tabBtn(activePanel === "whiteboard")}
+      >
+        <PenTool className="w-3.5 h-3.5" />
+        Whiteboard
+      </button>
+    </>
+  );
+
+  // The active work-tool panel — mounted in EXACTLY ONE place at a time
+  // (desktop side panel OR mobile overlay) so we never run two Monaco editors.
+  const activeWorkPanel =
+    activePanel === "code" ? (
+      <CodeEditorPanel
+        onSendToKap={saveCode}
+        disabled={isEnding}
+        savedCode={sessionAny.codeArtifact}
+        savedLanguage={sessionAny.codeLanguage}
+      />
+    ) : (
+      <WhiteboardPanel
+        onSendToKap={saveWhiteboard}
+        disabled={isEnding}
+        savedDiagram={savedDiagram}
+      />
+    );
+
   return (
     <div
       className={`${embedded ? "h-full" : "h-screen"} flex flex-col bg-background`}
@@ -693,98 +757,136 @@ function InterviewRoom({
         />
       )}
 
-      {/* Main content — chat-style split: video + transcript left, code/whiteboard right */}
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="flex-1 min-h-0 overflow-hidden"
-      >
-        {/* Left: focused video (top) + live transcript chat (below) */}
-        <ResizablePanel
-          defaultSize="55"
-          minSize="30"
-          maxSize="75"
-          className="flex flex-col min-h-0"
+      {lgUp ? (
+        /* Desktop: chat-style split — video + transcript left, tools right. */
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
         >
-          <ResizablePanelGroup
-            orientation="vertical"
-            className="mx-auto h-full min-h-0 w-full max-w-[900px]"
+          {/* Left: focused video (top) + live transcript chat (below) */}
+          <ResizablePanel
+            defaultSize="55"
+            minSize="30"
+            maxSize="75"
+            className="flex flex-col min-h-0"
           >
-            {/* Video stage */}
-            <ResizablePanel defaultSize="58" minSize="30" className="min-h-0">
-              <div className="relative h-full min-h-0 p-3 sm:p-4">
-                <InterviewStage className="h-full w-full" />
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-                  <MediaControls
-                    onEndInterview={handleEndInterview}
-                    isEnding={isEnding}
-                  />
+            <ResizablePanelGroup
+              orientation="vertical"
+              className="mx-auto h-full min-h-0 w-full max-w-[900px]"
+            >
+              {/* Video stage */}
+              <ResizablePanel defaultSize="58" minSize="30" className="min-h-0">
+                <div className="relative h-full min-h-0 p-3 sm:p-4">
+                  <InterviewStage className="h-full w-full" />
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+                    <MediaControls
+                      onEndInterview={handleEndInterview}
+                      isEnding={isEnding}
+                    />
+                  </div>
                 </div>
-              </div>
-            </ResizablePanel>
+              </ResizablePanel>
 
-            {/* Same look as the video ↔ code/whiteboard divider */}
-            <ResizableHandle orientation="vertical" withHandle />
+              {/* Same look as the video ↔ code/whiteboard divider */}
+              <ResizableHandle orientation="vertical" withHandle />
 
-            {/* Live transcript — scrollable, auto-scrolls, captures for grading */}
-            <ResizablePanel
-              defaultSize="42"
-              minSize="18"
-              className="min-h-0 p-3 pt-0 sm:p-4 sm:pt-0"
-            >
-              <InterviewTranscriptPanel
-                className="h-full"
-                transcriptRef={transcriptRef}
-                injected={sharedEntries}
+              {/* Live transcript — scrollable, auto-scrolls, captures for grading */}
+              <ResizablePanel
+                defaultSize="42"
+                minSize="18"
+                className="min-h-0 p-3 pt-0 sm:p-4 sm:pt-0"
+              >
+                <InterviewTranscriptPanel
+                  className="h-full"
+                  transcriptRef={transcriptRef}
+                  injected={sharedEntries}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Right: code editor / whiteboard */}
+          <ResizablePanel
+            defaultSize="45"
+            minSize="25"
+            maxSize="70"
+            className="flex flex-col min-h-0"
+          >
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+              {workToolsTabs}
+            </div>
+            <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        /* Mobile: video on top (contained 16:9), transcript below, sticky
+           control bar at the bottom, work tools via a full-screen overlay. */
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* Video stage — contained aspect, no overflow */}
+          <div className="flex-shrink-0 p-3 pb-2">
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
+              <InterviewStage className="h-full w-full" />
+            </div>
+          </div>
+
+          {/* Live transcript fills remaining space */}
+          <div className="flex-1 min-h-0 px-3 pb-2">
+            <InterviewTranscriptPanel
+              className="h-full"
+              transcriptRef={transcriptRef}
+              injected={sharedEntries}
+            />
+          </div>
+
+          {/* Sticky bottom control bar — timer, mic/camera/speaker, tools, end */}
+          <div className="flex-shrink-0 border-t border-border bg-card/95 backdrop-blur-xl px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="flex-shrink-0 rounded-lg bg-muted px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground"
+                aria-label="Time remaining"
+              >
+                {fmtTime(timeRemaining)}
+              </span>
+              <MediaControls
+                onEndInterview={handleEndInterview}
+                isEnding={isEnding}
               />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </ResizablePanel>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Resize handle (desktop only) */}
-        <ResizableHandle withHandle className="hidden lg:flex" />
-
-        {/* Right: code editor / whiteboard (desktop only) */}
-        <ResizablePanel
-          defaultSize="45"
-          minSize="25"
-          maxSize="70"
-          className="hidden lg:flex flex-col min-h-0"
+      {/* Mobile FAB — opens the code editor / whiteboard work tools. */}
+      {!lgUp && !showWorkTools && (
+        <button
+          type="button"
+          onClick={() => setShowWorkTools(true)}
+          aria-label="Open code editor and whiteboard"
+          className="fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-white shadow-lg shadow-[#13AECE]/30 transition-transform active:scale-95"
         >
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            <button
-              onClick={() => setActivePanel("code")}
-              className={tabBtn(activePanel === "code")}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              Code Editor
-            </button>
-            <button
-              onClick={() => setActivePanel("whiteboard")}
-              className={tabBtn(activePanel === "whiteboard")}
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              Whiteboard
-            </button>
-          </div>
+          <Code2 className="h-6 w-6" />
+        </button>
+      )}
 
-          <div className="flex-1 min-h-0">
-            {activePanel === "code" ? (
-              <CodeEditorPanel
-                onSendToKap={saveCode}
-                disabled={isEnding}
-                savedCode={sessionAny.codeArtifact}
-                savedLanguage={sessionAny.codeLanguage}
-              />
-            ) : (
-              <WhiteboardPanel
-                onSendToKap={saveWhiteboard}
-                disabled={isEnding}
-                savedDiagram={savedDiagram}
-              />
-            )}
+      {/* Mobile work-tools overlay — full screen, single panel instance. */}
+      {!lgUp && showWorkTools && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-background">
+          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+            {workToolsTabs}
+            <button
+              type="button"
+              onClick={() => setShowWorkTools(false)}
+              aria-label="Close work tools"
+              className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+        </div>
+      )}
 
       {/* CRITICAL: RoomAudioRenderer handles all remote audio playback */}
       <RoomAudioRenderer />
