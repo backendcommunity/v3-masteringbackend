@@ -378,11 +378,11 @@ export function PathWorkspace({
             which render their own instructions panel, and collapsible elsewhere. */}
         {hasContext && panelOpen && (
           <>
-            <div className="hidden lg:flex w-[22%] min-w-[240px] max-w-[340px] shrink-0 p-3">
+            <div className="hidden md:flex w-[26%] min-w-[240px] max-w-[340px] shrink-0 p-3">
               <PathContextPanel step={currentStep} />
             </div>
             {/* 1px divider */}
-            <div className="hidden lg:block w-px shrink-0 bg-border" />
+            <div className="hidden md:block w-px shrink-0 bg-border" />
           </>
         )}
 
@@ -393,7 +393,7 @@ export function PathWorkspace({
             <button
               type="button"
               onClick={() => setPanelOpen((v) => !v)}
-              className="absolute right-3 top-3 z-20 hidden items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground lg:inline-flex"
+              className="absolute right-3 top-3 z-20 hidden items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground md:inline-flex"
               title={panelOpen ? "Hide panel" : "Show panel"}
             >
               {panelOpen ? (
@@ -420,7 +420,7 @@ export function PathWorkspace({
             <button
               type="button"
               onClick={() => setPanelOpen((v) => !v)}
-              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-border bg-muted/30 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-border bg-muted/30 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:hidden"
             >
               {panelOpen ? (
                 <PanelBottomClose className="h-4 w-4" />
@@ -433,7 +433,7 @@ export function PathWorkspace({
             </button>
           )}
           {hasContext && panelOpen && (
-            <div className="flex h-[50vh] min-h-0 shrink-0 px-3 pb-3 lg:hidden">
+            <div className="flex h-[45vh] min-h-0 shrink-0 px-3 pb-3 md:hidden">
               <PathContextPanel step={currentStep} />
             </div>
           )}

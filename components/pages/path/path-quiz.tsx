@@ -406,7 +406,7 @@ export function PathQuiz({
             </p>
           </div>
 
-          <div className="max-h-[42vh] space-y-3 overflow-y-auto px-6 py-5">
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto px-4 py-5 sm:max-h-[42vh] sm:px-6">
             {review.map((r, i) => (
               <ReviewRow key={i} index={i} result={r} />
             ))}
