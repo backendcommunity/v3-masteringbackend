@@ -24,6 +24,7 @@ import {
   GraduationCap,
   Linkedin,
   Lock,
+  MessagesSquare,
   RefreshCw,
   Sparkles,
   Star,
@@ -38,6 +39,10 @@ const BRAND_2 = "#2BB8D8";
 const GOLD = "#F2C94C";
 const LOUNGE_BG =
   "linear-gradient(135deg, #0B1626 0%, #0E1F33 55%, #102A3D 100%)";
+// The Alumni Lounge is a private Discord channel. Override per-environment.
+const ALUMNI_LOUNGE_DISCORD_URL =
+  process.env.NEXT_PUBLIC_ALUMNI_LOUNGE_DISCORD_URL ||
+  "https://discord.gg/masteringbackend";
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -625,10 +630,19 @@ function AlumniLoungeCard({
               <CheckCircle2 className="h-3.5 w-3.5" />
               Accepted
             </span>
-            <div className="flex items-center gap-2 text-xs text-white/55">
-              <Star className="h-3.5 w-3.5" style={{ color: GOLD }} />
-              Your seat is reserved — alumni perks unlock here soon.
-            </div>
+            <a
+              href={ALUMNI_LOUNGE_DISCORD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0E1F33]"
+              style={{ backgroundColor: "#5865F2" }}
+            >
+              <MessagesSquare className="h-4 w-4" />
+              Join the Alumni Lounge on Discord
+            </a>
+            <p className="text-xs text-white/45">
+              Opens the private alumni channel in a new tab.
+            </p>
           </>
         ) : (
           <div className="w-full max-w-sm space-y-2.5 pt-1">
