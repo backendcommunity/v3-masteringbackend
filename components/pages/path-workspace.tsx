@@ -158,8 +158,14 @@ export function PathWorkspace({
         } else {
           setCurrentStepId(delta.cursor.nextStepId);
         }
-        // Cert routing is handled above; the rest play as corner toasts.
-        setCelebrationQueue(cel.filter((c) => c.kind !== "certUnlocked"));
+        // Only meaningful pops (levels, achievements, % milestones, topic
+        // completion) surface — the per-step "unlocked" ribbon is dropped, and
+        // cert routing is handled above.
+        setCelebrationQueue(
+          cel.filter(
+            (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
+          ),
+        );
       } catch {
         toast.error("Could not mark this step complete.");
       }
