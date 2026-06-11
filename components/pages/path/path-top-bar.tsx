@@ -38,6 +38,7 @@ export interface PathTopBarProps {
   onNext: () => void;
   onOpenOutline: () => void;
   onNavigate: (path: string) => void;
+  projectActions?: React.ReactNode;
 }
 
 export function PathTopBar({
@@ -50,6 +51,7 @@ export function PathTopBar({
   onNext,
   onOpenOutline,
   onNavigate,
+  projectActions,
 }: PathTopBarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -160,6 +162,7 @@ export function PathTopBar({
 
       {/* Right: full cluster on desktop, collapsed menu on mobile */}
       <div className="hidden md:flex items-center gap-3">
+        {projectActions}
         {interviewOnEnd && (
           <Button
             variant="destructive"

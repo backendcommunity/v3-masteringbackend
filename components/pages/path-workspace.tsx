@@ -7,8 +7,12 @@ import {
   PanelRightOpen,
   PanelBottomClose,
   PanelBottomOpen,
+  Play,
+  Monitor,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
+import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import {
   PathSession,
   PathSessionStep,
@@ -29,6 +33,36 @@ export interface PathWorkspaceProps {
   pathId: string;
   initialStepId?: string;
   onNavigate: (path: string) => void;
+}
+
+// Run server + Preview, surfaced in the path top bar for embedded PROJECT steps.
+// Reads the live handlers/state the playground publishes to the controls store.
+function ProjectTopControls() {
+  const { connected, isRunning, previewVisible, runServer, togglePreview } =
+    usePlaygroundControls();
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        onClick={() => runServer?.()}
+        disabled={isRunning || !connected}
+        className="h-8 gap-1.5 px-3 text-xs"
+      >
+        <Play className="w-3.5 h-3.5" />
+        {isRunning ? "Running…" : "Run server"}
+      </Button>
+      <Button
+        size="sm"
+        variant={previewVisible ? "secondary" : "outline"}
+        onClick={() => togglePreview?.()}
+        aria-pressed={previewVisible}
+        className="h-8 gap-1.5 px-3 text-xs"
+      >
+        <Monitor className="w-3.5 h-3.5" />
+        Preview
+      </Button>
+    </div>
+  );
 }
 
 export function PathWorkspace({
@@ -161,6 +195,60 @@ export function PathWorkspace({
 
   if (loading && !session) return <Loader />;
   if (!session) return null;
+
+  // PROJECT steps take over the screen with the playground, but KEEP the course
+  // outline / path nav up top (PathTopBar). No side panel, no bottom action bar.
+  if (currentStep?.type === "PROJECT") {
+    return (
+      <div
+        className="flex h-screen w-full flex-col bg-background"
+        style={{
+          fontFamily: "Satoshi, system-ui, sans-serif",
+          fontSize: "14px",
+        }}
+      >
+        <PathTopBar
+          crumbs={[
+            { label: contextLabel, href: "/paths" },
+            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: activeGroup?.title },
+            { label: currentStep?.title },
+          ]}
+          position={idx >= 0 ? idx + 1 : 0}
+          total={ordered.length}
+          earnedPoints={session.path.earnedPoints}
+          masteryPct={session.path.masteryPct}
+          step={currentStep}
+          hasPrev={!!prev}
+          hasNext={!!next}
+          onPrev={() => prev && selectStep(prev.id)}
+          onNext={() => next && selectStep(next.id)}
+          onOpenOutline={() => setOutlineOpen(true)}
+          onNavigate={onNavigate}
+          projectActions={<ProjectTopControls />}
+        />
+        <div className="flex flex-1 min-h-0 w-full min-w-0">
+          <StepStage
+            pathId={pathId}
+            step={currentStep}
+            onComplete={completeStep}
+            onSelectStep={selectStep}
+            onNavigate={onNavigate}
+          />
+        </div>
+        <PathOutlineDrawer
+          open={outlineOpen}
+          onOpenChange={setOutlineOpen}
+          session={session}
+          currentStepId={currentStepId}
+          onSelectStep={(id) => {
+            selectStep(id);
+            setOutlineOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     // Match watch-v2 exactly: the mockup renders in system-ui (Satoshi isn't
