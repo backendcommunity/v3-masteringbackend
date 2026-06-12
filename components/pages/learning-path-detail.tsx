@@ -285,6 +285,7 @@ export function LearningPathDetailPage({
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [celebration, setCelebration] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   // Warm the milestone cache on enroll so first workspace load is fast
   const milestoneCache = useRef<Record<string, any>>({});
   const typeConfig: Record<
@@ -822,12 +823,26 @@ export function LearningPathDetailPage({
   );
 
   // ── Path description (plain block below hero) ──
-  const pathDescription = roadmap.summary ? (
+  const descriptionText = stripHtmlTags(roadmap.summary || "");
+  const descriptionIsLong = descriptionText.length > 240;
+  const pathDescription = descriptionText ? (
     <div>
       <h3 className="font-semibold text-[15px] mb-1.5">Path description</h3>
-      <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
-        {stripHtmlTags(roadmap.summary)}
+      <p
+        className={`text-sm text-muted-foreground leading-relaxed max-w-3xl ${
+          descriptionIsLong && !descExpanded ? "line-clamp-3" : ""
+        }`}
+      >
+        {descriptionText}
       </p>
+      {descriptionIsLong && (
+        <button
+          onClick={() => setDescExpanded((v) => !v)}
+          className="mt-1 text-sm font-medium text-primary hover:underline"
+        >
+          {descExpanded ? "Show less" : "Show more"}
+        </button>
+      )}
     </div>
   ) : null;
 

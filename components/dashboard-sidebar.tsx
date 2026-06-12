@@ -144,13 +144,13 @@ export function DashboardSidebar({
 
   return (
     <div
-      className={`flex fixed flex-col h-full bg-sidebar border-r border-border overflow-hidden transition-all duration-300 ${
+      className={`flex fixed flex-col h-full bg-[#0E1F33] border-r border-white/10 overflow-hidden transition-all duration-300 ${
         collapsed ? "w-20" : "w-72"
       }`}
     >
-      {/* Header — exact h-16, same surface + shadow as the top navbar */}
+      {/* Header — exact h-16 to align with the top navbar */}
       <div
-        className={`relative z-10 h-16 shrink-0 bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border flex items-center transition-all duration-300 ${
+        className={`relative z-10 h-16 shrink-0 border-b border-white/10 flex items-center transition-all duration-300 ${
           collapsed ? "px-2 justify-center gap-1" : "px-4 gap-3"
         }`}
       >
@@ -165,25 +165,18 @@ export function DashboardSidebar({
           )}
           {!collapsed && (
             <div className="grid text-left text-sm leading-tight flex-1 min-w-0">
-              {theme === "light" ? (
-                <img
-                  src="/blue-logo-trimed.png"
-                  alt="logo"
-                  className="max-h-9 w-auto object-contain"
-                />
-              ) : (
-                <img
-                  src="/logo-trimed.png"
-                  alt="logo"
-                  className="max-h-9 w-auto object-contain"
-                />
-              )}
+              {/* Navy rail — always the white logo, both themes */}
+              <img
+                src="/logo-trimed.png"
+                alt="logo"
+                className="max-h-9 w-auto object-contain"
+              />
             </div>
           )}
         </button>
 
         {/* Divider — only show when expanded */}
-        {!collapsed && <div className="w-px h-5 bg-border/50" />}
+        {!collapsed && <div className="w-px h-5 bg-white/15" />}
 
         {/* Collapse/Expand Button */}
         <Button
@@ -193,26 +186,26 @@ export function DashboardSidebar({
             onCollapsed(!collapsed);
             setCollapsed(!collapsed);
           }}
-          className="h-6 w-6 rounded-md flex-shrink-0 border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 group"
+          className="h-6 w-6 rounded-md flex-shrink-0 bg-transparent border-white/20 hover:border-primary/60 hover:bg-white/5 transition-all duration-200 group"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronRight className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronLeft className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           )}
         </Button>
       </div>
 
       {/* User Progress (hidden when collapsed) */}
       {!collapsed && (
-        <div className="p-4 border-b border-border">
-          <div className="rounded-lg border border-border bg-card p-3">
+        <div className="p-4 border-b border-white/10">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Star className="h-4 w-4 text-yellow-500" />
               <button
                 onClick={() => onNavigate(routes.levels)}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className="text-sm font-medium text-white/90 hover:text-primary transition-colors"
               >
                 Level {user?.level} Engineer
               </button>
@@ -233,8 +226,11 @@ export function DashboardSidebar({
                 </Badge>
               )}
             </div>
-            <Progress value={progressPct} className="h-2 mb-1" />
-            <div className="flex justify-between text-xs text-muted-foreground">
+            <Progress
+              value={progressPct}
+              className="h-2 mb-1 bg-white/10 [&>div]:bg-primary"
+            />
+            <div className="flex justify-between text-xs text-white/50">
               <span>{user?.points?.toLocaleString()} MB</span>
               <span>
                 {mbToNextLevel?.toLocaleString()} MB to Level{" "}
@@ -264,7 +260,7 @@ export function DashboardSidebar({
           <div className="mt-3">
             <Button
               variant="outline"
-              className="w-full justify-between border-border hover:bg-primary/10 hover:border-primary/50 transition-colors"
+              className="w-full justify-between bg-transparent border-white/15 hover:bg-white/10 hover:border-primary/50 transition-colors"
               onClick={() => onNavigate(routes.xpStore)}
             >
               <div className="flex items-center gap-2">
@@ -284,7 +280,7 @@ export function DashboardSidebar({
         {Object.entries(navigationData).map(([section, items]) => (
           <div key={section} className="px-3 py-2">
             {!collapsed && (
-              <h3 className="px-4 text-xs font-medium text-muted-foreground mb-1 capitalize">
+              <h3 className="px-4 text-xs font-medium text-white/40 mb-1 capitalize">
                 {section}
               </h3>
             )}
@@ -296,10 +292,10 @@ export function DashboardSidebar({
                   title={collapsed ? item.title : ""}
                   className={`flex w-full items-center ${
                     collapsed ? "justify-center" : "justify-between"
-                  } px-4 py-2 rounded-md hover:bg-primary/10 transition-colors ${
+                  } px-4 py-2 rounded-md transition-colors ${
                     currentPath === item.url || currentPath.startsWith(item.url)
                       ? "bg-primary/15 text-primary"
-                      : ""
+                      : "text-white/65 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <div
@@ -328,14 +324,14 @@ export function DashboardSidebar({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border p-4">
+      <div className="border-t border-white/10 p-4">
         <div
           className={`flex items-center ${
             collapsed ? "justify-center" : "justify-between"
           }`}
         >
           <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 border border-border">
+            <Avatar className="h-8 w-8 border border-white/20">
               <AvatarImage
                 src={user?.avatar || "/placeholder.svg"}
                 alt={user?.name}
@@ -346,8 +342,10 @@ export function DashboardSidebar({
             </Avatar>
             {!collapsed && (
               <div className="grid text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user?.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate font-medium text-white/90">
+                  {user?.name}
+                </span>
+                <span className="truncate text-xs text-white/50">
                   {user?.email}
                 </span>
               </div>

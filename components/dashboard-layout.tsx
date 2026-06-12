@@ -83,7 +83,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 ? "w-20"
                 : "w-72"
           }
-          bg-backgroun border-r border-border`}
+          bg-[#0E1F33]`}
         >
           <DashboardSidebar
             onCollapsed={setIsCollapsed}
