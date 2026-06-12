@@ -148,9 +148,9 @@ export function DashboardSidebar({
         collapsed ? "w-20" : "w-72"
       }`}
     >
-      {/* Header — exact h-16 to align with the top navbar */}
+      {/* Header — exact h-16, same surface + shadow as the top navbar */}
       <div
-        className={`h-16 shrink-0 bg-card border-b border-border flex items-center transition-all duration-300 ${
+        className={`relative z-10 h-16 shrink-0 bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border flex items-center transition-all duration-300 ${
           collapsed ? "px-2 justify-center gap-1" : "px-4 gap-3"
         }`}
       >
