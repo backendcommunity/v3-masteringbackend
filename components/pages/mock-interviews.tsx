@@ -50,6 +50,7 @@ import {
 import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
+import { JourneyGlyph } from "@/components/journey-glyph";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -674,152 +675,158 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* ── Sticky Header ──────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 border-b bg-background">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Mock Interviews
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {(
-                {
-                  Backend:
-                    "Practice with Kap AI · Land your next backend engineering role",
-                  DevOps:
-                    "Practice with Kap AI · Nail your next DevOps interview",
-                  Cybersecurity:
-                    "Practice with Kap AI · Sharpen your security engineering edge",
-                  Fullstack:
-                    "Practice with Kap AI · Stand out as a fullstack engineer",
-                } as Record<string, string>
-              )[filters.category] ??
-                "Practice with Kap AI · Ace your next engineering interview"}
-            </p>
-            {/* Stats row */}
-            {stats && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {stats.averageScore ?? 0}%
-                  </span>{" "}
-                  avg score
-                </span>
-                <span className="text-muted-foreground/40 text-xs">·</span>
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {stats.practicedHours ?? 0}h
-                  </span>{" "}
-                  practiced
-                </span>
-                {stats.bestScore != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {stats.bestScore}%
-                      </span>{" "}
-                      best
-                    </span>
-                  </>
-                )}
-                {stats.passRate != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          stats.passRate >= 70
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-amber-600 dark:text-amber-400",
-                        )}
-                      >
-                        {stats.passRate}%
-                      </span>{" "}
-                      pass rate
-                    </span>
-                  </>
-                )}
-                {stats.scoreImprovement != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          stats.scoreImprovement >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-500",
-                        )}
-                      >
-                        {stats.scoreImprovement >= 0 ? "+" : ""}
-                        {stats.scoreImprovement}%
-                      </span>{" "}
-                      improvement
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-            {/* Session access badge */}
-            {interviewAccess &&
-              (interviewAccess.tier === "free" ||
-                interviewAccess.tier === "pro") && (
-                <Badge
-                  variant={
-                    interviewAccess.remainingSessions === 0
-                      ? "destructive"
-                      : "secondary"
-                  }
-                  className="text-xs mt-1.5"
-                >
-                  {interviewAccess.tier === "free"
-                    ? interviewAccess.remainingSessions === 0
-                      ? "Free trial used"
-                      : "1 free trial interview available"
-                    : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
-                </Badge>
-              )}
-            {/* {interviewAccess?.tier === "enterprise" && (
-              <Badge variant="secondary" className="mt-1.5 text-xs">
-                <Crown className="h-3 w-3 mr-1" />
-                Enterprise — Unlimited sessions
-              </Badge>
-            )} */}
-          </div>
+    <div className="min-h-screen">
+      {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
+      <div className="max-w-7xl mx-auto px-6 pt-6">
+        <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+          <div className="bg-[#0E1F33] text-white relative">
+            <div className="hero-grid absolute inset-0" aria-hidden="true" />
+            <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+              <JourneyGlyph
+                stage="grow"
+                className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+              />
+              <div className="max-w-2xl">
+                <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
+                <div className="flex items-center gap-3 flex-wrap mt-1.5">
+                  <h1 className="text-2xl font-bold">Mock Interviews</h1>
+                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#13AECE]/[.18] text-[#4AC5E8]">
+                    <Sparkles className="w-3.5 h-3.5" /> Practice with Kap AI
+                  </span>
+                </div>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+                  {(
+                    {
+                      Backend: "Land your next backend engineering role",
+                      DevOps: "Nail your next DevOps interview",
+                      Cybersecurity: "Sharpen your security engineering edge",
+                      Fullstack: "Stand out as a fullstack engineer",
+                    } as Record<string, string>
+                  )[filters.category] ??
+                    "Rehearse real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
+                </p>
 
-          {/* Right: Practice for a real job CTA */}
-          {interviewAccess?.tier === "free" ? (
-            <Button
-              variant="outline"
-              className="shrink-0 gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
-              onClick={() => {
-                analytics.track("mock_interview_upgrade_cta_clicked", {
-                  from: "practice_cta_header",
-                  tier: "free",
-                });
-                onNavigate("/subscription/plans");
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Practice for a real job
-            </Button>
-          ) : (
-            <Button
-              className="shrink-0 gap-2"
-              onClick={() => {
-                analytics.track("mock_interview_practice_for_job_clicked", {
-                  tier: interviewAccess?.tier ?? "pro",
-                });
-                onNavigate("/mock-interviews/prepare");
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Practice for a real job
-            </Button>
-          )}
+                <div className="mt-4">
+                  {interviewAccess?.tier === "free" ? (
+                    <button
+                      onClick={() => {
+                        analytics.track("mock_interview_upgrade_cta_clicked", {
+                          from: "practice_cta_header",
+                          tier: "free",
+                        });
+                        onNavigate("/subscription/plans");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        analytics.track(
+                          "mock_interview_practice_for_job_clicked",
+                          { tier: interviewAccess?.tier ?? "pro" },
+                        );
+                        onNavigate("/mock-interviews/prepare");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
+                  )}
+                </div>
+
+                {/* Personal stats — the hero earns its keep */}
+                {stats && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3.5 text-sm text-white/[.65]">
+                    <span>
+                      <span className="font-semibold text-white">
+                        {stats.averageScore ?? 0}%
+                      </span>{" "}
+                      avg score
+                    </span>
+                    <span className="opacity-40 text-xs">·</span>
+                    <span>
+                      <span className="font-semibold text-white">
+                        {stats.practicedHours ?? 0}h
+                      </span>{" "}
+                      practiced
+                    </span>
+                    {stats.bestScore != null && (
+                      <>
+                        <span className="opacity-40 text-xs">·</span>
+                        <span>
+                          <span className="font-semibold text-emerald-400">
+                            {stats.bestScore}%
+                          </span>{" "}
+                          best
+                        </span>
+                      </>
+                    )}
+                    {stats.passRate != null && (
+                      <>
+                        <span className="opacity-40 text-xs">·</span>
+                        <span>
+                          <span
+                            className={cn(
+                              "font-semibold",
+                              stats.passRate >= 70
+                                ? "text-emerald-400"
+                                : "text-amber-300",
+                            )}
+                          >
+                            {stats.passRate}%
+                          </span>{" "}
+                          pass rate
+                        </span>
+                      </>
+                    )}
+                    {stats.scoreImprovement != null && (
+                      <>
+                        <span className="opacity-40 text-xs">·</span>
+                        <span>
+                          <span
+                            className={cn(
+                              "font-semibold",
+                              stats.scoreImprovement >= 0
+                                ? "text-emerald-400"
+                                : "text-red-400",
+                            )}
+                          >
+                            {stats.scoreImprovement >= 0 ? "+" : ""}
+                            {stats.scoreImprovement}%
+                          </span>{" "}
+                          improvement
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Session access */}
+                {interviewAccess &&
+                  (interviewAccess.tier === "free" ||
+                    interviewAccess.tier === "pro") && (
+                    <p
+                      className={cn(
+                        "text-xs mt-2",
+                        interviewAccess.remainingSessions === 0
+                          ? "text-red-300"
+                          : "text-white/[.55]",
+                      )}
+                    >
+                      {interviewAccess.tier === "free"
+                        ? interviewAccess.remainingSessions === 0
+                          ? "Free trial used"
+                          : "1 free trial interview available"
+                        : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
+                    </p>
+                  )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

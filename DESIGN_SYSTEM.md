@@ -149,6 +149,7 @@ MB lands · **Grow** = mock interviews, certification.
 |---|---|
 | Tokens + `.hero-grid` + `.eyebrow-mono` | `app/globals.css` |
 | Satoshi loading | `app/layout.tsx` (Fontshare link) |
-| Catalog hero + `JourneyGlyph` | `components/pages/learning-paths.tsx` |
+| Catalog heroes | `components/pages/learning-paths.tsx`, `components/pages/mock-interviews.tsx` |
+| `JourneyGlyph` (stage-aware) | `components/journey-glyph.tsx` |
 | Detail hero + completion strip | `components/pages/learning-path-detail.tsx` |
 | Card DNA reference | `components/pages/paths/path-card.tsx`, `components/pages/mock-interviews/mock-interview-template-card.tsx` |
