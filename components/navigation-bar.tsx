@@ -37,7 +37,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { routes } from "@/lib/routes";
 import { useAuth } from "@/store/auth";
 import { useUser } from "@/hooks/use-user";
@@ -918,7 +917,6 @@ export function NavigationBar({
               isMobile ? "justify-end w-full" : "ml-auto gap-4"
             } flex items-center space-x-1`}
           >
-            {!isMobile && <ThemeToggle />}
 
             <Button
               variant="outline"

@@ -123,7 +123,7 @@ export default function RootLayout({
         <PostHogProviderComponent>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="light"
             enableSystem
             disableTransitionOnChange={false}
             storageKey="masteringbackend-theme"
