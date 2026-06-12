@@ -63,41 +63,44 @@
   }
 
   .dark {
-    /* Gaming-inspired dark theme with #13AECE as primary accent */
-    --background: 222 30% 12%; /* #171B26 - deep navy background */
-    --foreground: 210 40% 98%; /* #f8fafc - light text */
+    /* Blueprint-at-night: the dark palette lives in the SAME navy family as
+       the brand surfaces (rail/heroes are #0E1F33, hsl 213 57% 13%), so
+       chrome, heroes and canvas read as one material instead of two blues.
+       Elevation: canvas 6% → card 10% → hero/rail 13% → secondary 15%. */
+    --background: 214 55% 6%; /* #071120 - deep navy canvas */
+    --foreground: 210 40% 96%; /* #f1f5f9 - light text */
 
-    /* Card and surface colors - slightly lighter navy */
-    --card: 222 25% 16%; /* #1E2330 - card background */
-    --card-foreground: 210 40% 98%; /* #f8fafc - card text */
+    /* Card and surface colors - one step lighter navy */
+    --card: 213 50% 10%; /* #0D1A26-ish - card background */
+    --card-foreground: 210 40% 96%; /* light text on cards */
 
     /* Popover colors */
-    --popover: 222 25% 16%; /* #1E2330 - popover background */
-    --popover-foreground: 210 40% 98%; /* #f8fafc - popover text */
+    --popover: 213 50% 10%; /* match cards */
+    --popover-foreground: 210 40% 96%;
 
     /* Primary colors - #13AECE brand blue */
     --primary: 190 83% 44%; /* #13AECE - brand blue */
-    --primary-foreground: 210 40% 98%; /* #f8fafc - white text on blue */
+    --primary-foreground: 210 40% 98%; /* white text on blue */
 
-    /* Secondary colors - slightly lighter than background */
-    --secondary: 222 20% 20%; /* #252A37 - secondary background */
-    --secondary-foreground: 210 40% 98%; /* #f8fafc - secondary text */
+    /* Secondary colors - above hero level */
+    --secondary: 213 40% 15%; /* #17283D-ish - secondary surfaces */
+    --secondary-foreground: 210 40% 96%;
 
     /* Muted colors */
-    --muted: 222 20% 20%; /* #252A37 - muted background */
-    --muted-foreground: 215 20.2% 75%; /* #b4bcd0 - muted text */
+    --muted: 213 40% 15%; /* match secondary */
+    --muted-foreground: 214 22% 66%; /* #93A5BD-ish - readable, not shouting */
 
     /* Accent colors - variations of #13AECE */
     --accent: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
-    --accent-foreground: 210 40% 98%; /* #f8fafc - white text on accent */
+    --accent-foreground: 210 40% 98%;
 
     /* Destructive colors - complementary red */
     --destructive: 0 84% 60%; /* #EF4444 - vibrant red */
-    --destructive-foreground: 210 40% 98%; /* #f8fafc - white text on red */
+    --destructive-foreground: 210 40% 98%;
 
     /* Border and input colors */
-    --border: 222 30% 22%; /* #2A3042 - subtle borders */
-    --input: 222 30% 22%; /* #2A3042 - input borders */
+    --border: 213 35% 19%; /* #1F324A-ish - subtle navy borders */
+    --input: 213 35% 19%;
     --ring: 190 83% 54%; /* #2BB8D8 - focus ring (lighter brand blue) */
 
     /* Chart colors - #13AECE-based palette */

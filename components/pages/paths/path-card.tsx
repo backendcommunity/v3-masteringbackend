@@ -40,15 +40,15 @@ interface PathCardProps {
 
 const LEVEL_STYLES: Record<string, { pill: string; dot: string }> = {
   Beginner: {
-    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
     dot: "bg-emerald-500",
   },
   Intermediate: {
-    pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    pill: "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
     dot: "bg-amber-500",
   },
   Advanced: {
-    pill: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    pill: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
     dot: "bg-red-500",
   },
 };
