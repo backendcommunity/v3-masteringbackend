@@ -877,11 +877,13 @@ export function LearningPathDetailPage({
     </div>
   );
 
-  // ── Milestone map — sticky mini-TOC of the curriculum ──
+  // ── Milestone map — sticky mini-TOC of the curriculum.
+  // Desktop-only: on mobile the rail stacks BELOW the curriculum, where a
+  // map of it is useless. Capped height so the sticky rail never clips Share.
   const milestoneMap = topics.length > 1 ? (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="hidden lg:block rounded-2xl border border-border bg-card p-4">
       <div className="eyebrow-mono text-muted-foreground mb-3">Milestones</div>
-      <nav className="space-y-0.5">
+      <nav className="space-y-0.5 max-h-[40vh] overflow-y-auto no-scrollbar">
         {topics.map((t: any, i: number) => {
           const isDone = t.completed === true;
           const isCurrent = isFullAccess && t.id === currentTopic?.id;
