@@ -4,8 +4,6 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { RoadmapsPage } from "@/components/pages/roadmaps";
 import { useRouter } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 export default function RoadmapsPageRoute() {
   const router = useRouter();
 

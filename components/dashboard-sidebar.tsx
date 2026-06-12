@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Code2,
@@ -137,9 +138,21 @@ export function DashboardSidebar({
   const user = useUser();
   const { theme } = useTheme();
   const { level, mbToNextLevel, progressPct } = useLevel();
+  const router = useRouter();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setCollapsed(isCollapsed), [isCollapsed]);
+
+  // Warm the RSC payload for every sidebar destination so first navigation
+  // doesn't wait on a server round trip (the slow "fetch-server" rows).
+  // No-op in dev; prefetches in production builds.
+  useEffect(() => {
+    Object.values(navigationData)
+      .flat()
+      .forEach((item) => {
+        if (item?.url && item.active !== false) router.prefetch(item.url);
+      });
+  }, [router]);
   if (!mounted) return null;
 
   return (

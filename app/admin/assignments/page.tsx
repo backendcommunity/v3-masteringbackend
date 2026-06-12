@@ -7,8 +7,6 @@ import { useAppStore } from "@/lib/store";
 import { Loader } from "@/components/ui/loader";
 import { ShieldOff } from "lucide-react";
 
-export const dynamic = "force-dynamic";
-
 export default function AdminAssignmentsPageRoute() {
   const store = useAppStore();
   const [role, setRole] = useState<string | null>(null);
