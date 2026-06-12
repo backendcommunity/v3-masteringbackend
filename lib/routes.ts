@@ -114,6 +114,11 @@ export const routes = {
     `/paths/${pathId}/${topicId}/quizzes/${quizId}`,
   pathContentWatch: (pathId: string, stepId: string) =>
     `/paths/${pathId}/watch/${stepId}`,
+  // Workspace (unified player) — stepId is the compiled "topicId:TYPE:itemId"
+  pathWorkspace: (pathId: string, stepId?: string) =>
+    stepId
+      ? `/paths/${pathId}/learn/${encodeURIComponent(stepId)}`
+      : `/paths/${pathId}/learn`,
 
   // Bootcamps
   bootcamps: "/bootcamps",

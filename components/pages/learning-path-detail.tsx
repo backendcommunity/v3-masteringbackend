@@ -29,18 +29,21 @@ import {
   Trophy,
   Users,
   Star,
-  Zap,
   Brain,
   FolderOpen,
   Calendar,
   Video,
   RotateCcw,
-  Flame,
   Award,
   Wrench,
   Link2,
+  Flag,
+  Layers,
+  Link,
+  Share2,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { Loader } from "../ui/loader";
@@ -274,6 +277,7 @@ export function LearningPathDetailPage({
   const user = useUser();
   const [roadmap, setRoadmap] = useState<any>(null);
   const [userRoadmap, setUserRoadmap] = useState<any>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [navigating, setNavigating] = useState(false);
@@ -345,6 +349,9 @@ export function LearningPathDetailPage({
       setRoadmap(roadmapData);
       const ur = roadmapData?.userRoadmap ?? null;
       setUserRoadmap(ur);
+
+      // Fetch session-derived meters in the background (non-blocking, graceful)
+      store.getPathSession(pathId).then(setSession).catch(() => {});
 
       // Fetch certificate if path is completed
       if (ur?.isCompleted) {
@@ -531,70 +538,6 @@ export function LearningPathDetailPage({
       });
   };
 
-  // Deep-link to the exact video where the user left off
-  const navigateToFirstUncompletedVideo = async (
-    topicId: string,
-    courses: any[],
-  ) => {
-    if (!onNavigate) return;
-    setNavigating(true);
-    try {
-      const milestone =
-        milestoneCache.current[topicId] ??
-        (await store.getMilestone(pathId, topicId));
-      milestoneCache.current[topicId] = milestone;
-      const completedVideoIds = new Set(
-        (milestone?.userTopic?.completedItems ?? [])
-          .filter((ci: any) => ci.itemType === "VIDEO")
-          .map((ci: any) => ci.itemId),
-      );
-
-      for (const course of courses) {
-        const chapters: any[] = course.chapters ?? [];
-        for (const chapter of chapters) {
-          const videos: any[] = chapter.videos ?? [];
-          for (const video of videos) {
-            if (!completedVideoIds.has(video.id)) {
-              onNavigate(
-                routes.pathVideoWatch(
-                  pathId,
-                  topicId,
-                  course.slug,
-                  chapter.slug,
-                  video.slug,
-                ),
-              );
-              return;
-            }
-          }
-        }
-      }
-
-      // All videos complete — land on the last video
-      const lastCourse = courses[courses.length - 1];
-      const lastChapter =
-        lastCourse?.chapters?.[lastCourse.chapters.length - 1];
-      const lastVideo = lastChapter?.videos?.[lastChapter.videos.length - 1];
-      if (lastVideo) {
-        onNavigate(
-          routes.pathVideoWatch(
-            pathId,
-            topicId,
-            lastCourse.slug,
-            lastChapter.slug,
-            lastVideo.slug,
-          ),
-        );
-      } else {
-        onNavigate(routes.pathContinue(pathId));
-      }
-    } catch {
-      onNavigate(routes.pathContinue(pathId));
-    } finally {
-      setNavigating(false);
-    }
-  };
-
   useEffect(() => {
     loadData();
   }, [pathId]);
@@ -634,31 +577,41 @@ export function LearningPathDetailPage({
 
   if (loading) {
     return (
-      <div className="flex-1 space-y-6">
-        {/* Breadcrumb skeleton */}
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-28" />
-          <span className="text-muted-foreground">/</span>
-          <Skeleton className="h-4 w-40" />
+      <div className="max-w-7xl mx-auto w-full space-y-6">
+        {/* Header skeleton — mirrors breadcrumb → title → meta */}
+        <div className="border-b border-border pb-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-28" />
+            <span className="text-muted-foreground">/</span>
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-8 w-72" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+          </div>
+          <Skeleton className="h-4 w-96" />
+        </div>
+        {/* Description skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {/* Title */}
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-3/4" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
+            {/* Up-next card skeleton */}
+            <div className="rounded-2xl border border-border p-5 flex items-center gap-4">
+              <Skeleton className="h-12 w-12 rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+              <Skeleton className="h-9 w-28 rounded-lg flex-shrink-0" />
             </div>
-            {/* Stats row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
-              ))}
-            </div>
-            {/* Curriculum card */}
-            <div className="space-y-4 border rounded-lg p-6">
+            {/* Curriculum skeleton */}
+            <div className="space-y-4 rounded-2xl border border-border p-6">
               <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-64" />
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
@@ -673,14 +626,20 @@ export function LearningPathDetailPage({
               ))}
             </div>
           </div>
-          {/* Sidebar */}
+          {/* Rail skeleton */}
           <div className="space-y-4">
-            <div className="border-2 rounded-lg p-6 space-y-4">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-10 w-full rounded-md" />
+            <div className="rounded-2xl border border-border p-5 space-y-4">
+              <Skeleton className="h-5 w-32" />
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-20 w-20 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
             </div>
+            <Skeleton className="h-8 w-48" />
           </div>
         </div>
       </div>
@@ -692,8 +651,8 @@ export function LearningPathDetailPage({
       <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-[60vh]">
         <div className="max-w-lg w-full text-center space-y-6">
           <div className="flex justify-center">
-            <div className="p-5 rounded-full bg-blue-50 dark:bg-blue-950">
-              <Clock className="h-14 w-14 text-blue-600" />
+            <div className="p-5 rounded-full bg-primary/10">
+              <Clock className="h-14 w-14 text-primary" />
             </div>
           </div>
           <div className="space-y-2">
@@ -764,39 +723,342 @@ export function LearningPathDetailPage({
     );
   }
 
+  // ── Share helpers ──
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = `Check out the ${roadmap.title} learning path on MasteringBackend`;
+  const openShare = (network: string, url: string) => {
+    analytics.track("path_share_clicked", { pathId, network });
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const shareLinkedIn = () =>
+    openShare(
+      "linkedin",
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+    );
+  const shareFacebook = () =>
+    openShare(
+      "facebook",
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+    );
+  const shareX = () =>
+    openShare(
+      "x",
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+    );
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
+
+  // ── Session-derived meters (fallback to roadmap progress if session not loaded) ──
+  const sessionPath = session?.path;
+  const sessionSteps: any[] = session?.steps ?? [];
+  const stepsTotal = sessionSteps.length;
+  const stepsDone = sessionSteps.filter((s) => s.status === "DONE").length;
+  const displayProgress = sessionPath?.progressPct ?? progress;
+  const masteryPct = sessionPath?.masteryPct ?? null;
+  const earnedPoints = sessionPath?.earnedPoints ?? null;
+  const certThreshold = sessionPath?.certThreshold ?? null;
+
+  // ── Header meta values ──
+  const headerLevel = topics[0]?.level || roadmap.difficulty || "Intermediate";
+  const totalCourses = topics.reduce(
+    (s: number, t: any) => s + (t.courses?.length || 0),
+    0,
+  );
+  const milestonesCount = topics.length;
+  const studentsCount = roadmap.students ?? roadmap.enrolledCount ?? 0;
+  const totalQuizzes = topics.reduce(
+    (s: number, t: any) => s + (t.quizzes?.length || 0),
+    0,
+  );
+  const totalProjects = topics.reduce(
+    (s: number, t: any) => s + (t.projects?.length || 0),
+    0,
+  );
+  const totalExercises = topics.reduce(
+    (s: number, t: any) => s + (t.exercises?.length || 0),
+    0,
+  );
+
+  // ── Flat header block ──
+  const pageHeader = (
+    <div className="border-b border-border pb-5">
+      <nav
+        aria-label="breadcrumb"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <button
+          onClick={() => onNavigate?.(routes.paths)}
+          className="hover:text-foreground transition-colors"
+        >
+          Learning Paths
+        </button>
+        <span>/</span>
+        <span className="text-foreground font-medium line-clamp-1 max-w-xs">
+          {roadmap.title}
+        </span>
+      </nav>
+
+      <div className="flex items-center gap-2.5 flex-wrap mt-2">
+        <h1 className="text-2xl font-bold text-foreground">{roadmap.title}</h1>
+        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+          {headerLevel}
+        </span>
+      </div>
+
+      {roadmap.summary && (
+        <p className="text-sm text-muted-foreground leading-relaxed mt-1.5 max-w-3xl line-clamp-2">
+          {stripHtmlTags(roadmap.summary)}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">
+        {roadmap.estimatedWeeks > 0 && (
+          <>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="w-4 h-4" />~{roadmap.estimatedWeeks}w ·{" "}
+              {roadmap.hoursPerWeek}h/wk
+            </span>
+            <span className="text-muted-foreground/40 text-xs">·</span>
+          </>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <Flag className="w-4 h-4" />
+          {milestonesCount} milestones
+        </span>
+        <span className="text-muted-foreground/40 text-xs">·</span>
+        <span className="inline-flex items-center gap-1">
+          <Layers className="w-4 h-4" />
+          {totalCourses} courses
+        </span>
+        <span className="text-muted-foreground/40 text-xs">·</span>
+        {isFullAccess ? (
+          <span>
+            <span className="font-semibold text-foreground">
+              {displayProgress}%
+            </span>{" "}
+            complete
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1">
+            <Users className="w-4 h-4" />
+            {studentsCount} learners
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Share (monochrome icon row — brand color on hover only) ──
+  const shareBtnCls =
+    "h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors";
+  const shareRow = (
+    <div className="flex items-center gap-1.5">
+      <span className="flex items-center gap-1.5 mr-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Share2 className="w-3.5 h-3.5" />
+        Share
+      </span>
+      <button
+        onClick={shareLinkedIn}
+        className={shareBtnCls}
+        aria-label="Share on LinkedIn"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+          <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+        </svg>
+      </button>
+      <button
+        onClick={shareX}
+        className={shareBtnCls}
+        aria-label="Share on X"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      </button>
+      <button
+        onClick={shareFacebook}
+        className={shareBtnCls}
+        aria-label="Share on Facebook"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+          <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+        </svg>
+      </button>
+      <button
+        onClick={copyShareLink}
+        className={shareBtnCls}
+        aria-label="Copy link"
+      >
+        <Link className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+
+  // ── Enroll card (preview rail — the one place counts earn their spot) ──
+  const enrollCard = (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-semibold text-[15px] mb-3">What&apos;s inside</h3>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <BookOpen className="w-4 h-4" />
+            Courses
+          </span>
+          <span className="font-medium">{totalCourses}</span>
+        </div>
+        {totalQuizzes > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Brain className="w-4 h-4" />
+              Quizzes
+            </span>
+            <span className="font-medium">{totalQuizzes}</span>
+          </div>
+        )}
+        {totalProjects > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <FolderOpen className="w-4 h-4" />
+              Projects
+            </span>
+            <span className="font-medium">{totalProjects}</span>
+          </div>
+        )}
+        {totalExercises > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Code2 className="w-4 h-4" />
+              Exercises
+            </span>
+            <span className="font-medium">{totalExercises}</span>
+          </div>
+        )}
+        {roadmap.estimatedWeeks > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              Est. time
+            </span>
+            <span className="font-medium">~{roadmap.estimatedWeeks} weeks</span>
+          </div>
+        )}
+      </div>
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="text-sm text-muted-foreground mb-3">
+          {!roadmap.isPremium || user?.isPremium ? (
+            <>
+              Free with{" "}
+              <span className="font-semibold text-foreground">Pro</span>
+            </>
+          ) : (
+            <span className="font-semibold text-foreground">
+              {roadmap.amount
+                ? `$${roadmap.amount}`
+                : "Premium membership required"}
+            </span>
+          )}
+        </div>
+        <button
+          disabled={enrolling}
+          onClick={handleEnroll}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+        >
+          <Sparkles className="w-4 h-4" />
+          {enrolling ? "Enrolling…" : "Enroll in path"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Your progress card (enrolled) ──
+  const progressCard = (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-semibold text-[15px] mb-4">Your progress</h3>
+      <div className="flex items-center gap-4">
+        <div className="relative w-20 h-20 shrink-0">
+          <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9"
+              fill="none"
+              stroke="hsl(var(--secondary))"
+              strokeWidth="3"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9"
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="3"
+              strokeDasharray={`${displayProgress} 100`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 grid place-items-center">
+            <span className="text-lg font-bold">{displayProgress}%</span>
+          </div>
+        </div>
+        <div className="text-sm space-y-1">
+          {session && (
+            <div className="text-muted-foreground">
+              <span className="font-semibold text-foreground">{stepsDone}</span>{" "}
+              of {stepsTotal} steps
+            </div>
+          )}
+          <div className="text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {completedTopics.length}
+            </span>{" "}
+            of {milestonesCount} milestones
+          </div>
+        </div>
+      </div>
+      {session && masteryPct != null && (
+        <div className="mt-4 pt-4 border-t border-border space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Mastery</span>
+            <span className="font-semibold">{masteryPct}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full bg-primary/70"
+              style={{ width: `${masteryPct}%` }}
+            />
+          </div>
+          {sessionPath?.certEligible ? (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <Award className="w-3.5 h-3.5" />
+              Certificate unlocked
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Award className="w-3.5 h-3.5" />
+              {certThreshold != null && earnedPoints != null
+                ? `${Math.max(0, certThreshold - earnedPoints)} pts to certificate · ${earnedPoints}/${certThreshold}`
+                : "Earn points to unlock your certificate"}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   // Non-enrolled OR preview-enrolled: show sales/preview page
   if (!isFullAccess) {
     return (
-      <div className="flex-1 space-y-6">
-        {/* Breadcrumb */}
-        <nav
-          aria-label="breadcrumb"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground"
-        >
-          <button
-            onClick={() => onNavigate?.(routes.paths)}
-            className="hover:text-foreground transition-colors"
-          >
-            Learning Paths
-          </button>
-          <span>/</span>
-          <span className="text-foreground font-medium line-clamp-1 max-w-xs">
-            {roadmap.title}
-          </span>
-        </nav>
+      <div className="max-w-7xl mx-auto w-full space-y-6">
+        {pageHeader}
 
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {/* Title and Description */}
-            <div className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-tight">
-                {roadmap.title}
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {stripHtmlTags(roadmap.summary || "")}
-              </p>
-            </div>
-
             {/* Key Stats */}
             {/* {(() => {
               const totalCourses = topics.reduce((s: number, t: any) => s + (t.courses?.length || 0), 0);
@@ -832,53 +1094,6 @@ export function LearningPathDetailPage({
               );
             })()} */}
             {/* Commented out: Topics, Content Items, Enrolled stat cards */}
-
-            {/* Skills You'll Learn */}
-            {roadmap.skills && roadmap.skills.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Skills You'll Learn</CardTitle>
-                  <CardDescription>
-                    Master these essential technologies and concepts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {roadmap.skills.map((skill: string) => (
-                      <Badge key={skill} className="justify-center py-2">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Prerequisites */}
-            {roadmap.prerequisites && roadmap.prerequisites.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Prerequisites</CardTitle>
-                  <CardDescription>
-                    What you should know before starting
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {roadmap.prerequisites.map(
-                      (prerequisite: string, index: number) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm">{prerequisite}</span>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            <Separator />
 
             {/* Curriculum Preview */}
             <Card>
@@ -1061,299 +1276,10 @@ export function LearningPathDetailPage({
             </Card>
           </div>
 
-          {/* Sidebar CTA */}
-          <div className="space-y-6">
-            <Card className="border-2 border-primary sticky top-6">
-              <CardHeader>
-                <CardTitle className="text-2xl">{roadmap.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline">
-                    {roadmap.level || "Beginner to Advanced"}
-                  </Badge>
-                  <Badge variant="secondary">
-                    {roadmap.difficulty || "Progressive"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3 text-sm">
-                  {roadmap.timeframe && (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      <span>{roadmap.timeframe}</span>
-                    </div>
-                  )}
-                </div>
-
-                {roadmap.instructor && (
-                  <div className="flex items-center gap-3 py-3 border-t">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                      <BookOpen className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Created by
-                      </p>
-                      <p className="text-sm font-semibold">
-                        {roadmap.instructor}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {isPreviewMode ? (
-                  <>
-                    <div className="rounded-lg border border-[#13AECE]/30 bg-[#13AECE]/5 px-4 py-3">
-                      <p className="text-xs font-semibold text-[#13AECE] mb-0.5">
-                        Preview mode active
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        You have access to free content. Upgrade for the full
-                        curriculum.
-                      </p>
-                    </div>
-                    <Button
-                      className="w-full text-white bg-[#13AECE] hover:bg-[#0FA3C4]"
-                      size="lg"
-                      disabled={enrolling}
-                      onClick={handleEnroll}
-                    >
-                      {enrolling ? "Enrolling..." : "Upgrade to Full Access"}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      disabled={enrolling}
-                      onClick={handleEnroll}
-                    >
-                      {enrolling ? "Enrolling..." : "Enrol Now"}
-                    </Button>
-                  </>
-                )}
-
-                {(freePreviewCourseId || roadmap?.preview) && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    disabled={enrolling}
-                    onClick={() => {
-                      if (roadmap?.preview) {
-                        handlePreviewEnroll(() => setShowPreviewDialog(true));
-                        return;
-                      }
-                      // No preview video — navigate directly to free course preview
-                      const previewCourse = topics[0]?.courses?.find(
-                        (c: any) => c.id === freePreviewCourseId,
-                      );
-                      if (previewCourse?.slug) {
-                        handlePreviewEnroll(() =>
-                          onNavigate?.(
-                            routes.pathCoursePreview(
-                              pathId,
-                              topics[0].id,
-                              previewCourse.slug,
-                            ),
-                          ),
-                        );
-                      }
-                    }}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    {enrolling ? "Starting..." : "Watch Preview"}
-                  </Button>
-                )}
-                {roadmap?.isPremium && !user?.isPremium && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    Premium membership required
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Social Proof */}
-            {roadmap?.students > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold text-sm">
-                          Popular Path
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(roadmap?.students || 0).toLocaleString()} students
-                        enrolled
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Path Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Path Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2.5">
-                  {[
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) => s + (t.courses?.length || 0),
-                        0,
-                      ),
-                      label: "Courses",
-                      icon: BookOpen,
-                      color: "text-blue-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) => s + (t.projects?.length || 0),
-                        0,
-                      ),
-                      label: "Portfolio Projects",
-                      icon: FolderOpen,
-                      color: "text-orange-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) =>
-                          s + (t.mockInterviews?.length || 0),
-                        0,
-                      ),
-                      label: "Mock Interviews",
-                      icon: Video,
-                      color: "text-red-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) =>
-                          s +
-                          (t.sortedContents?.filter(
-                            (i: any) => i.type === "quiz",
-                          ).length || 0),
-                        0,
-                      ),
-                      label: "Quizzes",
-                      icon: Brain,
-                      color: "text-purple-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) =>
-                          s +
-                          (t.sortedContents?.filter(
-                            (i: any) => i.type === "workshop",
-                          ).length || 0),
-                        0,
-                      ),
-                      label: "Live Workshops",
-                      icon: Wrench,
-                      color: "text-teal-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) =>
-                          s +
-                          (t.sortedContents?.filter(
-                            (i: any) => i.type === "exercise",
-                          ).length || 0),
-                        0,
-                      ),
-                      label: "Coding Exercises",
-                      icon: Code2,
-                      color: "text-green-600",
-                    },
-                    {
-                      value: topics.reduce(
-                        (s: number, t: any) =>
-                          s +
-                          (t.sortedContents?.filter(
-                            (i: any) => i.type === "resource",
-                          ).length || 0),
-                        0,
-                      ),
-                      label: "Resources",
-                      icon: Link2,
-                      color: "text-slate-600",
-                    },
-                  ].map(({ value, label, icon: Icon, color }) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <Icon className={`h-4 w-4 ${color} flex-shrink-0`} />
-                      <p className="text-sm">
-                        <span className="font-semibold">{value}</span> {label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2.5 pt-2 border-t">
-                  {roadmap.instructor && (
-                    <div className="flex gap-2">
-                      <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Created by
-                        </p>
-                        <p className="font-medium text-sm">
-                          {roadmap.instructor}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Award className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">
-                      Certificate of completion included
-                    </p>
-                  </div>
-                  {(freePreviewCourseId || roadmap?.preview) && (
-                    <div className="flex gap-2">
-                      <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm">Free preview available</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Certificate Preview */}
-            <Card className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-yellow-600" />
-                  Certificate of Completion
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="relative rounded-lg border-2 border-dashed border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/20 p-5 text-center">
-                  <div className="absolute inset-0 backdrop-blur-[1px] rounded-lg flex items-center justify-center">
-                    <div className="bg-background/80 rounded-full p-2">
-                      <Lock className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <Trophy className="h-12 w-12 mx-auto mb-2 text-yellow-500 opacity-60" />
-                  <p className="font-semibold text-sm text-muted-foreground">
-                    {roadmap.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Certificate of Completion
-                  </p>
-                  <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                    <Award className="h-3 w-3" />
-                    <span>Verified · Shareable</span>
-                  </div>
-                </div>
-                <p className="text-xs text-center text-muted-foreground">
-                  Enroll and complete all topics to earn your certificate
-                </p>
-              </CardContent>
-            </Card>
+          {/* Sidebar */}
+          <div className="space-y-4 lg:sticky lg:top-6 self-start">
+            {enrollCard}
+            {shareRow}
           </div>
         </div>
 
@@ -1387,212 +1313,92 @@ export function LearningPathDetailPage({
     );
   }
 
+
   // Enrolled: show progress timeline
   return (
-    <div className="flex-1 space-y-6">
-      {/* Breadcrumb */}
-      <nav
-        aria-label="breadcrumb"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <button
-          onClick={() => onNavigate?.(routes.paths)}
-          className="hover:text-foreground transition-colors"
-        >
-          Learning Paths
-        </button>
-        <span>/</span>
-        <span className="text-foreground font-medium line-clamp-1 max-w-xs">
-          {roadmap.title}
-        </span>
-      </nav>
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{roadmap.title}</h1>
-          <p className="text-muted-foreground">
-            {stripHtmlTags(roadmap.summary || "")}
-          </p>
-        </div>
-      </div>
-
-      {/* Motivational Banner */}
-      {isEnrolled && currentTopic && (
-        <div className="rounded-lg bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-base">
-                {progress >= 75
-                  ? "🔥 Almost there! You're in the final stretch."
-                  : progress >= 50
-                    ? "💪 Past the halfway point — keep the momentum!"
-                    : progress >= 25
-                      ? "✅ Great start! You're building real momentum."
-                      : "🚀 Your journey begins. The best backend engineers started here."}
-              </p>
-              <p className="text-sm text-blue-100 mt-1">
-                {completedTopics.length} of {topics.length} topics complete
-              </p>
-            </div>
-            {(user?.currentStreak ?? 0) > 1 && (
-              <div className="text-center ml-4 flex-shrink-0">
-                <div className="flex items-center gap-1">
-                  <Flame className="h-5 w-5 text-orange-300" />
-                  <div className="text-2xl font-bold">
-                    {user?.currentStreak}
-                  </div>
-                </div>
-                <div className="text-xs text-blue-100">day streak</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Progress Overview */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">
-                Overall Progress
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress
-                  value={progress}
-                  className="h-2 flex-1"
-                  aria-label={`Overall learning path progress: ${progress}%`}
-                  aria-valuenow={progress}
-                />
-                <span className="text-sm font-medium">{progress}%</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">
-                Topics Completed
-              </div>
-              <div className="text-2xl font-bold">{completedTopics.length}</div>
-              <div className="text-xs text-muted-foreground">
-                of {topics.length}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">Current Topic</div>
-              <div className="text-2xl font-bold">
-                {currentTopic ? currentTopicIndex + 1 : 0}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">
-                Upcoming Topics
-              </div>
-              <div className="text-2xl font-bold">{upcomingTopics.length}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {pageHeader}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Current Step */}
+          {/* Current Step — single focused "Up next" row */}
           {currentTopic && (
-            <Card className="border-2 border-blue-200">
-              <CardHeader className="">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 hidden md:flex rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
-                    {currentTopicIndex + 1}
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center gap-4">
+                {/* Brand icon tile */}
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                  <Play className="w-5 h-5" />
+                </div>
+
+                {/* Focus: the next step */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                    Up next · Milestone {currentTopicIndex + 1}
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">
-                      Current: {currentTopic.title}
-                    </CardTitle>
-                    <CardDescription>
-                      {stripHtmlTags(currentTopic.description || "")}
-                    </CardDescription>
+                  <h3 className="font-bold text-foreground text-[15px] leading-snug truncate mt-0.5">
+                    {currentItem?.title ?? currentTopic.title}
+                  </h3>
+                  <p className="text-[13px] text-muted-foreground truncate">
+                    {currentTopic.title}
+                    {currentItem?.chapterTitle
+                      ? ` · ${currentItem.chapterTitle}`
+                      : ""}
+                  </p>
+                  <div className="flex items-center gap-3 mt-2.5">
+                    <div className="h-1.5 flex-1 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${currentTopic.progress ?? 0}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-semibold text-foreground shrink-0">
+                      {currentTopic.progress ?? 0}%
+                      {currentItem && currentItem.totalItems > 0 && (
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          · {currentItem.itemIndex}/{currentItem.totalItems}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {currentItem && (
-                    <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-3">
-                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
-                        ▶ Next Up
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Play className="h-4 w-4 text-blue-600 flex-shrink-0 animate-pulse" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm leading-tight line-clamp-1">
-                            {currentItem.title}
-                          </p>
-                          {currentItem.chapterTitle && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {currentItem.chapterTitle}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Topic Progress</span>
-                      <span className="font-semibold text-blue-600">
-                        {currentTopic.progress ?? 0}%
-                        {currentItem && currentItem.totalItems > 0 && (
-                          <span className="text-muted-foreground font-normal ml-1">
-                            ({currentItem.itemIndex}/{currentItem.totalItems})
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <Progress
-                      value={currentTopic.progress ?? 0}
-                      className="h-2"
-                    />
-                  </div>
+                {/* CTA — right-aligned on desktop */}
+                <Button
+                  className="shrink-0 self-center hidden sm:inline-flex"
+                  onClick={() => {
+                    analytics.track("path_continue_clicked", {
+                      pathId,
+                      topicId: currentTopic.id,
+                      topicTitle: currentTopic.title,
+                      source: "current_card",
+                    });
+                    onNavigate?.(routes.pathWorkspace(pathId));
+                  }}
+                >
+                  Continue
+                  <ChevronRight className="ml-1.5 h-4 w-4" />
+                </Button>
+              </div>
 
-                  <Button
-                    className="w-full"
-                    disabled={navigating}
-                    onClick={() => {
-                      analytics.track("path_continue_clicked", {
-                        pathId,
-                        topicId: currentTopic.id,
-                        topicTitle: currentTopic.title,
-                        source: "current_card",
-                      });
-                      navigateToFirstUncompletedVideo(
-                        currentTopic.id,
-                        currentTopic.courses ?? [],
-                      );
-                    }}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    {navigating ? "Loading…" : "Continue Learning"}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      analytics.track("path_workspace_opened", {
-                        pathId,
-                        topicId: currentTopic.id,
-                        source: "current_card",
-                      });
-                      onNavigate?.(`/paths/${pathId}/learn`);
-                    }}
-                  >
-                    <Zap className="mr-2 h-4 w-4" />
-                    Continue in workspace
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Mobile CTA — full width below */}
+              <Button
+                className="w-full mt-4 sm:hidden"
+                onClick={() => {
+                  analytics.track("path_continue_clicked", {
+                    pathId,
+                    topicId: currentTopic.id,
+                    topicTitle: currentTopic.title,
+                    source: "current_card",
+                  });
+                  onNavigate?.(routes.pathWorkspace(pathId));
+                }}
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Continue Learning
+              </Button>
+            </div>
           )}
 
           {/* Learning Path Timeline */}
@@ -1652,22 +1458,22 @@ export function LearningPathDetailPage({
                         >
                           {/* Topic header */}
                           <div
-                            className={`px-6 py-3 border-b flex items-center gap-3 ${isTopicCompleted ? "bg-green-50/50 dark:bg-green-950/20" : isTopicCurrent ? "bg-blue-50/50 dark:bg-blue-950/20" : "bg-muted/30"}`}
+                            className={`px-6 py-3 border-b flex items-center gap-3 ${isTopicCompleted ? "bg-emerald-50/50 dark:bg-emerald-950/20" : "bg-muted/30"}`}
                           >
                             {isTopicCompleted ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                             ) : isTopicCurrent ? (
-                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                              <Play className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             ) : (
                               <div className="h-4 w-4 rounded-full bg-muted-foreground/20 flex-shrink-0" />
                             )}
                             <p
-                              className={`text-xs font-semibold uppercase tracking-wider flex-1 ${isTopicCompleted ? "text-green-700 dark:text-green-400" : isTopicCurrent ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground"}`}
+                              className={`text-xs font-semibold uppercase tracking-wider flex-1 ${isTopicCompleted ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}`}
                             >
                               {topic.title}
                             </p>
                             {isTopicCompleted && (
-                              <Badge className="bg-green-600 text-[10px]">
+                              <Badge className="bg-emerald-600 text-[10px]">
                                 Complete
                               </Badge>
                             )}
@@ -1691,7 +1497,7 @@ export function LearningPathDetailPage({
                                   typeConfig[item.type] ?? typeConfig.course;
                                 const dotCls = cfg.dotCls;
                                 const numBgCls = item.isCompleted
-                                  ? "bg-green-600"
+                                  ? "bg-emerald-600"
                                   : "bg-foreground";
                                 const isCourseType =
                                   item.type === "course" ||
@@ -1718,14 +1524,14 @@ export function LearningPathDetailPage({
                                                 {cfg.label}
                                               </span>
                                               {item.isCompleted && (
-                                                <Badge className="bg-green-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-green-700">
+                                                <Badge className="bg-emerald-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-emerald-700">
                                                   ✓ Done
                                                 </Badge>
                                               )}
                                               {isTopicCurrent &&
                                                 !item.isCompleted &&
                                                 isCourseType && (
-                                                  <Badge className="bg-blue-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-blue-700">
+                                                  <Badge className="bg-primary text-[10px] py-0 px-1.5 h-auto text-primary-foreground hover:bg-primary/90">
                                                     In Progress
                                                   </Badge>
                                                 )}
@@ -1757,7 +1563,7 @@ export function LearningPathDetailPage({
                                                     value={topic.progress ?? 0}
                                                     className="h-1.5"
                                                   />
-                                                  <p className="text-xs text-blue-600 font-medium">
+                                                  <p className="text-xs text-primary font-medium">
                                                     {topic.progress ?? 0}%
                                                     complete
                                                   </p>
@@ -1792,100 +1598,100 @@ export function LearningPathDetailPage({
                                                           item.title,
                                                       },
                                                     );
+                                                    // All content opens in the unified workspace.
+                                                    // Step ids use the compiled "topicId:TYPE:itemId" format.
+                                                    const stepFor = (
+                                                      type: string,
+                                                      itemId: string,
+                                                    ) =>
+                                                      `${topic.id}:${type}:${itemId}`;
                                                     switch (item.type) {
                                                       case "course":
-                                                      case "workshop":
-                                                        navigateToFirstUncompletedVideo(
-                                                          topic.id,
-                                                          item.isCompleted
-                                                            ? [item.raw]
-                                                            : (topic.courses ??
-                                                                []),
-                                                        );
-                                                        break;
-                                                      case "quiz":
-                                                        if (
-                                                          item.raw
-                                                            ?.parentCourseId
-                                                        ) {
-                                                          onNavigate?.(
-                                                            routes.courseQuiz(
-                                                              item.raw
-                                                                .parentCourseId,
-                                                              item.id,
-                                                            ),
-                                                          );
-                                                        } else {
-                                                          onNavigate?.(
-                                                            routes.pathQuiz(
-                                                              pathId,
-                                                              topic.id,
-                                                              item.id,
-                                                            ),
-                                                          );
-                                                        }
-                                                        break;
-                                                      case "exercise":
-                                                        if (
-                                                          item.raw
-                                                            ?.parentCourseId
-                                                        ) {
-                                                          onNavigate?.(
-                                                            routes.courseExercise(
-                                                              item.raw
-                                                                .parentCourseId,
-                                                              item.id,
-                                                            ),
-                                                          );
-                                                        } else {
-                                                          onNavigate?.(
-                                                            routes.pathExercise(
-                                                              pathId,
-                                                              topic.id,
-                                                              item.id,
-                                                            ),
-                                                          );
-                                                        }
-                                                        break;
-                                                      case "project":
-                                                        if (item.raw?.slug)
-                                                          onNavigate?.(
-                                                            routes.projectDetail(
-                                                              item.raw.slug,
-                                                            ),
-                                                          );
-                                                        break;
-                                                      case "bootcamp":
-                                                        if (item.raw?.slug)
-                                                          onNavigate?.(
-                                                            routes.bootcampDetail(
-                                                              item.raw.slug,
-                                                            ),
-                                                          );
-                                                        break;
-                                                      case "mock_interview":
+                                                      case "workshop": {
+                                                        // Courses are groups in the workspace — deep-link
+                                                        // their first video, else let the cursor resume.
+                                                        const firstVideo =
+                                                          item.raw?.chapters?.[0]
+                                                            ?.videos?.[0];
                                                         onNavigate?.(
-                                                          routes.mockInterviewBooking(
-                                                            item.id,
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            firstVideo
+                                                              ? stepFor(
+                                                                  "VIDEO",
+                                                                  firstVideo.id,
+                                                                )
+                                                              : undefined,
                                                           ),
                                                         );
                                                         break;
-                                                      case "resource": {
-                                                        const url =
-                                                          item.raw?.link ||
-                                                          item.raw?.content ||
-                                                          "";
-                                                        if (
-                                                          url.startsWith("http")
-                                                        ) {
-                                                          window.open(
-                                                            url,
-                                                            "_blank",
-                                                            "noopener,noreferrer",
-                                                          );
-                                                        }
-                                                        break;
                                                       }
+                                                      case "quiz":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "QUIZ",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "exercise":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "EXERCISE",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "project":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "PROJECT",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "bootcamp":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "BOOTCAMP",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "mock_interview":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "MOCK_INTERVIEW",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
+                                                      case "resource":
+                                                        onNavigate?.(
+                                                          routes.pathWorkspace(
+                                                            pathId,
+                                                            stepFor(
+                                                              "RESOURCE",
+                                                              item.id,
+                                                            ),
+                                                          ),
+                                                        );
+                                                        break;
                                                     }
                                                   };
                                                   const isCourseCompleted =
@@ -2023,193 +1829,9 @@ export function LearningPathDetailPage({
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Progress Card */}
-          <Card className="bg-gradient-to-br from-[#0E1F33] to-[#13AECE] text-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Target className="h-5 w-5" />
-                Your Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-100">Overall Completion</span>
-                  <span className="font-bold text-lg">{progress}%</span>
-                </div>
-                <Progress
-                  value={progress}
-                  className="h-3 bg-white/20 [&>div]:bg-white"
-                />
-                <div className="flex justify-between text-xs text-blue-100 pt-1">
-                  <span>
-                    {completedTopics.length} of {topics.length} topics done
-                  </span>
-                  {progress > 0 && progress < 100 && (
-                    <span>{100 - progress}% remaining</span>
-                  )}
-                  {progress === 100 && (
-                    <span className="text-yellow-300 font-semibold">
-                      🎉 Complete!
-                    </span>
-                  )}
-                </div>
-              </div>
-              {completedTopics.length > 0 && (
-                <div className="flex items-center gap-1.5 text-sm border-t border-white/20 pt-3">
-                  <Zap className="h-4 w-4 text-yellow-300" />
-                  <span className="text-blue-100">XP earned:</span>
-                  <span className="font-semibold text-yellow-300">
-                    {completedTopics.length * 50} MB
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Certificate Card */}
-          <Card
-            className={
-              progress === 100
-                ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20"
-                : ""
-            }
-          >
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Trophy
-                  className={`h-5 w-5 ${progress === 100 ? "text-yellow-600" : "text-muted-foreground"}`}
-                />
-                Certificate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {progress === 100 ? (
-                <div className="space-y-3">
-                  <div className="text-center p-4 border border-yellow-300 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-                    <Trophy className="h-10 w-10 mx-auto mb-2 text-yellow-600" />
-                    <p className="font-semibold text-sm">Path Complete!</p>
-                    {certificate ? (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        ID:{" "}
-                        <span className="font-mono font-medium">
-                          {certificate.code}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Your certificate is ready
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      if (certificate?.verifyUrl) {
-                        window.open(certificate.verifyUrl, "_blank");
-                      } else {
-                        toast.info(
-                          "Certificate is being generated. Check your email shortly.",
-                        );
-                      }
-                    }}
-                  >
-                    <Award className="mr-2 h-4 w-4" />
-                    View Certificate
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center p-4 border border-dashed rounded-lg bg-muted/30">
-                  <div className="relative inline-block mb-2">
-                    <Trophy className="h-10 w-10 text-muted-foreground/40" />
-                    <Lock className="h-4 w-4 text-muted-foreground absolute -bottom-1 -right-1" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Certificate of Completion
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Complete all {topics.length} topics to unlock
-                  </p>
-                  <div className="mt-3 space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Progress</span>
-                      <span>{progress}%</span>
-                    </div>
-                    <Progress value={progress} className="h-1.5" />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Your Investment */}
-          <Card>
-            <CardContent className="space-y-3">
-              {/* <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Topics completed
-                  </span>
-                  <span className="font-semibold">
-                    {completedTopics.length}/{topics.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Overall progress
-                  </span>
-                  <span className="font-semibold text-blue-600">
-                    {progress}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Current topic</span>
-                  <span className="font-semibold">
-                    {currentTopicIndex + 1} of {topics.length}
-                  </span>
-                </div>
-              </div> */}
-              {/* {completedTopics.length > 0 && (
-              <>
-                <Separator />
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Zap className="h-3 w-3" /> XP earned
-                  </span>
-                  <span className="font-semibold text-yellow-600">
-                    {completedTopics.length * 50} MB
-                  </span>
-                </div>
-              </>
-               )} */}
-              {roadmap.students > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Learning Together
-                      </span>
-                    </div>
-                    <p className="text-xl font-bold">
-                      {roadmap.students.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      learners enrolled
-                    </p>
-                    {progress > 0 && (
-                      <p className="text-xs text-green-600 mt-1 font-medium">
-                        You're ahead of {Math.round(progress * 0.6)}% of
-                        learners
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        <div className="space-y-4 lg:sticky lg:top-6 self-start">
+          {progressCard}
+          {shareRow}
         </div>
       </div>
 
@@ -2227,7 +1849,7 @@ export function LearningPathDetailPage({
               </p>
             </div>
             {roadmap?.progress !== undefined && (
-              <span className="text-xs font-medium text-blue-600">
+              <span className="text-xs font-medium text-primary">
                 {roadmap.progress}% complete
               </span>
             )}
@@ -2238,7 +1860,7 @@ export function LearningPathDetailPage({
             disabled={enrolling}
             onClick={handleEnroll}
           >
-            {enrolling ? "Enrolling..." : "Enrol Now"}
+            {enrolling ? "Enrolling…" : "Enroll Now"}
           </Button>
         </div>
       )}
@@ -2267,8 +1889,8 @@ export function LearningPathDetailPage({
         <DialogContent className="max-w-md text-center">
           <DialogHeader>
             <div className="flex justify-center mb-3">
-              <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
-                <Target className="h-8 w-8 text-blue-600" />
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Target className="h-8 w-8 text-primary" />
               </div>
             </div>
             <DialogTitle className="text-xl">You&apos;re in!</DialogTitle>
@@ -2282,16 +1904,16 @@ export function LearningPathDetailPage({
               Your first lesson is ready
             </h3>
             {topics?.[0] && (
-              <div className="text-left p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-2">
+              <div className="text-left p-3 bg-primary/5 rounded-lg space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                     1
                   </div>
                   <p className="text-sm font-medium">{topics[0].title}</p>
                 </div>
                 {topics[0].courses?.[0] && (
                   <div className="flex items-center gap-2 ml-8">
-                    <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
+                    <BookOpen className="h-4 w-4 text-primary shrink-0" />
                     <p className="text-sm text-muted-foreground">
                       {topics[0].courses[0].course?.title ||
                         topics[0].courses[0].title}
@@ -2311,12 +1933,9 @@ export function LearningPathDetailPage({
                   pathId,
                   topicId: topics[0].id,
                   topicTitle: topics[0].title,
-                  source: "current_card",
+                  source: "welcome_dialog",
                 });
-                navigateToFirstUncompletedVideo(
-                  topics[0].id,
-                  topics[0].courses ?? [],
-                );
+                onNavigate?.(routes.pathWorkspace(pathId));
               }}
             >
               Start Now &rarr;

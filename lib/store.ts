@@ -206,6 +206,14 @@ interface AppState {
   ) => Promise<any>;
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
+  getPathsOverview: () => Promise<{
+    stats: {
+      totalPaths: number;
+      totalLearners: number;
+      totalContentHours: number;
+      certificatesIssued: number;
+    };
+  }>;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
   getQuiz: (id: string) => Quiz | any;
   getRoadmapBySlug: (slug: string) => any;
@@ -283,7 +291,7 @@ interface AppState {
     projectId?: string;
     mockInterviewTemplateId?: string;
   }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
-  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string }) => Promise<void>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -892,6 +900,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     return data?.data;
   },
+  getPathsOverview: async () => {
+    const { data } = await api.get(`/roadmaps/overview`);
+    return data?.data;
+  },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const { data } = await api.get(
       `/users/roadmaps?skip=${skip}&size=${size}&filters=${filters}`,
@@ -1128,10 +1140,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string }) => {
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string }) => {
     const params = new URLSearchParams();
     if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
     if (opts.courseId) params.set("courseId", opts.courseId);
+    if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
     await api.delete(`/bookmarks?${params.toString()}`);
   },
 

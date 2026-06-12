@@ -1,25 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  Clock,
-  BookOpen,
-  Star,
-  Target,
-  CheckCircle2,
-  Search,
-  X,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+
+import { useState, useEffect, useMemo } from "react";
+import { Search, Route, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,58 +11,108 @@ import {
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { stripHtmlTags } from "@/lib/html-utils";
+import { analytics } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
+import { PathCard, PathCardData } from "@/components/pages/paths/path-card";
 
 interface LearningPathsPageProps {
   onNavigate?: (url: string) => void;
 }
 
+type PathTab = "all" | "in_progress" | "completed" | "saved";
+
+interface PathItem extends PathCardData {
+  /** real Roadmap.id (uuid) — used for bookmarking */
+  roadmapId: string;
+}
+
+interface OverviewStats {
+  totalPaths: number;
+  totalLearners: number;
+  totalContentHours: number;
+  certificatesIssued: number;
+}
+
+const TABS: { value: PathTab; label: string }[] = [
+  { value: "all", label: "All paths" },
+  { value: "in_progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+  { value: "saved", label: "Saved" },
+];
+
+const PAGE_SIZE = 12;
+
+function compactNumber(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return `${n}`;
+}
+
 export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const store = useAppStore();
-  const [paths, setPaths] = useState<any[]>([]);
+  const [paths, setPaths] = useState<PathItem[]>([]);
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
+  const [savingSlug, setSavingSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [tab, setTab] = useState<PathTab>("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const loadPaths = async () => {
+    const load = async () => {
       try {
         setLoading(true);
-        // getRoadmaps runs resolveRoadmaps server-side: returns r.enrolled,
-        // r.progress (accurate completedTopics/total), r.students, r.userRoadmap
-        // No need for a separate getUserRoadmaps call.
-        const result = await store.getRoadmaps({ skip: 0, size: 50 });
-        const roadmaps = result?.roadmaps ?? result ?? [];
+        const [result, overview, bookmarksRes] = await Promise.all([
+          store.getRoadmaps({ skip: 0, size: 50 }),
+          store.getPathsOverview().catch(() => null),
+          store.getBookmarks(50, 0).catch(() => ({ bookmarks: [] })),
+        ]);
 
-        const merged = (roadmaps || []).map((r: any) => {
+        const roadmaps = result?.roadmaps ?? result ?? [];
+        const merged: PathItem[] = (roadmaps || []).map((r: any) => {
           const topics = r.topics || [];
+          const totalDuration = topics.reduce(
+            (s: number, t: any) => s + (t.duration || 0),
+            0,
+          );
           return {
-            id: r.slug,
+            roadmapId: r.id,
             slug: r.slug,
             title: r.title,
             description: r.summary,
-            banner: r.banner,
             level: topics[0]?.level || "Intermediate",
-            estimatedTime:
-              topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) > 0
-                ? `${Math.ceil(topics.reduce((s: number, t: any) => s + (t.duration || 0), 0) / 4)} months`
-                : "Self-paced",
-            estimatedWeeks: r.estimatedWeeks ?? 0,
-            hoursPerWeek: r.hoursPerWeek ?? 0,
+            category: r.category ?? null,
             courses: topics.flatMap(
               (t: any) => t.courses?.map((c: any) => c.id) || [],
-            ),
-            topics,
-            // Backend-computed values from resolveRoadmaps:
-            progress: r.userRoadmap?.isCompleted ? 100 : (r.progress ?? 0),
+            ).length,
+            milestones: topics.length,
+            estimatedWeeks: r.estimatedWeeks ?? 0,
+            hoursPerWeek: r.hoursPerWeek ?? 0,
+            estimatedTime:
+              totalDuration > 0
+                ? `${Math.ceil(totalDuration / 4)} months`
+                : "Self-paced",
+            progress: r.userRoadmap?.isCompleted
+              ? 100
+              : (r.stepProgress ?? r.progress ?? 0),
             enrolled: r.enrolled ?? false,
-            enrolledCount: r.students ?? 0,
           };
         });
 
         setPaths(merged);
+        if (overview?.stats) setStats(overview.stats);
+
+        const saved = new Set<string>(
+          (bookmarksRes?.bookmarks ?? [])
+            .filter((b: any) => b?.roadmap?.slug)
+            .map((b: any) => b.roadmap.slug as string),
+        );
+        setSavedSlugs(saved);
+
+        analytics.page("Learning Paths", { paths: merged.length });
       } catch (error) {
         console.error("Failed to load learning paths:", error);
         setPaths([]);
@@ -89,279 +121,368 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
       }
     };
 
-    loadPaths();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounced search analytics
+  useEffect(() => {
+    if (!search) return;
+    const t = setTimeout(() => {
+      analytics.track("path_filter_applied", {
+        filter_type: "search",
+        value: search.length,
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reset to first page whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, levelFilter, categoryFilter, tab]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    paths.forEach((p) => p.category && set.add(p.category));
+    return Array.from(set).sort();
+  }, [paths]);
+
+  const counts = useMemo(
+    () => ({
+      all: paths.length,
+      in_progress: paths.filter((p) => p.enrolled && p.progress < 100).length,
+      completed: paths.filter((p) => p.progress >= 100).length,
+      saved: paths.filter((p) => savedSlugs.has(p.slug)).length,
+    }),
+    [paths, savedSlugs],
+  );
+
+  const filteredPaths = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return paths.filter((p) => {
+      const matchesSearch =
+        !q ||
+        p.title?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q);
+      const matchesLevel =
+        levelFilter === "all" ||
+        p.level.toLowerCase() === levelFilter.toLowerCase();
+      const matchesCategory = !categoryFilter || p.category === categoryFilter;
+      const matchesTab =
+        tab === "all" ||
+        (tab === "in_progress" && p.enrolled && p.progress < 100) ||
+        (tab === "completed" && p.progress >= 100) ||
+        (tab === "saved" && savedSlugs.has(p.slug));
+      return matchesSearch && matchesLevel && matchesCategory && matchesTab;
+    });
+  }, [paths, search, levelFilter, categoryFilter, tab, savedSlugs]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPaths.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedPaths = filteredPaths.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const hasActiveFilters =
+    !!search || levelFilter !== "all" || !!categoryFilter || tab !== "all";
+
+  const goToPath = (p: PathItem) => {
+    analytics.track("path_card_clicked", {
+      slug: p.slug,
+      enrolled: p.enrolled,
+      level: p.level,
+    });
+    // In-progress learners land straight in the workspace; everyone else
+    // (not enrolled / completed) goes to the detail page.
+    onNavigate?.(
+      p.enrolled && p.progress < 100
+        ? routes.pathWorkspace(p.slug)
+        : routes.pathDetail(p.slug),
+    );
+  };
+
+  const toggleSave = async (p: PathItem) => {
+    if (savingSlug) return;
+    const isSaved = savedSlugs.has(p.slug);
+    setSavingSlug(p.slug);
+    // optimistic
+    setSavedSlugs((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(p.slug);
+      else next.add(p.slug);
+      return next;
+    });
+    try {
+      if (isSaved) {
+        await store.deleteBookmark({ roadmapId: p.roadmapId });
+      } else {
+        await store.createBookmark({
+          type: "ROADMAP",
+          bookmarkType: "BOOKMARK",
+          roadmapId: p.roadmapId,
+        });
+      }
+      analytics.track("path_bookmark_toggled", {
+        slug: p.slug,
+        saved: !isSaved,
+      });
+    } catch (e) {
+      // revert on failure
+      setSavedSlugs((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(p.slug);
+        else next.delete(p.slug);
+        return next;
+      });
+    } finally {
+      setSavingSlug(null);
+    }
+  };
 
   if (loading) return <Loader isLoader={false} />;
 
-  // Filter paths based on search + filters
-  const filteredPaths = paths.filter((p) => {
-    const matchesSearch =
-      !search ||
-      p.title?.toLowerCase().includes(search.toLowerCase()) ||
-      p.description?.toLowerCase().includes(search.toLowerCase());
-
-    const matchesLevel =
-      levelFilter === "all" ||
-      (p.topics?.[0]?.level || "Intermediate").toLowerCase() ===
-        levelFilter.toLowerCase();
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "enrolled" && p.enrolled && p.progress < 100) ||
-      (statusFilter === "completed" && p.progress === 100) ||
-      (statusFilter === "not_enrolled" && !p.enrolled);
-
-    return matchesSearch && matchesLevel && matchesStatus;
-  });
-
-  const hasActiveFilters =
-    search || levelFilter !== "all" || statusFilter !== "all";
-
-  // Calculate stats from actual data
-  const activePaths = paths.filter((p) => p.enrolled).length;
-  const completedPaths = paths.filter((p) => p.progress === 100).length;
-  const totalHours = Math.round(
-    paths
-      .filter((p) => p.enrolled)
-      .reduce((sum, p) => {
-        const pathDuration =
-          p.topics?.reduce((s: number, t: any) => s + (t.duration || 0), 0) ||
-          0;
-        return sum + pathDuration;
-      }, 0),
-  );
-  const certificates = completedPaths;
-
   return (
-    <div className="flex-1 space-y-6 relative">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Learning Paths</h1>
-          <p className="text-muted-foreground">
-            Structured learning journeys designed to take you from beginner to
-            expert
+    <div className="flex-1">
+      {/* ── Sticky header ── */}
+      <div className="sticky top-0 z-20 border-b bg-background">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <h1 className="text-2xl font-bold text-foreground">Learning Paths</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Structured, mentor-designed journeys · go from fundamentals to
+            job-ready
           </p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Paths</CardTitle>
-            <Target className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activePaths}</div>
-            <p className="text-xs text-muted-foreground">Currently enrolled</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completedPaths}</div>
-            <p className="text-xs text-muted-foreground">Paths completed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalHours}</div>
-            <p className="text-xs text-muted-foreground">Learning time</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Certificates</CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{certificates}</div>
-            <p className="text-xs text-muted-foreground">Earned</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search learning paths..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          {stats && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-muted-foreground">
+              <span>
+                <span className="font-semibold text-foreground">
+                  {stats.totalPaths}
+                </span>{" "}
+                paths
+              </span>
+              <span className="text-muted-foreground/40 text-xs">·</span>
+              <span>
+                <span className="font-semibold text-foreground">
+                  {compactNumber(stats.totalLearners)}
+                </span>{" "}
+                learners
+              </span>
+              <span className="text-muted-foreground/40 text-xs">·</span>
+              <span>
+                <span className="font-semibold text-foreground">
+                  {stats.totalContentHours}h
+                </span>{" "}
+                of content
+              </span>
+              {stats.certificatesIssued > 0 && (
+                <>
+                  <span className="text-muted-foreground/40 text-xs">·</span>
+                  <span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {compactNumber(stats.certificatesIssued)}
+                    </span>{" "}
+                    certificates earned
+                  </span>
+                </>
+              )}
+              {counts.in_progress > 0 && (
+                <>
+                  <span className="text-muted-foreground/40 text-xs">·</span>
+                  <span>
+                    <span className="font-semibold text-foreground">
+                      {counts.in_progress}
+                    </span>{" "}
+                    active
+                  </span>
+                </>
+              )}
+            </div>
           )}
         </div>
-        <Select value={levelFilter} onValueChange={setLevelFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All Levels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            <SelectItem value="Beginner">Beginner</SelectItem>
-            <SelectItem value="Intermediate">Intermediate</SelectItem>
-            <SelectItem value="Advanced">Advanced</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="enrolled">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="not_enrolled">Not Started</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      {/* Learning Paths Grid */}
-      {paths.length === 0 ? (
-        <Card className="col-span-full">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Target className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              No Learning Paths Available
-            </h3>
-            <p className="text-muted-foreground text-center max-w-md">
-              Check back soon! We're constantly adding new learning paths to
-              help you grow your skills.
-            </p>
-          </CardContent>
-        </Card>
-      ) : filteredPaths.length === 0 ? (
-        <Card className="col-span-full">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Search className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              No paths match your filters
-            </h3>
-            <p className="text-muted-foreground text-center max-w-md mb-4">
-              Try adjusting your search or filters to find what you&apos;re
-              looking for.
-            </p>
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearch("");
-                  setLevelFilter("all");
-                  setStatusFilter("all");
-                }}
-              >
-                <X className="mr-2 h-4 w-4" />
-                Clear filters
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPaths.map((path) => (
-            <Card key={path.id} className="overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center overflow-hidden">
-                {path.banner ? (
-                  <img
-                    src={path.banner}
-                    alt={path.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-white">
-                    <Target className="h-12 w-12 mx-auto mb-2" />
-                    <h3 className="text-lg font-bold">Learning Path</h3>
-                  </div>
-                )}
-              </div>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Badge
-                    variant={
-                      path?.level === "Advanced"
-                        ? "destructive"
-                        : path?.level === "Intermediate"
-                          ? "default"
-                          : "secondary"
-                    }
-                  >
-                    {path?.level}
-                  </Badge>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      {path.estimatedWeeks > 0
-                        ? `~${path.estimatedWeeks}w · ${path.hoursPerWeek}h/wk`
-                        : path.estimatedTime}
-                    </span>
-                  </div>
-                </div>
-                <CardTitle className="line-clamp-2">{path.title}</CardTitle>
-                <CardDescription className="line-clamp-3">
-                  {stripHtmlTags(path.description || "")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span>{path.courses.length} courses</span>
-                  </div>
-                </div>
+      {/* ── Content ── */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Filter row */}
+        <div className="flex gap-3 items-center flex-wrap mb-6">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search paths…"
+              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
 
-                {path.enrolled ? (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{path.progress}%</span>
-                      </div>
-                      <Progress
-                        value={path.progress}
-                        className="h-2"
-                        aria-label={`${path.title} progress: ${path.progress}%`}
-                        aria-valuenow={path.progress}
-                      />
-                    </div>
-                    <Button
-                      className="w-full"
-                      onClick={() =>
-                        onNavigate?.(routes.pathContinue(path.slug))
-                      }
-                    >
-                      Continue Learning
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    className="w-full"
-                    onClick={() => onNavigate?.(routes.pathContinue(path.slug))}
-                  >
-                    View Learning Path
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => {
+                if (t.value !== tab) {
+                  analytics.track("path_tab_changed", {
+                    tab: t.value,
+                    from: tab,
+                  });
+                }
+                setTab(t.value);
+              }}
+              className={cn(
+                "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors",
+                tab === t.value
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground",
+              )}
+            >
+              {t.label} <span className="opacity-70">{counts[t.value]}</span>
+            </button>
           ))}
+
+          <div className="ml-auto">
+            <Select
+              value={levelFilter}
+              onValueChange={(v) => {
+                setLevelFilter(v);
+                analytics.track("path_filter_applied", {
+                  filter_type: "level",
+                  value: v,
+                });
+              }}
+            >
+              <SelectTrigger className="w-[140px] rounded-xl">
+                <SelectValue placeholder="All levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All levels</SelectItem>
+                <SelectItem value="Beginner">Beginner</SelectItem>
+                <SelectItem value="Intermediate">Intermediate</SelectItem>
+                <SelectItem value="Advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      )}
+
+        {/* Category pills — only when paths carry categories (mirrors mock-interviews) */}
+        {(tab === "all" || tab === "saved") && categories.length > 0 && (
+          <div className="flex flex-wrap gap-2 py-2 mb-4">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  const next = categoryFilter === cat ? "" : cat;
+                  setCategoryFilter(next);
+                  analytics.track("path_filter_applied", {
+                    filter_type: "category",
+                    value: next || "all",
+                  });
+                }}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap",
+                  categoryFilter === cat
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Grid / empty states */}
+        {paths.length === 0 ? (
+          <EmptyState
+            icon={<Route className="h-12 w-12 text-muted-foreground mb-4" />}
+            title="No Learning Paths Available"
+            subtitle="Check back soon! We're constantly adding new learning paths to help you grow your skills."
+          />
+        ) : filteredPaths.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-12 w-12 text-muted-foreground mb-4" />}
+            title="No paths match your filters"
+            subtitle="Try adjusting your search or filters to find what you're looking for."
+            action={
+              hasActiveFilters ? (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setLevelFilter("all");
+                    setCategoryFilter("");
+                    setTab("all");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-primary/30 hover:text-primary transition-colors"
+                >
+                  <X className="h-4 w-4" /> Clear filters
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedPaths.map((p) => (
+                <PathCard
+                  key={p.slug}
+                  path={p}
+                  isSaved={savedSlugs.has(p.slug)}
+                  isSaving={savingSlug === p.slug}
+                  onToggleSave={() => toggleSave(p)}
+                  onSelect={() => goToPath(p)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-8">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Page <span className="font-semibold text-foreground">{currentPage}</span> of{" "}
+                  {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex flex-col items-center justify-center py-12 px-6">
+        {icon}
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-muted-foreground text-center max-w-md mb-4">
+          {subtitle}
+        </p>
+        {action}
+      </div>
     </div>
   );
 }
