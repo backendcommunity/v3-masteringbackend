@@ -27,7 +27,6 @@ import {
   Play,
   Lock,
   Trophy,
-  Users,
   Star,
   Brain,
   FolderOpen,
@@ -42,7 +41,6 @@ import {
   Link,
   Share2,
   Sparkles,
-  ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -286,14 +284,7 @@ export function LearningPathDetailPage({
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [celebration, setCelebration] = useState(false);
-  const [currentItem, setCurrentItem] = useState<{
-    type: string;
-    title: string;
-    chapterTitle?: string;
-    itemIndex: number;
-    totalItems: number;
-  } | null>(null);
-  // Cache milestone per topicId to avoid re-fetching when user clicks Continue
+  // Warm the milestone cache on enroll so first workspace load is fast
   const milestoneCache = useRef<Record<string, any>>({});
   const typeConfig: Record<
     string,
@@ -367,53 +358,6 @@ export function LearningPathDetailPage({
         isEnrolled: Boolean(ur),
         progress: roadmapData?.progress ?? 0,
       });
-
-      if (ur?.currentTopicId && roadmapData?.topics) {
-        const foundTopic = roadmapData.topics.find(
-          (t: any) => t.id === ur.currentTopicId,
-        );
-        if (foundTopic) {
-          try {
-            const milestone = await store.getMilestone(
-              pathId,
-              ur.currentTopicId,
-            );
-            milestoneCache.current[ur.currentTopicId] = milestone;
-            const completedIds = new Set(
-              (milestone?.userTopic?.completedItems ?? [])
-                .filter((ci: any) => ci.completed)
-                .map((ci: any) => ci.itemId),
-            );
-            const completedCount = (
-              milestone?.userTopic?.completedItems ?? []
-            ).filter((ci: any) => ci.completed).length;
-            const totalTasks = milestone?.userTopic?.totalTasks ?? 0;
-
-            let found = false;
-            for (const course of foundTopic.courses ?? []) {
-              for (const chapter of course.chapters ?? []) {
-                for (const video of chapter.videos ?? []) {
-                  if (!completedIds.has(video.id)) {
-                    setCurrentItem({
-                      type: "video",
-                      title: video.title,
-                      chapterTitle: chapter.title,
-                      itemIndex: completedCount,
-                      totalItems: totalTasks,
-                    });
-                    found = true;
-                    break;
-                  }
-                }
-                if (found) break;
-              }
-              if (found) break;
-            }
-          } catch {
-            // Non-critical — page still works without resume point
-          }
-        }
-      }
     } catch (error) {
       console.error("Failed to load learning path:", error);
     } finally {
@@ -563,7 +507,6 @@ export function LearningPathDetailPage({
     () => topics.find((t) => t.id === currentTopicId && !t.completed) ?? null,
     [topics, currentTopicId],
   );
-  const currentTopicIndex = currentTopic ? topics.indexOf(currentTopic) : -1;
 
   const upcomingTopics = useMemo(
     () => topics.filter((t) => !t.completed && t.id !== currentTopicId),
@@ -780,24 +723,8 @@ export function LearningPathDetailPage({
   // ── Flat header block ──
   const pageHeader = (
     <div>
-      <nav
-        aria-label="breadcrumb"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3"
-      >
-        <button
-          onClick={() => onNavigate?.(routes.paths)}
-          className="hover:text-foreground transition-colors"
-        >
-          Learning Paths
-        </button>
-        <span>/</span>
-        <span className="text-foreground font-medium line-clamp-1 max-w-xs">
-          {roadmap.title}
-        </span>
-      </nav>
-
       {/* Blueprint hero — navy anchor; the grid lives here only */}
-      <div className="rounded-2xl overflow-hidden dark:ring-1 dark:ring-white/10">
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="bg-[#0E1F33] text-white relative">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
@@ -868,54 +795,25 @@ export function LearningPathDetailPage({
                 <Layers className="w-4 h-4 opacity-70" />
                 {totalCourses} courses
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="w-4 h-4 opacity-70" />
-                {studentsCount} learners
-              </span>
             </div>
           </div>
         </div>
 
         {/* Completion strip — the hero earns its keep (enrolled only) */}
         {isFullAccess && (
-          <div className="text-white px-5 sm:px-8 py-4 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center bg-[#0A1726]">
-            <div className="flex-1 min-w-0">
-              <div className="eyebrow-mono text-white/[.5] mb-2">
-                path completion
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${displayProgress}%` }}
-                  />
-                </div>
-                <span className="text-sm font-semibold">
-                  {displayProgress}%
-                </span>
-              </div>
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              path completion
             </div>
-            {session && masteryPct != null && (
-              <div className="sm:w-72">
-                <div className="eyebrow-mono text-white/[.5] mb-2">
-                  mastery · certificate
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
-                    <div
-                      className="h-full rounded-full bg-emerald-400"
-                      style={{ width: `${masteryPct}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-semibold text-emerald-400">
-                    {earnedPoints}
-                    <span className="opacity-60 font-normal">
-                      /{certThreshold}
-                    </span>
-                  </span>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${displayProgress}%` }}
+                />
               </div>
-            )}
+              <span className="text-sm font-semibold">{displayProgress}%</span>
+            </div>
           </div>
         )}
       </div>
@@ -1328,73 +1226,6 @@ export function LearningPathDetailPage({
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {pathDescription}
-
-          {/* Up next — context row. The hero's "Continue Path" is THE CTA;
-              this whole card is a quiet click-through to the same place. */}
-          {currentTopic && (
-            <div
-              role="link"
-              tabIndex={0}
-              onClick={() => {
-                analytics.track("path_continue_clicked", {
-                  pathId,
-                  topicId: currentTopic.id,
-                  topicTitle: currentTopic.title,
-                  source: "up_next_card",
-                });
-                onNavigate?.(routes.pathWorkspace(pathId));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onNavigate?.(routes.pathWorkspace(pathId));
-                }
-              }}
-              className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-4">
-                {/* Brand icon tile */}
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                  <Play className="w-5 h-5" />
-                </div>
-
-                {/* Focus: the next step */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                    Up next · Milestone {currentTopicIndex + 1}
-                  </div>
-                  <h3 className="font-bold text-foreground text-[15px] leading-snug truncate mt-0.5">
-                    {currentItem?.title ?? currentTopic.title}
-                  </h3>
-                  <p className="text-[13px] text-muted-foreground truncate">
-                    {currentTopic.title}
-                    {currentItem?.chapterTitle
-                      ? ` · ${currentItem.chapterTitle}`
-                      : ""}
-                  </p>
-                  <div className="flex items-center gap-3 mt-2.5">
-                    <div className="h-1.5 flex-1 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${currentTopic.progress ?? 0}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] font-semibold text-foreground shrink-0">
-                      {currentTopic.progress ?? 0}%
-                      {currentItem && currentItem.totalItems > 0 && (
-                        <span className="text-muted-foreground font-normal">
-                          {" "}
-                          · {currentItem.itemIndex}/{currentItem.totalItems}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 self-center" />
-              </div>
-            </div>
-          )}
 
           {/* Learning Path Timeline */}
           <Card>
