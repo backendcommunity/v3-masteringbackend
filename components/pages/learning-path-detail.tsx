@@ -59,6 +59,7 @@ import {
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
 import ConfettiCelebration from "../confetti-celebration";
+import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 // Type definitions for multi-content timeline
 type ContentItemType =
@@ -876,6 +877,56 @@ export function LearningPathDetailPage({
     </div>
   );
 
+  // ── Milestone map — sticky mini-TOC of the curriculum ──
+  const milestoneMap = topics.length > 1 ? (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="eyebrow-mono text-muted-foreground mb-3">Milestones</div>
+      <nav className="space-y-0.5">
+        {topics.map((t: any, i: number) => {
+          const isDone = t.completed === true;
+          const isCurrent = isFullAccess && t.id === currentTopic?.id;
+          const itemCount = t.sortedContents?.length ?? 0;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                analytics.track("path_milestone_map_clicked", {
+                  pathId,
+                  topicId: t.id,
+                  index: i,
+                });
+                document
+                  .getElementById(`milestone-${t.id}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-secondary ${
+                isCurrent
+                  ? "bg-primary/5 text-foreground font-medium"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {isDone ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              ) : isCurrent ? (
+                <Play className="w-3.5 h-3.5 text-primary shrink-0" />
+              ) : (
+                <span className="w-3.5 h-3.5 grid place-items-center shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+                </span>
+              )}
+              <span className="flex-1 truncate">{t.title}</span>
+              {itemCount > 0 && (
+                <span className="text-[11px] text-muted-foreground/70 shrink-0">
+                  {itemCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  ) : null;
+
   // ── Enroll card (preview rail — the one place counts earn their spot) ──
   const enrollCard = (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -1097,7 +1148,8 @@ export function LearningPathDetailPage({
                         return (
                           <div
                             key={topic.id}
-                            className="border-t first:border-t-0"
+                            id={`milestone-${topic.id}`}
+                            className="border-t first:border-t-0 scroll-mt-6"
                           >
                             {topics.length > 1 && (
                               <div className="px-6 py-2.5 bg-muted/40 border-b">
@@ -1182,6 +1234,7 @@ export function LearningPathDetailPage({
           {/* Sidebar */}
           <div className="space-y-4 lg:sticky lg:top-6 self-start">
             {enrollCard}
+            {milestoneMap}
             {shareRow}
           </div>
         </div>
@@ -1280,7 +1333,8 @@ export function LearningPathDetailPage({
                       return (
                         <div
                           key={topic.id}
-                          className="border-t first:border-t-0"
+                          id={`milestone-${topic.id}`}
+                          className="border-t first:border-t-0 scroll-mt-6"
                         >
                           {/* Topic header */}
                           <div
@@ -1656,6 +1710,8 @@ export function LearningPathDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
+          {milestoneMap}
+          <ScheduleWidget roadmapId={roadmap.id} compactEmpty />
           {shareRow}
         </div>
       </div>

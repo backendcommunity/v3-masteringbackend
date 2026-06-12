@@ -366,7 +366,7 @@ export function NavigationBar({
 
   return (
     <>
-      <nav className="sticky p-1 md:pl-72 top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky p-1 md:pl-72 top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border">
         <div className="flex gap-2 h-16 items-center px-4">
           {/* Mobile Menu Button */}
           {isMobile && (
