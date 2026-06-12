@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Route, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Route, X, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -244,66 +244,76 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   if (loading) return <Loader isLoader={false} />;
 
   return (
-    <div className="flex-1">
-      {/* ── Sticky header ── */}
-      <div className="sticky top-0 z-20 border-b bg-background">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold text-foreground">Learning Paths</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Structured, mentor-designed journeys · go from fundamentals to
-            job-ready
-          </p>
-          {stats && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-muted-foreground">
-              <span>
-                <span className="font-semibold text-foreground">
-                  {stats.totalPaths}
-                </span>{" "}
-                paths
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* ── Blueprint hero (navy anchor · grid lives here only) ── */}
+      <div className="rounded-2xl bg-[#0E1F33] text-white relative overflow-hidden">
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative px-8 py-7">
+          <JourneyGlyph className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block" />
+          <div className="max-w-2xl">
+            <div className="eyebrow-mono text-[#4AC5E8]">{"// learn"}</div>
+            <div className="flex items-center gap-3 flex-wrap mt-1.5">
+              <h1 className="text-2xl font-bold">Learning Paths</h1>
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#13AECE]/[.18] text-[#4AC5E8]">
+                <Flag className="w-3.5 h-3.5" /> Mastery-gated
               </span>
-              <span className="text-muted-foreground/40 text-xs">·</span>
-              <span>
-                <span className="font-semibold text-foreground">
-                  {compactNumber(stats.totalLearners)}
-                </span>{" "}
-                learners
-              </span>
-              <span className="text-muted-foreground/40 text-xs">·</span>
-              <span>
-                <span className="font-semibold text-foreground">
-                  {stats.totalContentHours}h
-                </span>{" "}
-                of content
-              </span>
-              {stats.certificatesIssued > 0 && (
-                <>
-                  <span className="text-muted-foreground/40 text-xs">·</span>
-                  <span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      {compactNumber(stats.certificatesIssued)}
-                    </span>{" "}
-                    certificates earned
-                  </span>
-                </>
-              )}
-              {counts.in_progress > 0 && (
-                <>
-                  <span className="text-muted-foreground/40 text-xs">·</span>
-                  <span>
-                    <span className="font-semibold text-foreground">
-                      {counts.in_progress}
-                    </span>{" "}
-                    active
-                  </span>
-                </>
-              )}
             </div>
-          )}
+            <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+              Structured, mentor-designed journeys — go from fundamentals to
+              job-ready, one mastered milestone at a time.
+            </p>
+            {stats && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3.5 text-sm text-white/[.65]">
+                <span>
+                  <span className="font-semibold text-white">
+                    {stats.totalPaths}
+                  </span>{" "}
+                  paths
+                </span>
+                <span className="opacity-40 text-xs">·</span>
+                <span>
+                  <span className="font-semibold text-white">
+                    {compactNumber(stats.totalLearners)}
+                  </span>{" "}
+                  learners
+                </span>
+                <span className="opacity-40 text-xs">·</span>
+                <span>
+                  <span className="font-semibold text-white">
+                    {stats.totalContentHours}h
+                  </span>{" "}
+                  of content
+                </span>
+                {stats.certificatesIssued > 0 && (
+                  <>
+                    <span className="opacity-40 text-xs">·</span>
+                    <span>
+                      <span className="font-semibold text-emerald-400">
+                        {compactNumber(stats.certificatesIssued)}
+                      </span>{" "}
+                      certificates earned
+                    </span>
+                  </>
+                )}
+                {counts.in_progress > 0 && (
+                  <>
+                    <span className="opacity-40 text-xs">·</span>
+                    <span>
+                      <span className="font-semibold text-white">
+                        {counts.in_progress}
+                      </span>{" "}
+                      active
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── Content ── */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div>
         {/* Filter row */}
         <div className="flex gap-3 items-center flex-wrap mb-6">
           <div className="relative">
@@ -484,5 +494,128 @@ function EmptyState({
         {action}
       </div>
     </div>
+  );
+}
+
+/**
+ * Learn → Build → Grow journey cycle — the MasteringBackend product story
+ * drawn as the catalog hero glyph. Inline SVG only (data-cost principle).
+ */
+function JourneyGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="240"
+      height="158"
+      viewBox="0 0 240 158"
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* cycle arcs */}
+      <path
+        d="M65 38 A 78 78 0 0 1 178 40"
+        stroke="rgba(255,255,255,.28)"
+        strokeWidth="1.8"
+        strokeDasharray="1 6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M196 64 A 78 78 0 0 1 150 122"
+        stroke="rgba(255,255,255,.28)"
+        strokeWidth="1.8"
+        strokeDasharray="1 6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M96 124 A 78 78 0 0 1 44 66"
+        stroke="rgba(255,255,255,.28)"
+        strokeWidth="1.8"
+        strokeDasharray="1 6"
+        strokeLinecap="round"
+      />
+      {/* arrowheads */}
+      <path d="M174 35l7 5-9 3z" fill="rgba(255,255,255,.4)" />
+      <path d="M152 116l-1 9-7-6z" fill="rgba(255,255,255,.4)" />
+      <path d="M47 72l-5-8 9 1z" fill="rgba(255,255,255,.4)" />
+      {/* LEARN — active node */}
+      <circle cx="52" cy="48" r="20" fill="#13AECE" />
+      <path
+        d="M45 43h6.5a3.5 3.5 0 013.5 3.5V55a4 4 0 00-3.5-2H45zM55 46.5a3.5 3.5 0 013.5-3.5H59v9.5h-4"
+        stroke="#0E1F33"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <text
+        x="52"
+        y="82"
+        fill="rgba(255,255,255,.85)"
+        fontSize="9.5"
+        fontWeight="700"
+        letterSpacing="1.6"
+        textAnchor="middle"
+        fontFamily="inherit"
+      >
+        LEARN
+      </text>
+      {/* BUILD */}
+      <circle
+        cx="190"
+        cy="52"
+        r="20"
+        fill="rgba(255,255,255,.10)"
+        stroke="rgba(255,255,255,.4)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M183 48l-4 4 4 4M197 48l4 4-4 4M192.5 45l-5 14"
+        stroke="#4AC5E8"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <text
+        x="190"
+        y="86"
+        fill="rgba(255,255,255,.85)"
+        fontSize="9.5"
+        fontWeight="700"
+        letterSpacing="1.6"
+        textAnchor="middle"
+        fontFamily="inherit"
+      >
+        BUILD
+      </text>
+      {/* GROW */}
+      <circle
+        cx="122"
+        cy="124"
+        r="20"
+        fill="rgba(255,255,255,.10)"
+        stroke="rgba(255,255,255,.4)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M112 130l7-7 4 4 8-9M126 118h5v5"
+        stroke="#34d399"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <text
+        x="122"
+        y="152"
+        fill="rgba(255,255,255,.85)"
+        fontSize="9.5"
+        fontWeight="700"
+        letterSpacing="1.6"
+        textAnchor="middle"
+        fontFamily="inherit"
+      >
+        GROW
+      </text>
+    </svg>
   );
 }

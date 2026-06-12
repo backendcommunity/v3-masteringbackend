@@ -1,6 +1,5 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
@@ -13,7 +12,6 @@ import { ChunkReloadToast } from "@/components/chunk-reload-toast";
 import { ChunkLoadRecovery } from "@/components/chunk-load-recovery";
 import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
 
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
@@ -101,6 +99,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Satoshi — the MasteringBackend brand font (Fontshare) */}
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={siteStructuredData}
@@ -110,7 +114,8 @@ export default function RootLayout({
           dangerouslySetInnerHTML={websiteStructuredData}
         />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      {/* Font comes from globals.css body rule: Satoshi, system-ui */}
+      <body suppressHydrationWarning>
         <PostHogProviderComponent>
           <ThemeProvider
             attribute="class"

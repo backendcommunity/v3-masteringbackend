@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light theme with #13AECE as primary accent */
-    --background: 0 0% 100%; /* #ffffff - pure white background */
+    --background: 216 25% 97%; /* #F5F7FA - soft gray canvas; white cards lift off it */
     --foreground: 222.2 84% 4.9%; /* #0f172a - dark text */
 
     /* Card and surface colors */
@@ -152,6 +152,25 @@
 
 /* Theme utilities with #13AECE consistency for both light and dark */
 @layer utilities {
+  /* Blueprint dot grid — lives INSIDE navy heroes only (brand identity),
+     never on the working canvas. See docs/DESIGN_SYSTEM.md */
+  .hero-grid {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(255, 255, 255, 0.14) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+
+  /* Eyebrow label — small tracked-caps section markers on heroes (Satoshi) */
+  .eyebrow-mono {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
   .bg-sidebar {
     background-color: hsl(var(--mb-sidebar));
   }

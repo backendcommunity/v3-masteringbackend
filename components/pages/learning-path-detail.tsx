@@ -557,11 +557,6 @@ export function LearningPathDetailPage({
       ? (topics[0]?.courses?.find((c: any) => !c.isPremium)?.id ?? null)
       : null;
 
-  const completedTopics = useMemo(
-    () => topics.filter((t) => t.completed === true),
-    [topics],
-  );
-
   const currentTopicId =
     userRoadmap?.currentTopicId ?? roadmap?.topics?.[0]?.id;
   const currentTopic = useMemo(
@@ -756,9 +751,6 @@ export function LearningPathDetailPage({
 
   // ── Session-derived meters (fallback to roadmap progress if session not loaded) ──
   const sessionPath = session?.path;
-  const sessionSteps: any[] = session?.steps ?? [];
-  const stepsTotal = sessionSteps.length;
-  const stepsDone = sessionSteps.filter((s) => s.status === "DONE").length;
   const displayProgress = sessionPath?.progressPct ?? progress;
   const masteryPct = sessionPath?.masteryPct ?? null;
   const earnedPoints = sessionPath?.earnedPoints ?? null;
@@ -787,10 +779,10 @@ export function LearningPathDetailPage({
 
   // ── Flat header block ──
   const pageHeader = (
-    <div className="border-b border-border pb-5">
+    <div>
       <nav
         aria-label="breadcrumb"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3"
       >
         <button
           onClick={() => onNavigate?.(routes.paths)}
@@ -804,55 +796,141 @@ export function LearningPathDetailPage({
         </span>
       </nav>
 
-      <div className="flex items-center gap-2.5 flex-wrap mt-2">
-        <h1 className="text-2xl font-bold text-foreground">{roadmap.title}</h1>
-        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-          {headerLevel}
-        </span>
-      </div>
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="rounded-2xl overflow-hidden">
+        <div className="bg-[#0E1F33] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-8 py-7">
+            <div className="eyebrow-mono text-white/[.55]">
+              {"// learning path"}
+            </div>
+            <h1 className="text-3xl font-bold mt-1.5">{roadmap.title}</h1>
 
-      {roadmap.summary && (
-        <p className="text-sm text-muted-foreground leading-relaxed mt-1.5 max-w-3xl line-clamp-2">
-          {stripHtmlTags(roadmap.summary)}
-        </p>
-      )}
+            <div className="mt-4">
+              {isFullAccess ? (
+                <button
+                  disabled={navigating}
+                  onClick={() => {
+                    analytics.track("path_continue_clicked", {
+                      pathId,
+                      topicId: currentTopic?.id,
+                      source: "hero",
+                    });
+                    onNavigate?.(routes.pathWorkspace(pathId));
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                >
+                  <Play className="w-4 h-4" /> Continue Path
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    disabled={enrolling}
+                    onClick={handleEnroll}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {enrolling ? "Enrolling…" : "Enroll in path"}
+                  </button>
+                  <span className="text-sm text-white/[.65]">
+                    {!roadmap.isPremium || user?.isPremium ? (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-white">Pro</span>
+                      </>
+                    ) : (
+                      <span className="font-semibold text-white">
+                        {roadmap.amount
+                          ? `$${roadmap.amount}`
+                          : "Premium membership required"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">
-        {roadmap.estimatedWeeks > 0 && (
-          <>
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-4 h-4" />~{roadmap.estimatedWeeks}w ·{" "}
-              {roadmap.hoursPerWeek}h/wk
-            </span>
-            <span className="text-muted-foreground/40 text-xs">·</span>
-          </>
-        )}
-        <span className="inline-flex items-center gap-1">
-          <Flag className="w-4 h-4" />
-          {milestonesCount} milestones
-        </span>
-        <span className="text-muted-foreground/40 text-xs">·</span>
-        <span className="inline-flex items-center gap-1">
-          <Layers className="w-4 h-4" />
-          {totalCourses} courses
-        </span>
-        <span className="text-muted-foreground/40 text-xs">·</span>
-        {isFullAccess ? (
-          <span>
-            <span className="font-semibold text-foreground">
-              {displayProgress}%
-            </span>{" "}
-            complete
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1">
-            <Users className="w-4 h-4" />
-            {studentsCount} learners
-          </span>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+                {headerLevel}
+              </span>
+              {roadmap.estimatedWeeks > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 opacity-70" />~
+                  {roadmap.estimatedWeeks} weeks · {roadmap.hoursPerWeek}h/wk
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5">
+                <Flag className="w-4 h-4 opacity-70" />
+                {milestonesCount} milestones
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Layers className="w-4 h-4 opacity-70" />
+                {totalCourses} courses
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="w-4 h-4 opacity-70" />
+                {studentsCount} learners
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Completion strip — the hero earns its keep (enrolled only) */}
+        {isFullAccess && (
+          <div className="text-white px-8 py-4 flex flex-col sm:flex-row gap-6 sm:items-center bg-[#0A1726]">
+            <div className="flex-1 min-w-0">
+              <div className="eyebrow-mono text-white/[.5] mb-2">
+                path completion
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${displayProgress}%` }}
+                  />
+                </div>
+                <span className="text-sm font-semibold">
+                  {displayProgress}%
+                </span>
+              </div>
+            </div>
+            {session && masteryPct != null && (
+              <div className="sm:w-72">
+                <div className="eyebrow-mono text-white/[.5] mb-2">
+                  mastery · certificate
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                    <div
+                      className="h-full rounded-full bg-emerald-400"
+                      style={{ width: `${masteryPct}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-emerald-400">
+                    {earnedPoints}
+                    <span className="opacity-60 font-normal">
+                      /{certThreshold}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
+
+  // ── Path description (plain block below hero) ──
+  const pathDescription = roadmap.summary ? (
+    <div>
+      <h3 className="font-semibold text-[15px] mb-1.5">Path description</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
+        {stripHtmlTags(roadmap.summary)}
+      </p>
+    </div>
+  ) : null;
 
   // ── Share (monochrome icon row — brand color on hover only) ──
   const shareBtnCls =
@@ -976,81 +1054,6 @@ export function LearningPathDetailPage({
     </div>
   );
 
-  // ── Your progress card (enrolled) ──
-  const progressCard = (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="font-semibold text-[15px] mb-4">Your progress</h3>
-      <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 shrink-0">
-          <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
-            <circle
-              cx="18"
-              cy="18"
-              r="15.9"
-              fill="none"
-              stroke="hsl(var(--secondary))"
-              strokeWidth="3"
-            />
-            <circle
-              cx="18"
-              cy="18"
-              r="15.9"
-              fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth="3"
-              strokeDasharray={`${displayProgress} 100`}
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute inset-0 grid place-items-center">
-            <span className="text-lg font-bold">{displayProgress}%</span>
-          </div>
-        </div>
-        <div className="text-sm space-y-1">
-          {session && (
-            <div className="text-muted-foreground">
-              <span className="font-semibold text-foreground">{stepsDone}</span>{" "}
-              of {stepsTotal} steps
-            </div>
-          )}
-          <div className="text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {completedTopics.length}
-            </span>{" "}
-            of {milestonesCount} milestones
-          </div>
-        </div>
-      </div>
-      {session && masteryPct != null && (
-        <div className="mt-4 pt-4 border-t border-border space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Mastery</span>
-            <span className="font-semibold">{masteryPct}%</span>
-          </div>
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full bg-primary/70"
-              style={{ width: `${masteryPct}%` }}
-            />
-          </div>
-          {sessionPath?.certEligible ? (
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              <Award className="w-3.5 h-3.5" />
-              Certificate unlocked
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Award className="w-3.5 h-3.5" />
-              {certThreshold != null && earnedPoints != null
-                ? `${Math.max(0, certThreshold - earnedPoints)} pts to certificate · ${earnedPoints}/${certThreshold}`
-                : "Earn points to unlock your certificate"}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
   // Non-enrolled OR preview-enrolled: show sales/preview page
   if (!isFullAccess) {
     return (
@@ -1059,6 +1062,8 @@ export function LearningPathDetailPage({
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
+            {pathDescription}
+
             {/* Key Stats */}
             {/* {(() => {
               const totalCourses = topics.reduce((s: number, t: any) => s + (t.courses?.length || 0), 0);
@@ -1322,6 +1327,8 @@ export function LearningPathDetailPage({
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {pathDescription}
+
           {/* Current Step — single focused "Up next" row */}
           {currentTopic && (
             <div className="rounded-2xl border border-border bg-card p-5">
@@ -1830,7 +1837,6 @@ export function LearningPathDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
-          {progressCard}
           {shareRow}
         </div>
       </div>
