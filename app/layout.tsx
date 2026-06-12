@@ -1,5 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
@@ -12,6 +13,16 @@ import { ChunkReloadToast } from "@/components/chunk-reload-toast";
 import { ChunkLoadRecovery } from "@/components/chunk-load-recovery";
 import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
 
+// Satoshi — the brand font, self-hosted (no external font requests)
+const satoshi = localFont({
+  src: [
+    { path: "./fonts/Satoshi-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Satoshi-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Satoshi-700.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/Satoshi-900.woff2", weight: "900", style: "normal" },
+  ],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -99,12 +110,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Satoshi — the MasteringBackend brand font (Fontshare) */}
-        <link rel="preconnect" href="https://api.fontshare.com" />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={siteStructuredData}
@@ -114,8 +119,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={websiteStructuredData}
         />
       </head>
-      {/* Font comes from globals.css body rule: Satoshi, system-ui */}
-      <body suppressHydrationWarning>
+      <body className={satoshi.className} suppressHydrationWarning>
         <PostHogProviderComponent>
           <ThemeProvider
             attribute="class"

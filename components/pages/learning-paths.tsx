@@ -246,12 +246,12 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* ── Blueprint hero (navy anchor · grid lives here only) ── */}
-      <div className="rounded-2xl bg-[#0E1F33] text-white relative overflow-hidden">
+      <div className="rounded-2xl bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
-        <div className="relative px-8 py-7">
+        <div className="relative px-5 py-6 sm:px-8 sm:py-7">
           <JourneyGlyph className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block" />
           <div className="max-w-2xl">
-            <div className="eyebrow-mono text-[#4AC5E8]">{"// learn"}</div>
+            <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
             <div className="flex items-center gap-3 flex-wrap mt-1.5">
               <h1 className="text-2xl font-bold">Learning Paths</h1>
               <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#13AECE]/[.18] text-[#4AC5E8]">

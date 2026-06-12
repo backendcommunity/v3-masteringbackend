@@ -797,12 +797,12 @@ export function LearningPathDetailPage({
       </nav>
 
       {/* Blueprint hero — navy anchor; the grid lives here only */}
-      <div className="rounded-2xl overflow-hidden">
+      <div className="rounded-2xl overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="bg-[#0E1F33] text-white relative">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
-          <div className="relative px-8 py-7">
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">
-              {"// learning path"}
+              learning path
             </div>
             <h1 className="text-3xl font-bold mt-1.5">{roadmap.title}</h1>
 
@@ -850,7 +850,7 @@ export function LearningPathDetailPage({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
                 {headerLevel}
               </span>
@@ -878,7 +878,7 @@ export function LearningPathDetailPage({
 
         {/* Completion strip — the hero earns its keep (enrolled only) */}
         {isFullAccess && (
-          <div className="text-white px-8 py-4 flex flex-col sm:flex-row gap-6 sm:items-center bg-[#0A1726]">
+          <div className="text-white px-5 sm:px-8 py-4 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center bg-[#0A1726]">
             <div className="flex-1 min-w-0">
               <div className="eyebrow-mono text-white/[.5] mb-2">
                 path completion
@@ -1329,9 +1329,29 @@ export function LearningPathDetailPage({
         <div className="lg:col-span-2 space-y-6">
           {pathDescription}
 
-          {/* Current Step — single focused "Up next" row */}
+          {/* Up next — context row. The hero's "Continue Path" is THE CTA;
+              this whole card is a quiet click-through to the same place. */}
           {currentTopic && (
-            <div className="rounded-2xl border border-border bg-card p-5">
+            <div
+              role="link"
+              tabIndex={0}
+              onClick={() => {
+                analytics.track("path_continue_clicked", {
+                  pathId,
+                  topicId: currentTopic.id,
+                  topicTitle: currentTopic.title,
+                  source: "up_next_card",
+                });
+                onNavigate?.(routes.pathWorkspace(pathId));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onNavigate?.(routes.pathWorkspace(pathId));
+                }
+              }}
+              className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
+            >
               <div className="flex items-center gap-4">
                 {/* Brand icon tile */}
                 <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
@@ -1371,40 +1391,8 @@ export function LearningPathDetailPage({
                   </div>
                 </div>
 
-                {/* CTA — right-aligned on desktop */}
-                <Button
-                  className="shrink-0 self-center hidden sm:inline-flex"
-                  onClick={() => {
-                    analytics.track("path_continue_clicked", {
-                      pathId,
-                      topicId: currentTopic.id,
-                      topicTitle: currentTopic.title,
-                      source: "current_card",
-                    });
-                    onNavigate?.(routes.pathWorkspace(pathId));
-                  }}
-                >
-                  Continue
-                  <ChevronRight className="ml-1.5 h-4 w-4" />
-                </Button>
+                <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 self-center" />
               </div>
-
-              {/* Mobile CTA — full width below */}
-              <Button
-                className="w-full mt-4 sm:hidden"
-                onClick={() => {
-                  analytics.track("path_continue_clicked", {
-                    pathId,
-                    topicId: currentTopic.id,
-                    topicTitle: currentTopic.title,
-                    source: "current_card",
-                  });
-                  onNavigate?.(routes.pathWorkspace(pathId));
-                }}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Continue Learning
-              </Button>
             </div>
           )}
 
