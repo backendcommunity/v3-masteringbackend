@@ -148,10 +148,10 @@ export function DashboardSidebar({
         collapsed ? "w-20" : "w-72"
       }`}
     >
-      {/* Header */}
+      {/* Header — exact h-16 to align with the top navbar */}
       <div
-        className={`border-b border-border flex items-center min-h-16 transition-all duration-300 ${
-          collapsed ? "px-2 py-2 justify-center gap-1" : "px-4 py-3 gap-3"
+        className={`h-16 shrink-0 bg-card border-b border-border flex items-center transition-all duration-300 ${
+          collapsed ? "px-2 justify-center gap-1" : "px-4 gap-3"
         }`}
       >
         <button
@@ -166,9 +166,17 @@ export function DashboardSidebar({
           {!collapsed && (
             <div className="grid text-left text-sm leading-tight flex-1 min-w-0">
               {theme === "light" ? (
-                <img src="/blue-logo-trimed.png" alt="logo" />
+                <img
+                  src="/blue-logo-trimed.png"
+                  alt="logo"
+                  className="max-h-9 w-auto object-contain"
+                />
               ) : (
-                <img src="/logo-trimed.png" alt="logo" />
+                <img
+                  src="/logo-trimed.png"
+                  alt="logo"
+                  className="max-h-9 w-auto object-contain"
+                />
               )}
             </div>
           )}
