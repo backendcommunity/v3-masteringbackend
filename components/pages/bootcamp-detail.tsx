@@ -20,6 +20,8 @@ import {
   Code2,
   Trophy,
   Play,
+  Sparkles,
+  Layers,
   CheckCircle2,
   BadgeIcon,
   BookOpen,
@@ -207,76 +209,145 @@ export function BootcampDetailPage({
 
   return (
     <div className="flex-1 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => onNavigate?.("/bootcamps")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {bootcamp?.title}
-            </h1>
-            {bootcamp?.cohort?.name && (
-              <Badge variant="destructive" className="text-sm">
-                {bootcamp.cohort.name}
-              </Badge>
-            )}
+      {/* Back link */}
+      <button
+        onClick={() => onNavigate?.("/bootcamps")}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Bootcamps
+      </button>
+
+      {/* Blueprint detail hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden rounded-2xl dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">bootcamp</div>
+            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+              <h1 className="text-3xl font-bold">{bootcamp?.title}</h1>
+              {bootcamp?.cohort?.name && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
+                  {bootcamp.cohort.name}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-4">
+              {bootcamp?.enrolled ? (
+                <button
+                  onClick={() =>
+                    onNavigate?.(`/bootcamps/${bootcampId}/dashboard`)
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" /> Continue Bootcamp
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      enrollInBootcamp(bootcampId, bootcamp?.cohort?.id)
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                  >
+                    <Sparkles className="w-4 h-4" /> Apply Now
+                  </button>
+                  <span className="text-sm text-white/[.65]">
+                    {bootcamp?.cohort?.amount ? (
+                      <span className="font-semibold text-white">
+                        ${bootcamp.cohort.amount?.toLocaleString()}
+                      </span>
+                    ) : (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-white">Pro</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              {bootcamp?.cohort?.duration > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 opacity-70" />
+                  {bootcamp.cohort.duration} weeks
+                </span>
+              )}
+              {bootcamp?.cohort?.weeks?.length > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 opacity-70" />
+                  {bootcamp.cohort.weeks.length} modules
+                </span>
+              )}
+            </div>
           </div>
-          <p className="text-muted-foreground">{bootcamp?.description}</p>
         </div>
+
+        {/* Completion strip — enrolled only */}
+        {bootcamp?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              bootcamp completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${bootcamp?.userCohort?.progress ?? 0}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {bootcamp?.userCohort?.progress ?? 0}%
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {bootcamp?.description && (
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
+          {bootcamp?.description}
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Progress Card (if enrolled) */}
+          {/* Progress stats (if enrolled) — progress bar lives in the hero strip */}
           {bootcamp?.enrolled && (
-            <Card className="bg-[#0E1F33] text-white">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Target className="h-5 w-5 text-primary" />
                   Your Bootcamp Progress
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span>
-                      Week{" "}
-                      {currentWeekIndex(bootcamp?.userCohort?.currentWeekId)} of{" "}
-                      {bootcamp?.cohort?.duration}
-                    </span>
-                    <span>{bootcamp?.userCohort?.progress ?? 0}%</span>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {bootcamp?.userCohort?.totalLessonsCompleted ?? 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Modules Completed
+                    </div>
                   </div>
-                  <Progress
-                    value={bootcamp?.userCohort?.progress ?? 0}
-                    className="h-3"
-                  />
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">
-                        {bootcamp?.userCohort?.totalLessonsCompleted ?? 0}
-                      </div>
-                      <div className="text-xs text-blue-100">
-                        Modules Completed
-                      </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {bootcamp?.userCohort?.projectBuilt}
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">
-                        {bootcamp?.userCohort?.projectBuilt}
-                      </div>
-                      <div className="text-xs text-blue-100">
-                        Projects Built
-                      </div>
+                    <div className="text-xs text-muted-foreground">
+                      Projects Built
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">
-                        {bootcamp?.userCohort?.totalAssigments}
-                      </div>
-                      <div className="text-xs text-blue-100">
-                        Assigments Completed
-                      </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {bootcamp?.userCohort?.totalAssigments}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Assigments Completed
                     </div>
                   </div>
                 </div>

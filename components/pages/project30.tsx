@@ -24,6 +24,7 @@ import {
 import {
   PlayCircle,
   CalendarIcon,
+  ArrowLeft,
   Trophy,
   Target,
   Clock,
@@ -225,78 +226,130 @@ export function Project30Page({
 
   return (
     <div className="flex-1 space-y-4 md:space-y-6 ">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <PlayCircle className="h-5 w-5 md:h-6 md:w-6 text-[#F2C94C]" />
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                {project30.title}
-              </h1>
+      {/* Back link */}
+      <button
+        onClick={() => onNavigate("/project30")}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Project30
+      </button>
+
+      {/* Blueprint detail hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden rounded-2xl dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">30-day challenge</div>
+            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+              <h1 className="text-3xl font-bold">{project30.title}</h1>
               {project30?.isEnrolled && (
-                <Badge
-                  variant="outline"
-                  className="bg-[#F2C94C]/10 text-[#F2C94C] border-[#F2C94C]/20 text-xs"
-                >
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
                   Day {nextDay}
-                </Badge>
+                </span>
               )}
               {subscription?.name === "Free" && !user?.isPremium && (
-                <Badge
-                  variant="outline"
-                  className="bg-green-100 text-green-800 border-green-200 text-xs"
-                >
+                <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-400/15 text-emerald-300 border border-emerald-400/25">
                   <Crown className="mr-1 h-3 w-3" />
                   Included in Pro
-                </Badge>
+                </span>
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => onNavigate(`/project30/${slug}/leaderboard`)}
-                className="w-full sm:w-auto"
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                Leaderboard
-              </Button>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
               {project30?.isEnrolled ? (
                 !userProject30?.isCompleted && (
-                  <Button
+                  <button
                     onClick={() => handleWatchPage(nextLesson?.id)}
-                    className="w-full sm:w-auto"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                   >
-                    <Play className="mr-2 h-4 w-4" />
-                    Today's Lesson
-                  </Button>
+                    <Play className="w-4 h-4" /> Today's Lesson · Day {nextDay}
+                  </button>
                 )
-              ) : (
-                <div>
-                  {user?.isPremium ? (
-                    <Button onClick={() => handleStartChallenge(slug)}>
-                      {starting ? (
-                        <>Starting...</>
-                      ) : (
-                        <>
-                          <Lock className="mr-2 h-4 w-4" />
-                          Start Challenge
-                        </>
-                      )}
-                    </Button>
+              ) : user?.isPremium ? (
+                <button
+                  disabled={starting}
+                  onClick={() => handleStartChallenge(slug)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                >
+                  {starting ? (
+                    <>Starting…</>
                   ) : (
-                    <Button onClick={() => setShowPaymentDialog(true)}>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Get Access
-                    </Button>
+                    <>
+                      <Play className="w-4 h-4" /> Start Challenge
+                    </>
                   )}
-                </div>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowPaymentDialog(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Lock className="w-4 h-4" /> Get Access
+                </button>
+              )}
+              <button
+                onClick={() => onNavigate(`/project30/${slug}/leaderboard`)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 text-white font-semibold px-5 py-2.5 text-sm hover:bg-white/5 transition"
+              >
+                <Trophy className="w-4 h-4" /> Leaderboard
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              {(project30?.totalDays ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarIcon className="w-4 h-4 opacity-70" />
+                  {project30?.isEnrolled ? nextDay : 0}/{project30?.totalDays}{" "}
+                  days
+                </span>
+              )}
+              {project30?.isEnrolled && (project30?.totalDays ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 opacity-70" />
+                  {(project30?.totalDays ?? 0) - nextDay} days remaining
+                </span>
               )}
             </div>
           </div>
-          {/* <Card> */}
-          <div>
+        </div>
+
+        {/* Completion strip — enrolled only */}
+        {project30?.isEnrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              challenge completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${
+                      userProject30?.isCompleted
+                        ? 100
+                        : Math.round(
+                            (currentDay / (project30?.totalDays || 30)) * 100,
+                          )
+                    }%`,
+                  }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {userProject30?.isCompleted
+                  ? 100
+                  : Math.round(
+                      (currentDay / (project30?.totalDays || 30)) * 100,
+                    )}
+                %
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      <div>
+        <div>
             <div
               className={`space-y-4 ${
                 isDescriptionExpanded ? "" : "line-clamp-3"
@@ -333,11 +386,9 @@ export function Project30Page({
                 Show less
               </Button>
             )}
-          </div>
           {/* </Card> */}
         </div>
       </div>
-
       {/* Access Banner for Free Users */}
       {!project30?.isEnrolled ||
         (!user?.isPremium && (

@@ -215,20 +215,64 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
 
   return (
     <div className="flex-1 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => onNavigate?.(`/projects/${slug}`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">{task?.title}</h1>
-          <p className="text-muted-foreground">
-            {currentProjectTask?.title} • {task?.title}
-          </p>
+      {/* Back link */}
+      <button
+        onClick={() => onNavigate?.(`/projects/${slug}`)}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to project
+      </button>
+
+      {/* Blueprint detail hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden rounded-2xl dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">project task</div>
+            <h1 className="text-3xl font-bold mt-1.5">{task?.title}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-4 text-sm text-white/[.78]">
+              {currentProjectTask?.title && (
+                <span className="inline-flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 opacity-70" />
+                  {currentProjectTask?.title}
+                </span>
+              )}
+              {task && isTaskCompleted(task.id) && (
+                <span className="inline-flex items-center gap-1.5 text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4" /> Completed
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — project task progress */}
+        {(project?.totalTasks ?? 0) > 0 && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              project progress
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.floor(
+                      ((userTasks?.length ?? 0) / (project?.totalTasks || 1)) *
+                        100,
+                    )}%`,
+                  }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {Math.floor(
+                  ((userTasks?.length ?? 0) / (project?.totalTasks || 1)) * 100,
+                )}
+                %
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
