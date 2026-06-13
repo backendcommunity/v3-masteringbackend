@@ -513,7 +513,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <Crown className="h-6 w-6 md:h-8 md:w-8 text-[#F2C94C] flex-shrink-0" />
+                  <Crown className="h-6 w-6 md:h-8 md:w-8 text-amber-500 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-sm md:text-base">
                       Unlock All Courses with Pro
@@ -535,30 +535,38 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
           </Card>
         )}
 
-        {/* Tabs + Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-          <div className="flex-1">
-            <TabsList>
-              <TabsTrigger value="all-courses">
-                All Courses ({meta?.netTotal ?? 0})
-              </TabsTrigger>
-              <TabsTrigger value="my-courses">My Courses</TabsTrigger>
-              <TabsTrigger value="popular">Popular</TabsTrigger>
-              <TabsTrigger value="new">New Releases</TabsTrigger>
-            </TabsList>
-          </div>
+        {/* ── Filter row (system: search · tab chips · selects) ── */}
+        <div className="flex gap-3 items-center flex-wrap">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Search courses..."
-              className="pl-8"
+              placeholder="Search courses…"
+              className="pl-9 w-72 rounded-xl"
             />
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-3">
+
+          <TabsList className="bg-transparent p-0 h-auto gap-2">
+            {[
+              { value: "all-courses", label: `All courses ${meta?.netTotal ?? 0}` },
+              { value: "my-courses", label: "My courses" },
+              { value: "popular", label: "Popular" },
+              { value: "new", label: "New releases" },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                className="rounded-xl px-3.5 py-2 text-sm font-medium border border-border bg-card text-muted-foreground shadow-none transition-colors hover:border-primary/30 hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-none"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <div className="ml-auto flex flex-wrap gap-2">
             <Select value={level} onValueChange={handleLevelChange}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[130px] rounded-xl">
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
               <SelectContent>
@@ -568,21 +576,8 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                 <SelectItem value="advanced">Advanced</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={category} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {(filterOptions.categories ?? []).map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={selectedTag} onValueChange={handleTagChange}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[130px] rounded-xl">
                 <SelectValue placeholder="Tag" />
               </SelectTrigger>
               <SelectContent>
@@ -596,6 +591,27 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             </Select>
           </div>
         </div>
+
+        {/* ── Category pills (mirror mock-interviews) ── */}
+        {(filterOptions.categories ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {(filterOptions.categories ?? []).map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() =>
+                  handleCategoryChange(category === cat.id ? "all" : cat.id)
+                }
+                className={
+                  category === cat.id
+                    ? "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-primary bg-primary/10 text-primary font-medium"
+                    : "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                }
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── All Courses ───────────────────────────────────────────────────── */}
         <TabsContent value="all-courses" className="space-y-4">
@@ -615,7 +631,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   </div>
                 </>
               )}
-              <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {courses.map((course) => (
                   <CourseCard
                     key={course.id}
@@ -637,7 +653,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {userCourses.map((userCourse: UserCourse) => (
                   <CourseCard
                     key={userCourse.id}
@@ -664,7 +680,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {popularCourses.map((course) => (
                   <CourseCard
                     key={course.id}
@@ -691,7 +707,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {newCourses.map((course) => (
                   <CourseCard
                     key={course.id}
