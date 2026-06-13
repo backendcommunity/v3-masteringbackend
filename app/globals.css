@@ -17,7 +17,7 @@
     --popover-foreground: 222.2 84% 4.9%; /* #0f172a - dark text on popover */
 
     /* Primary colors - #13AECE brand blue */
-    --primary: 190 83% 44%; /* #13AECE - brand blue */
+    --primary: 190 62% 45%; /* #13AECE - brand blue */
     --primary-foreground: 210 40% 98%; /* #f8fafc - white text on blue */
 
     /* Secondary colors - light gray */
@@ -29,7 +29,7 @@
     --muted-foreground: 215.4 16.3% 46.9%; /* #64748b - muted text */
 
     /* Accent colors - lighter variation of #13AECE */
-    --accent: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --accent: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --accent-foreground: 210 40% 98%; /* #f8fafc - white text on accent */
 
     /* Destructive colors */
@@ -39,21 +39,21 @@
     /* Border and input colors */
     --border: 214.3 31.8% 91.4%; /* #e2e8f0 - light borders */
     --input: 214.3 31.8% 91.4%; /* #e2e8f0 - input borders */
-    --ring: 190 83% 44%; /* #13AECE - focus ring */
+    --ring: 190 62% 45%; /* #13AECE - focus ring */
 
     --radius: 0.5rem;
 
     /* Chart colors - #13AECE-based palette for light theme */
-    --chart-1: 190 83% 44%; /* #13AECE - primary brand blue */
-    --chart-2: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --chart-1: 190 62% 45%; /* #13AECE - primary brand blue */
+    --chart-2: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --chart-3: 190 83% 34%; /* #0F8BA8 - darker brand blue */
     --chart-4: 190 83% 64%; /* #4AC5E8 - very light brand blue */
     --chart-5: 190 83% 24%; /* #0A6B85 - very dark brand blue */
 
     /* Masteringbackend Brand Colors for light theme */
     --mb-deep-blue: 190 83% 24%; /* #0A6B85 - very dark brand blue */
-    --mb-blue: 190 83% 44%; /* #13AECE - primary brand blue */
-    --mb-light-blue: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --mb-blue: 190 62% 45%; /* #13AECE - primary brand blue */
+    --mb-light-blue: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --mb-dark-blue: 190 83% 34%; /* #0F8BA8 - darker brand blue */
     --mb-very-light-blue: 190 83% 64%; /* #4AC5E8 - very light brand blue */
     --mb-very-dark-blue: 190 83% 14%; /* #064C5F - extremely dark brand blue */
@@ -79,7 +79,7 @@
     --popover-foreground: 210 40% 96%;
 
     /* Primary colors - #13AECE brand blue */
-    --primary: 190 83% 44%; /* #13AECE - brand blue */
+    --primary: 190 62% 45%; /* #13AECE - brand blue */
     --primary-foreground: 210 40% 98%; /* white text on blue */
 
     /* Secondary colors - above hero level */
@@ -91,7 +91,7 @@
     --muted-foreground: 214 22% 66%; /* #93A5BD-ish - readable, not shouting */
 
     /* Accent colors - variations of #13AECE */
-    --accent: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --accent: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --accent-foreground: 210 40% 98%;
 
     /* Destructive colors - complementary red */
@@ -101,19 +101,19 @@
     /* Border and input colors */
     --border: 213 35% 19%; /* #1F324A-ish - subtle navy borders */
     --input: 213 35% 19%;
-    --ring: 190 83% 54%; /* #2BB8D8 - focus ring (lighter brand blue) */
+    --ring: 190 62% 53%; /* #2BB8D8 - focus ring (lighter brand blue) */
 
     /* Chart colors - #13AECE-based palette */
-    --chart-1: 190 83% 44%; /* #13AECE - primary brand blue */
-    --chart-2: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --chart-1: 190 62% 45%; /* #13AECE - primary brand blue */
+    --chart-2: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --chart-3: 190 83% 34%; /* #0F8BA8 - darker brand blue */
     --chart-4: 190 83% 64%; /* #4AC5E8 - very light brand blue */
     --chart-5: 190 83% 24%; /* #0A6B85 - very dark brand blue */
 
     /* Gaming-inspired brand colors - all based on #13AECE */
     --mb-deep-blue: 222 30% 12%; /* #171B26 - main background */
-    --mb-blue: 190 83% 44%; /* #13AECE - primary brand blue */
-    --mb-light-blue: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
+    --mb-blue: 190 62% 45%; /* #13AECE - primary brand blue */
+    --mb-light-blue: 190 62% 53%; /* #2BB8D8 - lighter brand blue */
     --mb-dark-blue: 190 83% 34%; /* #0F8BA8 - darker brand blue */
     --mb-very-light-blue: 190 83% 64%; /* #4AC5E8 - very light brand blue */
     --mb-very-dark-blue: 190 83% 24%; /* #0A6B85 - very dark brand blue */
@@ -639,7 +639,7 @@ article ul li {
 
 /* Override LiveKit default styles for branding consistency */
 [data-lk-theme="default"] {
-  --lk-accent: hsl(190 83% 44%);
+  --lk-accent: hsl(190 62% 45%);
   --lk-accent-fg: hsl(210 40% 98%);
   --lk-bg: hsl(222 30% 12%);
   --lk-bg2: hsl(222 25% 16%);
@@ -729,8 +729,8 @@ article ul li {
   padding: 2px;
   background: linear-gradient(
     135deg,
-    hsl(190 83% 44% / 0.3),
-    hsl(190 83% 54% / 0.1),
+    hsl(190 62% 45% / 0.3),
+    hsl(190 62% 53% / 0.1),
     transparent
   );
   -webkit-mask:
@@ -785,7 +785,7 @@ article ul li {
 
 .interview-progress-fill {
   @apply h-full rounded-full transition-all duration-500;
-  background: linear-gradient(90deg, hsl(190 83% 44%), hsl(190 83% 54%));
+  background: linear-gradient(90deg, hsl(190 62% 45%), hsl(190 62% 53%));
 }
 
 /* Question card hover effect */
