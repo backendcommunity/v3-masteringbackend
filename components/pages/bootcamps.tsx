@@ -106,11 +106,11 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
           <JourneyGlyph
-            stage="grow"
+            stage="learn"
             className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
           />
           <div className="max-w-2xl">
-            <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
+            <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
             <h1 className="text-2xl font-bold mt-1.5">Bootcamps</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Join a cohort, learn live, and ship alongside peers.
