@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Route, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Route, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -15,6 +15,7 @@ import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
 import { PathCard, PathCardData } from "@/components/pages/paths/path-card";
+import { Pager } from "@/components/ui/pager";
 import { JourneyGlyph } from "@/components/journey-glyph";
 
 interface LearningPathsPageProps {
@@ -380,28 +381,12 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
               ))}
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-8">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Previous
-                </button>
-                <span className="text-sm text-muted-foreground">
-                  Page <span className="font-semibold text-foreground">{currentPage}</span> of{" "}
-                  {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
+            <Pager
+              hasPrev={currentPage > 1}
+              hasNext={currentPage < totalPages}
+              onPrev={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
           </>
         )}
       </div>

@@ -118,6 +118,10 @@ dashboards, and settings never get the navy treatment.
 - **Share row**: monochrome outline icon buttons (LinkedIn/X/Facebook/copy),
   brand color on hover only. No brand-colored social buttons.
 - **Empty states**: icon + title + one sentence + optional clear-filters.
+- **Pagination (`Pager`, `components/ui/pager.tsx`)**: listing pages NEVER
+  show numbers — no "Page X of Y", no "Showing 1–9 of 48", no numbered
+  buttons. Previous/Next via the shared `<Pager>`, or "Load more" for
+  progressive lists. One component, platform-wide.
 
 ## 5. The Journey glyph
 

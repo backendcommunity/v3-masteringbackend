@@ -14,13 +14,12 @@ import {
 import {
   Search,
   Crown,
-  ChevronLeft,
-  ChevronRight,
   Play,
-  Clock,
+  Bookmark,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Pager } from "@/components/ui/pager";
 import {
   Course,
   CourseFilterOptions,
@@ -34,7 +33,7 @@ import { useAppStore } from "@/lib/store";
 import { Loader } from "../ui/loader";
 import { FreeStarterSection } from "@/components/free-starter-section";
 import { JourneyGlyph } from "@/components/journey-glyph";
-import { stripHtmlTags } from "@/lib/html-utils";
+import { CourseCard } from "@/components/pages/courses/course-card";
 
 interface CoursesPageProps {
   onNavigate: (path: string) => void;
@@ -69,26 +68,12 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-3 mt-8">
-      <button
-        onClick={() => onPage(Math.max(0, page - 1))}
-        disabled={page === 0}
-        className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" /> Previous
-      </button>
-      <span className="text-sm text-muted-foreground">
-        Page <span className="font-semibold text-foreground">{page + 1}</span>{" "}
-        of {totalPages}
-      </span>
-      <button
-        onClick={() => onPage(Math.min(totalPages - 1, page + 1))}
-        disabled={page >= totalPages - 1}
-        className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        Next <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
+    <Pager
+      hasPrev={page > 0}
+      hasNext={page < totalPages - 1}
+      onPrev={() => onPage(page - 1)}
+      onNext={() => onPage(page + 1)}
+    />
   );
 }
 
@@ -112,122 +97,6 @@ function EmptyState({
           {subtitle}
         </p>
         {action}
-      </div>
-    </div>
-  );
-}
-
-// ─── Course Card ─────────────────────────────────────────────────────────────
-
-const COURSE_LEVEL_STYLES: Record<string, { pill: string; dot: string }> = {
-  Beginner: {
-    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
-    dot: "bg-emerald-500",
-  },
-  Intermediate: {
-    pill: "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
-    dot: "bg-amber-500",
-  },
-  Advanced: {
-    pill: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
-    dot: "bg-red-500",
-  },
-};
-
-function CourseCard({
-  course,
-  onViewDetails,
-  onContinue,
-}: {
-  course: Course;
-  onViewDetails: (slug: string) => void;
-  onContinue: (slug: string) => void;
-}) {
-  const typeLabel =
-    course.type === "WORKSHOP"
-      ? "Workshop"
-      : course.type === "VIDEO"
-        ? "Course"
-        : "Tutorial";
-  const levelStyle = COURSE_LEVEL_STYLES[course.level ?? ""] ?? {
-    pill: "bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground",
-  };
-
-  return (
-    <div
-      onClick={() => onViewDetails(course.slug)}
-      className="group bg-card rounded-2xl border border-border flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all p-5"
-    >
-      {/* Meta line: type · category */}
-      <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
-        <span className="text-muted-foreground font-medium truncate">
-          {typeLabel}
-        </span>
-        <span className="text-muted-foreground/40 shrink-0">·</span>
-        <span className="text-muted-foreground font-medium truncate">
-          {course.category?.name ?? "Backend"}
-        </span>
-      </div>
-
-      {/* Title */}
-      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
-        {course.title}
-      </h3>
-
-      {/* Description */}
-      <p className="text-muted-foreground text-[13px] line-clamp-4 mt-2 leading-relaxed flex-1">
-        {stripHtmlTags(course.summary ?? course.description ?? "")}
-      </p>
-
-      {/* Progress (enrolled only) */}
-      {course.enrolled && (
-        <div className="mt-3 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Progress</span>
-            <span className="font-semibold text-foreground">
-              {Math.floor(course.progress ?? 0)}%
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${course.progress ?? 0}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="border-t border-border/50 flex items-center justify-between pt-3 mt-3">
-        <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" />
-          {course.totalDuration} hr
-        </span>
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${levelStyle.pill}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${levelStyle.dot}`} />
-            {course.level ?? "All levels"}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              course.enrolled
-                ? onContinue(course.slug)
-                : onViewDetails(course.slug);
-            }}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            {course.enrolled ? (
-              <Play className="w-2.5 h-2.5" />
-            ) : (
-              <ChevronRight className="w-2.5 h-2.5" />
-            )}
-            {course.enrolled ? "Continue" : "Start"}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -277,6 +146,12 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const [newMeta, setNewMeta] = useState<Meta>();
   const [newLoading, setNewLoading] = useState(false);
   const [newPage, setNewPage] = useState(0);
+
+  // Saved (bookmarked) courses
+  const [savedCourses, setSavedCourses] = useState<Course[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedLoading, setSavedLoading] = useState(false);
 
   // Read tab from URL on mount
   useEffect(() => {
@@ -449,6 +324,70 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     };
   }, [tab, newPage]);
 
+  // ── Saved (bookmarked) courses ───────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setSavedLoading(true);
+      const res = await store
+        .getBookmarks(200, 0)
+        .catch(() => ({ bookmarks: [] as any[] }));
+      if (cancelled) return;
+      const courseBookmarks = (res?.bookmarks ?? []).filter(
+        (b: any) => b?.course?.id,
+      );
+      setSavedCourses(courseBookmarks.map((b: any) => b.course as Course));
+      setSavedIds(new Set(courseBookmarks.map((b: any) => b.course.id as string)));
+      setSavedLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
+
+  const toggleSave = async (course: Course, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (savingId) return;
+    const id = course.id;
+    const isSaved = savedIds.has(id);
+    setSavingId(id);
+    // optimistic
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setSavedCourses((prev) =>
+      isSaved ? prev.filter((c) => c.id !== id) : [course, ...prev],
+    );
+    try {
+      if (isSaved) {
+        await store.deleteBookmark({ courseId: id });
+      } else {
+        await store.createBookmark({
+          type: "COURSE",
+          bookmarkType: "BOOKMARK",
+          courseId: id,
+        });
+      }
+    } catch {
+      // revert on failure
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+      setSavedCourses((prev) =>
+        isSaved ? [course, ...prev] : prev.filter((c) => c.id !== id),
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const handleViewDetails = (slug: string) =>
     onNavigate(routes.courseDetail(slug));
   const handleContinue = (slug: string) =>
@@ -463,7 +402,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
 
   return (
     <Tabs className="space-y-6" value={tab} onValueChange={handleTabChange}>
-      <div className="flex-1 space-y-6">
+      <div className="max-w-7xl mx-auto w-full space-y-6">
         {/* ── Blueprint hero (navy anchor · learn pillar) ── */}
         <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
@@ -529,6 +468,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               { value: "my-courses", label: "My courses", count: userCourseMeta?.netTotal },
               { value: "popular", label: "Popular", count: popularMeta?.netTotal },
               { value: "new", label: "New releases", count: newMeta?.netTotal },
+              { value: "saved", label: "Saved", count: savedIds.size },
             ] as { value: string; label: string; count?: number }[]
           ).map((t) => (
             <button
@@ -585,7 +525,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                 className={
                   category === cat.id
                     ? "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-primary bg-primary/10 text-primary font-medium"
-                    : "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    : "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }
               >
                 {cat.name}
@@ -636,6 +576,9 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      isSaved={savedIds.has(course.id)}
+                      isSaving={savingId === course.id}
+                      onToggleSave={(e) => toggleSave(course, e)}
                     />
                   ))}
                 </div>
@@ -669,14 +612,20 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                 />
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {userCourses.map((userCourse: UserCourse) => (
-                    <CourseCard
-                      key={userCourse.id}
-                      course={toEnrolledCourse(userCourse)}
-                      onViewDetails={handleViewDetails}
-                      onContinue={handleContinue}
-                    />
-                  ))}
+                  {userCourses.map((userCourse: UserCourse) => {
+                    const c = toEnrolledCourse(userCourse);
+                    return (
+                      <CourseCard
+                        key={userCourse.id}
+                        course={c}
+                        onViewDetails={handleViewDetails}
+                        onContinue={handleContinue}
+                        isSaved={savedIds.has(c.id)}
+                        isSaving={savingId === c.id}
+                        onToggleSave={(e) => toggleSave(c, e)}
+                      />
+                    );
+                  })}
                 </div>
               )}
               <Pagination
@@ -711,6 +660,9 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      isSaved={savedIds.has(course.id)}
+                      isSaving={savingId === course.id}
+                      onToggleSave={(e) => toggleSave(course, e)}
                     />
                   ))}
                 </div>
@@ -747,6 +699,9 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      isSaved={savedIds.has(course.id)}
+                      isSaving={savingId === course.id}
+                      onToggleSave={(e) => toggleSave(course, e)}
                     />
                   ))}
                 </div>
@@ -758,6 +713,41 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                 itemLabel="new releases"
               />
             </>
+          )}
+        </TabsContent>
+
+        {/* ── Saved ─────────────────────────────────────────────────────────── */}
+        <TabsContent value="saved" className="space-y-6">
+          {savedLoading ? (
+            <Loader isLoader={false} />
+          ) : savedCourses.length === 0 ? (
+            <EmptyState
+              icon={<Bookmark className="h-12 w-12 text-muted-foreground mb-4" />}
+              title="No saved courses yet"
+              subtitle="Bookmark courses by clicking the bookmark icon on any card."
+              action={
+                <button
+                  onClick={() => handleTabChange("all-courses")}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Browse courses
+                </button>
+              }
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {savedCourses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onViewDetails={handleViewDetails}
+                  onContinue={handleContinue}
+                  isSaved={savedIds.has(course.id)}
+                  isSaving={savingId === course.id}
+                  onToggleSave={(e) => toggleSave(course, e)}
+                />
+              ))}
+            </div>
           )}
         </TabsContent>
       </div>

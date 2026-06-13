@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Pager } from "@/components/ui/pager";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,8 +38,6 @@ import {
   Sparkles,
   Layout,
   Play,
-  ChevronLeft,
-  ChevronRight,
   Search,
   Loader2,
   Crown,
@@ -962,42 +961,22 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
                     {/* Pagination — templates tab */}
                     {activeTab === "templates" && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {pagination.skip + 1}–
-                          {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
-                          of {totalTemplates} templates
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={pagination.skip === 0}>
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasMore}>
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={pagination.skip > 0}
+                        hasNext={hasMore}
+                        onPrev={handlePrevPage}
+                        onNext={handleNextPage}
+                      />
                     )}
 
                     {/* Pagination — saved tab */}
                     {activeTab === "saved" && savedTotal > PAGE_SIZE && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {savedPage * PAGE_SIZE + 1}–{Math.min((savedPage + 1) * PAGE_SIZE, savedTotal)} of {savedTotal} saved
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p - 1)} disabled={savedPage === 0}>
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p + 1)} disabled={(savedPage + 1) * PAGE_SIZE >= savedTotal}>
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={savedPage > 0}
+                        hasNext={(savedPage + 1) * PAGE_SIZE < savedTotal}
+                        onPrev={() => setSavedPage((p) => p - 1)}
+                        onNext={() => setSavedPage((p) => p + 1)}
+                      />
                     )}
                   </>
                 )}
@@ -1103,21 +1082,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             )}
             {bookedTotal > PAGE_SIZE && bookedInterviews.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
-                  Showing {bookedPage * PAGE_SIZE + 1}–{Math.min((bookedPage + 1) * PAGE_SIZE, bookedTotal)} of {bookedTotal} booked
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p - 1)} disabled={bookedPage === 0}>
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p + 1)} disabled={(bookedPage + 1) * PAGE_SIZE >= bookedTotal}>
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Pager
+                hasPrev={bookedPage > 0}
+                hasNext={(bookedPage + 1) * PAGE_SIZE < bookedTotal}
+                onPrev={() => setBookedPage((p) => p - 1)}
+                onNext={() => setBookedPage((p) => p + 1)}
+              />
             )}
           </>
         )}
@@ -1196,21 +1166,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             )}
             {completedTotal > PAGE_SIZE && completedInterviews.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
-                  Showing {completedPage * PAGE_SIZE + 1}–{Math.min((completedPage + 1) * PAGE_SIZE, completedTotal)} of {completedTotal} completed
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p - 1)} disabled={completedPage === 0}>
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p + 1)} disabled={(completedPage + 1) * PAGE_SIZE >= completedTotal}>
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Pager
+                hasPrev={completedPage > 0}
+                hasNext={(completedPage + 1) * PAGE_SIZE < completedTotal}
+                onPrev={() => setCompletedPage((p) => p - 1)}
+                onNext={() => setCompletedPage((p) => p + 1)}
+              />
             )}
           </>
         )}
@@ -1269,37 +1230,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </div>
 
                     {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {myTemplatesPage * MY_TEMPLATES_PAGE_SIZE + 1}
-                          –
-                          {Math.min(
-                            (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
-                            myTemplates.length,
-                          )}{" "}
-                          of {myTemplates.length} templates
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMyTemplatesPage((p) => p - 1)}
-                            disabled={myTemplatesPage === 0}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMyTemplatesPage((p) => p + 1)}
-                            disabled={myTemplatesPage >= totalPages - 1}
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={myTemplatesPage > 0}
+                        hasNext={myTemplatesPage < totalPages - 1}
+                        onPrev={() => setMyTemplatesPage((p) => p - 1)}
+                        onNext={() => setMyTemplatesPage((p) => p + 1)}
+                      />
                     )}
                   </>
                 );
