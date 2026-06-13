@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -21,7 +20,7 @@ import {
   Clock,
 } from "lucide-react";
 import { routes } from "@/lib/routes";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Course,
   CourseFilterOptions,
@@ -54,30 +53,10 @@ function toEnrolledCourse(uc: UserCourse): Course {
 
 // ─── Professional Pagination ─────────────────────────────────────────────────
 
-function buildPageList(current: number, total: number): (number | "...")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
-
-  const visible = new Set(
-    [0, current - 1, current, current + 1, total - 1].filter(
-      (p) => p >= 0 && p < total,
-    ),
-  );
-  const sorted = Array.from(visible).sort((a, b) => a - b);
-  const result: (number | "...")[] = [];
-  let prev = -1;
-  for (const p of sorted) {
-    if (prev >= 0 && p - prev > 1) result.push("...");
-    result.push(p);
-    prev = p;
-  }
-  return result;
-}
-
 function Pagination({
   page,
   meta,
   onPage,
-  itemLabel = "courses",
 }: {
   page: number;
   meta?: Meta;
@@ -87,63 +66,53 @@ function Pagination({
   if (!meta || !meta.netTotal) return null;
 
   const totalPages = Math.ceil(meta.netTotal / PAGE_SIZE);
-  const start = page * PAGE_SIZE + 1;
-  const end = Math.min((page + 1) * PAGE_SIZE, meta.netTotal);
-  const pages = buildPageList(page, totalPages);
+  if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t mt-2">
-      <p className="text-sm text-muted-foreground">
-        Showing <span className="font-medium text-foreground">{start}</span>–
-        <span className="font-medium text-foreground">{end}</span> of{" "}
-        <span className="font-medium text-foreground">{meta.netTotal}</span>{" "}
-        {itemLabel}
-      </p>
+    <div className="flex items-center justify-center gap-3 mt-8">
+      <button
+        onClick={() => onPage(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" /> Previous
+      </button>
+      <span className="text-sm text-muted-foreground">
+        Page <span className="font-semibold text-foreground">{page + 1}</span>{" "}
+        of {totalPages}
+      </span>
+      <button
+        onClick={() => onPage(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Next <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
-      {totalPages > 1 && (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled={page === 0}
-            onClick={() => onPage(page - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-
-          {pages.map((p, i) =>
-            p === "..." ? (
-              <span
-                key={`ellipsis-${i}`}
-                className="w-8 text-center text-sm text-muted-foreground"
-              >
-                …
-              </span>
-            ) : (
-              <Button
-                key={p}
-                variant={p === page ? "default" : "outline"}
-                size="sm"
-                className="h-8 w-8 p-0 text-xs"
-                onClick={() => onPage(p as number)}
-              >
-                {(p as number) + 1}
-              </Button>
-            ),
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled={page >= totalPages - 1}
-            onClick={() => onPage(page + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+function EmptyState({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex flex-col items-center justify-center py-12 px-6">
+        {icon}
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-muted-foreground text-center max-w-md mb-4">
+          {subtitle}
+        </p>
+        {action}
+      </div>
     </div>
   );
 }
@@ -485,9 +454,16 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const handleContinue = (slug: string) =>
     onNavigate(routes.courseDetail(slug));
 
+  const clearFilters = () => {
+    handleSearchInput("");
+    handleLevelChange("all");
+    handleCategoryChange("all");
+    handleTagChange("all");
+  };
+
   return (
-    <Tabs className="space-y-4" value={tab} onValueChange={handleTabChange}>
-      <div className="flex-1 space-y-4 md:space-y-6">
+    <Tabs className="space-y-6" value={tab} onValueChange={handleTabChange}>
+      <div className="flex-1 space-y-6">
         {/* ── Blueprint hero (navy anchor · learn pillar) ── */}
         <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
@@ -535,34 +511,39 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
           </Card>
         )}
 
-        {/* ── Filter row (system: search · tab chips · selects) ── */}
+        {/* ── Filter row (mirrors paths/mock-interviews) ── */}
         <div className="flex gap-3 items-center flex-wrap">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <input
               value={searchInput}
               onChange={(e) => handleSearchInput(e.target.value)}
               placeholder="Search courses…"
-              className="pl-9 w-72 rounded-xl"
+              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
-          <TabsList className="bg-transparent p-0 h-auto gap-2">
-            {[
-              { value: "all-courses", label: `All courses ${meta?.netTotal ?? 0}` },
-              { value: "my-courses", label: "My courses" },
-              { value: "popular", label: "Popular" },
-              { value: "new", label: "New releases" },
-            ].map((t) => (
-              <TabsTrigger
-                key={t.value}
-                value={t.value}
-                className="rounded-xl px-3.5 py-2 text-sm font-medium border border-border bg-card text-muted-foreground shadow-none transition-colors hover:border-primary/30 hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-none"
-              >
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {(
+            [
+              { value: "all-courses", label: "All courses", count: meta?.netTotal },
+              { value: "my-courses", label: "My courses", count: userCourseMeta?.netTotal },
+              { value: "popular", label: "Popular", count: popularMeta?.netTotal },
+              { value: "new", label: "New releases", count: newMeta?.netTotal },
+            ] as { value: string; label: string; count?: number }[]
+          ).map((t) => (
+            <button
+              key={t.value}
+              onClick={() => handleTabChange(t.value)}
+              className={
+                tab === t.value
+                  ? "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors bg-primary text-primary-foreground"
+                  : "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors border border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+              }
+            >
+              {t.label}{" "}
+              {t.count != null && <span className="opacity-70">{t.count}</span>}
+            </button>
+          ))}
 
           <div className="ml-auto flex flex-wrap gap-2">
             <Select value={level} onValueChange={handleLevelChange}>
@@ -614,7 +595,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         )}
 
         {/* ── All Courses ───────────────────────────────────────────────────── */}
-        <TabsContent value="all-courses" className="space-y-4">
+        <TabsContent value="all-courses" className="space-y-6">
           {loading ? (
             <Loader isLoader={false} />
           ) : (
@@ -631,39 +612,73 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   </div>
                 </>
               )}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {courses.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    onViewDetails={handleViewDetails}
-
-                    onContinue={handleContinue}
-                  />
-                ))}
-              </div>
+              {courses.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                  }
+                  title="No courses match your filters"
+                  subtitle="Try adjusting your search or filters to find what you're looking for."
+                  action={
+                    <button
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-primary/30 hover:text-primary transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  }
+                />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {courses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      onViewDetails={handleViewDetails}
+                      onContinue={handleContinue}
+                    />
+                  ))}
+                </div>
+              )}
               <Pagination page={page} meta={meta} onPage={setPage} />
             </>
           )}
         </TabsContent>
 
         {/* ── My Courses ────────────────────────────────────────────────────── */}
-        <TabsContent value="my-courses" className="space-y-4">
+        <TabsContent value="my-courses" className="space-y-6">
           {userLoading ? (
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {userCourses.map((userCourse: UserCourse) => (
-                  <CourseCard
-                    key={userCourse.id}
-                    course={toEnrolledCourse(userCourse)}
-                    onViewDetails={handleViewDetails}
-
-                    onContinue={handleContinue}
-                  />
-                ))}
-              </div>
+              {userCourses.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <Play className="h-12 w-12 text-muted-foreground mb-4" />
+                  }
+                  title="No enrolled courses yet"
+                  subtitle="Start a course from the catalog and it will show up here with your progress."
+                  action={
+                    <button
+                      onClick={() => handleTabChange("all-courses")}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+                    >
+                      Browse courses
+                    </button>
+                  }
+                />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {userCourses.map((userCourse: UserCourse) => (
+                    <CourseCard
+                      key={userCourse.id}
+                      course={toEnrolledCourse(userCourse)}
+                      onViewDetails={handleViewDetails}
+                      onContinue={handleContinue}
+                    />
+                  ))}
+                </div>
+              )}
               <Pagination
                 page={userPage}
                 meta={userCourseMeta}
@@ -675,22 +690,31 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         </TabsContent>
 
         {/* ── Popular ───────────────────────────────────────────────────────── */}
-        <TabsContent value="popular" className="space-y-4">
+        <TabsContent value="popular" className="space-y-6">
           {popularLoading ? (
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {popularCourses.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    onViewDetails={handleViewDetails}
-
-                    onContinue={handleContinue}
-                  />
-                ))}
-              </div>
+              {popularCourses.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                  }
+                  title="No popular courses found"
+                  subtitle="Check back soon — popular courses update as learners enroll."
+                />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {popularCourses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      onViewDetails={handleViewDetails}
+                      onContinue={handleContinue}
+                    />
+                  ))}
+                </div>
+              )}
               <Pagination
                 page={popularPage}
                 meta={popularMeta}
@@ -702,22 +726,31 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         </TabsContent>
 
         {/* ── New Releases ──────────────────────────────────────────────────── */}
-        <TabsContent value="new" className="space-y-4">
+        <TabsContent value="new" className="space-y-6">
           {newLoading ? (
             <Loader isLoader={false} />
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {newCourses.map((course) => (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    onViewDetails={handleViewDetails}
-
-                    onContinue={handleContinue}
-                  />
-                ))}
-              </div>
+              {newCourses.length === 0 ? (
+                <EmptyState
+                  icon={
+                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                  }
+                  title="No new releases right now"
+                  subtitle="We're constantly adding new courses — check back soon."
+                />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {newCourses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      onViewDetails={handleViewDetails}
+                      onContinue={handleContinue}
+                    />
+                  ))}
+                </div>
+              )}
               <Pagination
                 page={newPage}
                 meta={newMeta}
