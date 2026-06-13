@@ -668,7 +668,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="bg-[#0E1F33] text-white relative">
             <div className="hero-grid absolute inset-0" aria-hidden="true" />
-            <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
               <JourneyGlyph
                 stage="grow"
                 className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"

@@ -406,7 +406,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── Blueprint hero (navy anchor · learn pillar) ── */}
         <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
-          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
             <JourneyGlyph
               stage="learn"
               className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
