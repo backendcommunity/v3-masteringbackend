@@ -120,14 +120,14 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
       </div>
 
       {/* ── Filter row (mirrors courses / project30) ── */}
-      <div className="flex gap-3 items-center flex-wrap">
-        <div className="relative">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap">
+        <div className="relative w-full sm:w-auto">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search bootcamps…"
-            className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
 
@@ -145,7 +145,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
           </button>
         ))}
 
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
           <Select value={level} onValueChange={setLevel}>
             <SelectTrigger className="w-[130px] rounded-xl">
               <SelectValue placeholder="Level" />
