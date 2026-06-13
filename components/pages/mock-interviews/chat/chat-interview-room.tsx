@@ -265,13 +265,18 @@ export function ChatInterviewRoom({
       try {
         reader = await store.streamChatMessage(sessionId, content, artifactRef);
         const decoder = new TextDecoder();
+        let buffer = "";
 
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+          // Buffer across chunks — keep the partial trailing line so a `done`
+          // (isComplete) or token event split across read() boundaries isn't
+          // dropped on JSON.parse.
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.startsWith("data:")) continue;
@@ -439,13 +444,21 @@ export function ChatInterviewRoom({
     try {
       reader = await store.streamSessionReport(sessionId);
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
+        // Buffer across chunks: process only COMPLETE lines and keep any partial
+        // trailing line for the next read. The `result` event carries the full
+        // report and routinely spans multiple read() boundaries — without this
+        // it failed JSON.parse, got dropped, and the UI hung on
+        // "Generating your performance report…" forever.
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
           if (!line.startsWith("data:")) continue;
           const jsonStr = line.slice(5).trim();
           if (!jsonStr) continue;
