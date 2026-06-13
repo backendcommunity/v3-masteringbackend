@@ -282,7 +282,7 @@ interface AppState {
     projectId?: string;
     mockInterviewTemplateId?: string;
   }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
-  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string }) => Promise<void>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -1123,11 +1123,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string }) => {
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => {
     const params = new URLSearchParams();
     if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
     if (opts.courseId) params.set("courseId", opts.courseId);
     if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
+    if (opts.projectId) params.set("projectId", opts.projectId);
     await api.delete(`/bookmarks?${params.toString()}`);
   },
 

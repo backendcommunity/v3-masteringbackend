@@ -199,6 +199,11 @@ export function ProjectDetailPage({
       updateProject(project?.id!, { enrolled: true });
       Object.assign(project!, { enrolled: true });
 
+      // Same as the cards: pro/enterprise enroll → drop straight into the
+      // first value point (the task list) rather than sitting on the detail page.
+      toast.success("Enrolled — taking you to your first task…");
+      handleContinueLearning(project!.slug);
+
       // await handleProjectSetup(userProject); //TODO: Activate this to handle clone
     } catch (error: any) {
       const e = error?.response?.message ?? error?.message;

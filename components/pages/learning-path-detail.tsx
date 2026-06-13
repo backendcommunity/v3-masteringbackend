@@ -727,7 +727,7 @@ export function LearningPathDetailPage({
     <div>
       {/* Blueprint hero — navy anchor; the grid lives here only */}
       <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
-        <div className="bg-[#0E1F33] text-white relative">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">
@@ -803,7 +803,7 @@ export function LearningPathDetailPage({
 
         {/* Completion strip — the hero earns its keep (enrolled only) */}
         {isFullAccess && (
-          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726]">
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
             <div className="eyebrow-mono text-white/[.5] mb-2">
               path completion
             </div>

@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import { routes } from "@/lib/routes";
+import { useUser } from "@/hooks/use-user";
+import { startItem } from "@/lib/start-flow";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
@@ -40,6 +41,7 @@ const PAGE_SIZE = 12;
 
 export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const store = useAppStore();
+  const user = useUser();
   const [paths, setPaths] = useState<PathItem[]>([]);
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
@@ -180,13 +182,16 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
       enrolled: p.enrolled,
       level: p.level,
     });
-    // In-progress learners land straight in the workspace; everyone else
-    // (not enrolled / completed) goes to the detail page.
-    onNavigate?.(
-      p.enrolled && p.progress < 100
-        ? routes.pathWorkspace(p.slug)
-        : routes.pathDetail(p.slug),
-    );
+    // free → detail; pro/enterprise → enroll + workspace; enrolled → resume.
+    startItem({
+      type: "path",
+      slug: p.slug,
+      enrolled: p.enrolled,
+      completed: p.progress >= 100,
+      isPremiumUser: !!user?.isPremium,
+      store,
+      onNavigate: (path) => onNavigate?.(path),
+    });
   };
 
   const toggleSave = async (p: PathItem) => {
@@ -232,7 +237,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* ── Blueprint hero (navy anchor · grid lives here only) ── */}
-      <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+      <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
           <JourneyGlyph
@@ -260,7 +265,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search paths…"
-              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -287,7 +292,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             </button>
           ))}
 
-          <div className="ml-auto">
+          <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
             <Select
               value={levelFilter}
               onValueChange={(v) => {

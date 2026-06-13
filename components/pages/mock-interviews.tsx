@@ -666,7 +666,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
       <div className="max-w-7xl mx-auto px-6 pt-6">
         <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
-          <div className="bg-[#0E1F33] text-white relative">
+          <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
             <div className="hero-grid absolute inset-0" aria-hidden="true" />
             <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
               <JourneyGlyph
@@ -777,10 +777,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {/* ── Filter row ───────────────────────────────────────────────────── */}
         <div className="flex gap-3 items-center flex-wrap mb-6">
           {/* Search input */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
-              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="Search templates…"
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}

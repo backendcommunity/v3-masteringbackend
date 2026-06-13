@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
+import { useUser } from "@/hooks/use-user";
+import { startItem } from "@/lib/start-flow";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
@@ -55,6 +57,7 @@ const canonLevel = (raw?: string): string => {
 
 export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
   const store = useAppStore();
+  const user = useUser();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [freeStarters, setFreeStarters] = useState<StarterKitItem[]>([]);
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
@@ -181,11 +184,17 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
       enrolled: p.enrolled,
       level: p.level,
     });
-    onNavigate(
-      p.enrolled && !p.completed
-        ? `/projects/${p.slug}/tasks`
-        : `/projects/${p.slug}`,
-    );
+    // free → detail; pro/enterprise → enroll + first task; enrolled → resume.
+    startItem({
+      type: "project",
+      slug: p.slug,
+      id: p.id,
+      enrolled: p.enrolled,
+      completed: p.completed,
+      isPremiumUser: !!user?.isPremium,
+      store,
+      onNavigate,
+    });
   };
 
   const toggleSave = async (p: ProjectItem) => {
@@ -231,7 +240,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* ── Blueprint hero (navy anchor · build pillar) ── */}
-      <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+      <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative px-5 py-6 sm:px-8 sm:py-7">
           <JourneyGlyph

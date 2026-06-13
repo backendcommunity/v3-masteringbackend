@@ -67,28 +67,28 @@
        the brand surfaces (rail/heroes are #0E1F33, hsl 213 57% 13%), so
        chrome, heroes and canvas read as one material instead of two blues.
        Elevation: canvas 6% → card 10% → hero/rail 13% → secondary 15%. */
-    --background: 214 55% 6%; /* #071120 - deep navy canvas */
+    --background: 214 54% 3%; /* #03060A - near-black navy canvas (comparison) */
     --foreground: 210 40% 96%; /* #f1f5f9 - light text */
 
-    /* Card and surface colors - one step lighter navy */
-    --card: 213 50% 10%; /* #0D1A26-ish - card background */
+    /* Very dark: near-black surfaces, faint elevation steps off the 3% canvas */
+    --card: 213 44% 6%; /* a hair above canvas */
     --card-foreground: 210 40% 96%; /* light text on cards */
 
     /* Popover colors */
-    --popover: 213 50% 10%; /* match cards */
+    --popover: 213 44% 6%; /* match cards */
     --popover-foreground: 210 40% 96%;
 
     /* Primary colors - #13AECE brand blue */
     --primary: 190 83% 44%; /* #13AECE - brand blue */
     --primary-foreground: 210 40% 98%; /* white text on blue */
 
-    /* Secondary colors - above hero level */
-    --secondary: 213 40% 15%; /* #17283D-ish - secondary surfaces */
+    /* Secondary colors - one step above cards */
+    --secondary: 213 38% 10%; /* secondary surfaces */
     --secondary-foreground: 210 40% 96%;
 
     /* Muted colors */
-    --muted: 213 40% 15%; /* match secondary */
-    --muted-foreground: 214 22% 66%; /* #93A5BD-ish - readable, not shouting */
+    --muted: 213 38% 10%; /* match secondary */
+    --muted-foreground: 214 20% 62%; /* readable, not shouting */
 
     /* Accent colors - variations of #13AECE */
     --accent: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
@@ -99,8 +99,8 @@
     --destructive-foreground: 210 40% 98%;
 
     /* Border and input colors */
-    --border: 213 35% 19%; /* #1F324A-ish - subtle navy borders */
-    --input: 213 35% 19%;
+    --border: 213 32% 14%; /* subtle near-black borders */
+    --input: 213 32% 14%;
     --ring: 190 83% 54%; /* #2BB8D8 - focus ring (lighter brand blue) */
 
     /* Chart colors - #13AECE-based palette */

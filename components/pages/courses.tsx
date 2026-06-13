@@ -34,6 +34,7 @@ import { Loader } from "../ui/loader";
 import { FreeStarterSection } from "@/components/free-starter-section";
 import { JourneyGlyph } from "@/components/journey-glyph";
 import { CourseCard } from "@/components/pages/courses/course-card";
+import { startItem } from "@/lib/start-flow";
 
 interface CoursesPageProps {
   onNavigate: (path: string) => void;
@@ -393,6 +394,18 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const handleContinue = (slug: string) =>
     onNavigate(routes.courseDetail(slug));
 
+  // Tier-aware Start/Continue: free → detail; pro/enterprise → enroll + first lesson.
+  const startCourse = (c: Course) =>
+    startItem({
+      type: "course",
+      slug: c.slug,
+      id: c.id,
+      enrolled: !!c.enrolled,
+      isPremiumUser: !!user?.isPremium,
+      store,
+      onNavigate,
+    });
+
   const clearFilters = () => {
     handleSearchInput("");
     handleLevelChange("all");
@@ -404,7 +417,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
     <Tabs className="space-y-6" value={tab} onValueChange={handleTabChange}>
       <div className="max-w-7xl mx-auto w-full space-y-6">
         {/* ── Blueprint hero (navy anchor · learn pillar) ── */}
-        <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
             <JourneyGlyph
@@ -458,7 +471,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
               value={searchInput}
               onChange={(e) => handleSearchInput(e.target.value)}
               placeholder="Search courses…"
-              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -485,7 +498,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             </button>
           ))}
 
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
             <Select value={level} onValueChange={handleLevelChange}>
               <SelectTrigger className="w-[130px] rounded-xl">
                 <SelectValue placeholder="Level" />
@@ -576,6 +589,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      onStart={() => startCourse(course)}
                       isSaved={savedIds.has(course.id)}
                       isSaving={savingId === course.id}
                       onToggleSave={(e) => toggleSave(course, e)}
@@ -620,6 +634,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                         course={c}
                         onViewDetails={handleViewDetails}
                         onContinue={handleContinue}
+                        onStart={() => startCourse(c)}
                         isSaved={savedIds.has(c.id)}
                         isSaving={savingId === c.id}
                         onToggleSave={(e) => toggleSave(c, e)}
@@ -660,6 +675,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      onStart={() => startCourse(course)}
                       isSaved={savedIds.has(course.id)}
                       isSaving={savingId === course.id}
                       onToggleSave={(e) => toggleSave(course, e)}
@@ -699,6 +715,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                       course={course}
                       onViewDetails={handleViewDetails}
                       onContinue={handleContinue}
+                      onStart={() => startCourse(course)}
                       isSaved={savedIds.has(course.id)}
                       isSaving={savingId === course.id}
                       onToggleSave={(e) => toggleSave(course, e)}

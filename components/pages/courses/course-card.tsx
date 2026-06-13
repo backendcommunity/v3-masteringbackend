@@ -25,6 +25,8 @@ interface CourseCardProps {
   course: CourseCardData;
   onViewDetails: (slug: string) => void;
   onContinue: (slug: string) => void;
+  /** Smart Start/Continue — enroll-or-route by tier. Overrides the default button nav. */
+  onStart?: () => void;
   isSaved?: boolean;
   isSaving?: boolean;
   onToggleSave?: (e: React.MouseEvent) => void;
@@ -49,6 +51,7 @@ export function CourseCard({
   course,
   onViewDetails,
   onContinue,
+  onStart,
   isSaved = false,
   isSaving = false,
   onToggleSave,
@@ -163,6 +166,10 @@ export function CourseCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (onStart) {
+                onStart();
+                return;
+              }
               course.enrolled
                 ? onContinue(course.slug)
                 : onViewDetails(course.slug);

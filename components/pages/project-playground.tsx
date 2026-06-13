@@ -1591,9 +1591,21 @@ export function ProjectPlaygroundPage({
   } as const;
 
   const railBtns = [
-    { k: "tasks" as const, label: "Tasks", icon: I.tasks },
-    { k: "explorer" as const, label: "Files", icon: I.files },
-    { k: "kap" as const, label: "Kap", icon: I.kap },
+    {
+      k: "tasks" as const,
+      label: "Tasks",
+      icon: <ListChecks className="i" strokeWidth={1.8} />,
+    },
+    {
+      k: "explorer" as const,
+      label: "Files",
+      icon: <FolderClosed className="i" strokeWidth={1.8} />,
+    },
+    {
+      k: "kap" as const,
+      label: "Kap",
+      icon: <Sparkles className="i" strokeWidth={1.8} />,
+    },
   ];
 
   const fileClass = (name: string) => {
