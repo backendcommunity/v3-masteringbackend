@@ -122,7 +122,7 @@ function getGradeColor(grade: string): string {
       return "text-green-600";
     case "B+":
     case "B":
-      return "text-blue-600";
+      return "text-primary";
     case "C+":
     case "C":
       return "text-yellow-600";

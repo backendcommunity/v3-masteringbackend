@@ -178,7 +178,6 @@ interface AppState {
   getMyTemplates: () => any;
   deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
-  getUserInterviewStats: () => any;
   getInterviewAccess: () => any;
   getInterviewSession: (id: string) => any;
   createInterviewRoom: (sessionId: string, withAgent?: boolean) => any;
@@ -283,7 +282,7 @@ interface AppState {
     projectId?: string;
     mockInterviewTemplateId?: string;
   }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
-  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string }) => Promise<void>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -353,6 +352,7 @@ interface AppState {
   ) => any;
   executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
+  ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
 
@@ -366,6 +366,7 @@ interface AppState {
   search: (query: string) => Promise<SearchResults>;
 
   // Chat-based Mock Interview
+  getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
   startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
   streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
@@ -395,6 +396,26 @@ interface AppState {
 
   // Sync user points/level from a mutation response without an extra API call
   syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
+
+  // Path (Learning Path) actions
+  getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
+  getPathCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
+  getPathItem: (endpoint: string) => Promise<any>;
+  getArticleById: (id: string) => Promise<any>;
+  createArticle: (payload: any) => Promise<any>;
+  updateArticle: (id: string, payload: any) => Promise<any>;
+  completePathStep: (
+    slug: string,
+    stepId: string,
+    payload?: Record<string, any>,
+  ) => Promise<import("./path-types").PathSessionDelta>;
+  updatePathStepProgress: (
+    slug: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<{ stepId: string; currentDuration?: number }>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -719,6 +740,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Chat-based Mock Interview implementations
+  getChatInterviewPreview: async (userInterviewId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/${userInterviewId}/preview`,
+    );
+    return data?.data;
+  },
+
   startChatInterview: async (userInterviewId: string, interviewType?: string) => {
     const { data } = await api.post(
       `/mock-interviews/chat/${userInterviewId}/start`,
@@ -915,10 +943,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getUserInterviewStats: async () => {
-    const { data } = await api.get("/mock-interviews/user/stats");
-    return data?.data;
-  },
 
   getMyTemplates: async () => {
     const { data } = await api.get("/mock-interviews/my-templates");
@@ -1071,6 +1095,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  // Idempotent ensure-or-create: returns the user's in-progress UserMockInterview
+  // for this template (or creates one), with the template (incl. format) embedded.
+  // Used by the path MOCK_INTERVIEW step. Path-granted templates skip the paywall.
+  ensurePathMockInterview: async (templateId: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/schedules/${templateId}`,
+      {},
+    );
+    return data?.data; // { interview: {...template}, session }
+  },
+
   getBookmarks: async (size = 12, skip = 0) => {
     const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
     return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
@@ -1088,10 +1123,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string }) => {
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => {
     const params = new URLSearchParams();
     if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
     if (opts.courseId) params.set("courseId", opts.courseId);
+    if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
+    if (opts.projectId) params.set("projectId", opts.projectId);
     await api.delete(`/bookmarks?${params.toString()}`);
   },
 
@@ -1438,5 +1475,56 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
     Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+  },
+
+  getPathSession: async (slug) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/session`);
+    return data?.data;
+  },
+
+  getPathCertificate: async (slug: string) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/certificate`);
+    return data?.data;
+  },
+
+  getPathItem: async (endpoint: string) => {
+    const path = endpoint.replace(/^\/api\/v3/, "");
+    const { data } = await api.get(path);
+    return data?.data;
+  },
+
+  getArticleById: async (id: string) => {
+    const { data } = await api.get(`/courses/articles/${id}`);
+    return data?.data;
+  },
+
+  createArticle: async (payload: any) => {
+    const { data } = await api.post(`/courses/articles`, payload);
+    return data?.data;
+  },
+
+  updateArticle: async (id: string, payload: any) => {
+    const { data } = await api.put(`/courses/articles/${id}`, payload);
+    return data?.data;
+  },
+
+  completePathStep: async (slug, stepId, payload = {}) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.post(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/complete`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  updatePathStepProgress: async (slug, stepId, payload) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.patch(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/progress`,
+      payload,
+    );
+    return data?.data;
   },
 }));

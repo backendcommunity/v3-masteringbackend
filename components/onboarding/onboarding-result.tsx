@@ -583,7 +583,7 @@ export function OnboardingResult({
             fontSize: 15,
             fontWeight: 600,
             color: "#FFFFFF",
-            background: isLoading ? "#0FA3C4" : "#13AECE",
+            background: isLoading ? "#0FA3C4" : "hsl(var(--primary))",
             border: "none",
             borderRadius: 8,
             cursor: isLoading ? "not-allowed" : "pointer",
@@ -598,7 +598,7 @@ export function OnboardingResult({
           }}
           onMouseLeave={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.background = "#13AECE";
+              e.currentTarget.style.background = "hsl(var(--primary))";
               e.currentTarget.style.transform = "translateY(0)";
             }
           }}

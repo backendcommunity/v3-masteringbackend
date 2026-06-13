@@ -198,7 +198,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   };
 
   const handleCancelSubscription = () => {
-    console.log("Cancelling subscription?...");
     setCancelDialogOpen(false);
     // In a real app, this would make an API call to cancel the subscription
   };
@@ -383,7 +382,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                     htmlFor="paystack"
                     className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                   >
-                    <div className="mb-2 h-6 w-6 flex items-center justify-center font-bold text-blue-600">
+                    <div className="mb-2 h-6 w-6 flex items-center justify-center font-bold text-primary">
                       A
                     </div>
                     AsyncPay
@@ -513,7 +512,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                   <p className="text-muted-foreground mb-4">
                     You will be redirected to AsyncPay to complete your payment.
                   </p>
-                  <div className="w-16 h-16 bg-blue-600 rounded-full mx-auto flex items-center justify-center text-white font-bold text-2xl">
+                  <div className="w-16 h-16 bg-primary rounded-full mx-auto flex items-center justify-center text-white font-bold text-2xl">
                     A
                   </div>
 

@@ -361,7 +361,7 @@ export function PaymentDialog({
             >
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center gap-3">
-                  <CreditCard className="h-6 w-6 md:h-8 md:w-8 text-[#13AECE] flex-shrink-0" />
+                  <CreditCard className="h-6 w-6 md:h-8 md:w-8 text-primary flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm md:text-base">
                       {data?.type === "bootcamp"

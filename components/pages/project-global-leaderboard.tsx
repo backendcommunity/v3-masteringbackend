@@ -118,7 +118,7 @@ export function GlobalLeaderboardDialog({
 
                       {/* User Info */}
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-[#2BB8D8] flex items-center justify-center text-white font-bold">
                           {entry.user?.name
                             ?.split(" ")
                             .map((n: string) => n[0])

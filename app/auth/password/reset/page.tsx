@@ -96,7 +96,7 @@ export default function ResetPasswordPage() {
     return (
       <div className={sharedWrapperClasses}>
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl" />
+          <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl" />
           <div className="absolute bottom-[10%] right-[5%] w-80 h-80 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 w-full max-w-md text-center">
@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
   return (
     <div className={sharedWrapperClasses}>
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl" />
+        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl" />
         <div className="absolute bottom-[10%] right-[5%] w-80 h-80 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full blur-3xl" />
       </div>
 

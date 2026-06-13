@@ -1,6 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
@@ -13,7 +13,16 @@ import { ChunkReloadToast } from "@/components/chunk-reload-toast";
 import { ChunkLoadRecovery } from "@/components/chunk-load-recovery";
 import { siteStructuredData, websiteStructuredData } from "@/lib/seo";
 
-const inter = Inter({ subsets: ["latin"] });
+// Satoshi — the brand font, self-hosted (no external font requests)
+const satoshi = localFont({
+  src: [
+    { path: "./fonts/Satoshi-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Satoshi-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Satoshi-700.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/Satoshi-900.woff2", weight: "900", style: "normal" },
+  ],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -110,11 +119,11 @@ export default function RootLayout({
           dangerouslySetInnerHTML={websiteStructuredData}
         />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={satoshi.className} suppressHydrationWarning>
         <PostHogProviderComponent>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="light"
             enableSystem
             disableTransitionOnChange={false}
             storageKey="masteringbackend-theme"

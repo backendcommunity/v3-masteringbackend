@@ -26,7 +26,7 @@ export function OnboardingSkipBanner({ userName }: OnboardingSkipBannerProps) {
       }}
     >
       <div className="flex items-center gap-3">
-        <CheckCircle className="w-5 h-5 text-[#13AECE] flex-shrink-0" />
+        <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
         <div>
           <p className="font-semibold text-sm text-white">
             Complete your profile setup, {userName.split(" ")[0]}
@@ -41,7 +41,7 @@ export function OnboardingSkipBanner({ userName }: OnboardingSkipBannerProps) {
         <button
           onClick={() => router.push(routes.onboarding)}
           className="font-semibold text-sm rounded-md px-4 py-1.5"
-          style={{ background: "#13AECE", color: "#fff" }}
+          style={{ background: "hsl(var(--primary))", color: "#fff" }}
         >
           Complete Setup
         </button>

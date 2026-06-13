@@ -342,7 +342,7 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full h-64 p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-64 p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Write your code here..."
               />
             </CardContent>

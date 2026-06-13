@@ -4,8 +4,6 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { LearningPathsPage } from "@/components/pages/learning-paths";
 import { useRouter } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 export default function LearningPathsPageRoute() {
   const router = useRouter();
 

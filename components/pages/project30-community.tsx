@@ -563,7 +563,7 @@ export function Project30CommunityPage({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Project Requirements</h4>
                       <p className="text-sm text-muted-foreground">
@@ -573,7 +573,7 @@ export function Project30CommunityPage({
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Submission Issues</h4>
                       <p className="text-sm text-muted-foreground">
@@ -583,7 +583,7 @@ export function Project30CommunityPage({
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Technical Problems</h4>
                       <p className="text-sm text-muted-foreground">

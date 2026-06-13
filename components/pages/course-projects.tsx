@@ -125,7 +125,7 @@ export function CourseProjectsPage({
       case "completed":
         return "text-green-600";
       case "in-progress":
-        return "text-blue-600";
+        return "text-primary";
       case "not-started":
         return "text-gray-600";
       default:
@@ -138,7 +138,7 @@ export function CourseProjectsPage({
       case "completed":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "in-progress":
-        return <Clock className="h-4 w-4 text-blue-600" />;
+        return <Clock className="h-4 w-4 text-primary" />;
       case "not-started":
         return <XCircle className="h-4 w-4 text-gray-600" />;
       default:
@@ -220,7 +220,7 @@ export function CourseProjectsPage({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
+              <Clock className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-600">In Progress</p>
                 <p className="text-2xl font-bold">{inProgressCount}</p>

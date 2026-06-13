@@ -1,4 +1,5 @@
 import { PanelRightClose, PanelRightOpen, Play, Save } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -296,7 +297,7 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
                 ) : result ? (
                   <pre
                     className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: result }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(result) }}
                   ></pre>
                 ) : (
                   <p className="text-muted-foreground text-sm">

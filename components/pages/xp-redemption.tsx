@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -144,14 +145,14 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
                     }`}
                   >
                     {reward?.enrolled && (
-                      <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500">
+                      <Badge className="absolute -top-2 -right-2 bg-primary">
                         Active
                       </Badge>
                     )}
                     <CardHeader>
                       <div className="flex items-center space-x-2">
                         <i
-                          dangerouslySetInnerHTML={{ __html: reward?.icon! }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(reward?.icon!) }}
                         ></i>
                         <CardTitle className="text-lg">
                           {reward.title}

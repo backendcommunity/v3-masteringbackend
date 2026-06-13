@@ -20,7 +20,7 @@ const STATUS_STYLES: Record<
   },
   in_progress: {
     label: "In Progress",
-    className: "bg-[#13AECE]/10 text-[#13AECE] border-[#13AECE]/20",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   upcoming: {
     label: "Upcoming",

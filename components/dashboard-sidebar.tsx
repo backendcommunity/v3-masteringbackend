@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Code2,
@@ -9,7 +10,6 @@ import {
   Briefcase,
   Zap,
   Target,
-  TrendingUp,
   Sparkles,
   Crown,
   Gift,
@@ -28,7 +28,6 @@ import { routes } from "@/lib/routes";
 import { useUser } from "@/hooks/use-user";
 import { useLevel } from "@/hooks/use-level";
 import { useAuth } from "@/store/auth";
-import { BrandLogo } from "./brand-logo";
 import { useTheme } from "next-themes";
 
 interface DashboardSidebarProps {
@@ -62,13 +61,6 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    // {
-    //   title: "Roadmaps",
-    //   url: routes.roadmaps,
-    //   icon: TrendingUp,
-    //   active: true,
-    //   beta: false,
-    // },
   ],
   build: [
     {
@@ -137,21 +129,33 @@ export function DashboardSidebar({
   const user = useUser();
   const { theme } = useTheme();
   const { level, mbToNextLevel, progressPct } = useLevel();
+  const router = useRouter();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setCollapsed(isCollapsed), [isCollapsed]);
+
+  // Warm the RSC payload for every sidebar destination so first navigation
+  // doesn't wait on a server round trip (the slow "fetch-server" rows).
+  // No-op in dev; prefetches in production builds.
+  useEffect(() => {
+    Object.values(navigationData)
+      .flat()
+      .forEach((item) => {
+        if (item?.url && item.active !== false) router.prefetch(item.url);
+      });
+  }, [router]);
   if (!mounted) return null;
 
   return (
     <div
-      className={`flex fixed flex-col h-full bg-sidebar border-r border-border overflow-hidden transition-all duration-300 ${
+      className={`flex fixed flex-col h-full bg-[#0E1F33] border-r border-white/10 overflow-hidden transition-all duration-300 ${
         collapsed ? "w-20" : "w-72"
       }`}
     >
-      {/* Header */}
+      {/* Header — exact h-16 to align with the top navbar */}
       <div
-        className={`border-b border-border flex items-center min-h-16 transition-all duration-300 ${
-          collapsed ? "px-2 py-2 justify-center gap-1" : "px-4 py-3 gap-3"
+        className={`relative z-10 h-16 shrink-0 border-b border-white/10 flex items-center transition-all duration-300 ${
+          collapsed ? "px-2 justify-center gap-1" : "px-4 gap-3"
         }`}
       >
         <button
@@ -160,22 +164,29 @@ export function DashboardSidebar({
         >
           {collapsed && (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0">
-              <BrandLogo size="md" showText={true} variant="default" />
+              {/* Navy rail in both themes — always the light mark, never the
+                  theme-switched blue icon (which renders dark-on-navy in light mode) */}
+              <img
+                src="/logo.png"
+                alt="logo"
+                className="h-7 w-7 object-contain"
+              />
             </div>
           )}
           {!collapsed && (
             <div className="grid text-left text-sm leading-tight flex-1 min-w-0">
-              {theme === "light" ? (
-                <img src="/blue-logo-trimed.png" alt="logo" />
-              ) : (
-                <img src="/logo-trimed.png" alt="logo" />
-              )}
+              {/* Navy rail — always the white logo, both themes */}
+              <img
+                src="/logo-trimed.png"
+                alt="logo"
+                className="max-h-9 w-auto object-contain"
+              />
             </div>
           )}
         </button>
 
         {/* Divider — only show when expanded */}
-        {!collapsed && <div className="w-px h-5 bg-border/50" />}
+        {!collapsed && <div className="w-px h-5 bg-white/15" />}
 
         {/* Collapse/Expand Button */}
         <Button
@@ -185,26 +196,26 @@ export function DashboardSidebar({
             onCollapsed(!collapsed);
             setCollapsed(!collapsed);
           }}
-          className="h-6 w-6 rounded-md flex-shrink-0 border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 group"
+          className="h-6 w-6 rounded-md flex-shrink-0 bg-transparent border-white/20 hover:border-primary/60 hover:bg-white/5 transition-all duration-200 group"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronRight className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronLeft className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           )}
         </Button>
       </div>
 
       {/* User Progress (hidden when collapsed) */}
       {!collapsed && (
-        <div className="p-4 border-b border-border">
-          <div className="rounded-lg border border-border bg-card p-3">
+        <div className="p-4 border-b border-white/10">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Star className="h-4 w-4 text-yellow-500" />
               <button
                 onClick={() => onNavigate(routes.levels)}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className="text-sm font-medium text-white/90 hover:text-primary transition-colors"
               >
                 Level {user?.level} Engineer
               </button>
@@ -225,8 +236,11 @@ export function DashboardSidebar({
                 </Badge>
               )}
             </div>
-            <Progress value={progressPct} className="h-2 mb-1" />
-            <div className="flex justify-between text-xs text-muted-foreground">
+            <Progress
+              value={progressPct}
+              className="h-2 mb-1 bg-white/10 [&>div]:bg-primary"
+            />
+            <div className="flex justify-between text-xs text-white/50">
               <span>{user?.points?.toLocaleString()} MB</span>
               <span>
                 {mbToNextLevel?.toLocaleString()} MB to Level{" "}
@@ -256,7 +270,7 @@ export function DashboardSidebar({
           <div className="mt-3">
             <Button
               variant="outline"
-              className="w-full justify-between border-border hover:bg-primary/10 hover:border-primary/50 transition-colors"
+              className="w-full justify-between bg-transparent border-white/15 hover:bg-white/10 hover:border-primary/50 transition-colors"
               onClick={() => onNavigate(routes.xpStore)}
             >
               <div className="flex items-center gap-2">
@@ -276,7 +290,7 @@ export function DashboardSidebar({
         {Object.entries(navigationData).map(([section, items]) => (
           <div key={section} className="px-3 py-2">
             {!collapsed && (
-              <h3 className="px-4 text-xs font-medium text-muted-foreground mb-1 capitalize">
+              <h3 className="px-4 text-xs font-medium text-white/40 mb-1 capitalize">
                 {section}
               </h3>
             )}
@@ -288,10 +302,10 @@ export function DashboardSidebar({
                   title={collapsed ? item.title : ""}
                   className={`flex w-full items-center ${
                     collapsed ? "justify-center" : "justify-between"
-                  } px-4 py-2 rounded-md hover:bg-primary/10 transition-colors ${
+                  } px-4 py-2 rounded-md transition-colors ${
                     currentPath === item.url || currentPath.startsWith(item.url)
                       ? "bg-primary/15 text-primary"
-                      : ""
+                      : "text-white/65 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <div
@@ -320,14 +334,14 @@ export function DashboardSidebar({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border p-4">
+      <div className="border-t border-white/10 p-4">
         <div
           className={`flex items-center ${
             collapsed ? "justify-center" : "justify-between"
           }`}
         >
           <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 border border-border">
+            <Avatar className="h-8 w-8 border border-white/20">
               <AvatarImage
                 src={user?.avatar || "/placeholder.svg"}
                 alt={user?.name}
@@ -338,8 +352,10 @@ export function DashboardSidebar({
             </Avatar>
             {!collapsed && (
               <div className="grid text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user?.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate font-medium text-white/90">
+                  {user?.name}
+                </span>
+                <span className="truncate text-xs text-white/50">
                   {user?.email}
                 </span>
               </div>

@@ -187,7 +187,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         avatar: publicUrl + "?t=" + Date.now(),
       }); // Cache-busting query param
       if (updated) {
-        console.log(updated, publicUrl);
         updateUser(updated);
         // Update formData to show the new avatar immediately
         setFormData((prev) => ({ ...prev, avatar: publicUrl }));

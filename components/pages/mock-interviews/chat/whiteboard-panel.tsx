@@ -106,7 +106,6 @@ export function WhiteboardPanel({
       .then((res) => res.json())
       .then((data) => {
         // The file structure typically contains a 'libraryItems' array
-        console.log("Excalidraw library loaded with items:", data);
         if (data.library) {
           setLibraryData(data.library);
         }

@@ -84,7 +84,7 @@ function getContentTypeConfig(type: ContentItemType) {
   > = {
     course: {
       icon: BookOpen,
-      color: "text-blue-600",
+      color: "text-primary",
       label: "Video Course",
       ctaLabel: "Resume Learning",
     },
@@ -317,14 +317,14 @@ export function LearningPathContinuePage({
       status === "completed"
         ? "border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20"
         : status === "current"
-          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+          ? "border-blue-300 dark:border-primary/30 bg-primary/[.04] dark:bg-primary/10"
           : "border-muted bg-muted/30";
 
     const statusColor =
       status === "completed"
         ? "bg-green-600"
         : status === "current"
-          ? "bg-blue-600"
+          ? "bg-primary"
           : "bg-gray-400";
 
     return (
@@ -381,10 +381,10 @@ export function LearningPathContinuePage({
           </Badge>
         </div>
         {status === "current" && item.progress !== undefined && (
-          <div className="space-y-1 pt-2 mt-2 border-t border-blue-200 dark:border-blue-800">
+          <div className="space-y-1 pt-2 mt-2 border-t border-primary/30 dark:border-primary/30">
             <div className="flex items-center justify-between text-xs">
               <span>Progress</span>
-              <span className="font-semibold text-blue-600">
+              <span className="font-semibold text-primary">
                 {item.progress}%
               </span>
             </div>
@@ -405,7 +405,7 @@ export function LearningPathContinuePage({
               switch (item.type) {
                 case "course":
                   onNavigate?.(
-                    routes.roadmapCoursePreview(pathId, topicId, item.id),
+                    routes.pathCoursePreview(pathId, topicId, item.id),
                   );
                   break;
                 case "exercise":
@@ -646,8 +646,8 @@ export function LearningPathContinuePage({
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <BookOpen className="h-5 w-5 text-blue-600" />
+                    <div className="p-2 bg-primary/10 dark:bg-primary/15 rounded-lg">
+                      <BookOpen className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">
@@ -760,7 +760,7 @@ export function LearningPathContinuePage({
                     {/* Topic Header */}
                     <div className="pb-3 border-b">
                       <div className="flex items-start gap-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/15 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
                           {topicIndex + 1}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -797,18 +797,18 @@ export function LearningPathContinuePage({
                             return (
                               <div
                                 key={course.id}
-                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-primary/[.04] dark:bg-primary/10 p-4 hover:border-primary/30 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
                               >
                                 <div className="space-y-3">
                                   {/* Header */}
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-3 flex-1 min-w-0">
-                                      <BookOpen className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                      <BookOpen className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                                       <div className="flex-1 min-w-0">
                                         <h5 className="font-semibold text-sm leading-tight">
                                           {course.title}
                                         </h5>
-                                        <p className="text-xs text-blue-600 font-medium mt-1">
+                                        <p className="text-xs text-primary font-medium mt-1">
                                           Master this course
                                         </p>
                                       </div>
@@ -883,7 +883,7 @@ export function LearningPathContinuePage({
                                                   key={idx}
                                                   className="flex items-start gap-2 text-xs"
                                                 >
-                                                  <CheckCircle2 className="h-3 w-3 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                  <CheckCircle2 className="h-3 w-3 text-primary flex-shrink-0 mt-0.5" />
                                                   <span className="text-muted-foreground line-clamp-1">
                                                     {chapter.title}
                                                   </span>
@@ -949,7 +949,7 @@ export function LearningPathContinuePage({
                             return (
                               <div
                                 key={item.id}
-                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
+                                className="rounded-lg border border-blue-100 dark:border-blue-900 bg-primary/[.04] dark:bg-primary/10 p-4 hover:border-primary/30 dark:hover:border-blue-800 hover:shadow-sm transition-all group"
                               >
                                 <div className="space-y-3">
                                   {/* Header */}
@@ -962,7 +962,7 @@ export function LearningPathContinuePage({
                                         <h5 className="font-semibold text-sm leading-tight">
                                           {item.title}
                                         </h5>
-                                        <p className="text-xs text-blue-600 font-medium mt-1">
+                                        <p className="text-xs text-primary font-medium mt-1">
                                           {config.label}
                                         </p>
                                       </div>
@@ -1038,7 +1038,7 @@ export function LearningPathContinuePage({
 
           {/* Sidebar CTA */}
           <div className="space-y-6">
-            <Card className="border-2 border-blue-600 sticky top-6">
+            <Card className="border-2 border-primary sticky top-6">
               <CardHeader>
                 <CardTitle className="text-2xl">{roadmap.title}</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
@@ -1130,7 +1130,7 @@ export function LearningPathContinuePage({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Target className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <Target className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-sm">Career Growth</p>
                       <p className="text-xs text-muted-foreground">
@@ -1284,10 +1284,10 @@ export function LearningPathContinuePage({
         <div className="lg:col-span-2 space-y-6">
           {/* Current Step */}
           {currentTopic && (
-            <Card className="border-2 border-blue-200 ">
+            <Card className="border-2 border-primary/30 ">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
+                  <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
                     {currentTopicIndex + 1}
                   </div>
                   <div>
@@ -1474,14 +1474,14 @@ export function LearningPathContinuePage({
               {currentTopic && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Play className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-semibold text-blue-700">In Progress</h4>
+                    <Play className="h-5 w-5 text-primary" />
+                    <h4 className="font-semibold text-primary">In Progress</h4>
                   </div>
                   <div className="space-y-4 pl-7 border-l-2 border-blue-300">
                     {/* Current Topic */}
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
+                        <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 -ml-10 border-2 border-white dark:border-slate-950">
                           {currentTopicIndex + 1}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1489,7 +1489,7 @@ export function LearningPathContinuePage({
                             <h5 className="font-semibold text-sm">
                               {currentTopic.title}
                             </h5>
-                            <Badge className="bg-blue-600 text-xs">
+                            <Badge className="bg-primary text-xs">
                               {currentTopic.level || "Intermediate"}
                             </Badge>
                           </div>
@@ -1527,7 +1527,7 @@ export function LearningPathContinuePage({
                                       key={course.id}
                                       className={`rounded-lg border p-3 transition-colors ${
                                         isCurrent
-                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/30"
+                                          ? "border-blue-300 dark:border-primary/30 bg-primary/[.04] dark:bg-primary/10"
                                           : "border-muted bg-muted/30 hover:border-muted-foreground/30"
                                       }`}
                                     >
@@ -1536,7 +1536,7 @@ export function LearningPathContinuePage({
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="flex items-start gap-2 flex-1 min-w-0">
                                             {isCurrent ? (
-                                              <Play className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                                              <Play className="h-4 w-4 text-primary flex-shrink-0 mt-0.5 animate-pulse" />
                                             ) : (
                                               <BookOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                                             )}
@@ -1545,7 +1545,7 @@ export function LearningPathContinuePage({
                                                 {course.title}
                                               </p>
                                               {isCurrent && (
-                                                <p className="text-xs text-blue-600 font-medium mt-1">
+                                                <p className="text-xs text-primary font-medium mt-1">
                                                   Currently learning
                                                 </p>
                                               )}
@@ -1554,7 +1554,7 @@ export function LearningPathContinuePage({
                                           <Badge
                                             className={`text-xs flex-shrink-0 ${
                                               isCurrent
-                                                ? "bg-blue-600"
+                                                ? "bg-primary"
                                                 : "bg-muted-foreground/20"
                                             }`}
                                           >
@@ -1602,7 +1602,7 @@ export function LearningPathContinuePage({
                                               <span className="text-xs font-medium">
                                                 Progress
                                               </span>
-                                              <span className="text-xs font-semibold text-blue-600">
+                                              <span className="text-xs font-semibold text-primary">
                                                 35%
                                               </span>
                                             </div>
@@ -1751,7 +1751,7 @@ export function LearningPathContinuePage({
                                       <div className="space-y-2">
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <BookOpen className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                                             <div className="flex-1 min-w-0">
                                               <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight">
                                                 {course.title}

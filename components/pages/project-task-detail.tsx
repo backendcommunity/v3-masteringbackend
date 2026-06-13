@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -214,36 +215,79 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
 
   return (
     <div className="flex-1 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => onNavigate?.(`/projects/${slug}`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">{task?.title}</h1>
-          <p className="text-muted-foreground">
-            {currentProjectTask?.title} • {task?.title}
-          </p>
+      {/* Back link */}
+      <button
+        onClick={() => onNavigate?.(`/projects/${slug}`)}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to project
+      </button>
+
+      {/* Blueprint detail hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden rounded-2xl dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">project task</div>
+            <h1 className="text-3xl font-bold mt-1.5">{task?.title}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-4 text-sm text-white/[.78]">
+              {currentProjectTask?.title && (
+                <span className="inline-flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 opacity-70" />
+                  {currentProjectTask?.title}
+                </span>
+              )}
+              {task && isTaskCompleted(task.id) && (
+                <span className="inline-flex items-center gap-1.5 text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4" /> Completed
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — project task progress */}
+        {(project?.totalTasks ?? 0) > 0 && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              project progress
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.floor(
+                      ((userTasks?.length ?? 0) / (project?.totalTasks || 1)) *
+                        100,
+                    )}%`,
+                  }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {Math.floor(
+                  ((userTasks?.length ?? 0) / (project?.totalTasks || 1)) * 100,
+                )}
+                %
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4 flex flex-col">
-          <Card className="overflow-hidden">
-            <CardContent>
-              <CardContent>
-                <div className="space-y-4  pt-4">
-                  <article
-                    className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                    dangerouslySetInnerHTML={{
-                      __html: task?.description,
-                    }}
-                  ></article>
-                </div>
-              </CardContent>
+          <Card className="rounded-2xl border-border">
+            <CardContent className="pt-6">
+              <div className="eyebrow-mono text-muted-foreground mb-3">
+                task brief
+              </div>
+              <article
+                className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeHtml(task?.description),
+                }}
+              ></article>
             </CardContent>
           </Card>
           {/* Video Actions */}
@@ -320,14 +364,14 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
               {!nextTask && !nextProjectTask && (
                 <Button
                   disabled={marking}
-                  variant={"destructive"}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => markProjectAsCompleted()}
                 >
                   {marking ? (
                     "Rewarding..."
                   ) : (
                     <>
-                      <Crown className="ml-2 h-4 w-4" />
+                      <Crown className="mr-2 h-4 w-4" />
                       Earn Your Rewards
                     </>
                   )}
@@ -339,16 +383,21 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Course Progress */}
-          <Card>
+          {/* Project Progress */}
+          <Card className="rounded-2xl border-border">
             <CardHeader>
-              <CardTitle className="text-lg">Project Progress</CardTitle>
+              <div className="eyebrow-mono text-muted-foreground mb-1">
+                progress
+              </div>
+              <CardTitle className="text-base">Project progress</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Overall Progress</span>
-                  <span>{Math.floor(progress() ?? 0)}%</span>
+                  <span className="text-muted-foreground">Overall</span>
+                  <span className="font-semibold">
+                    {Math.floor(progress() ?? 0)}%
+                  </span>
                 </div>
                 <Progress value={progress() ?? 0} className="h-2" />
               </div>
@@ -358,66 +407,86 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
             </CardContent>
           </Card>
 
-          {/* Chapter Content */}
-          <Card>
+          {/* Tasks in this section */}
+          <Card className="rounded-2xl border-border">
             <CardHeader>
-              <CardTitle className="text-lg">Tasks</CardTitle>
+              <div className="eyebrow-mono text-muted-foreground mb-1">
+                this section
+              </div>
+              <CardTitle className="text-base">Tasks</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {/* Videos */}
+            <CardContent className="space-y-1.5">
               {tasks?.map((_task: any) => (
                 <div
                   key={_task.id}
-                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
-                    _task.id === task?.id ? "border border-blue-200" : ""
+                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition ${
+                    _task.id === task?.id
+                      ? "bg-primary/[.06] border border-primary/30"
+                      : "border border-transparent hover:bg-muted"
                   }`}
                   onClick={() => setTask(_task)}
                 >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">
+                  <div
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
+                      isTaskCompleted(_task.id)
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     {isTaskCompleted(_task.id) ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-3.5 w-3.5" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{_task.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {_task.title}
+                    </p>
+                    {_task?.type && (
+                      <span className="inline-block mt-0.5 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground capitalize">
                         {_task?.type}
-                      </Badge>
-                    </div>
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl border-border">
             <CardHeader>
-              <CardTitle className="text-lg">Project Tasks</CardTitle>
+              <div className="eyebrow-mono text-muted-foreground mb-1">
+                all sections
+              </div>
+              <CardTitle className="text-base">Project tasks</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {/* Videos */}
+            <CardContent className="space-y-1.5">
               {projectTasks?.map((pTask: any) => (
                 <div
                   key={pTask.id}
-                  className={`flex items-center  gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
+                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition ${
                     pTask.id === currentProjectTask?.id
-                      ? "border border-blue-200"
-                      : ""
+                      ? "bg-primary/[.06] border border-primary/30"
+                      : "border border-transparent hover:bg-muted"
                   }`}
                   onClick={() => setCurrentProjectTask(pTask)}
                 >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">
+                  <div
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
+                      isProjectTaskCompleted(pTask.tasks)
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     {isProjectTaskCompleted(pTask.tasks) ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-3.5 w-3.5" />
                     )}
                   </div>
-                  <div className="flex-1 ">
-                    <p className="text-sm font-medium">{pTask.title}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{pTask.title}</p>
                   </div>
                 </div>
               ))}

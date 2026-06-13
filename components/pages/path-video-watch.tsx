@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ import {
   ChevronLeft,
   Share2,
   ChevronRight,
+  Lock,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import {
@@ -79,7 +82,7 @@ export function RoadmapVideoWatchPage({
   const buildWatchUrl =
     routeBuilder ??
     ((cs: string, ch: string, vs: string) =>
-      routes.roadmapVideoWatch(slug, topicId, cs, ch, vs));
+      routes.pathVideoWatch(slug, topicId, cs, ch, vs));
 
   const [roadmap, setRoadmap] = useState<Roadmap>();
   const [userCourse, setUserCourse] = useState<UserCourse>();
@@ -98,6 +101,23 @@ export function RoadmapVideoWatchPage({
   const [userVideos, setUserVideos] = useState<any[]>();
   const [currentVideo, setCurrentVideo] = useState<Video>();
   const [chapter, setChapter] = useState<Chapter>();
+  const [activating, setActivating] = useState(false);
+
+  // Backend strips playable content + sets `locked` when the user has not
+  // activated this learning path. Premium does NOT bypass — activation only.
+  const isLocked = !!(course as any)?.locked;
+
+  async function handleActivatePath() {
+    try {
+      setActivating(true);
+      await store.enrollInRoadmap(slug, false);
+      toast.success("Learning path activated — enjoy full access!");
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not activate this path. Try again.");
+      setActivating(false);
+    }
+  }
 
   async function loadMilestone() {
     try {
@@ -174,6 +194,48 @@ export function RoadmapVideoWatchPage({
             Back to Learning Paths
           </Button>
         </div>
+      </div>
+    );
+  }
+  // Paywall: content is locked until the user activates the learning path.
+  if (isLocked) {
+    return (
+      <div className="flex-1 p-6 flex items-center justify-center">
+        <Card className="max-w-lg w-full text-center">
+          <CardHeader>
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Lock className="h-7 w-7 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">
+              Activate this learning path
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-muted-foreground">
+              {course.title} is part of the{" "}
+              <span className="font-semibold">{roadmap?.title}</span> path.
+              Activate the path to unlock every course, project, quiz, exercise,
+              bootcamp and mock interview inside it.
+            </p>
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={handleActivatePath}
+              disabled={activating}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {activating ? "Activating…" : "Activate path & unlock everything"}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => onNavigate?.(`/paths/${slug}`)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to path overview
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -282,8 +344,41 @@ export function RoadmapVideoWatchPage({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // Navigate to the next milestone item the backend resolved — the next item in
+  // this milestone, or the first item of the next milestone once this one is done.
+  const navigateToNextItem = (nextItem: any) => {
+    if (!nextItem || !onNavigate) return;
+    const t = nextItem.topicId ?? topicId;
+    switch (nextItem.itemType) {
+      case "COURSE":
+        if (nextItem.courseSlug && nextItem.chapterSlug && nextItem.videoSlug) {
+          return onNavigate(
+            routes.pathVideoWatch(
+              slug,
+              t,
+              nextItem.courseSlug,
+              nextItem.chapterSlug,
+              nextItem.videoSlug,
+            ),
+          );
+        }
+        return onNavigate(routes.pathContinue(slug, t));
+      case "QUIZ":
+        return onNavigate(routes.pathQuiz(slug, t, nextItem.itemId));
+      case "EXERCISE":
+        return onNavigate(routes.pathExercise(slug, t, nextItem.itemId));
+      case "PROJECT":
+        return onNavigate(
+          nextItem.slug
+            ? routes.projectDetail(nextItem.slug)
+            : routes.pathDetail(slug),
+        );
+      default:
+        return onNavigate(routes.pathContinue(slug, t));
+    }
+  };
+
   const handleMarkComplete = async () => {
-    console.log("Completed Triggered");
     if (!currentVideo || !course || !chapter) return;
 
     setIsMarking(true);
@@ -340,11 +435,22 @@ export function RoadmapVideoWatchPage({
 
     try {
       if (isChapterCompleted) {
-        await store.markRoadmapItemCompleted(slug, topicId, course.slug, {
-          type: "COURSE",
-          courseId: course.slug,
-        });
-        toast.success("You just earned some points!");
+        const res = await store.markRoadmapItemCompleted(
+          slug,
+          topicId,
+          course.slug,
+          {
+            type: "COURSE",
+            courseId: course.slug,
+          },
+        );
+        toast.success(
+          res?.topicAutoCompleted
+            ? "Milestone complete! Moving to the next one…"
+            : "Course complete — on to the next item!",
+        );
+        // Advance to the next milestone item (or next milestone's first item).
+        if (res?.nextItem) navigateToNextItem(res.nextItem);
         return;
       }
 
@@ -368,14 +474,16 @@ export function RoadmapVideoWatchPage({
   };
 
   const markQuizAsCompleted = async (isChapterCompleted?: boolean) => {
-    await store.markRoadmapVideoCompleted(slug, topicId, {
+    const res = await store.markRoadmapVideoCompleted(slug, topicId, {
       itemId: currentVideo?.id!,
       type: "QUIZ",
       isChapterCompleted,
       courseId: currentVideo?.quizId!,
     });
 
-    handleVideoClick(nextVideo!);
+    // Prefer the backend-resolved next milestone item; fall back to next video.
+    if (res?.nextItem) navigateToNextItem(res.nextItem);
+    else handleVideoClick(nextVideo!);
 
     return;
   };
@@ -579,9 +687,7 @@ export function RoadmapVideoWatchPage({
                   <div className="space-y-4">
                     <article
                       className="text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                      dangerouslySetInnerHTML={{
-                        __html: currentVideo?.summary!,
-                      }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentVideo?.summary!) }}
                     ></article>
                   </div>
                 </CardContent>
@@ -597,11 +703,8 @@ export function RoadmapVideoWatchPage({
                           </div>
                           <article
                             className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                            dangerouslySetInnerHTML={{
-                              __html:
-                                currentVideo?.description ??
-                                nextChapter?.description,
-                            }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentVideo?.description ??
+                                nextChapter?.description) }}
                           ></article>
                         </div>
                       </CardContent>
@@ -682,7 +785,7 @@ export function RoadmapVideoWatchPage({
                       {notes?.map((note: Note) => (
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                               {user?.name
                                 .split(" ")
                                 .map((n: any) => n[0])
@@ -719,7 +822,7 @@ export function RoadmapVideoWatchPage({
                           className="flex items-center justify-between p-3 border rounded-lg"
                         >
                           <div className="flex items-center gap-3">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             <div>
                               <h4 className="font-medium">{resource.title}</h4>
                               <p className="text-sm text-muted-foreground">
@@ -803,7 +906,7 @@ export function RoadmapVideoWatchPage({
                       key={vid.id}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         vid.slug === currentVideo?.slug
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleVideoClick(vid)}
@@ -923,7 +1026,7 @@ export function RoadmapVideoWatchPage({
                       key={ch.slug}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         ch.slug === chapter?.slug
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleChapterClick(ch)}

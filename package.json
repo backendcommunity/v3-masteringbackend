@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:debug": "playwright test --debug"
+    "e2e:debug": "playwright test --debug",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@asyncpay/checkout": "^0.0.37",
@@ -72,6 +75,7 @@
     "jspdf": "^3.0.1",
     "livekit-client": "^2.16.1",
     "lucide-react": "^0.454.0",
+    "marked": "14",
     "monaco-editor": "latest",
     "next": "15.2.6",
     "next-navigation-guard": "^0.2.0",
@@ -106,9 +110,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   },
   "resolutions": {
     "react-error-overlay": "6.0.9"

@@ -20,7 +20,7 @@ const OPTIONS: {
     description:
       "I'm new to backend development or programming in general. I want to learn the fundamentals.",
     level: "Level 1 - Apprentice",
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "intermediate",
@@ -102,7 +102,7 @@ export function OnboardingExperience({
           disabled={!value}
           className="flex-1 font-bold rounded-lg py-3 transition-all"
           style={{
-            background: value ? "#13AECE" : "rgba(19, 174, 206, 0.3)",
+            background: value ? "hsl(var(--primary))" : "rgba(19, 174, 206, 0.3)",
             color: "#FFFFFF",
             fontSize: 16,
             cursor: value ? "pointer" : "not-allowed",

@@ -229,7 +229,7 @@ Create a personal portfolio website that showcases your skills and projects. You
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
+              <Clock className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-600">Estimated Time</p>
                 <p className="text-lg font-bold">{project.estimatedHours}h</p>
@@ -389,7 +389,7 @@ Create a personal portfolio website that showcases your skills and projects. You
                     className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
+                      <div className="p-2 bg-primary/10 rounded-lg">
                         {getResourceIcon(resource.type)}
                       </div>
                       <div className="flex-1">
@@ -448,11 +448,11 @@ Create a personal portfolio website that showcases your skills and projects. You
                 />
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-800 mb-2">
+              <div className="bg-primary/5 border border-primary/30 rounded-lg p-4">
+                <h4 className="font-medium text-primary mb-2">
                   Before Submitting:
                 </h4>
-                <ul className="text-sm text-blue-700 space-y-1">
+                <ul className="text-sm text-primary space-y-1">
                   <li>✓ All requirements are completed</li>
                   <li>✓ Code is well-commented and organized</li>
                   <li>✓ Project works on different screen sizes</li>

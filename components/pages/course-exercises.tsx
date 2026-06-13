@@ -141,7 +141,7 @@ export function CourseExercisesPage({
           </Button>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Code className="h-6 w-6 text-blue-600" />
+              <Code className="h-6 w-6 text-primary" />
               Coding Exercises
             </h1>
             <p className="text-gray-600">
@@ -156,7 +156,7 @@ export function CourseExercisesPage({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Code className="h-5 w-5 text-blue-600" />
+              <Code className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-600">Total Exercises</p>
                 <p className="text-2xl font-bold">{exercises.length}</p>

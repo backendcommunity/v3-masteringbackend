@@ -119,10 +119,10 @@ export function LandsPage({ onNavigate }: LandsPageProps) {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-[#13AECE]" />
+              <Zap className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Total MB Earned</span>
             </div>
             <p className="text-2xl font-bold mt-1">4,000</p>
@@ -355,7 +355,7 @@ export function LandsPage({ onNavigate }: LandsPageProps) {
                 key={player.rank}
                 className={`flex items-center justify-between p-3 rounded-lg ${
                   player.isUser
-                    ? "bg-[#13AECE]/10 border border-[#13AECE]/20"
+                    ? "bg-primary/10 border border-primary/20"
                     : "bg-muted/50"
                 }`}
               >
@@ -377,7 +377,7 @@ export function LandsPage({ onNavigate }: LandsPageProps) {
                   {player.isUser && (
                     <Badge
                       variant="outline"
-                      className="bg-[#13AECE]/10 text-[#13AECE]"
+                      className="bg-primary/10 text-primary"
                     >
                       You
                     </Badge>

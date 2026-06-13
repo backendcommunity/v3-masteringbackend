@@ -89,9 +89,9 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-8">
       {/* Decorative orbs */}
-      <div className="absolute -top-24 -left-24 w-56 h-56 bg-[#13AECE]/15 rounded-full blur-3xl" />
+      <div className="absolute -top-24 -left-24 w-56 h-56 bg-primary/15 rounded-full blur-3xl" />
       <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-[#9B59B6]/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-[#13AECE]/5 rounded-full blur-3xl" />
+      <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
         {/* Avatar with XP ring */}
@@ -128,13 +128,13 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
           </svg>
           <Avatar className="h-[100px] w-[100px] border-2 border-white/10">
             <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback className="bg-[#13AECE]/20 text-[#13AECE] text-2xl font-bold">
+            <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
               {initials}
             </AvatarFallback>
           </Avatar>
           {/* Level badge */}
           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-            <Badge className="bg-[#13AECE] hover:bg-[#13AECE] text-white text-[10px] px-2 py-0.5 shadow-lg shadow-[#13AECE]/25 whitespace-nowrap">
+            <Badge className="bg-primary hover:bg-primary text-white text-[10px] px-2 py-0.5 shadow-lg shadow-primary/25 whitespace-nowrap">
               Lv.{user.level} — {user.levelName}
             </Badge>
           </div>
@@ -150,7 +150,7 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   {user.isVerified && (
-                    <CheckCircle2 className="h-5 w-5 text-[#13AECE] shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
                   )}
                 </TooltipTrigger>
                 <TooltipContent>
@@ -329,7 +329,7 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
               key={stat.label}
               className="flex items-center gap-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] px-4 py-3"
             >
-              <stat.icon className="h-4 w-4 text-[#13AECE] shrink-0" />
+              <stat.icon className="h-4 w-4 text-primary shrink-0" />
               <div>
                 <p className="text-white font-bold text-sm leading-none">
                   {stat.value}

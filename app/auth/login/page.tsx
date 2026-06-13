@@ -82,7 +82,7 @@ function LoginContent() {
     <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-white to-[#97C3CC]/20 dark:from-[#0A0F1C] dark:via-[#1E293B] dark:to-[#0F172A] flex items-center justify-center p-4">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-[10%] right-[5%] w-80 h-80 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full blur-3xl"></div>
       </div>
 
@@ -192,7 +192,7 @@ function LoginContent() {
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                 placeholder="Enter your email"
                 required
               />
@@ -213,7 +213,7 @@ function LoginContent() {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="w-full px-4 py-3 pr-12 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                  className="w-full px-4 py-3 pr-12 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                   placeholder="Enter your password"
                   required
                 />
@@ -238,7 +238,7 @@ function LoginContent() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-[#13AECE] dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:ring-2"
+                  className="w-4 h-4 text-primary dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-primary dark:focus:ring-[#0EA5E9] focus:ring-2"
                 />
                 <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9]">
                   Remember me
@@ -246,7 +246,7 @@ function LoginContent() {
               </label>
               <a
                 href="/auth/password/forgot"
-                className="text-sm text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors"
+                className="text-sm text-primary dark:text-[#0EA5E9] hover:text-primary/80 dark:hover:text-[#0284C7] transition-colors"
               >
                 Forgot password?
               </a>
@@ -275,7 +275,7 @@ function LoginContent() {
               Don't have an account?{" "}
               <a
                 href={redirect ? `/auth/register?redirect=${encodeURIComponent(redirect)}` : "/auth/register"}
-                className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
+                className="text-primary dark:text-[#0EA5E9] hover:text-primary/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign up
               </a>

@@ -20,6 +20,9 @@ interface ScheduleWidgetProps {
   courseId?: string;
   roadmapId?: string;
   projectId?: string;
+  /** Rail-friendly: when no schedule exists, show a one-line prompt instead
+   *  of the full form; the form opens on click. */
+  compactEmpty?: boolean;
 }
 
 const DAY_LABELS: Record<string, string> = {
@@ -60,6 +63,7 @@ export function ScheduleWidget({
   courseId,
   roadmapId,
   projectId,
+  compactEmpty = false,
 }: ScheduleWidgetProps) {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -180,6 +184,22 @@ export function ScheduleWidget({
               </Button>
             </div>
           </div>
+        ) : !schedule && compactEmpty && !isEditing ? (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Pick days and a time — we&apos;ll remind you to show up.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setIsEditing(true)}
+            >
+              <Calendar className="mr-2 h-3.5 w-3.5" />
+              Set a learning schedule
+            </Button>
+          </div>
         ) : (
           <ScheduleForm
             initialValues={
@@ -195,7 +215,9 @@ export function ScheduleWidget({
             }
             submitLabel={schedule ? "Update Schedule" : "Save Schedule"}
             onSubmit={handleSubmit}
-            onCancel={schedule ? () => setIsEditing(false) : undefined}
+            onCancel={
+              schedule || compactEmpty ? () => setIsEditing(false) : undefined
+            }
           />
         )}
       </CardContent>

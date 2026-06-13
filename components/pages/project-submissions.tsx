@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,7 @@ export function ProjectSubmissionsPage({
   const getLevelBadge = (level: string) => {
     const colors: Record<string, string> = {
       beginners:
-        "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
+        "bg-primary/10 text-primary dark:bg-primary/10 dark:text-primary",
       intermediate:
         "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400",
       advance: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
@@ -361,7 +362,7 @@ export function ProjectSubmissionsPage({
                     </p>
                     <p
                       className="text-sm text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: submission.feedback }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(submission.feedback) }}
                     ></p>
                   </div>
                 )}
