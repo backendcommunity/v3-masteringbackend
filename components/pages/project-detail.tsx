@@ -36,6 +36,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import { ContentComingSoon } from "@/components/content-coming-soon";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Project } from "@/lib/data";
@@ -279,6 +280,23 @@ export function ProjectDetailPage({
   const canEarnCertificate = project?.enrolled && completed;
 
   if (loading) return <Loader isLoader={false} />;
+
+  if ((project as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={project?.title}
+        summary={(project?.summary || "").replace(/<[^>]+>/g, "")}
+        waitingLink={(project as any)?.waitingLink}
+        kindLabel="project"
+        backLabel="Browse Projects"
+        onBack={() => onNavigate(routes.projects)}
+        onWaitlistTrack={() =>
+          analytics.track("project_waitlist_clicked", { title: project?.title })
+        }
+      />
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* Blueprint hero — navy anchor; the grid lives here only */}

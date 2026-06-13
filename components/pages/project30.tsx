@@ -58,6 +58,7 @@ import { PaymentDialog } from "../payment-dialog";
 import { useUser } from "@/hooks/use-user";
 import ConfettiCelebration from "../confetti-celebration";
 import { routes } from "@/lib/routes";
+import { ContentComingSoon } from "@/components/content-coming-soon";
 import { Certificate } from "../certificate";
 import { formatDate } from "@/lib/utils";
 import { Loader } from "../ui/loader";
@@ -130,6 +131,19 @@ export function Project30Page({
   if (loading) return <Loader isLoader={false} />;
 
   if (!project30) return <div>Project30 not found</div>;
+
+  if ((project30 as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={project30?.title}
+        summary={(project30?.description || "").replace(/<[^>]+>/g, "")}
+        waitingLink={(project30 as any)?.waitingLink}
+        kindLabel="challenge"
+        backLabel="Browse Project30"
+        onBack={() => onNavigate("/project30")}
+      />
+    );
+  }
 
   // Mock subscription data
   const subscription = user?.subscription ?? {

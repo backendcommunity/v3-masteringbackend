@@ -34,6 +34,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import { ContentComingSoon } from "@/components/content-coming-soon";
 import DisqusCommentBlock from "../ui/comment";
 import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Course, UserChapter, Video } from "@/lib/data";
@@ -224,6 +225,22 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const canEarnCertificate = course?.enrolled && isCompleted;
 
   if (loading) return <Loader isLoader={false} />;
+
+  if ((course as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={course?.title}
+        summary={(course?.summary || "").replace(/<[^>]+>/g, "")}
+        waitingLink={(course as any)?.waitingLink}
+        kindLabel="course"
+        backLabel="Browse Courses"
+        onBack={() => onNavigate(routes.courses)}
+        onWaitlistTrack={() =>
+          analytics.track("course_waitlist_clicked", { title: course?.title })
+        }
+      />
+    );
+  }
 
   const courseLevel = course?.level || "Beginner";
   const totalVideos =
