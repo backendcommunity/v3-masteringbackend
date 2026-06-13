@@ -8,7 +8,8 @@ export function PostHogPageview() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (pathname) {
+    // posthog is only initialized in production; skip when it isn't loaded.
+    if (pathname && posthog.__loaded) {
       posthog.capture("$pageview", {
         $current_url: pathname,
       });
