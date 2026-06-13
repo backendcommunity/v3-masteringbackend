@@ -366,18 +366,16 @@ export function NavigationBar({
     <>
       <nav className="sticky md:pl-72 top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border">
         <div className="flex gap-2 h-16 items-center px-4">
-          {/* Mobile Menu Button */}
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mr-2"
-              onClick={onMenuToggle}
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          )}
+          {/* Mobile Menu Button — CSS-gated so it's correct before hydration */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2 md:hidden"
+            onClick={onMenuToggle}
+          >
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
 
           {/* Logo */}
           <div

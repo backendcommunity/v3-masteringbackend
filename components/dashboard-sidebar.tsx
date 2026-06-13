@@ -196,7 +196,7 @@ export function DashboardSidebar({
             onCollapsed(!collapsed);
             setCollapsed(!collapsed);
           }}
-          className="h-6 w-6 rounded-md flex-shrink-0 bg-transparent border-white/20 hover:border-primary/60 hover:bg-white/5 transition-all duration-200 group"
+          className="hidden md:flex h-6 w-6 rounded-md flex-shrink-0 bg-transparent border-white/20 hover:border-primary/60 hover:bg-white/5 transition-all duration-200 group"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
