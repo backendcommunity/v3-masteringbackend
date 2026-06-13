@@ -341,7 +341,7 @@ export function Project30Page({
       {/* Access Banner for Free Users */}
       {!project30?.isEnrolled ||
         (!user?.isPremium && (
-          <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+          <Card className="bg-[#F2C94C]/10 border-[#F2C94C]/20">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -466,7 +466,7 @@ export function Project30Page({
           {/* Current Lesson */}
           {project30?.isEnrolled ? (
             userProject30?.isCompleted ? (
-              <Card className="bg-gradient-to-r from-green-600/10 to-green-600/5 border-green-600/20">
+              <Card className="bg-green-600/10 border-green-600/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -512,7 +512,7 @@ export function Project30Page({
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+              <Card className="bg-[#F2C94C]/10 border-[#F2C94C]/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="h-5 w-5 text-[#F2C94C]" />
@@ -584,7 +584,7 @@ export function Project30Page({
               </Card>
             )
           ) : (
-            <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+            <Card className="bg-[#F2C94C]/10 border-[#F2C94C]/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-gray-500" />

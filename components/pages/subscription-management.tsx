@@ -781,7 +781,7 @@ export function SubscriptionManagementPage({
 
       {/* Upgrade Suggestion */}
       {subscription?.name?.trim()?.toLowerCase() === "pro" && (
-        <Card className="bg-gradient-to-r from-[#EB5757]/10 to-[#EB5757]/5 border-[#EB5757]/20 mt-6">
+        <Card className="bg-[#EB5757]/10 border-[#EB5757]/20 mt-6">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col md:flex-row md:items-center gap-4">

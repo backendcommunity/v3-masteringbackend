@@ -224,7 +224,7 @@ export function CoursePreviewPage({
                   </div>
                 </div>
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-900">
+                <div className="absolute inset-0 flex items-center justify-center bg-[#0E1F33]">
                   <div className="flex-1 p-6">
                     <div className="text-center">
                       <h1 className="text-2xl font-bold">

@@ -759,6 +759,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   course={course}
                   onViewDetails={handleViewDetails}
                   onContinue={handleContinue}
+                  onStart={() => startCourse(course)}
                   isSaved={savedIds.has(course.id)}
                   isSaving={savingId === course.id}
                   onToggleSave={(e) => toggleSave(course, e)}

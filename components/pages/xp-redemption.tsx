@@ -145,7 +145,7 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
                     }`}
                   >
                     {reward?.enrolled && (
-                      <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500">
+                      <Badge className="absolute -top-2 -right-2 bg-primary">
                         Active
                       </Badge>
                     )}
