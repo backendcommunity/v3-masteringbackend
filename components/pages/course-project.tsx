@@ -449,7 +449,7 @@ Create a personal portfolio website that showcases your skills and projects. You
               </div>
 
               <div className="bg-primary/5 border border-primary/30 rounded-lg p-4">
-                <h4 className="font-medium text-blue-800 mb-2">
+                <h4 className="font-medium text-primary mb-2">
                   Before Submitting:
                 </h4>
                 <ul className="text-sm text-primary space-y-1">

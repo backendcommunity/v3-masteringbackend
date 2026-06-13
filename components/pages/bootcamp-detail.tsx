@@ -232,7 +232,7 @@ export function BootcampDetailPage({
         <div className="lg:col-span-2 space-y-6">
           {/* Progress Card (if enrolled) */}
           {bootcamp?.enrolled && (
-            <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+            <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
@@ -286,7 +286,7 @@ export function BootcampDetailPage({
 
           {/* Hero Card */}
           <Card className="overflow-hidden">
-            <div className="aspect-video bg-gradient-to-r from-[#0E1F33] to-[#13AECE] flex items-center justify-center">
+            <div className="aspect-video bg-gradient-to-r from-[#0E1F33] to-primary flex items-center justify-center">
               {/* TODO: Add a video here */}
               {bootcamp?.banner ? (
                 <img src={bootcamp.banner} alt={bootcamp?.cohort?.name} />

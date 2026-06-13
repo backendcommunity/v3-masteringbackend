@@ -183,7 +183,7 @@ export function capitalize(str) {
                   key={fileName}
                   className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
                     activeFile === fileName
-                      ? "bg-primary/10 text-blue-800"
+                      ? "bg-primary/10 text-primary"
                       : "hover:bg-gray-100"
                   }`}
                   onClick={() => setActiveFile(fileName)}

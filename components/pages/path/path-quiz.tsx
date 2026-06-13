@@ -345,7 +345,7 @@ export function PathQuiz({
             <Button
               onClick={begin}
               disabled={starting}
-              className="mt-5 h-11 w-full rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+              className="mt-5 h-11 w-full rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
             >
               {starting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Start Quiz
@@ -423,7 +423,7 @@ export function PathQuiz({
             {passed && (
               <Button
                 onClick={() => onComplete(step.id, { passed: true, score })}
-                className="h-11 flex-1 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] font-extrabold text-[#06222b] hover:brightness-110"
+                className="h-11 flex-1 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] font-extrabold text-[#06222b] hover:brightness-110"
               >
                 Continue <ArrowRight className="h-4 w-4" />
               </Button>
@@ -587,14 +587,14 @@ export function PathQuiz({
                 <Button
                   onClick={check}
                   disabled={selected == null}
-                  className="h-10 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
+                  className="h-10 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
                 >
                   Check Answer
                 </Button>
               ) : singlePassed ? (
                 <Button
                   onClick={() => onComplete(step.id, { passed: true, score })}
-                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110"
+                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110"
                 >
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -622,7 +622,7 @@ export function PathQuiz({
                 <Button
                   onClick={submitGroup}
                   disabled={!allAnswered}
-                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
+                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
                   title={allAnswered ? "" : "Answer every question first"}
                 >
                   Submit Quiz

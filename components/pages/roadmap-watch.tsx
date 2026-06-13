@@ -400,7 +400,7 @@ export function RoadmapWatchPage({
       </div>
 
       {/* Progress Overview */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+      <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />

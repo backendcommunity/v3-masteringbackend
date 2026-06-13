@@ -88,7 +88,7 @@ export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
   return (
     <CelebrationToast>
       {/* Brand accent header band */}
-      <div className="relative flex items-center gap-3 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-4 py-3">
+      <div className="relative flex items-center gap-3 bg-gradient-to-br from-primary to-[#2BB8D8] px-4 py-3">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 ring-2 ring-white/30"
           aria-hidden="true"
@@ -140,7 +140,7 @@ export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
           onClick={dismiss}
           className={cn(
             "mt-4 h-9 w-full rounded-lg border-0 text-sm font-semibold text-white",
-            "bg-gradient-to-r from-[#13AECE] to-[#2BB8D8] transition-opacity hover:opacity-90"
+            "bg-gradient-to-r from-primary to-[#2BB8D8] transition-opacity hover:opacity-90"
           )}
         >
           Keep going

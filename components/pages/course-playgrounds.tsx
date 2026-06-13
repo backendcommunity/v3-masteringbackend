@@ -79,7 +79,7 @@ export function CoursePlaygroundsPage({
       case "JavaScript":
         return "bg-yellow-100 text-yellow-800";
       case "TypeScript":
-        return "bg-primary/10 text-blue-800";
+        return "bg-primary/10 text-primary";
       case "Python":
         return "bg-green-100 text-green-800";
       case "Java":

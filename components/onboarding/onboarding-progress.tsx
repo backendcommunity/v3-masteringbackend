@@ -29,7 +29,7 @@ export function OnboardingProgress({ currentStep }: OnboardingProgressProps) {
                   i < currentStep
                     ? "#22c55e"
                     : i === currentStep
-                    ? "#13AECE"
+                    ? "hsl(var(--primary))"
                     : "#374151",
                 color: i === currentStep || i < currentStep ? "#fff" : "#9CA3AF",
               }}

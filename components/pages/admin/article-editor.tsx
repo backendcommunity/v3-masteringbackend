@@ -252,7 +252,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
           <Button
             onClick={save}
             disabled={saving}
-            className="h-9 gap-1.5 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
+            className="h-9 gap-1.5 bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />

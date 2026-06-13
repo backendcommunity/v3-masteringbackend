@@ -258,7 +258,7 @@ export function LearningPathCoursePreviewPage({
                   </div>
                 </div>
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#0E1F33] to-[#13AECE]">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#0E1F33] to-primary">
                   <div className="text-center text-white space-y-3 px-6">
                     <Lock className="h-12 w-12 mx-auto opacity-60" />
                     <h3 className="text-lg font-semibold">

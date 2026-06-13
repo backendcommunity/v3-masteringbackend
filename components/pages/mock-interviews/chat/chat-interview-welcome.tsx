@@ -120,7 +120,7 @@ export function ChatInterviewWelcome({
       <div className="mx-auto w-full max-w-[620px] px-7 pb-12 pt-12 animate-in fade-in slide-in-from-bottom-3 duration-500">
         {/* eyebrow */}
         <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] border border-[#13aece]/35 bg-[#13aece]/15 font-extrabold text-[#13aece]">
+          <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] border border-primary/35 bg-primary/15 font-extrabold text-primary">
             K
           </span>
           {modeLabel} · {template.category || "Backend"}
@@ -184,7 +184,7 @@ export function ChatInterviewWelcome({
               key={i}
               className="flex items-start gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-[0_1px_2px_rgba(2,6,23,0.04)]"
             >
-              <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-gradient-to-br from-[#13aece] to-[#2bb8d8] text-[#06222b]">
+              <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-gradient-to-br from-primary to-[#2bb8d8] text-[#06222b]">
                 <s.icon className="h-[15px] w-[15px]" />
               </span>
               <div>

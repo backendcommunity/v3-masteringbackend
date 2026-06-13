@@ -327,7 +327,7 @@ export function PathExerciseIde({
           <Button
             onClick={submit}
             disabled={submitting}
-            className="h-9 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
+            className="h-9 bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
           >
             {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Submit Answer

@@ -156,7 +156,7 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
         </Card>
 
         {/* Score Overview */}
-        <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+        <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -431,15 +431,15 @@ function formatOutput(result) {
                       <h3 className="font-semibold mb-2">Your Approach</h3>
                       <ul className="space-y-2">
                         <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Time</span>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">Time</span>
                           <span>O(n²) - Nested loops</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Space</span>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">Space</span>
                           <span>O(n) - Additional array</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Approach</span>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">Approach</span>
                           <span>Brute force with some optimizations</span>
                         </li>
                       </ul>

@@ -84,7 +84,7 @@ export function OnboardingWelcome({
             fontSize: 15,
             fontWeight: 600,
             color: "#FFFFFF",
-            background: "#13AECE",
+            background: "hsl(var(--primary))",
             border: "none",
             borderRadius: 8,
             cursor: "pointer",
@@ -95,7 +95,7 @@ export function OnboardingWelcome({
             e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#13AECE";
+            e.currentTarget.style.background = "hsl(var(--primary))";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >

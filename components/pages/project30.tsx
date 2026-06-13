@@ -162,7 +162,7 @@ export function Project30Page({
       case "Beginner":
         return "bg-green-100 text-green-800 border-green-200";
       case "Intermediate":
-        return "bg-primary/10 text-blue-800 border-primary/30";
+        return "bg-primary/10 text-primary border-primary/30";
       case "Advanced":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "Expert":
@@ -388,12 +388,12 @@ export function Project30Page({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs md:text-sm font-medium">
               Instructor
             </CardTitle>
-            <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-[#13AECE]" />
+            <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl w-full font-bold">
@@ -1511,7 +1511,7 @@ export function Project30Page({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-[#13AECE]" />
+                  <Users className="h-5 w-5 text-primary" />
                   Community Stats
                 </CardTitle>
                 <CardDescription className="text-sm">

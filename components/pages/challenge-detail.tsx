@@ -208,7 +208,7 @@ export function ChallengeDetailPage({
             </Badge>
             <Badge
               variant="outline"
-              className="bg-[#13AECE]/10 text-[#13AECE] border-[#13AECE]/20"
+              className="bg-primary/10 text-primary border-primary/20"
             >
               {stage.title}
             </Badge>
@@ -252,10 +252,10 @@ export function ChallengeDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#13AECE]" />
+              <Clock className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Time Estimate</span>
             </div>
             <p className="text-2xl font-bold mt-1">{challenge.timeEstimate}</p>

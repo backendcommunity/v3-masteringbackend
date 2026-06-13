@@ -159,7 +159,7 @@ export function PathContentWatchPage({
         <div className="lg:col-span-2 space-y-4">
           {/* Content Area */}
           <Card className="overflow-hidden">
-            <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-[#13AECE] flex items-center justify-center">
+            <div className="aspect-video bg-gradient-to-br from-[#0E1F33] to-primary flex items-center justify-center">
               <div className="text-center text-white">
                 {currentStep.type === "lesson" && (
                   <BookOpen className="h-16 w-16 mx-auto mb-4" />

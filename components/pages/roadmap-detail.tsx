@@ -512,7 +512,7 @@ export function RoadmapDetailPage({
                           isCompleted
                             ? "bg-green-100 text-green-800 border-green-200"
                             : isEnrolled
-                              ? "bg-primary/10 text-blue-800 border-primary/30"
+                              ? "bg-primary/10 text-primary border-primary/30"
                               : ""
                         }
                       >

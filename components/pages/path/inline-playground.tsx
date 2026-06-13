@@ -127,7 +127,7 @@ export function InlinePlayground({
         <Button
           onClick={run}
           disabled={running}
-          className="h-8 gap-1.5 rounded-lg bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-4 text-[12px] font-bold text-[#06222b] hover:brightness-110"
+          className="h-8 gap-1.5 rounded-lg bg-gradient-to-br from-primary to-[#2BB8D8] px-4 text-[12px] font-bold text-[#06222b] hover:brightness-110"
         >
           {running ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

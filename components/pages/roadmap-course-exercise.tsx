@@ -240,7 +240,7 @@ export function RoadmapCourseExercise({
                         {exercise.hints.map((hint, index) => (
                           <div key={index} className="p-3 bg-primary/5 border border-primary/30 rounded-lg">
                             <div className="text-sm font-medium text-blue-900 mb-1">Hint {index + 1}:</div>
-                            <div className="text-sm text-blue-800">{hint}</div>
+                            <div className="text-sm text-primary">{hint}</div>
                           </div>
                         ))}
                       </div>

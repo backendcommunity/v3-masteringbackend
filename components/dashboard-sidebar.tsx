@@ -29,7 +29,6 @@ import { routes } from "@/lib/routes";
 import { useUser } from "@/hooks/use-user";
 import { useLevel } from "@/hooks/use-level";
 import { useAuth } from "@/store/auth";
-import { BrandLogo } from "./brand-logo";
 import { useTheme } from "next-themes";
 
 interface DashboardSidebarProps {
@@ -173,7 +172,13 @@ export function DashboardSidebar({
         >
           {collapsed && (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0">
-              <BrandLogo size="md" showText={true} variant="default" />
+              {/* Navy rail in both themes — always the light mark, never the
+                  theme-switched blue icon (which renders dark-on-navy in light mode) */}
+              <img
+                src="/logo.png"
+                alt="logo"
+                className="h-7 w-7 object-contain"
+              />
             </div>
           )}
           {!collapsed && (

@@ -130,13 +130,13 @@ export function PathPreviewDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border border-border bg-background">
         {/* Branded top bar */}
-        <div className="h-1 w-full bg-[#13AECE]" />
+        <div className="h-1 w-full bg-primary" />
 
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-0">
           {/* <div className="flex items-center gap-2 mb-1">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-[#13AECE]/10">
-              <Sparkles className="h-3.5 w-3.5 text-[#13AECE]" />
+            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-primary/10">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
             </div>
           </div> */}
           <DialogTitle className="text-xl font-bold text-foreground leading-tight">
@@ -154,7 +154,7 @@ export function PathPreviewDialog({
           {/* Vimeo Player */}
           {roadmap?.preview && (
             <div className="px-6 mt-5">
-              <div className="rounded-xl overflow-hidden border border-[#13AECE]/20">
+              <div className="rounded-xl overflow-hidden border border-primary/20">
                 <VimeoPlayer video={{ video: roadmap.preview }} />
               </div>
             </div>
@@ -185,15 +185,15 @@ export function PathPreviewDialog({
                         ),
                       )
                     }
-                    className="w-full text-left rounded-xl p-4 border border-[#13AECE]/20 bg-[#13AECE]/5 hover:bg-[#13AECE]/10 hover:border-[#13AECE]/40 transition-colors group"
+                    className="w-full text-left rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#13AECE]/10 flex-shrink-0">
-                        <BookOpen className="h-4 w-4 text-[#13AECE]" />
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
+                        <BookOpen className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-xs font-medium text-[#13AECE]">
+                          <span className="text-xs font-medium text-primary">
                             Video Course
                           </span>
                           <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
@@ -221,7 +221,7 @@ export function PathPreviewDialog({
                           )}
                         </div>
                       </div>
-                      <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#13AECE] transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRight className="h-4 w-4 flex-shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </button>
                 ))}
@@ -281,7 +281,7 @@ export function PathPreviewDialog({
               curriculum
             </p>
             <Button
-              className="w-full h-11 font-semibold text-sm text-white bg-[#13AECE] hover:bg-[#0FA3C4]"
+              className="w-full h-11 font-semibold text-sm text-white bg-primary hover:bg-[#0FA3C4]"
               onClick={onEnroll}
             >
               Get Full Access
