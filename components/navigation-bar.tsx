@@ -14,7 +14,6 @@ import {
   Users,
   Crown,
   Gift,
-  TrendingUp,
   Sparkles,
   Menu,
   CheckSquare,
@@ -403,7 +402,7 @@ export function NavigationBar({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
                   <Input
                     type="search"
-                    placeholder="Search courses, roadmaps, projects, bootcamps..."
+                    placeholder="Search courses, projects, bootcamps..."
                     value={exploreSearchQuery}
                     onChange={(e) => setExploreSearchQuery(e.target.value)}
                     onClick={() => !isExploreOpen && setIsExploreOpen(true)}
@@ -490,42 +489,6 @@ export function NavigationBar({
                                         ✓ Enrolled
                                       </Badge>
                                     )}
-                                  </button>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Roadmaps Results */}
-                        {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                          <div className="space-y-3">
-                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                              🛣️ Roadmaps{" "}
-                              <span className="font-normal">
-                                ({exploreSearchResults!.roadmaps.length})
-                              </span>
-                            </h3>
-                            <div className="space-y-2">
-                              {exploreSearchResults!.roadmaps
-                                .slice(0, 3)
-                                .map((roadmap) => (
-                                  <button
-                                    key={roadmap.id}
-                                    className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                    onClick={() => {
-                                      setIsExploreOpen(false);
-                                      setExploreSearchQuery("");
-                                      onNavigate(
-                                        routes.roadmapDetail(roadmap.slug),
-                                      );
-                                    }}
-                                  >
-                                    <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate text-foreground">
-                                        {roadmap.title}
-                                      </p>
-                                    </div>
                                   </button>
                                 ))}
                             </div>
@@ -665,45 +628,6 @@ export function NavigationBar({
                                     ✓ Enrolled
                                   </Badge>
                                 )}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Popular Roadmaps */}
-                    {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                          🛣️ Popular Roadmaps
-                        </h3>
-                        <div className="space-y-2">
-                          {exploreSearchResults!.roadmaps
-                            .slice(0, 4)
-                            .map((roadmap) => (
-                              <button
-                                key={roadmap.id}
-                                className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                onClick={() => {
-                                  analytics.track("search_result_clicked", {
-                                    resultType: "roadmap",
-                                    resultId: roadmap.id,
-                                    resultTitle: roadmap.title,
-                                    query: exploreSearchQuery,
-                                  });
-                                  setIsExploreOpen(false);
-                                  setExploreSearchQuery("");
-                                  onNavigate(
-                                    routes.roadmapDetail(roadmap.slug),
-                                  );
-                                }}
-                              >
-                                <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate text-foreground">
-                                    {roadmap.title}
-                                  </p>
-                                </div>
                               </button>
                             ))}
                         </div>
@@ -1142,10 +1066,6 @@ export function NavigationBar({
                   <Code className="mr-2 h-4 w-4" />
                   <span>My Projects</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.roadmaps)}>
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  <span>Roadmaps</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onNavigate(routes.project30)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   <span>Project30</span>
@@ -1156,10 +1076,6 @@ export function NavigationBar({
                 >
                   <User className="mr-2 h-4 w-4" />
                   <span>My Portfolio</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.community)}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Leaderboard</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (

@@ -33,11 +33,11 @@ export const routes = {
     `/courses/${courseId}/projects/${projectId}`,
   courseCertificate: (courseId: string) => `/courses/${courseId}/certificate`,
 
-  // Roadmaps
-  roadmaps: "/roadmaps",
+  // Roadmap route builders retained as internal plumbing for the Paths feature.
+  // The standalone Roadmaps product UI has been removed; these helpers are still
+  // referenced by Paths components (path-video-watch, learning-path-continue,
+  // roadmap-course-quiz) which reuse roadmap routes under the hood.
   roadmapDetail: (roadmapId: string) => `/roadmaps/${roadmapId}`,
-  roadmapWatch: (roadmapId: string, topicId: string) =>
-    `/roadmaps/${roadmapId}/topics/${topicId}`,
   roadmapVideoWatch: (
     roadmapId: string,
     topicId: string,
@@ -51,46 +51,6 @@ export const routes = {
     topicId: string,
     courseId: string,
   ) => `/roadmaps/${roadmapId}/topics/${topicId}/courses/${courseId}`,
-  roadmapCourseWatch: (
-    roadmapId: string,
-    courseId: string,
-    chapterId: string,
-  ) => `/roadmaps/${roadmapId}/courses/${courseId}/watch/${chapterId}`,
-  roadmapCourseQuizzes: (
-    roadmapId: string,
-    topicId: string,
-    courseId: string,
-  ) => `/roadmaps/${roadmapId}/topics/${topicId}/courses/${courseId}/quizzes`,
-  roadmapCourseQuiz: (
-    roadmapId: string,
-    topicId: string,
-    courseId: string,
-    quizId: string,
-  ) =>
-    `/roadmaps/${roadmapId}/topics/${topicId}/courses/${courseId}/quizzes/${quizId}`,
-  roadmapCourseExercises: (roadmapId: string, courseId: string) =>
-    `/roadmaps/${roadmapId}/courses/${courseId}/exercises`,
-  roadmapCourseExercise: (
-    roadmapId: string,
-    topicId: string,
-    courseId: string,
-    exerciseId: string,
-  ) =>
-    `/roadmaps/${roadmapId}/topics/${topicId}/courses/${courseId}/exercises/${exerciseId}`,
-  roadmapCoursePlaygrounds: (roadmapId: string, courseId: string) =>
-    `/roadmaps/${roadmapId}/courses/${courseId}/playgrounds`,
-  roadmapCoursePlayground: (
-    roadmapId: string,
-    courseId: string,
-    playgroundId: string,
-  ) => `/roadmaps/${roadmapId}/courses/${courseId}/playgrounds/${playgroundId}`,
-  roadmapCourseProjects: (roadmapId: string, courseId: string) =>
-    `/roadmaps/${roadmapId}/courses/${courseId}/projects`,
-  roadmapCourseProject: (
-    roadmapId: string,
-    courseId: string,
-    projectId: string,
-  ) => `/roadmaps/${roadmapId}/courses/${courseId}/projects/${projectId}`,
 
   // Learning Paths
   paths: "/paths",

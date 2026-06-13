@@ -10,7 +10,6 @@ import {
   Briefcase,
   Zap,
   Target,
-  TrendingUp,
   Sparkles,
   Crown,
   Gift,
@@ -62,13 +61,6 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    // {
-    //   title: "Roadmaps",
-    //   url: routes.roadmaps,
-    //   icon: TrendingUp,
-    //   active: true,
-    //   beta: false,
-    // },
   ],
   build: [
     {
