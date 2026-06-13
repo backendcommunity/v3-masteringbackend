@@ -107,7 +107,7 @@ function getContentTypeConfig(type: ContentItemType) {
   > = {
     course: {
       icon: BookOpen,
-      color: "text-blue-600",
+      color: "text-primary",
       label: "Video Course",
       ctaLabel: "Resume Learning",
     },
@@ -1038,7 +1038,7 @@ export function LearningPathDetailPage({
               const totalMockInterviews = topics.reduce((s: number, t: any) => s + (t.mockInterviews?.length || 0), 0);
               const totalWorkshops = topics.reduce((s: number, t: any) => s + (t.bootcamps?.length || 0), 0);
               const stats = [
-                { label: "Courses", value: totalCourses, icon: BookOpen, iconBg: "bg-blue-100 dark:bg-blue-900", iconColor: "text-blue-600" },
+                { label: "Courses", value: totalCourses, icon: BookOpen, iconBg: "bg-primary/10 dark:bg-primary/15", iconColor: "text-primary" },
                 { label: "Projects", value: totalProjects, icon: FolderOpen, iconBg: "bg-orange-100 dark:bg-orange-900", iconColor: "text-orange-600" },
                 { label: "Quizzes", value: totalQuizzes, icon: Brain, iconBg: "bg-purple-100 dark:bg-purple-900", iconColor: "text-purple-600" },
                 { label: "Mock Interviews", value: totalMockInterviews, icon: Video, iconBg: "bg-red-100 dark:bg-red-900", iconColor: "text-red-600" },
@@ -1097,7 +1097,7 @@ export function LearningPathDetailPage({
                   //   course: {
                   //     label: "Course",
                   //     badgeCls:
-                  //       "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+                  //       "bg-primary/10 dark:bg-primary/10 text-primary dark:text-primary",
                   //     dotCls: "bg-foreground",
                   //   },
                   //   workshop: {
@@ -1375,7 +1375,7 @@ export function LearningPathDetailPage({
                               </Badge>
                             )}
                             {/* {isTopicCurrent && (
-                              <Badge className="bg-blue-600 text-[10px]">
+                              <Badge className="bg-primary text-[10px]">
                                 In Progress · {topic.progress ?? 0}%
                               </Badge>
                             )} */}

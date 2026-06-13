@@ -123,7 +123,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
             <CardTitle className="text-sm font-medium">
               Active Bootcamps
             </CardTitle>
-            <Zap className="h-4 w-4 text-blue-600" />
+            <Zap className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{bootcamps.length}</div>

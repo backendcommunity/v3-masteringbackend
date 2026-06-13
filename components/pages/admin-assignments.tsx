@@ -286,7 +286,7 @@ export function AdminAssignmentsPage({
                             href={assignment.submissionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
+                            className="inline-flex items-center gap-2 text-primary hover:text-blue-800 font-medium"
                           >
                             View Submission
                             <ExternalLink className="h-3 w-3" />

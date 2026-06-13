@@ -366,19 +366,19 @@ export function BootcampVideoWatchPage({
       </div>
 
       {currentLiveSession && currentLiveSession?.meetingUrl && (
-        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+        <Card className="border-primary bg-primary/5 dark:bg-primary/10">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100">
                   🔴 Live Session in Progress
                 </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                <p className="text-sm text-primary dark:text-blue-200 mt-1">
                   {currentLiveSession?.title ||
                     "Join your instructor and classmates now"}
                 </p>
                 {currentLiveSession?.startTime && (
-                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                  <p className="text-xs text-primary dark:text-primary mt-2">
                     Started:{" "}
                     {new Date(
                       currentLiveSession?.startTime,
@@ -392,7 +392,7 @@ export function BootcampVideoWatchPage({
                     window.open(currentLiveSession?.meetingUrl, "_blank");
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                className="bg-primary hover:bg-primary/90 flex-shrink-0"
               >
                 Join Now
               </Button>
@@ -739,7 +739,7 @@ export function BootcampVideoWatchPage({
                       {notes?.map((note: Note) => (
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                               {user?.name
                                 ?.split(" ")
                                 ?.map((n: any) => n[0])
@@ -776,7 +776,7 @@ export function BootcampVideoWatchPage({
                           className="flex items-center justify-between p-3 border rounded-lg"
                         >
                           <div className="flex items-center gap-3">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             <div>
                               <h4 className="font-medium">{resource.title}</h4>
                               <p className="text-sm text-muted-foreground">
@@ -854,7 +854,7 @@ export function BootcampVideoWatchPage({
                           )
                         }
                       >
-                        <span className="text-sm font-mono text-blue-600 min-w-[50px]">
+                        <span className="text-sm font-mono text-primary min-w-[50px]">
                           {item.time}
                         </span>
                         <span className="text-sm">{item.text}</span>
@@ -905,7 +905,7 @@ export function BootcampVideoWatchPage({
                   key={lesson.id}
                   className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                     lesson.id === currentLesson?.id
-                      ? "border border-blue-200"
+                      ? "border border-primary/30"
                       : ""
                   }`}
                   onClick={() => handleVideoClick(lesson)}

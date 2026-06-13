@@ -186,7 +186,7 @@ export function RoadmapsPage({ onNavigate }: RoadmapsPageProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               Market Insights
             </CardTitle>
           </CardHeader>
@@ -251,7 +251,7 @@ export function RoadmapsPage({ onNavigate }: RoadmapsPageProps) {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2 p-4 border rounded-lg">
               <div className="flex items-center gap-2">
-                <Circle className="h-4 w-4 text-blue-600" />
+                <Circle className="h-4 w-4 text-primary" />
                 <span className="font-medium">Start a new Project</span>
               </div>
               <p className="text-sm text-muted-foreground">

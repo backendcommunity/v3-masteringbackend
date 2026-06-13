@@ -206,9 +206,9 @@ export function RoadmapCourseQuiz({
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-center p-4 bg-primary/5 rounded-lg">
                   <p className="text-sm text-gray-600">Questions</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-primary">
                     {quiz?.questions.length}
                   </p>
                 </div>
@@ -451,7 +451,7 @@ export function RoadmapCourseQuiz({
                 }
                 className={`w-full text-left p-4 rounded-lg border transition-colors ${
                   answers[currentQuestion] === index.toString()
-                    ? "border-blue-500 bg-blue-50"
+                    ? "border-primary bg-primary/5"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -459,7 +459,7 @@ export function RoadmapCourseQuiz({
                   <div
                     className={`w-4 h-4 rounded-full border-2 ${
                       answers[currentQuestion] === index.toString()
-                        ? "border-blue-500 bg-blue-500"
+                        ? "border-primary bg-primary"
                         : "border-gray-300"
                     }`}
                   >

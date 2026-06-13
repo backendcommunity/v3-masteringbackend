@@ -369,7 +369,7 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
                 <div
                   key={_task.id}
                   className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
-                    _task.id === task?.id ? "border border-blue-200" : ""
+                    _task.id === task?.id ? "border border-primary/30" : ""
                   }`}
                   onClick={() => setTask(_task)}
                 >
@@ -404,7 +404,7 @@ export function ProjectTaskDetail({ slug, id, onNavigate }: ProjectTaskDetail) {
                   key={pTask.id}
                   className={`flex items-center  gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                     pTask.id === currentProjectTask?.id
-                      ? "border border-blue-200"
+                      ? "border border-primary/30"
                       : ""
                   }`}
                   onClick={() => setCurrentProjectTask(pTask)}

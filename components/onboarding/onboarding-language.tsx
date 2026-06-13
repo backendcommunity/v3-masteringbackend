@@ -20,7 +20,7 @@ const OPTIONS: {
     description:
       "Popular for ML, data science, and rapid backend development.",
     emoji: "🐍",
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "JAVA",

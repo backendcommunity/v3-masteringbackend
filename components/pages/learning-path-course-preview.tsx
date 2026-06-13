@@ -410,7 +410,7 @@ export function LearningPathCoursePreviewPage({
         {/* Sidebar — path info */}
         <div className="space-y-4">
           {/* Enroll CTA */}
-          <Card className="border-2 border-blue-600">
+          <Card className="border-2 border-primary">
             <CardHeader className="pb-3">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                 Learning Path
@@ -476,8 +476,8 @@ export function LearningPathCoursePreviewPage({
               {/* Instructor */}
 
               <div className="flex items-center gap-3 py-3 border-t">
-                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="h-4 w-4 text-blue-600" />
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="h-4 w-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Created by</p>
@@ -562,14 +562,14 @@ export function LearningPathCoursePreviewPage({
                       key={topic.id}
                       className={`flex items-start gap-2.5 text-sm p-2 rounded-md ${
                         topic.id === topicId
-                          ? "bg-blue-50 dark:bg-blue-950/30"
+                          ? "bg-primary/5 dark:bg-primary/10"
                           : ""
                       }`}
                     >
                       <div
                         className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
                           topic.id === topicId
-                            ? "bg-blue-600 text-white"
+                            ? "bg-primary text-white"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
@@ -578,13 +578,13 @@ export function LearningPathCoursePreviewPage({
                       <div className="flex-1 min-w-0">
                         <p
                           className={`font-medium leading-tight ${
-                            topic.id === topicId ? "text-blue-600" : ""
+                            topic.id === topicId ? "text-primary" : ""
                           }`}
                         >
                           {topic.title}
                         </p>
                         {topic.id === topicId && (
-                          <p className="text-xs text-blue-500 mt-0.5">
+                          <p className="text-xs text-primary mt-0.5">
                             Previewing now
                           </p>
                         )}

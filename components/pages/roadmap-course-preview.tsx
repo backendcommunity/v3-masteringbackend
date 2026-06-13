@@ -477,7 +477,7 @@ export function CourseDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-blue-500" />
+                <Target className="h-5 w-5 text-primary" />
                 Roadmap Context
               </CardTitle>
             </CardHeader>
@@ -579,7 +579,7 @@ export function CourseDetailPage({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
-                <PlayCircle className="h-4 w-4 text-blue-500" />
+                <PlayCircle className="h-4 w-4 text-primary" />
                 <span className="text-sm">{totalVideos} video lessons</span>
               </div>
               <div className="flex items-center gap-3">
@@ -745,7 +745,7 @@ export function CourseDetailPage({
                                 !chapter.isPremium
                                   ? "border-green-600 text-green-600"
                                   : course?.enrolled
-                                    ? "border-blue-600 text-blue-600"
+                                    ? "border-primary text-primary"
                                     : "border-orange-600 text-orange-600"
                               }`}
                             >
@@ -771,7 +771,7 @@ export function CourseDetailPage({
                             {chapter.exercise && (
                               <Badge
                                 variant="outline"
-                                className="text-xs border-blue-600 text-blue-600"
+                                className="text-xs border-primary text-primary"
                               >
                                 EXERCISE
                               </Badge>

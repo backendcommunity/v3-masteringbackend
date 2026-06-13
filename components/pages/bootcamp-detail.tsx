@@ -325,7 +325,7 @@ export function BootcampDetailPage({
                         i: number,
                       ) => (
                         <div key={i} className="flex items-start gap-3">
-                          <Code2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                          <Code2 className="h-5 w-5 text-primary mt-0.5" />
                           <div>
                             <h4 className="font-medium">{topic.title}</h4>
                             <p className="text-sm text-muted-foreground">
@@ -432,7 +432,7 @@ export function BootcampDetailPage({
                           <div key={id} className="space-y-4  pb-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-blue-600" />
+                                <BookOpen className="h-4 w-4 text-primary" />
                                 Course
                                 {/* TODO: show videos and resources */}
                               </h4>
@@ -469,7 +469,7 @@ export function BootcampDetailPage({
                                     </div>
                                     <div className="mt-4 flex items-center justify-between">
                                       <div className="flex items-center gap-2">
-                                        <PlayCircle className="h-4 w-4 text-blue-600" />
+                                        <PlayCircle className="h-4 w-4 text-primary" />
                                         <span className="text-sm">
                                           {course.chapters?.length} chapters
                                         </span>
@@ -516,7 +516,7 @@ export function BootcampDetailPage({
                           <div key={id} className="space-y-4  pb-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-blue-600" />
+                                <BookOpen className="h-4 w-4 text-primary" />
                                 Video
                               </h4>
                               <Card key={video.id} className="overflow-hidden">
@@ -588,7 +588,7 @@ export function BootcampDetailPage({
                           <div key={id} className="space-y-4  pb-4">
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-blue-600" />
+                                <BookOpen className="h-4 w-4 text-primary" />
                                 Resource
                               </h4>
                               <Card
@@ -751,7 +751,7 @@ export function BootcampDetailPage({
               </div>
 
               {bootcamp?.enrolled && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="p-3 bg-primary/5 dark:bg-primary/10 border border-primary/30 dark:border-primary/30 rounded-lg">
                   <p className="text-xs text-blue-900 dark:text-blue-100">
                     <strong>Recording Availability:</strong> Session recordings
                     will be available 24-48 hours after each live class.

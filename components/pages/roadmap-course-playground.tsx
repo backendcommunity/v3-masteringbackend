@@ -192,7 +192,7 @@ export function RoadmapCoursePlayground({
             <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-blue-500" />
+                  <FileText className="h-4 w-4 text-primary" />
                   Files
                 </CardTitle>
               </CardHeader>
@@ -203,7 +203,7 @@ export function RoadmapCoursePlayground({
                       key={file.id}
                       onClick={() => handleFileChange(file.id)}
                       className={`w-full p-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-2 ${
-                        activeFile === file.id ? "bg-blue-50 border-r-2 border-blue-500" : ""
+                        activeFile === file.id ? "bg-primary/5 border-r-2 border-primary" : ""
                       }`}
                     >
                       <FileText className="h-4 w-4 text-gray-500" />

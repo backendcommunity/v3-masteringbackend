@@ -181,7 +181,7 @@ export function PathContentWatchPage({
             <div className="flex items-center gap-2">
               <Badge
                 variant="outline"
-                className="text-blue-600 border-blue-600"
+                className="text-primary border-primary"
               >
                 Step {currentIndex + 1} of {steps.length}
               </Badge>
@@ -246,7 +246,7 @@ export function PathContentWatchPage({
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="p-4 bg-primary/5 rounded-lg">
                       <h4 className="font-medium mb-2">
                         Task: Build a Simple API
                       </h4>
@@ -319,7 +319,7 @@ export function PathContentWatchPage({
                         className="flex items-center justify-between p-3 border rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <BookOpen className="h-4 w-4 text-blue-600" />
+                          <BookOpen className="h-4 w-4 text-primary" />
                           <div>
                             <h4 className="font-medium">{resource.title}</h4>
                             <p className="text-sm text-muted-foreground">
@@ -372,7 +372,7 @@ export function PathContentWatchPage({
                   key={step.id}
                   className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                     step.id === stepId
-                      ? "bg-blue-50 border border-blue-200"
+                      ? "bg-primary/5 border border-primary/30"
                       : ""
                   }`}
                   onClick={() =>

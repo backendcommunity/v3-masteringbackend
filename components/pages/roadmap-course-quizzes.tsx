@@ -129,8 +129,8 @@ export function RoadmapCourseQuizzes({
             {/* Page Header */}
             <div className="mb-8">
               {/* <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-gray-100">
@@ -163,8 +163,8 @@ export function RoadmapCourseQuizzes({
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <FileText className="h-5 w-5 text-blue-600" />
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-gray-400">
@@ -224,7 +224,7 @@ export function RoadmapCourseQuizzes({
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
-                          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-600 rounded-full font-semibold">
+                          <div className="flex items-center justify-center w-10 h-10 bg-primary/10 text-primary rounded-full font-semibold">
                             {index + 1}
                           </div>
                           <div className="flex-1">
@@ -367,7 +367,7 @@ export function RoadmapCourseQuizzes({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Target className="h-4 w-4 text-blue-500" />
+                  <Target className="h-4 w-4 text-primary" />
                   Roadmap Context
                 </CardTitle>
               </CardHeader>

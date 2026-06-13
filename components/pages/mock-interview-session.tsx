@@ -154,7 +154,7 @@ function VoiceAssistantStage() {
             state === "speaking"
               ? "bg-green-500"
               : state === "listening"
-                ? "bg-blue-500"
+                ? "bg-primary"
                 : state === "connecting"
                   ? "bg-yellow-500"
                   : "bg-gray-500",
@@ -195,7 +195,7 @@ function VoiceAssistantStage() {
               state === "speaking"
                 ? "bg-green-500 animate-[audioWave_0.5s_ease-in-out_infinite]"
                 : state === "listening"
-                  ? "bg-blue-500 animate-pulse"
+                  ? "bg-primary animate-pulse"
                   : "bg-primary/30",
             )}
             style={{

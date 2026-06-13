@@ -238,7 +238,7 @@ export function RoadmapCourseExercise({
                     ) : (
                       <div className="space-y-3">
                         {exercise.hints.map((hint, index) => (
-                          <div key={index} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div key={index} className="p-3 bg-primary/5 border border-primary/30 rounded-lg">
                             <div className="text-sm font-medium text-blue-900 mb-1">Hint {index + 1}:</div>
                             <div className="text-sm text-blue-800">{hint}</div>
                           </div>
@@ -253,7 +253,7 @@ export function RoadmapCourseExercise({
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <TestTube className="h-5 w-5 text-blue-500" />
+                      <TestTube className="h-5 w-5 text-primary" />
                       Test Results
                     </CardTitle>
                   </CardHeader>

@@ -185,7 +185,7 @@ export function capitalize(str) {
                   key={fileName}
                   className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
                     activeFile === fileName
-                      ? "bg-blue-100 text-blue-800"
+                      ? "bg-primary/10 text-blue-800"
                       : "hover:bg-gray-100"
                   }`}
                   onClick={() => setActiveFile(fileName)}
@@ -241,7 +241,7 @@ export function capitalize(str) {
                     [activeFile]: e.target.value,
                   }))
                 }
-                className="w-full h-full p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-full p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Write your code here..."
               />
             </CardContent>

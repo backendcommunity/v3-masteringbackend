@@ -140,7 +140,7 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
                       {truncated && (
                         <button
                           onClick={() => setCodeExpanded((v) => !v)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                          className="text-[10px] text-primary hover:text-blue-300 transition-colors"
                         >
                           {codeExpanded ? "Collapse" : `Expand (${lines.length} lines)`}
                         </button>

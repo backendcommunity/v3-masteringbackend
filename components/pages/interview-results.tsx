@@ -116,7 +116,7 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   {project.type === "full-project" ? (
-                    <Briefcase className="h-5 w-5 text-blue-600" />
+                    <Briefcase className="h-5 w-5 text-primary" />
                   ) : (
                     <Code className="h-5 w-5 text-green-600" />
                   )}
@@ -431,15 +431,15 @@ function formatOutput(result) {
                       <h3 className="font-semibold mb-2">Your Approach</h3>
                       <ul className="space-y-2">
                         <li className="flex items-start gap-2">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">Time</span>
+                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Time</span>
                           <span>O(n²) - Nested loops</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">Space</span>
+                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Space</span>
                           <span>O(n) - Additional array</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">Approach</span>
+                          <span className="bg-primary/10 text-blue-800 px-2 py-0.5 rounded text-xs">Approach</span>
                           <span>Brute force with some optimizations</span>
                         </li>
                       </ul>
@@ -472,7 +472,7 @@ function formatOutput(result) {
                           <span className="text-sm">Your solution is 2.5x slower</span>
                         </div>
                         <div className="flex gap-2 items-center">
-                          <div className="bg-blue-500 h-4 rounded" style={{ width: "40%" }}></div>
+                          <div className="bg-primary h-4 rounded" style={{ width: "40%" }}></div>
                           <span className="text-xs">120ms (yours)</span>
                         </div>
                         <div className="flex gap-2 items-center mt-1">
@@ -487,7 +487,7 @@ function formatOutput(result) {
                           <span className="text-sm">Your solution uses 1.8x more memory</span>
                         </div>
                         <div className="flex gap-2 items-center">
-                          <div className="bg-blue-500 h-4 rounded" style={{ width: "36%" }}></div>
+                          <div className="bg-primary h-4 rounded" style={{ width: "36%" }}></div>
                           <span className="text-xs">42.3MB (yours)</span>
                         </div>
                         <div className="flex gap-2 items-center mt-1">

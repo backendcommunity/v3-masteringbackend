@@ -66,7 +66,7 @@ export function RoadmapCourseProject({
       case "Completed":
         return "bg-green-500"
       case "Submitted":
-        return "bg-blue-500"
+        return "bg-primary"
       case "In Progress":
         return "bg-yellow-500"
       case "Not Started":
@@ -339,7 +339,7 @@ export function RoadmapCourseProject({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Target className="h-4 w-4 text-blue-500" />
+                  <Target className="h-4 w-4 text-primary" />
                   Roadmap Context
                 </CardTitle>
               </CardHeader>
@@ -378,8 +378,8 @@ export function RoadmapCourseProject({
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-50 text-sm"
                       >
-                        <ExternalLink className="h-4 w-4 text-blue-500" />
-                        <span className="text-blue-600">{resource.title}</span>
+                        <ExternalLink className="h-4 w-4 text-primary" />
+                        <span className="text-primary">{resource.title}</span>
                         <Badge variant="outline" className="text-xs ml-auto">
                           {resource.type}
                         </Badge>

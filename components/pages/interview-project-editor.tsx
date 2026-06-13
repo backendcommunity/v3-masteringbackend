@@ -611,7 +611,7 @@ Build a full-stack task management application with the following features:
               <Badge variant="destructive">Interview</Badge>
               <Badge
                 variant="outline"
-                className="border-blue-600 text-blue-600"
+                className="border-primary text-primary"
               >
                 In Progress
               </Badge>

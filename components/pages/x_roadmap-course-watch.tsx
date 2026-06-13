@@ -442,7 +442,7 @@ export function RoadmapCourseWatch({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Target className="h-4 w-4 text-blue-500" />
+                  <Target className="h-4 w-4 text-primary" />
                   Roadmap Progress
                 </CardTitle>
               </CardHeader>
@@ -485,7 +485,7 @@ export function RoadmapCourseWatch({
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">
+                            <div className="flex items-center justify-center w-6 h-6 bg-primary/10 text-primary rounded-full text-xs font-medium">
                               {chapterIndex + 1}
                             </div>
                             <div className="flex-1">
@@ -519,7 +519,7 @@ export function RoadmapCourseWatch({
                               onClick={() => setCurrentVideo(video)}
                               className={`w-full p-3 pl-12 text-left hover:bg-gray-50 transition-colors ${
                                 currentVideo?.id === video.id
-                                  ? "bg-blue-50 border-r-2 border-blue-500"
+                                  ? "bg-primary/5 border-r-2 border-primary"
                                   : ""
                               }`}
                             >
@@ -552,7 +552,7 @@ export function RoadmapCourseWatch({
                               className="w-full p-3 pl-12 text-left hover:bg-gray-50 transition-colors"
                             >
                               <div className="flex items-center gap-3">
-                                <FileText className="h-4 w-4 text-blue-500" />
+                                <FileText className="h-4 w-4 text-primary" />
                                 <div className="flex-1">
                                   <div className="text-sm font-medium text-gray-900">
                                     {chapter.quiz?.title}

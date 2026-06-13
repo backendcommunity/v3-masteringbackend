@@ -20,7 +20,7 @@ const OPTIONS: {
     description:
       "Structured courses from HTTP to databases to deployment.",
     points: 500,
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "projects",

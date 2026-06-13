@@ -791,7 +791,7 @@ export function RoadmapVideoWatchPage({
                       {notes?.map((note: Note) => (
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                               {user?.name
                                 .split(" ")
                                 .map((n: any) => n[0])
@@ -828,7 +828,7 @@ export function RoadmapVideoWatchPage({
                           className="flex items-center justify-between p-3 border rounded-lg"
                         >
                           <div className="flex items-center gap-3">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             <div>
                               <h4 className="font-medium">{resource.title}</h4>
                               <p className="text-sm text-muted-foreground">
@@ -912,7 +912,7 @@ export function RoadmapVideoWatchPage({
                       key={vid.id}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         vid.slug === currentVideo?.slug
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleVideoClick(vid)}
@@ -1032,7 +1032,7 @@ export function RoadmapVideoWatchPage({
                       key={ch.slug}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         ch.slug === chapter?.slug
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleChapterClick(ch)}

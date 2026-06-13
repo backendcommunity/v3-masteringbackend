@@ -386,7 +386,7 @@ export function BootcampDashboardPage({
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <h4 className="font-medium">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">
@@ -487,7 +487,7 @@ export function BootcampDashboardPage({
                     key={week.id || i}
                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                       week?.id?.toString() === currentWeek?.id
-                        ? "border border-blue-200"
+                        ? "border border-primary/30"
                         : ""
                     }`}
                     onClick={() =>

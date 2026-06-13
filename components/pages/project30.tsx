@@ -161,7 +161,7 @@ export function Project30Page({
       case "Beginner":
         return "bg-green-100 text-green-800 border-green-200";
       case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-primary/10 text-blue-800 border-primary/30";
       case "Advanced":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "Expert":
@@ -696,7 +696,7 @@ export function Project30Page({
                         {lesson.completed ? (
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                         ) : !lesson.completed ? (
-                          <Play className="h-5 w-5 text-blue-600" />
+                          <Play className="h-5 w-5 text-primary" />
                         ) : (
                           <Lock className="h-5 w-5 text-gray-400" />
                         )}
@@ -752,7 +752,7 @@ export function Project30Page({
                     className="flex items-center space-x-4 rounded-lg border p-3"
                   >
                     <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
-                      <Play className="h-5 w-5 text-blue-600" />
+                      <Play className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
@@ -1115,7 +1115,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Course
                             {/* TODO: show videos and resources */}
                           </h4>
@@ -1152,7 +1152,7 @@ export function Project30Page({
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <PlayCircle className="h-4 w-4 text-blue-600" />
+                                    <PlayCircle className="h-4 w-4 text-primary" />
                                     <span className="text-sm">
                                       {course.chapters?.length} chapters
                                     </span>
@@ -1182,7 +1182,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Video
                           </h4>
                           <Card key={video.id} className="overflow-hidden">
@@ -1219,7 +1219,7 @@ export function Project30Page({
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                   {/* <div className="flex items-center gap-2">
-                                    <PlayCircle className="h-4 w-4 text-blue-600" />
+                                    <PlayCircle className="h-4 w-4 text-primary" />
                                     <span className="text-sm">
                                       {course.chapters?.length} chapters
                                     </span>
@@ -1252,7 +1252,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Resource
                           </h4>
                           <Card key={resource.id} className="overflow-hidden">
@@ -1363,7 +1363,7 @@ export function Project30Page({
                   <span className="text-sm">Completed Lessons</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded bg-blue-500"></div>
+                  <div className="h-4 w-4 rounded bg-primary"></div>
                   <span className="text-sm">Current Day</span>
                 </div>
                 <div className="flex items-center gap-2">

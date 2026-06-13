@@ -51,7 +51,7 @@ export function RoadmapCourseProjects({
       case "Completed":
         return "bg-green-500"
       case "Submitted":
-        return "bg-blue-500"
+        return "bg-primary"
       case "In Progress":
         return "bg-yellow-500"
       case "Not Started":
@@ -133,8 +133,8 @@ export function RoadmapCourseProjects({
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Star className="h-5 w-5 text-blue-600" />
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Star className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-gray-900">
@@ -250,7 +250,7 @@ export function RoadmapCourseProjects({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Target className="h-4 w-4 text-blue-500" />
+                  <Target className="h-4 w-4 text-primary" />
                   Roadmap Context
                 </CardTitle>
               </CardHeader>

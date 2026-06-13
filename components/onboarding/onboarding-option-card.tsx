@@ -19,7 +19,7 @@ export function OnboardingOptionCard({
   selected,
   onClick,
   badge,
-  badgeColor = "bg-blue-500",
+  badgeColor = "bg-primary",
 }: OnboardingOptionCardProps) {
   const isReactNode = typeof icon !== "string";
 

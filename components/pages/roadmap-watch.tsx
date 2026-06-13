@@ -312,7 +312,7 @@ export function RoadmapWatchPage({
 
       return (
         <div className="space-y-4">
-          <div className="p-3 bg-blue-50 dark:bg-gray-800 rounded-lg">
+          <div className="p-3 bg-primary/5 dark:bg-gray-800 rounded-lg">
             <h4 className="font-medium text-sm">{next?.title}</h4>
             <article
               className="text-xs text-muted-foreground"
@@ -503,7 +503,7 @@ export function RoadmapWatchPage({
                     className={`border rounded-lg p-4 ${
                       completed
                         ? "bg-green-200/20 border-green-200/30"
-                        : "bg-blue-50 dark:bg-gray-800"
+                        : "bg-primary/5 dark:bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center justify-between flex-col md:flex-row gap-3">
@@ -515,7 +515,7 @@ export function RoadmapWatchPage({
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             {course?.type === "VIDEO" && (
-                              <BookOpen className="h-4 w-4 text-blue-600" />
+                              <BookOpen className="h-4 w-4 text-primary" />
                             )}
                             {(course?.type === "PROJECT" ||
                               course?.type === "PLAYGROUND") && (

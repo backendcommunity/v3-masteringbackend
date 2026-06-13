@@ -20,7 +20,7 @@ const OPTIONS: {
     description:
       "I'm new to backend development or programming in general. I want to learn the fundamentals.",
     level: "Level 1 - Apprentice",
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "intermediate",

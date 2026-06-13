@@ -242,7 +242,7 @@ export function NavigationBar({
     {
       name: "Python",
       icon: "🐍",
-      color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+      color: "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary",
     },
     {
       name: "Ruby",
@@ -981,8 +981,8 @@ export function NavigationBar({
                     {notifications.filter((n: Activity) => !n.isRead).length >
                       0 && (
                       <div>
-                        <div className="sticky top-0 px-4 py-2 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800">
-                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
+                        <div className="sticky top-0 px-4 py-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/30 dark:border-primary/30">
+                          <p className="text-xs font-semibold text-primary dark:text-primary uppercase">
                             🆕 New (
                             {
                               notifications.filter((n: Activity) => !n.isRead)
@@ -1017,7 +1017,7 @@ export function NavigationBar({
                                                 "MILESTONE",
                                               )
                                             ? "bg-orange-500 animate-pulse"
-                                            : "bg-blue-500"
+                                            : "bg-primary"
                                   }`}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -1031,7 +1031,7 @@ export function NavigationBar({
                                     {format(notification.createdAt)}
                                   </p>
                                 </div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                                <div className="w-3 h-3 bg-primary rounded-full flex-shrink-0 mt-1" />
                               </div>
                             </div>
                           ))}

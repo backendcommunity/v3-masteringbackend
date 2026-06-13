@@ -361,7 +361,7 @@ export function RoadmapDetailPage({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5 text-blue-600" />
+                  <Target className="h-5 w-5 text-primary" />
                   What You'll Learn
                 </CardTitle>
               </CardHeader>
@@ -429,19 +429,19 @@ export function RoadmapDetailPage({
               <CardContent>
                 <ul className="space-y-2">
                   <li className="flex items-start gap-2">
-                    <ArrowRight className="h-4 w-4 text-blue-600 mt-1" />
+                    <ArrowRight className="h-4 w-4 text-primary mt-1" />
                     <span className="text-sm">Senior Backend Engineer</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <ArrowRight className="h-4 w-4 text-blue-600 mt-1" />
+                    <ArrowRight className="h-4 w-4 text-primary mt-1" />
                     <span className="text-sm">Technical Lead</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <ArrowRight className="h-4 w-4 text-blue-600 mt-1" />
+                    <ArrowRight className="h-4 w-4 text-primary mt-1" />
                     <span className="text-sm">System Architect</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <ArrowRight className="h-4 w-4 text-blue-600 mt-1" />
+                    <ArrowRight className="h-4 w-4 text-primary mt-1" />
                     <span className="text-sm">Engineering Manager</span>
                   </li>
                 </ul>
@@ -479,7 +479,7 @@ export function RoadmapDetailPage({
                             ? "bg-green-600 text-white"
                             : isEnrolled
                               ? "bg-gray-200 text-white"
-                              : "bg-blue-600 text-gray-600"
+                              : "bg-primary text-gray-600"
                         }`}
                       >
                         {isCompleted ? (
@@ -515,7 +515,7 @@ export function RoadmapDetailPage({
                           isCompleted
                             ? "bg-green-100 text-green-800 border-green-200"
                             : isEnrolled
-                              ? "bg-blue-100 text-blue-800 border-blue-200"
+                              ? "bg-primary/10 text-blue-800 border-primary/30"
                               : ""
                         }
                       >
@@ -555,7 +555,7 @@ export function RoadmapDetailPage({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-blue-600" />
+                        <BookOpen className="h-4 w-4 text-primary" />
                         Courses
                       </h4>
                       <div className="space-y-1">
@@ -711,7 +711,7 @@ export function RoadmapDetailPage({
                   <h3 className="text-lg font-medium flex items-center gap-2">
                     <div
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-white ${
-                        milestone.completed ? "bg-green-600" : "bg-blue-600"
+                        milestone.completed ? "bg-green-600" : "bg-primary"
                       }`}
                     >
                       {index + 1}
@@ -724,7 +724,7 @@ export function RoadmapDetailPage({
                     {milestone?.courses?.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-blue-600" />
+                          <BookOpen className="h-4 w-4 text-primary" />
                           Courses
                         </h4>
                         <div className="space-y-2">
@@ -766,7 +766,7 @@ export function RoadmapDetailPage({
                                     </div>
                                     <div className="mt-4 flex items-center justify-between">
                                       <div className="flex items-center gap-2">
-                                        <PlayCircle className="h-4 w-4 text-blue-600" />
+                                        <PlayCircle className="h-4 w-4 text-primary" />
                                         <span className="text-sm">
                                           {course.chapters?.length} chapters
                                         </span>
@@ -944,7 +944,7 @@ export function RoadmapDetailPage({
                             "Authentication",
                           ],
                           icon: Code as LucideIcon,
-                          color: "text-blue-600",
+                          color: "text-primary",
                         },
                         {
                           category: "Databases",
@@ -1065,7 +1065,7 @@ export function RoadmapDetailPage({
                     <h3 className="text-md font-medium flex items-center gap-2">
                       <div
                         className={`flex h-6 w-6 items-center justify-center rounded-full text-white ${
-                          milestone.completed ? "bg-green-600" : "bg-blue-600"
+                          milestone.completed ? "bg-green-600" : "bg-primary"
                         }`}
                       >
                         {index + 1}

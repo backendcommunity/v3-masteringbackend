@@ -19,7 +19,7 @@ const OPTIONS: {
     title: "1–3 hours",
     description: "Steady exploration. No rush.",
     multiplier: 1,
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "steady",
