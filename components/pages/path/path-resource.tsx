@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
 import DOMPurify from "isomorphic-dompurify";
 import {
@@ -192,7 +193,7 @@ export function PathResource({
                 {contentHtml && (
                   <article
                     className={`mt-5 ${PROSE}`}
-                    dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentHtml) }}
                   />
                 )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -361,7 +362,7 @@ export function ProjectSubmissionsPage({
                     </p>
                     <p
                       className="text-sm text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: submission.feedback }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(submission.feedback) }}
                     ></p>
                   </div>
                 )}

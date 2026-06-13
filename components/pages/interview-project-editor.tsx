@@ -217,7 +217,6 @@ app.post('/api/tasks', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(\`Server running on port \${PORT}\`);
 });
 
 module.exports = app;`,
@@ -258,7 +257,6 @@ const TaskList = () => {
 
   const toggleTask = async (taskId) => {
     // TODO: Implement task toggle functionality
-    console.log('Toggle task:', taskId);
   };
 
   if (loading) return <div>Loading tasks...</div>;

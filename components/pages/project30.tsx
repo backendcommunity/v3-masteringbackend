@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -305,7 +306,7 @@ export function Project30Page({
                 ?.split("\n\n")
                 .map((paragraph: string, index: number) => (
                   <article
-                    dangerouslySetInnerHTML={{ __html: paragraph }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(paragraph) }}
                     key={index}
                     className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6"
                   >
@@ -540,9 +541,7 @@ export function Project30Page({
                         </h3>
 
                         <article
-                          dangerouslySetInnerHTML={{
-                            __html: nextLesson?.summary,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(nextLesson?.summary) }}
                           className="text-xs md:text-sm text-muted-foreground mt-1 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                         ></article>
 
@@ -614,9 +613,7 @@ export function Project30Page({
                       </h3>
 
                       <article
-                        dangerouslySetInnerHTML={{
-                          __html: firstLesson?.summary,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(firstLesson?.summary) }}
                         className="text-xs md:text-sm text-muted-foreground mt-1"
                       ></article>
 
@@ -726,9 +723,7 @@ export function Project30Page({
                           </Badge>
                         </div>
                         <article
-                          dangerouslySetInnerHTML={{
-                            __html: lesson?.video?.summary,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson?.video?.summary) }}
                           className="text-xs text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:!text-muted-foreground"
                         ></article>
                       </div>
@@ -770,9 +765,7 @@ export function Project30Page({
                         </Badge>
                       </div>
                       <article
-                        dangerouslySetInnerHTML={{
-                          __html: nextLesson?.summary,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(nextLesson?.summary) }}
                         className="text-xs text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                       ></article>
                     </div>
@@ -977,9 +970,7 @@ export function Project30Page({
                           </h3>
 
                           <article
-                            dangerouslySetInnerHTML={{
-                              __html: chapter?.summary,
-                            }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(chapter?.summary) }}
                             className="text-xs text-muted-foreground"
                           ></article>
                         </div>
@@ -1055,9 +1046,7 @@ export function Project30Page({
                                   {video.title}
                                 </h4>
                                 <article
-                                  dangerouslySetInnerHTML={{
-                                    __html: video?.description,
-                                  }}
+                                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.description) }}
                                   className="text-xs text-muted-foreground"
                                 ></article>
                                 <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-muted-foreground">
@@ -1135,9 +1124,7 @@ export function Project30Page({
                                       {course?.title}
                                     </h5>
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: course?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(course?.summary) }}
                                       className="text-sm text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                                     ></article>
                                   </div>
@@ -1202,9 +1189,7 @@ export function Project30Page({
                                     </h5>
 
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: video?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.summary) }}
                                       className="text-xs text-muted-foreground"
                                     ></article>
                                   </div>
@@ -1272,9 +1257,7 @@ export function Project30Page({
                                     </h5>
 
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: resource?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(resource?.summary) }}
                                       className="text-xs text-muted-foreground"
                                     ></article>
                                   </div>

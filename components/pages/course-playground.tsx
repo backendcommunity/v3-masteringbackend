@@ -36,12 +36,10 @@ export function CoursePlaygroundPage({
     "index.js": `// Welcome to the JavaScript Playground!
 // Write your code here and click "Run" to see the output
 
-console.log("Hello, World!");
 
 // Try some JavaScript basics:
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(n => n * 2);
-console.log("Doubled numbers:", doubled);
 
 // Create a simple function
 function greet(name) {

@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -328,12 +329,10 @@ export function ProjectPlaygroundPage({
     socket.on("folder:restart", (data) => {
       setLoadingFiles(true);
       setRestart(true);
-      console.log(data);
       setLoadingFiles(false);
     });
 
     socket.on("project:commit:result", (data) => {
-      console.log(data);
       setIsSaving(false);
     });
 
@@ -532,7 +531,6 @@ export function ProjectPlaygroundPage({
     });
 
     socket.on("project:error", (data) => {
-      console.log(data);
     });
 
     socket.on("clone:done", (data) => {
@@ -744,7 +742,6 @@ export function ProjectPlaygroundPage({
     socket.on("file:error", (data) => {
       setLoadingFiles(true);
       toast.error(data);
-      console.log(data);
       setLoadingFiles(false);
     });
 
@@ -2020,7 +2017,7 @@ export function ProjectPlaygroundPage({
                 {project?.summary && (
                   <p
                     className="wsum"
-                    dangerouslySetInnerHTML={{ __html: project.summary }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.summary) }}
                   />
                 )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import DOMPurify from "isomorphic-dompurify";
 import { marked } from "marked";
 import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
@@ -213,7 +214,7 @@ export function PathArticle({
                     <article
                       key={i}
                       className={PROSE}
-                      dangerouslySetInnerHTML={{ __html: mdToHtml(b.html) }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(mdToHtml(b.html)) }}
                     />
                   );
                 })}
@@ -221,7 +222,7 @@ export function PathArticle({
             ) : html ? (
               <article
                 className={`mt-8 ${PROSE}`}
-                dangerouslySetInnerHTML={{ __html: html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
               />
             ) : (
               <p className="mt-8 text-[15px] text-muted-foreground">

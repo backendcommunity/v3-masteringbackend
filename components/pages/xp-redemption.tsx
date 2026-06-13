@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -151,7 +152,7 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
                     <CardHeader>
                       <div className="flex items-center space-x-2">
                         <i
-                          dangerouslySetInnerHTML={{ __html: reward?.icon! }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(reward?.icon!) }}
                         ></i>
                         <CardTitle className="text-lg">
                           {reward.title}

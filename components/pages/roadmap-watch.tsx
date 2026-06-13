@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -316,9 +317,7 @@ export function RoadmapWatchPage({
             <h4 className="font-medium text-sm">{next?.title}</h4>
             <article
               className="text-xs text-muted-foreground"
-              dangerouslySetInnerHTML={{
-                __html: next?.summary!,
-              }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(next?.summary!) }}
             ></article>
             <div className="flex items-center gap-2 mt-2">
               <Code2 className="h-3 w-3 text-green-600" />
@@ -408,9 +407,7 @@ export function RoadmapWatchPage({
             Current Milestone: {milestone?.title}
           </CardTitle>
           <CardDescription
-            dangerouslySetInnerHTML={{
-              __html: milestone?.description!,
-            }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(milestone?.description!) }}
             className="text-blue-100 [&>*>span]:!text-blue-100 [&>p]:text-blue-100 dark:[&>*>span]:!text-blue-100 dark:[&>p]:text-blue-100"
           ></CardDescription>
         </CardHeader>

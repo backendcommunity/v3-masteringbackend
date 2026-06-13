@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import DOMPurify from "isomorphic-dompurify";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -110,11 +111,9 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
                       "overflow-auto bg-white p-2 transition-all duration-200",
                       whiteboardExpanded ? "" : "max-h-[200px]",
                     )}
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(message.artifactRef.svg, {
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(DOMPurify.sanitize(message.artifactRef.svg, {
                         USE_PROFILES: { svg: true, svgFilters: true },
-                      }),
-                    }}
+                      }),) }}
                   />
                 </div>
               ) : (

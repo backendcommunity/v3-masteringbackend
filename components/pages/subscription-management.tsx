@@ -176,7 +176,6 @@ export function SubscriptionManagementPage({
   };
 
   const handleDownloadInvoice = (invoiceId: string) => {
-    console.log("Downloading invoice:", invoiceId);
     // In a real app, this would download the invoice PDF
     // TODO: Add Download PDF
   };

@@ -64,7 +64,6 @@ export function ChallengeDetailPage({
     if (usedHintId) {
       const cost = useHint(landId, stageId, challengeId, usedHintId);
       setXpCost(cost);
-      console.log(`Used hint, lost ${cost} MB`);
       setUsedHintId(null);
     }
   }, [usedHintId, landId, stageId, challengeId]);
@@ -95,7 +94,6 @@ export function ChallengeDetailPage({
   const handleCompleteChallenge = () => {
     const xpEarned = completeChallenge(landId, stageId, challengeId);
     // In a real app, you'd update the user's MB here
-    console.log(`Challenge completed! Earned ${xpEarned} MB`);
   };
 
   const handleAskKap = async () => {
@@ -109,7 +107,6 @@ export function ChallengeDetailPage({
       );
       setIsLoadingKap(false);
       // Deduct MB for using Kap
-      console.log("Used Kap AI assistant, lost 100 MB");
     }, 2000);
   };
 

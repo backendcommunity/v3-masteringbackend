@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
@@ -440,7 +441,7 @@ export function PathExerciseIde({
             {instructionsHtml ? (
               <div
                 className="text-[13px] leading-relaxed text-foreground [&_li]:ml-4 [&_li]:list-disc [&_li]:py-0.5 [&_ol]:space-y-1 [&_ul]:space-y-1 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]"
-                dangerouslySetInnerHTML={{ __html: instructionsHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructionsHtml) }}
               />
             ) : (
               <p className="text-[13px] text-muted-foreground">
@@ -455,9 +456,7 @@ export function PathExerciseIde({
             {showHint ? (
               <div
                 className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(hintHtml),
-                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(DOMPurify.sanitize(hintHtml),) }}
               />
             ) : (
               <Button

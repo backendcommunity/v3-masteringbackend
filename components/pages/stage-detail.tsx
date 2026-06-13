@@ -42,7 +42,6 @@ export function StageDetailPage({
   const land = getLandById(landId);
   const stage = getStageById(landId, stageId);
 
-  console.log(land, stage, stageId);
 
   if (!land || !stage) {
     return (

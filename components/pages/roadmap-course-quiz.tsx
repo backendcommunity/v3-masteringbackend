@@ -155,7 +155,6 @@ export function RoadmapCourseQuiz({
       if (!quiz?.userQuiz?.passed)
         toast.success("Quiz started and your time starts now");
     } catch (error: any) {
-      console.log(error?.message);
       toast.error("An error occured. Please try again");
     }
   };

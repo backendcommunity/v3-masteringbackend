@@ -623,10 +623,6 @@ function InterviewRoom({
     const allTranscript = transcriptRef.current || [];
     const finalTranscript = allTranscript.filter((t) => t.isFinal);
 
-    console.log("=== END INTERVIEW ===");
-    console.log("Total transcript entries:", allTranscript.length);
-    console.log("Final transcript entries:", allTranscript);
-    console.log("Transcript data:", JSON.stringify(allTranscript, null, 2));
 
     try {
       // End session and submit transcript

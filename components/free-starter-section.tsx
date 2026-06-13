@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,7 +130,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
               )}
               <p
                 className="text-xs text-muted-foreground line-clamp-3 [&>*>span]:!text-muted-foreground [&>p]:text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: item.summary }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.summary) }}
               ></p>
               {((item as any).tags ?? (item as any).skills)?.length > 0 && (
                 <Badge

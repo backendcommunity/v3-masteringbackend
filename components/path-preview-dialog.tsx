@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   BookOpen,
   Brain,
@@ -143,7 +144,7 @@ export function PathPreviewDialog({
           </DialogTitle>
           {roadmap?.summary && (
             <p
-              dangerouslySetInnerHTML={{ __html: roadmap.summary }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(roadmap.summary) }}
               className="text-sm text-muted-foreground mt-1 line-clamp-2"
             ></p>
           )}

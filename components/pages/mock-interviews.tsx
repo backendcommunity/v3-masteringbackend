@@ -272,9 +272,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       // Send filters as an object
       params.filters = filterObj;
 
-      console.log("Fetching templates with params:", params);
       const data = await store.getMockInterviewTemplates(params);
-      console.log("Templates API Response:", data);
 
       // Handle both response structures
       if (data?.interviews) {

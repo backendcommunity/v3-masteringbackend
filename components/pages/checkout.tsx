@@ -198,7 +198,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   };
 
   const handleCancelSubscription = () => {
-    console.log("Cancelling subscription?...");
     setCancelDialogOpen(false);
     // In a real app, this would make an API call to cancel the subscription
   };

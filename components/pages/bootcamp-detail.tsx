@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -452,9 +453,7 @@ export function BootcampDetailPage({
                                           {course?.title}
                                         </h5>
                                         <article
-                                          dangerouslySetInnerHTML={{
-                                            __html: course?.summary,
-                                          }}
+                                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(course?.summary) }}
                                           className="text-sm text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                                         ></article>
                                       </div>
@@ -536,9 +535,7 @@ export function BootcampDetailPage({
                                         </h5>
 
                                         <article
-                                          dangerouslySetInnerHTML={{
-                                            __html: video?.summary,
-                                          }}
+                                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.summary) }}
                                           className="text-xs text-muted-foreground"
                                         ></article>
                                       </div>
@@ -613,9 +610,7 @@ export function BootcampDetailPage({
                                         </h5>
 
                                         <article
-                                          dangerouslySetInnerHTML={{
-                                            __html: resource?.summary,
-                                          }}
+                                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(resource?.summary) }}
                                           className="text-xs text-muted-foreground"
                                         ></article>
                                       </div>
