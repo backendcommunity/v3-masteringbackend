@@ -21,7 +21,6 @@ import {
   Award,
   Share,
   Lock,
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   BadgeIcon as Certificate,
@@ -174,10 +173,6 @@ export function ProjectDetailPage({
     toast.success("You have successfully enrolled");
   };
 
-  const handleBackToProjects = () => {
-    onNavigate(routes.projects);
-  };
-
   const handleEnrollNow = async () => {
     try {
       analytics.track("project_start_clicked", {
@@ -285,70 +280,99 @@ export function ProjectDetailPage({
 
   if (loading) return <Loader isLoader={false} />;
   return (
-    <div className="flex-1 space-y-6">
-      {/* Project Header */}
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <Button variant="outline" onClick={handleBackToProjects}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
-        </Button>
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">project</div>
+            <h1 className="text-3xl font-bold mt-1.5">{project?.title}</h1>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
-            className="w-full sm:w-auto"
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Leaderboard
-          </Button>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {project?.enrolled ? (
+                <button
+                  onClick={() => handleContinueLearning(project!.slug)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                  Continue Building
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleEnrollNow}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start Building
+                  </button>
+                  {project?.isPremium && !user?.isPremium && (
+                    <span className="text-sm text-white/[.65]">
+                      Included in Pro
+                    </span>
+                  )}
+                </>
+              )}
+              <button
+                onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+              >
+                <Trophy className="w-4 h-4" />
+                Leaderboard
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950 capitalize">
+                {project?.level}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="w-4 h-4 opacity-70" />
+                {project?.duration} hours
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 opacity-70" />
+                {project?.projectTasks?.length} Project Tasks
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Award className="w-4 h-4 opacity-70" />
+                Certificate included
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — enrolled only */}
+        {project?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              project completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${Math.floor(project?.progress ?? 0)}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {Math.floor(project?.progress ?? 0)}%
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge
-              className="capitalize"
-              variant={
-                project?.level === "Advanced"
-                  ? "destructive"
-                  : project?.level === "Intermediate"
-                    ? "default"
-                    : "secondary"
-              }
-            >
-              {project?.level}
-            </Badge>
-          </div>
-
-          <h1 className="text-3xl font-bold tracking-tight">
-            {project?.title}
-          </h1>
-
           {/* Short Description */}
-
           <article
             className="text-lg text-muted-foreground"
             dangerouslySetInnerHTML={{
               __html: project?.summary!,
             }}
           ></article>
-
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {project?.duration} hours
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              {project?.projectTasks?.length} Project Tasks
-            </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-4 w-4" />
-              Certificate included
-            </div>
-          </div>
 
           <div className="flex flex-wrap gap-2">
             {project?.technologies?.map((tech) => (
