@@ -15,6 +15,7 @@ import {
 import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { Quiz } from "@/lib/data";
+import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { Loader } from "../ui/loader";
@@ -119,7 +120,7 @@ export function CourseQuizPage({
 
     const finalScore =
       totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-    const passed = finalScore >= (quiz?.passingScore ?? 50);
+    const passed = finalScore >= (quiz?.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE);
 
     setScore(finalScore);
     setQuizStatus("completed");
@@ -396,7 +397,7 @@ export function CourseQuizPage({
           ? quiz.userQuiz.bestScore
           : quiz.userQuiz?.score;
 
-    const passed = _score >= (quiz.passingScore ?? 50);
+    const passed = _score >= (quiz.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE);
     const questions = quiz.userQuiz?.items ?? quiz?.questions;
 
     return (

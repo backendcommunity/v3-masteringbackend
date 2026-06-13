@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { Quiz, QuizQuestion } from "@/lib/data";
+import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
 import { PathSessionStep } from "@/lib/path-types";
 import StableTimer from "@/components/atoms/Timer";
 import ConfettiCelebration from "@/components/confetti-celebration";
@@ -86,7 +87,7 @@ export function PathQuiz({
     [quiz],
   );
   const single = questions.length === 1;
-  const passingScore = quiz?.passingScore ?? 50;
+  const passingScore = quiz?.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE;
   const totalPoints = useMemo(
     () => questions.reduce((sum, q) => sum + (q.points || 0), 0),
     [questions],

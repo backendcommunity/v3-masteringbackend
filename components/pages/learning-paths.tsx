@@ -258,8 +258,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
       {/* ── Content ── */}
       <div>
         {/* Filter row */}
-        <div className="flex gap-3 items-center flex-wrap mb-6">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap mb-6">
+          <div className="relative w-full sm:w-auto">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}

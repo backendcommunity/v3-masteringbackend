@@ -66,11 +66,9 @@ const VimeoPlayer = ({
           if (!releaseActivityRef.current) {
             releaseActivityRef.current = registerActivitySource();
           }
-          console.log("[VimeoPlayer] embed play");
           onPlay?.();
         });
 
-        console.log("[VimeoPlayer] embed ready");
         if (initialTime > 0) {
           player.setCurrentTime(initialTime).catch(() => {});
         }
@@ -79,7 +77,6 @@ const VimeoPlayer = ({
         player.on("ended", () => {
           releaseActivityRef.current?.();
           releaseActivityRef.current = null;
-          console.log("[VimeoPlayer] embed ended");
           if (!completedRef.current) {
             completedRef.current = true;
             onComplete?.();

@@ -107,7 +107,6 @@ export function transformReportToData(
       : [],
   };
 
-  console.log("Transformed PDF data:", data);
   return data;
 }
 
@@ -130,9 +129,7 @@ export async function downloadInterviewPDF(
   filename?: string,
 ): Promise<void> {
   try {
-    console.log("Starting PDF generation with report:", report);
     const blob = await generateInterviewPDF(report);
-    console.log("PDF blob generated:", blob.size, "bytes");
 
     // Create download link
     const url = URL.createObjectURL(blob);
@@ -154,7 +151,6 @@ export async function downloadInterviewPDF(
     // Cleanup
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    console.log("PDF download triggered successfully");
   } catch (error) {
     console.error("Failed to generate PDF:", error);
     throw new Error("Failed to generate PDF report. Please try again.");

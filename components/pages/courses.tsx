@@ -464,8 +464,8 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         )}
 
         {/* ── Filter row (mirrors paths/mock-interviews) ── */}
-        <div className="flex gap-3 items-center flex-wrap">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap">
+          <div className="relative w-full sm:w-auto">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={searchInput}

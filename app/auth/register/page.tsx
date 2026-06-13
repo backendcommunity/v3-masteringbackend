@@ -131,8 +131,6 @@ function RegisterContent() {
         error?.message ??
         "Registration failed. Please try again.";
 
-      console.log(error, message);
-
       if (
         message.toLowerCase().includes("verify") ||
         message.toLowerCase().includes("verification")

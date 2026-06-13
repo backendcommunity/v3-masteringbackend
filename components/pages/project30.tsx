@@ -52,6 +52,7 @@ import {
   Download,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
 import { Chapter, Project30, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { PaymentDialog } from "../payment-dialog";
@@ -99,6 +100,12 @@ export function Project30Page({
       if (!cancelled) {
         setProject30(data);
         setLoading(false);
+        if (data) {
+          analytics.track("project30_viewed", {
+            slug,
+            title: data.title,
+          });
+        }
       }
     };
 
@@ -200,6 +207,7 @@ export function Project30Page({
   const handleStartChallenge = async (slug: string) => {
     try {
       setStarting(true);
+      analytics.track("project30_start_clicked", { slug });
       const startProject30 = await store.startProject30(
         project30?.slug ?? slug,
         project30?.id,

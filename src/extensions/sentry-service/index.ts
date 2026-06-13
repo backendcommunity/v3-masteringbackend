@@ -12,7 +12,9 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-const isProd = process.env.NODE_ENV?.toLowerCase() !== "production";
+const isProd =
+  (process.env.NEXT_PUBLIC_NODE_ENV ?? process.env.NODE_ENV)?.toLowerCase() ===
+  "production";
 
 /**
  * Capture error with automatic context
@@ -25,7 +27,7 @@ export const captureError = (
   level: "fatal" | "error" | "warning" = "error",
 ) => {
   // Skip in development unless explicitly debugging
-  if (isProd && !process.env.SENTRY_DEBUG) {
+  if (!isProd && !process.env.SENTRY_DEBUG) {
     console.error("[Dev Mode - Sentry Disabled]", error, context);
     return;
   }
@@ -50,7 +52,7 @@ export const captureMessage = (
   level: "info" | "warning" = "info",
 ) => {
   // Skip in development unless explicitly debugging
-  if (isProd && !process.env.SENTRY_DEBUG) {
+  if (!isProd && !process.env.SENTRY_DEBUG) {
     console.log(`[Dev Mode - ${level}]`, message);
     return;
   }
@@ -93,7 +95,7 @@ export const addBreadcrumb = (
   level: "debug" | "info" | "warning" = "info",
 ) => {
   // Skip in development unless explicitly debugging
-  if (isProd && !process.env.SENTRY_DEBUG) {
+  if (!isProd && !process.env.SENTRY_DEBUG) {
     return;
   }
 

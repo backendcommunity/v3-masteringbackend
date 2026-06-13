@@ -127,7 +127,9 @@ export function ProjectPlaygroundPage({
     "mb-dark",
   );
   const [progressText, setProgressText] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("http://localhost:3000");
+  const [previewUrl, setPreviewUrl] = useState(
+    process.env.NEXT_PUBLIC_EXECUTOR_URL ?? "http://localhost:3000",
+  );
   const [showTerminal, setShowTerminal] = useState(false); // collapsed to header by default
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);

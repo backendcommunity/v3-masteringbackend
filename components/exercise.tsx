@@ -57,7 +57,6 @@ export function ExercisePage({
       });
 
       const result = data?.stdout ?? data?.stderr;
-      console.log(result, exercise?.testCases);
 
       // In a real implementation, this would execute the code safely
       const results = exercise?.testCases.map((testCase, index) => {

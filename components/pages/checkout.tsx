@@ -169,7 +169,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
         openCheckout(getPriceId(paymentMethod));
       }
     })
-    .catch((e) => console.log(e));
+    .catch((e) => console.error(e));
 
   const handleCheckout = async (e: React.FormEvent) => {
     if (typeof window !== "undefined") {

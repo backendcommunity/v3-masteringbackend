@@ -22,6 +22,7 @@ import {
   completeChallenge,
 } from "@/lib/lands-data";
 import { routes } from "@/lib/routes";
+import { ContentComingSoon } from "@/components/content-coming-soon";
 import { CodingChallengeComponent } from "./challenges/coding-challenge";
 import { QuizChallengeComponent } from "./challenges/quiz-challenge";
 import { PuzzleChallengeComponent } from "./challenges/puzzle-challenge";
@@ -84,6 +85,23 @@ export function ChallengeDetailPage({
           Back to Stage
         </Button>
       </div>
+    );
+  }
+
+  if ((challenge as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={challenge?.title}
+        summary={(
+          (challenge as any)?.summary ||
+          (challenge as any)?.description ||
+          ""
+        ).replace(/<[^>]+>/g, "")}
+        waitingLink={(challenge as any)?.waitingLink}
+        kindLabel="challenge"
+        backLabel="Back to Stage"
+        onBack={() => onNavigate(routes.stageDetail(landId, stageId))}
+      />
     );
   }
 
