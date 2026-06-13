@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,11 +15,8 @@ import {
 import {
   Search,
   Crown,
-  Code2,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  BarChart2,
   Play,
   Clock,
 } from "lucide-react";
@@ -39,7 +34,8 @@ import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { Loader } from "../ui/loader";
 import { FreeStarterSection } from "@/components/free-starter-section";
-import { getTagIcon } from "@/lib/tag-icons";
+import { JourneyGlyph } from "@/components/journey-glyph";
+import { stripHtmlTags } from "@/lib/html-utils";
 
 interface CoursesPageProps {
   onNavigate: (path: string) => void;
@@ -154,6 +150,21 @@ function Pagination({
 
 // ─── Course Card ─────────────────────────────────────────────────────────────
 
+const COURSE_LEVEL_STYLES: Record<string, { pill: string; dot: string }> = {
+  Beginner: {
+    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  Intermediate: {
+    pill: "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
+    dot: "bg-amber-500",
+  },
+  Advanced: {
+    pill: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
+    dot: "bg-red-500",
+  },
+};
+
 function CourseCard({
   course,
   onViewDetails,
@@ -163,103 +174,93 @@ function CourseCard({
   onViewDetails: (slug: string) => void;
   onContinue: (slug: string) => void;
 }) {
-  const TagIcon = getTagIcon(course.tags);
+  const typeLabel =
+    course.type === "WORKSHOP"
+      ? "Workshop"
+      : course.type === "VIDEO"
+        ? "Course"
+        : "Tutorial";
+  const levelStyle = COURSE_LEVEL_STYLES[course.level ?? ""] ?? {
+    pill: "bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
+  };
+
   return (
-    <Card
-      className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+    <div
       onClick={() => onViewDetails(course.slug)}
+      className="group bg-card rounded-2xl border border-border flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all p-5"
     >
-      <CardHeader className="p-4 pb-3 flex-1 space-y-3">
-        {/* Type label */}
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {course.type === "WORKSHOP"
-            ? "Workshop"
-            : course.type === "VIDEO"
-              ? "Course"
-              : "Tutorial"}
-        </p>
+      {/* Meta line: type · category */}
+      <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
+        <span className="text-muted-foreground font-medium truncate">
+          {typeLabel}
+        </span>
+        <span className="text-muted-foreground/40 shrink-0">·</span>
+        <span className="text-muted-foreground font-medium truncate">
+          {course.category?.name ?? "Backend"}
+        </span>
+      </div>
 
-        {/* Title */}
-        <CardTitle className="text-base font-bold line-clamp-2 leading-snug">
-          {course.title}
-        </CardTitle>
+      {/* Title */}
+      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
+        {course.title}
+      </h3>
 
-        {/* Level */}
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <BarChart2 className="h-3.5 w-3.5 flex-shrink-0" />
-          <span>{course.level ?? "All levels"}</span>
-        </div>
+      {/* Description */}
+      <p className="text-muted-foreground text-[13px] line-clamp-4 mt-2 leading-relaxed flex-1">
+        {stripHtmlTags(course.summary ?? course.description ?? "")}
+      </p>
 
-        {/* Description */}
-        <p
-          className="text-sm text-muted-foreground line-clamp-3 [&>*>span]:!text-muted-foreground [&>p]:text-muted-foreground"
-          dangerouslySetInnerHTML={{
-            __html: course.summary ?? course.description,
-          }}
-        />
-
-        {/* Category + progress if enrolled */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">
-            {course.category?.name ?? "Backend"}
-          </span>
-          {course.enrolled && (
-            <span className="text-xs text-muted-foreground">
+      {/* Progress (enrolled only) */}
+      {course.enrolled && (
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Progress</span>
+            <span className="font-semibold text-foreground">
               {Math.floor(course.progress ?? 0)}%
             </span>
-          )}
+          </div>
+          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${course.progress ?? 0}%` }}
+            />
+          </div>
         </div>
-
-        {/* First tag badge */}
-        {course.tags?.length > 0 && (
-          <Badge
-            variant="outline"
-            className="text-[10px] uppercase tracking-wide w-fit"
-          >
-            {course.tags[0]}
-          </Badge>
-        )}
-      </CardHeader>
+      )}
 
       {/* Footer */}
-      <CardContent className="p-4 pt-3 border-t space-y-2">
-        {course.enrolled && (
-          <Progress value={course.progress ?? 0} className="h-1" />
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground flex-shrink-0">
-              <TagIcon className="h-4 w-4 text-background" />
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {course.totalDuration} hr
-            </span>
-          </div>
-          {course.enrolled ? (
-            <Button
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onContinue(course.slug);
-              }}
-            >
-              Continue
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewDetails(course.slug);
-              }}
-            >
-              Start
-            </Button>
-          )}
+      <div className="border-t border-border/50 flex items-center justify-between pt-3 mt-3">
+        <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
+          <Clock className="w-3.5 h-3.5" />
+          {course.totalDuration} hr
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${levelStyle.pill}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${levelStyle.dot}`} />
+            {course.level ?? "All levels"}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              course.enrolled
+                ? onContinue(course.slug)
+                : onViewDetails(course.slug);
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            {course.enrolled ? (
+              <Play className="w-2.5 h-2.5" />
+            ) : (
+              <ChevronRight className="w-2.5 h-2.5" />
+            )}
+            {course.enrolled ? "Continue" : "Start"}
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -487,85 +488,28 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
   return (
     <Tabs className="space-y-4" value={tab} onValueChange={handleTabChange}>
       <div className="flex-1 space-y-4 md:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              Courses
-            </h1>
-            <p className="text-muted-foreground text-sm md:text-base">
-              Master backend development with our comprehensive course library
-            </p>
+        {/* ── Blueprint hero (navy anchor · learn pillar) ── */}
+        <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <JourneyGlyph
+              stage="learn"
+              className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+            />
+            <div className="max-w-2xl">
+              <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
+              <h1 className="text-2xl font-bold mt-1.5">Courses</h1>
+              <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+                Master backend development with our comprehensive course
+                library.
+              </p>
+            </div>
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium">
-                Total Courses
-              </CardTitle>
-              <Code2 className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">
-                {meta?.netTotal}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{user?.lastMonthCourses ?? 0} from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium">
-                Completed
-              </CardTitle>
-              <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">
-                {user?.numberOfCoursesCompleted}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{user?.lastMonthCompletedCourses ?? 0} from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium">
-                In Progress
-              </CardTitle>
-              <Play className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">
-                {user?.numberOfCoursesInProgress}
-              </div>
-              <p className="text-xs text-muted-foreground">Active courses</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium">
-                Avg. Time
-              </CardTitle>
-              <Clock className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">
-                {user?.averageCourseTime}w
-              </div>
-              <p className="text-xs text-muted-foreground">Per course</p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Upgrade Banner */}
         {!user?.isPremium && (
-          <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+          <Card className="rounded-2xl border-amber-400/30 bg-amber-400/5">
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
