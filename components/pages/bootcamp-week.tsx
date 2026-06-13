@@ -217,7 +217,7 @@ export function BootcampWeekPage({
               </p>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-2xl font-bold text-primary">
                     {currentWeek?.lessons?.length}
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -371,7 +371,7 @@ export function BootcampWeekPage({
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <h4 className="font-medium">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">
@@ -443,7 +443,7 @@ export function BootcampWeekPage({
                 <div
                   key={i + 1}
                   className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
-                    week?.id === currentWeek?.id ? "border border-blue-200" : ""
+                    week?.id === currentWeek?.id ? "border border-primary/30" : ""
                   }`}
                   onClick={() => {
                     setCurrentWeek({

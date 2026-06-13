@@ -104,7 +104,7 @@ export function CourseQuizzesPage({
           </Button>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Brain className="h-6 w-6 text-blue-600" />
+              <Brain className="h-6 w-6 text-primary" />
               Course Quizzes
             </h1>
             <p className="text-gray-400">
@@ -119,7 +119,7 @@ export function CourseQuizzesPage({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-blue-600" />
+              <Brain className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-400">Total Quizzes</p>
                 <p className="text-2xl font-bold">{quizzes.length}</p>
@@ -162,7 +162,7 @@ export function CourseQuizzesPage({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-blue-600" />
+              <Trophy className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-400">Avg Score</p>
                 <p className="text-2xl font-bold">

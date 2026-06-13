@@ -79,7 +79,7 @@ export function CoursePlaygroundsPage({
       case "JavaScript":
         return "bg-yellow-100 text-yellow-800";
       case "TypeScript":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary/10 text-primary";
       case "Python":
         return "bg-green-100 text-green-800";
       case "Java":
@@ -144,7 +144,7 @@ export function CoursePlaygroundsPage({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Folder className="h-5 w-5 text-blue-600" />
+              <Folder className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm text-gray-600">My Playgrounds</p>
                 <p className="text-2xl font-bold">

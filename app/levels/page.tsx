@@ -4,8 +4,6 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { LevelsPage } from "@/components/pages/levels";
 import { useRouter } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 export default function LevelsPageRoute() {
   const router = useRouter();
 

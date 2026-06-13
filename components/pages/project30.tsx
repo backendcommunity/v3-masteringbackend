@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ import {
 import {
   PlayCircle,
   CalendarIcon,
+  ArrowLeft,
   Trophy,
   Target,
   Clock,
@@ -159,26 +161,25 @@ export function Project30Page({
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Beginner":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
       case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
       case "Advanced":
-        return "bg-purple-100 text-purple-800 border-purple-200";
       case "Expert":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+        return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
       case "in-progress":
         return <Play className="h-4 w-4 text-primary" />;
       default:
-        return <Lock className="h-4 w-4 text-gray-400" />;
+        return <Lock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -224,78 +225,130 @@ export function Project30Page({
 
   return (
     <div className="flex-1 space-y-4 md:space-y-6 ">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <PlayCircle className="h-5 w-5 md:h-6 md:w-6 text-[#F2C94C]" />
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                {project30.title}
-              </h1>
+      {/* Back link */}
+      <button
+        onClick={() => onNavigate("/project30")}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+      >
+        <ArrowLeft className="h-4 w-4" /> Project30
+      </button>
+
+      {/* Blueprint detail hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden rounded-2xl dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">30-day challenge</div>
+            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+              <h1 className="text-3xl font-bold">{project30.title}</h1>
               {project30?.isEnrolled && (
-                <Badge
-                  variant="outline"
-                  className="bg-[#F2C94C]/10 text-[#F2C94C] border-[#F2C94C]/20 text-xs"
-                >
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
                   Day {nextDay}
-                </Badge>
+                </span>
               )}
               {subscription?.name === "Free" && !user?.isPremium && (
-                <Badge
-                  variant="outline"
-                  className="bg-green-100 text-green-800 border-green-200 text-xs"
-                >
+                <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-400/15 text-emerald-300 border border-emerald-400/25">
                   <Crown className="mr-1 h-3 w-3" />
                   Included in Pro
-                </Badge>
+                </span>
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => onNavigate(`/project30/${slug}/leaderboard`)}
-                className="w-full sm:w-auto"
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                Leaderboard
-              </Button>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
               {project30?.isEnrolled ? (
                 !userProject30?.isCompleted && (
-                  <Button
+                  <button
                     onClick={() => handleWatchPage(nextLesson?.id)}
-                    className="w-full sm:w-auto"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                   >
-                    <Play className="mr-2 h-4 w-4" />
-                    Today's Lesson
-                  </Button>
+                    <Play className="w-4 h-4" /> Today's Lesson · Day {nextDay}
+                  </button>
                 )
-              ) : (
-                <div>
-                  {user?.isPremium ? (
-                    <Button onClick={() => handleStartChallenge(slug)}>
-                      {starting ? (
-                        <>Starting...</>
-                      ) : (
-                        <>
-                          <Lock className="mr-2 h-4 w-4" />
-                          Start Challenge
-                        </>
-                      )}
-                    </Button>
+              ) : user?.isPremium ? (
+                <button
+                  disabled={starting}
+                  onClick={() => handleStartChallenge(slug)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                >
+                  {starting ? (
+                    <>Starting…</>
                   ) : (
-                    <Button onClick={() => setShowPaymentDialog(true)}>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Get Access
-                    </Button>
+                    <>
+                      <Play className="w-4 h-4" /> Start Challenge
+                    </>
                   )}
-                </div>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowPaymentDialog(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Lock className="w-4 h-4" /> Get Access
+                </button>
+              )}
+              <button
+                onClick={() => onNavigate(`/project30/${slug}/leaderboard`)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 text-white font-semibold px-5 py-2.5 text-sm hover:bg-white/5 transition"
+              >
+                <Trophy className="w-4 h-4" /> Leaderboard
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              {(project30?.totalDays ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarIcon className="w-4 h-4 opacity-70" />
+                  {project30?.isEnrolled ? nextDay : 0}/{project30?.totalDays}{" "}
+                  days
+                </span>
+              )}
+              {project30?.isEnrolled && (project30?.totalDays ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 opacity-70" />
+                  {(project30?.totalDays ?? 0) - nextDay} days remaining
+                </span>
               )}
             </div>
           </div>
-          {/* <Card> */}
-          <div>
+        </div>
+
+        {/* Completion strip — enrolled only */}
+        {project30?.isEnrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              challenge completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${
+                      userProject30?.isCompleted
+                        ? 100
+                        : Math.round(
+                            (currentDay / (project30?.totalDays || 30)) * 100,
+                          )
+                    }%`,
+                  }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {userProject30?.isCompleted
+                  ? 100
+                  : Math.round(
+                      (currentDay / (project30?.totalDays || 30)) * 100,
+                    )}
+                %
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      <div>
+        <div>
             <div
               className={`space-y-4 ${
                 isDescriptionExpanded ? "" : "line-clamp-3"
@@ -305,7 +358,7 @@ export function Project30Page({
                 ?.split("\n\n")
                 .map((paragraph: string, index: number) => (
                   <article
-                    dangerouslySetInnerHTML={{ __html: paragraph }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(paragraph) }}
                     key={index}
                     className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6"
                   >
@@ -332,19 +385,19 @@ export function Project30Page({
                 Show less
               </Button>
             )}
-          </div>
           {/* </Card> */}
         </div>
       </div>
-
       {/* Access Banner for Free Users */}
       {!project30?.isEnrolled ||
         (!user?.isPremium && (
-          <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+          <Card className="rounded-2xl border-primary/20 bg-primary/[.04]">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                  <Lock className="h-8 w-8 text-[#F2C94C]" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Lock className="h-5 w-5" />
+                  </div>
                   <div>
                     <h3 className="font-semibold text-sm md:text-base">
                       Unlock Project30 Challenge
@@ -368,15 +421,17 @@ export function Project30Page({
 
       {/* Progress Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-[#F2C94C]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Current Day
-            </CardTitle>
-            <CalendarIcon className="h-3 w-3 md:h-4 md:w-4 text-[#F2C94C]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+        <Card className="rounded-2xl border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Current Day
+              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <CalendarIcon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold mt-2">
               {project30?.isEnrolled ? nextDay : "—"}/{project30?.totalDays}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -387,15 +442,17 @@ export function Project30Page({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Instructor
-            </CardTitle>
-            <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-[#13AECE]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl w-full font-bold">
+        <Card className="rounded-2xl border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Instructor
+              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <BookOpen className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-lg md:text-2xl w-full font-bold mt-2 truncate">
               {project30?.instructor ?? "Mastering backend"}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -404,15 +461,17 @@ export function Project30Page({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#EB5757]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Lessons Completed
-            </CardTitle>
-            <VideoIcon className="h-3 w-3 md:h-4 md:w-4 text-[#EB5757]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+        <Card className="rounded-2xl border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Lessons Completed
+              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <VideoIcon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold mt-2">
               {project30?.isEnrolled ? completedLessions : "—"}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -423,15 +482,17 @@ export function Project30Page({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#347474]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Leaderboard Rank
-            </CardTitle>
-            <Trophy className="h-3 w-3 md:h-4 md:w-4 text-[#347474]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+        <Card className="rounded-2xl border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Leaderboard Rank
+              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Trophy className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold mt-2">
               {project30?.isEnrolled
                 ? `#${project30?.userProject30?.rank}`
                 : "—"}
@@ -452,23 +513,32 @@ export function Project30Page({
         defaultValue="overview"
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-          <TabsTrigger value="bonus">Bonuses</TabsTrigger>
-          {/* <TabsTrigger value="calendar">Calendar</TabsTrigger> */}
-          <TabsTrigger value="achievements">Achievements</TabsTrigger>
-          <TabsTrigger value="community">Community</TabsTrigger>
+        <TabsList className="flex flex-wrap justify-start gap-2 bg-transparent p-0 h-auto">
+          {[
+            { value: "overview", label: "Overview" },
+            { value: "curriculum", label: "Curriculum" },
+            { value: "bonus", label: "Bonuses" },
+            { value: "achievements", label: "Achievements" },
+            { value: "community", label: "Community" },
+          ].map((t) => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              className="rounded-xl border border-border px-3.5 py-2 text-sm font-medium text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-none"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           {/* Current Lesson */}
           {project30?.isEnrolled ? (
             userProject30?.isCompleted ? (
-              <Card className="bg-gradient-to-r from-green-600/10 to-green-600/5 border-green-600/20">
+              <Card className="border-emerald-500/20 bg-emerald-500/[.06]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500" />
                     Course Completed
                   </CardTitle>
                   <CardDescription>
@@ -499,7 +569,7 @@ export function Project30Page({
                             onClick={() =>
                               onNavigate(`/project30/${slug}/certificate`)
                             }
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-emerald-600 hover:bg-emerald-700"
                           >
                             <Download className="mr-2 h-4 w-4" />
                             View Certificate
@@ -511,10 +581,10 @@ export function Project30Page({
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+              <Card className="border-primary/20 bg-primary/[.04]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-[#F2C94C]" />
+                    <Target className="h-5 w-5 text-primary" />
                     Today's Lesson - Day {nextDay}
                   </CardTitle>
                   <CardDescription>
@@ -540,9 +610,7 @@ export function Project30Page({
                         </h3>
 
                         <article
-                          dangerouslySetInnerHTML={{
-                            __html: nextLesson?.summary,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(nextLesson?.summary) }}
                           className="text-xs md:text-sm text-muted-foreground mt-1 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                         ></article>
 
@@ -585,7 +653,7 @@ export function Project30Page({
               </Card>
             )
           ) : (
-            <Card className="bg-gradient-to-r from-[#F2C94C]/10 to-[#F2C94C]/5 border-[#F2C94C]/20">
+            <Card className="border-primary/20 bg-primary/[.04]">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-gray-500" />
@@ -614,9 +682,7 @@ export function Project30Page({
                       </h3>
 
                       <article
-                        dangerouslySetInnerHTML={{
-                          __html: firstLesson?.summary,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(firstLesson?.summary) }}
                         className="text-xs md:text-sm text-muted-foreground mt-1"
                       ></article>
 
@@ -694,9 +760,9 @@ export function Project30Page({
                     >
                       <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
                         {lesson.completed ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                         ) : !lesson.completed ? (
-                          <Play className="h-5 w-5 text-blue-600" />
+                          <Play className="h-5 w-5 text-primary" />
                         ) : (
                           <Lock className="h-5 w-5 text-gray-400" />
                         )}
@@ -726,9 +792,7 @@ export function Project30Page({
                           </Badge>
                         </div>
                         <article
-                          dangerouslySetInnerHTML={{
-                            __html: lesson?.video?.summary,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson?.video?.summary) }}
                           className="text-xs text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:!text-muted-foreground"
                         ></article>
                       </div>
@@ -752,7 +816,7 @@ export function Project30Page({
                     className="flex items-center space-x-4 rounded-lg border p-3"
                   >
                     <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
-                      <Play className="h-5 w-5 text-blue-600" />
+                      <Play className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
@@ -770,9 +834,7 @@ export function Project30Page({
                         </Badge>
                       </div>
                       <article
-                        dangerouslySetInnerHTML={{
-                          __html: nextLesson?.summary,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(nextLesson?.summary) }}
                         className="text-xs text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                       ></article>
                     </div>
@@ -977,9 +1039,7 @@ export function Project30Page({
                           </h3>
 
                           <article
-                            dangerouslySetInnerHTML={{
-                              __html: chapter?.summary,
-                            }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(chapter?.summary) }}
                             className="text-xs text-muted-foreground"
                           ></article>
                         </div>
@@ -1055,9 +1115,7 @@ export function Project30Page({
                                   {video.title}
                                 </h4>
                                 <article
-                                  dangerouslySetInnerHTML={{
-                                    __html: video?.description,
-                                  }}
+                                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.description) }}
                                   className="text-xs text-muted-foreground"
                                 ></article>
                                 <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-muted-foreground">
@@ -1115,7 +1173,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Course
                             {/* TODO: show videos and resources */}
                           </h4>
@@ -1135,9 +1193,7 @@ export function Project30Page({
                                       {course?.title}
                                     </h5>
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: course?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(course?.summary) }}
                                       className="text-sm text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                                     ></article>
                                   </div>
@@ -1152,7 +1208,7 @@ export function Project30Page({
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <PlayCircle className="h-4 w-4 text-blue-600" />
+                                    <PlayCircle className="h-4 w-4 text-primary" />
                                     <span className="text-sm">
                                       {course.chapters?.length} chapters
                                     </span>
@@ -1182,7 +1238,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Video
                           </h4>
                           <Card key={video.id} className="overflow-hidden">
@@ -1202,9 +1258,7 @@ export function Project30Page({
                                     </h5>
 
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: video?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.summary) }}
                                       className="text-xs text-muted-foreground"
                                     ></article>
                                   </div>
@@ -1219,7 +1273,7 @@ export function Project30Page({
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
                                   {/* <div className="flex items-center gap-2">
-                                    <PlayCircle className="h-4 w-4 text-blue-600" />
+                                    <PlayCircle className="h-4 w-4 text-primary" />
                                     <span className="text-sm">
                                       {course.chapters?.length} chapters
                                     </span>
@@ -1252,7 +1306,7 @@ export function Project30Page({
                       <div key={id} className="space-y-4  pb-4">
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium flex items-center gap-2">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             Resource
                           </h4>
                           <Card key={resource.id} className="overflow-hidden">
@@ -1272,9 +1326,7 @@ export function Project30Page({
                                     </h5>
 
                                     <article
-                                      dangerouslySetInnerHTML={{
-                                        __html: resource?.summary,
-                                      }}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(resource?.summary) }}
                                       className="text-xs text-muted-foreground"
                                     ></article>
                                   </div>
@@ -1359,11 +1411,11 @@ export function Project30Page({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded bg-green-500"></div>
+                  <div className="h-4 w-4 rounded bg-emerald-500"></div>
                   <span className="text-sm">Completed Lessons</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded bg-blue-500"></div>
+                  <div className="h-4 w-4 rounded bg-primary"></div>
                   <span className="text-sm">Current Day</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1397,7 +1449,7 @@ export function Project30Page({
                       key={ach.id}
                       className={`flex items-center space-x-4 rounded-lg border p-3 md:p-4 ${
                         ach.completed
-                          ? "bg-green-500/10 border-green-200"
+                          ? "bg-emerald-500/10 border-emerald-500/20"
                           : "bg-gray-200/10 border-gray-200"
                       }`}
                     >
@@ -1418,7 +1470,7 @@ export function Project30Page({
                         )}
                       </div>
                       {ach.completed && (
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                       )}
                     </div>
                   ))}
@@ -1452,7 +1504,7 @@ export function Project30Page({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-[#F2C94C]" />
+                  <Trophy className="h-5 w-5 text-primary" />
                   Top Performers
                 </CardTitle>
                 <CardDescription className="text-sm">
@@ -1467,7 +1519,7 @@ export function Project30Page({
                         key={i + 1}
                         className={`flex items-center justify-between p-3 rounded-lg ${
                           entry.isCurrentUser
-                            ? "bg-[#F2C94C]/10 border border-[#F2C94C]/20"
+                            ? "bg-primary/[.04] border border-primary/20"
                             : "bg-muted/50"
                         }`}
                       >
@@ -1528,7 +1580,7 @@ export function Project30Page({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-[#13AECE]" />
+                  <Users className="h-5 w-5 text-primary" />
                   Community Stats
                 </CardTitle>
                 <CardDescription className="text-sm">

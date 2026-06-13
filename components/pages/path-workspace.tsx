@@ -7,12 +7,17 @@ import {
   PanelRightOpen,
   PanelBottomClose,
   PanelBottomOpen,
+  Play,
+  Monitor,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
+import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import {
   PathSession,
   PathSessionStep,
   PathSessionDelta,
+  CelebrationEvent,
 } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
 import { StepStage } from "@/components/pages/path/step-stage";
@@ -24,11 +29,43 @@ import {
   SegmentStatus,
 } from "@/components/pages/path/path-action-bar";
 import { PathOutlineDrawer } from "@/components/pages/path/path-outline-drawer";
+import { PathCelebrations } from "@/components/pages/path/celebrations/path-celebrations";
+import { PathCertificate } from "@/components/pages/path/path-certificate";
 
 export interface PathWorkspaceProps {
   pathId: string;
   initialStepId?: string;
   onNavigate: (path: string) => void;
+}
+
+// Run server + Preview, surfaced in the path top bar for embedded PROJECT steps.
+// Reads the live handlers/state the playground publishes to the controls store.
+function ProjectTopControls() {
+  const { connected, isRunning, previewVisible, runServer, togglePreview } =
+    usePlaygroundControls();
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        onClick={() => runServer?.()}
+        disabled={isRunning || !connected}
+        className="h-8 gap-1.5 px-3 text-xs"
+      >
+        <Play className="w-3.5 h-3.5" />
+        {isRunning ? "Running…" : "Run server"}
+      </Button>
+      <Button
+        size="sm"
+        variant={previewVisible ? "secondary" : "outline"}
+        onClick={() => togglePreview?.()}
+        aria-pressed={previewVisible}
+        className="h-8 gap-1.5 px-3 text-xs"
+      >
+        <Monitor className="w-3.5 h-3.5" />
+        Preview
+      </Button>
+    </div>
+  );
 }
 
 export function PathWorkspace({
@@ -45,6 +82,12 @@ export function PathWorkspace({
   const [outlineOpen, setOutlineOpen] = useState(false);
   // Overview/Transcript pane is collapsible — hidden lets the player go full.
   const [panelOpen, setPanelOpen] = useState(true);
+  // Celebration queue plays after a step completes, THEN advances sequentially.
+  const [celebrationQueue, setCelebrationQueue] = useState<CelebrationEvent[]>(
+    [],
+  );
+  // Path-branded certificate landing takes over the stage when true.
+  const [showCertificate, setShowCertificate] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -74,6 +117,8 @@ export function PathWorkspace({
 
   const selectStep = useCallback(
     (stepId: string) => {
+      // Selecting any normal step always exits the certificate landing.
+      setShowCertificate(false);
       setCurrentStepId(stepId);
       onNavigate(`/paths/${pathId}/learn/${encodeURIComponent(stepId)}`);
     },
@@ -101,11 +146,26 @@ export function PathWorkspace({
         applyDelta(delta);
         const fresh = await store.getPathSession(pathId);
         setSession(fresh);
-        const next = delta.cursor.nextStepId;
-        if (next) setCurrentStepId(next);
-        if (delta.path.certEligible) {
-          toast.success("You've unlocked your certificate!");
+
+        const cel = delta.celebrations ?? [];
+        const certUnlocked = cel.some((c) => c.kind === "certUnlocked");
+
+        // Advance immediately to the next step in order. Celebrations are
+        // non-blocking bottom-right toasts, so they play over the new step
+        // rather than gating the advance.
+        if (certUnlocked || !delta.cursor.nextStepId) {
+          setShowCertificate(true);
+        } else {
+          setCurrentStepId(delta.cursor.nextStepId);
         }
+        // Only meaningful pops (levels, achievements, % milestones, topic
+        // completion) surface — the per-step "unlocked" ribbon is dropped, and
+        // cert routing is handled above.
+        setCelebrationQueue(
+          cel.filter(
+            (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
+          ),
+        );
       } catch {
         toast.error("Could not mark this step complete.");
       }
@@ -159,8 +219,131 @@ export function PathWorkspace({
   );
   // const segmentLabel = `${milestoneIndex + 1} of ${milestoneSteps.length || 1}`;
 
+  // The advance already happened in completeStep; these just tidy up the
+  // non-blocking corner toasts. Stable identities keep PathCelebrations'
+  // terminal effect from re-running on every render.
+  const onCertUnlocked = useCallback(() => {
+    setShowCertificate(true);
+    setCelebrationQueue([]);
+  }, []);
+  const onAllDone = useCallback(() => {
+    setCelebrationQueue([]);
+  }, []);
+
   if (loading && !session) return <Loader />;
   if (!session) return null;
+
+  // Always mounted: renders nothing when the queue is empty. When a step
+  // completes, plays the queued celebrations and THEN advances sequentially.
+  const celebrations = (
+    <PathCelebrations
+      queue={celebrationQueue}
+      onCertUnlocked={onCertUnlocked}
+      onAllDone={onAllDone}
+    />
+  );
+
+  const outlineDrawer = (
+    <PathOutlineDrawer
+      open={outlineOpen}
+      onOpenChange={setOutlineOpen}
+      session={session}
+      currentStepId={showCertificate ? undefined : currentStepId}
+      certEligible={session.path.certEligible}
+      onOpenCertificate={() => {
+        setShowCertificate(true);
+        setOutlineOpen(false);
+      }}
+      onSelectStep={(id) => {
+        selectStep(id);
+        setOutlineOpen(false);
+      }}
+    />
+  );
+
+  // Certificate landing takes over the stage, but KEEPS the PathTopBar + outline
+  // so the learner can navigate back to any step (selecting a step exits here).
+  if (showCertificate) {
+    return (
+      <div
+        className="flex h-screen w-full flex-col bg-background"
+        style={{
+          fontFamily: "Satoshi, system-ui, sans-serif",
+          fontSize: "14px",
+        }}
+      >
+        <PathTopBar
+          crumbs={[
+            { label: contextLabel, href: "/paths" },
+            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: "Certificate" },
+          ]}
+          position={idx >= 0 ? idx + 1 : 0}
+          total={ordered.length}
+          earnedPoints={session.path.earnedPoints}
+          masteryPct={session.path.masteryPct}
+          step={currentStep}
+          hasPrev={!!prev}
+          hasNext={!!next}
+          onPrev={() => prev && selectStep(prev.id)}
+          onNext={() => next && selectStep(next.id)}
+          onOpenOutline={() => setOutlineOpen(true)}
+          onNavigate={onNavigate}
+        />
+        <div className="flex-1 min-h-0 w-full overflow-y-auto">
+          <PathCertificate slug={pathId} pathTitle={session.path.title} />
+        </div>
+        {outlineDrawer}
+        {celebrations}
+      </div>
+    );
+  }
+
+  // PROJECT steps take over the screen with the playground, but KEEP the course
+  // outline / path nav up top (PathTopBar). No side panel, no bottom action bar.
+  if (currentStep?.type === "PROJECT") {
+    return (
+      <div
+        className="flex h-screen w-full flex-col bg-background"
+        style={{
+          fontFamily: "Satoshi, system-ui, sans-serif",
+          fontSize: "14px",
+        }}
+      >
+        <PathTopBar
+          crumbs={[
+            { label: contextLabel, href: "/paths" },
+            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: activeGroup?.title },
+            { label: currentStep?.title },
+          ]}
+          position={idx >= 0 ? idx + 1 : 0}
+          total={ordered.length}
+          earnedPoints={session.path.earnedPoints}
+          masteryPct={session.path.masteryPct}
+          step={currentStep}
+          hasPrev={!!prev}
+          hasNext={!!next}
+          onPrev={() => prev && selectStep(prev.id)}
+          onNext={() => next && selectStep(next.id)}
+          onOpenOutline={() => setOutlineOpen(true)}
+          onNavigate={onNavigate}
+          projectActions={<ProjectTopControls />}
+        />
+        <div className="flex flex-1 min-h-0 w-full min-w-0">
+          <StepStage
+            pathId={pathId}
+            step={currentStep}
+            onComplete={completeStep}
+            onSelectStep={selectStep}
+            onNavigate={onNavigate}
+          />
+        </div>
+        {outlineDrawer}
+        {celebrations}
+      </div>
+    );
+  }
 
   return (
     // Match watch-v2 exactly: the mockup renders in system-ui (Satoshi isn't
@@ -195,11 +378,11 @@ export function PathWorkspace({
             which render their own instructions panel, and collapsible elsewhere. */}
         {hasContext && panelOpen && (
           <>
-            <div className="hidden lg:flex w-[22%] min-w-[240px] max-w-[340px] shrink-0 p-3">
+            <div className="hidden md:flex w-[26%] min-w-[240px] max-w-[340px] shrink-0 p-3">
               <PathContextPanel step={currentStep} />
             </div>
             {/* 1px divider */}
-            <div className="hidden lg:block w-px shrink-0 bg-border" />
+            <div className="hidden md:block w-px shrink-0 bg-border" />
           </>
         )}
 
@@ -210,7 +393,7 @@ export function PathWorkspace({
             <button
               type="button"
               onClick={() => setPanelOpen((v) => !v)}
-              className="absolute right-3 top-3 z-20 hidden items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground lg:inline-flex"
+              className="absolute right-3 top-3 z-20 hidden items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:text-foreground md:inline-flex"
               title={panelOpen ? "Hide panel" : "Show panel"}
             >
               {panelOpen ? (
@@ -237,7 +420,7 @@ export function PathWorkspace({
             <button
               type="button"
               onClick={() => setPanelOpen((v) => !v)}
-              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-border bg-muted/30 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-border bg-muted/30 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:hidden"
             >
               {panelOpen ? (
                 <PanelBottomClose className="h-4 w-4" />
@@ -250,7 +433,7 @@ export function PathWorkspace({
             </button>
           )}
           {hasContext && panelOpen && (
-            <div className="flex h-[50vh] min-h-0 shrink-0 px-3 pb-3 lg:hidden">
+            <div className="flex h-[45vh] min-h-0 shrink-0 px-3 pb-3 md:hidden">
               <PathContextPanel step={currentStep} />
             </div>
           )}
@@ -268,16 +451,8 @@ export function PathWorkspace({
         </div>
       </div>
 
-      <PathOutlineDrawer
-        open={outlineOpen}
-        onOpenChange={setOutlineOpen}
-        session={session}
-        currentStepId={currentStepId}
-        onSelectStep={(id) => {
-          selectStep(id);
-          setOutlineOpen(false);
-        }}
-      />
+      {outlineDrawer}
+      {celebrations}
     </div>
   );
 }

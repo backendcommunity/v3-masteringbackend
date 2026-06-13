@@ -178,7 +178,6 @@ interface AppState {
   getMyTemplates: () => any;
   deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
-  getUserInterviewStats: () => any;
   getInterviewAccess: () => any;
   getInterviewSession: (id: string) => any;
   createInterviewRoom: (sessionId: string, withAgent?: boolean) => any;
@@ -283,7 +282,7 @@ interface AppState {
     projectId?: string;
     mockInterviewTemplateId?: string;
   }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
-  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string }) => Promise<void>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -367,6 +366,7 @@ interface AppState {
   search: (query: string) => Promise<SearchResults>;
 
   // Chat-based Mock Interview
+  getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
   startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
   streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
@@ -399,6 +399,9 @@ interface AppState {
 
   // Path (Learning Path) actions
   getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
+  getPathCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -737,6 +740,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Chat-based Mock Interview implementations
+  getChatInterviewPreview: async (userInterviewId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/${userInterviewId}/preview`,
+    );
+    return data?.data;
+  },
+
   startChatInterview: async (userInterviewId: string, interviewType?: string) => {
     const { data } = await api.post(
       `/mock-interviews/chat/${userInterviewId}/start`,
@@ -933,10 +943,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getUserInterviewStats: async () => {
-    const { data } = await api.get("/mock-interviews/user/stats");
-    return data?.data;
-  },
 
   getMyTemplates: async () => {
     const { data } = await api.get("/mock-interviews/my-templates");
@@ -1117,10 +1123,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string }) => {
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => {
     const params = new URLSearchParams();
     if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
     if (opts.courseId) params.set("courseId", opts.courseId);
+    if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
+    if (opts.projectId) params.set("projectId", opts.projectId);
     await api.delete(`/bookmarks?${params.toString()}`);
   },
 
@@ -1472,6 +1480,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   getPathSession: async (slug) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.get(`/paths/${resolvedSlug}/session`);
+    return data?.data;
+  },
+
+  getPathCertificate: async (slug: string) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/certificate`);
     return data?.data;
   },
 

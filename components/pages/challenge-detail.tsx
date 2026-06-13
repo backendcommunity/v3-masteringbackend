@@ -64,7 +64,6 @@ export function ChallengeDetailPage({
     if (usedHintId) {
       const cost = useHint(landId, stageId, challengeId, usedHintId);
       setXpCost(cost);
-      console.log(`Used hint, lost ${cost} MB`);
       setUsedHintId(null);
     }
   }, [usedHintId, landId, stageId, challengeId]);
@@ -95,7 +94,6 @@ export function ChallengeDetailPage({
   const handleCompleteChallenge = () => {
     const xpEarned = completeChallenge(landId, stageId, challengeId);
     // In a real app, you'd update the user's MB here
-    console.log(`Challenge completed! Earned ${xpEarned} MB`);
   };
 
   const handleAskKap = async () => {
@@ -109,7 +107,6 @@ export function ChallengeDetailPage({
       );
       setIsLoadingKap(false);
       // Deduct MB for using Kap
-      console.log("Used Kap AI assistant, lost 100 MB");
     }, 2000);
   };
 
@@ -211,7 +208,7 @@ export function ChallengeDetailPage({
             </Badge>
             <Badge
               variant="outline"
-              className="bg-[#13AECE]/10 text-[#13AECE] border-[#13AECE]/20"
+              className="bg-primary/10 text-primary border-primary/20"
             >
               {stage.title}
             </Badge>
@@ -255,10 +252,10 @@ export function ChallengeDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#13AECE]" />
+              <Clock className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Time Estimate</span>
             </div>
             <p className="text-2xl font-bold mt-1">{challenge.timeEstimate}</p>

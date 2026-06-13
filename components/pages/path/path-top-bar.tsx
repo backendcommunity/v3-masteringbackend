@@ -38,6 +38,7 @@ export interface PathTopBarProps {
   onNext: () => void;
   onOpenOutline: () => void;
   onNavigate: (path: string) => void;
+  projectActions?: React.ReactNode;
 }
 
 export function PathTopBar({
@@ -50,6 +51,7 @@ export function PathTopBar({
   onNext,
   onOpenOutline,
   onNavigate,
+  projectActions,
 }: PathTopBarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -81,7 +83,7 @@ export function PathTopBar({
     <Button
       variant="outline"
       size="sm"
-      className="h-8 px-2.5 text-xs gap-1.5 min-w-0 max-w-[420px]"
+      className="h-8 px-2.5 text-xs gap-1.5 min-w-0 max-w-[55vw] sm:max-w-[420px]"
       onClick={onOpenOutline}
       title="Open outline"
     >
@@ -127,8 +129,32 @@ export function PathTopBar({
             );
           })}
         </nav>
-        {/* Mobile: course outline sits inline next to the logo */}
-        <div className="md:hidden min-w-0">{outlineButton}</div>
+        {/* Mobile: prev / outline / next sit inline next to the logo */}
+        <div className="flex md:hidden min-w-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={onPrev}
+            disabled={!hasPrev}
+            title="Previous"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Previous</span>
+          </Button>
+          {outlineButton}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            onClick={onNext}
+            disabled={!hasNext}
+            title="Next"
+          >
+            <ArrowRight className="h-4 w-4" />
+            <span className="sr-only">Next</span>
+          </Button>
+        </div>
       </div>
 
       {/* Center: step-title pagination (desktop only) */}
@@ -160,6 +186,7 @@ export function PathTopBar({
 
       {/* Right: full cluster on desktop, collapsed menu on mobile */}
       <div className="hidden md:flex items-center gap-3">
+        {projectActions}
         {interviewOnEnd && (
           <Button
             variant="destructive"

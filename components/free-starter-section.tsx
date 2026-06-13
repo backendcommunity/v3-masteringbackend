@@ -1,11 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BarChart2 } from "lucide-react";
 import { StarterKitItem } from "@/lib/data";
+import { ProjectCard } from "@/components/pages/projects/project-card";
+import { CourseCard } from "@/components/pages/courses/course-card";
+import { useUser } from "@/hooks/use-user";
+import { useAppStore } from "@/lib/store";
+import { startItem, StartItemType } from "@/lib/start-flow";
 
 type ContentType = "course" | "project" | "roadmap";
 
@@ -15,6 +21,20 @@ const DETAIL_PATH: Record<ContentType, (slug: string) => string> = {
   roadmap: (slug) => `/paths/${slug}`,
 };
 
+const START_TYPE: Record<ContentType, StartItemType> = {
+  course: "course",
+  project: "project",
+  roadmap: "path",
+};
+
+const canonLevel = (raw?: string): string => {
+  const l = (raw || "").toLowerCase();
+  if (l.startsWith("beg")) return "Beginner";
+  if (l.startsWith("adv")) return "Advanced";
+  if (l.startsWith("inter")) return "Intermediate";
+  return raw || "Beginner";
+};
+
 interface FreeStarterSectionProps {
   items: StarterKitItem[];
   type: ContentType;
@@ -22,6 +42,20 @@ interface FreeStarterSectionProps {
 
 export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
   const router = useRouter();
+  const user = useUser();
+  const store = useAppStore();
+
+  // free → detail; pro/enterprise → enroll + first value point.
+  const start = (item: StarterKitItem) =>
+    startItem({
+      type: START_TYPE[type],
+      slug: item.slug,
+      id: item.id,
+      enrolled: false,
+      isPremiumUser: !!user?.isPremium,
+      store,
+      onNavigate: (p) => router.push(p),
+    });
 
   if (!items || items.length === 0) return null;
 
@@ -35,7 +69,47 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {items?.map((item) => (
+        {type === "course"
+          ? items?.map((item) => (
+              <CourseCard
+                key={item.id}
+                course={{
+                  slug: item.slug,
+                  title: item.title,
+                  summary: item.summary,
+                  level: canonLevel(item.level),
+                  category: (item.tags?.[0] ?? item.skills?.[0])
+                    ? { name: item.tags?.[0] ?? item.skills?.[0] }
+                    : null,
+                  totalDuration: null,
+                  enrolled: false,
+                }}
+                onViewDetails={(slug) => router.push(DETAIL_PATH.course(slug))}
+                onContinue={(slug) => router.push(DETAIL_PATH.course(slug))}
+                onStart={() => start(item)}
+              />
+            ))
+          : type === "project"
+          ? items?.map((item) => (
+              <ProjectCard
+                key={item.id}
+                project={{
+                  id: item.id,
+                  slug: item.slug,
+                  title: item.title,
+                  description: item.summary,
+                  level: canonLevel(item.level),
+                  category: item.tags?.[0] ?? item.skills?.[0] ?? null,
+                  tasks: 0,
+                  duration: "Self-paced",
+                  enrolled: false,
+                  completed: false,
+                  progress: 0,
+                }}
+                onSelect={() => start(item)}
+              />
+            ))
+          : items?.map((item) => (
           <Card
             key={item.id}
             className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
@@ -43,11 +117,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
           >
             <CardHeader className="p-4 pb-3 flex-1 space-y-3">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {type === "course"
-                  ? "Course"
-                  : type === "project"
-                    ? "Project"
-                    : "Learning Path"}
+                {"Learning Path"}
               </p>
               <CardTitle className="text-sm font-bold line-clamp-2 leading-snug">
                 {item.title}
@@ -60,7 +130,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
               )}
               <p
                 className="text-xs text-muted-foreground line-clamp-3 [&>*>span]:!text-muted-foreground [&>p]:text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: item.summary }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.summary) }}
               ></p>
               {((item as any).tags ?? (item as any).skills)?.length > 0 && (
                 <Badge
@@ -86,7 +156,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(DETAIL_PATH[type](item.slug));
+                    start(item);
                   }}
                 >
                   Start

@@ -6,8 +6,10 @@ import {
   useAppStore,
   ChatMessage,
   ChatInterviewSession,
+  ChatInterviewTemplate,
   ChatArtifactRef,
 } from "@/lib/store";
+import { ChatInterviewWelcome } from "./chat-interview-welcome";
 import { analytics } from "@/lib/analytics";
 import { ChatInterviewHeader, useCountdown } from "./chat-interview-header";
 import { useInterviewTimer } from "@/lib/interview-timer-store";
@@ -15,7 +17,7 @@ import { ChatPanel } from "./chat-panel";
 import { CodeEditorPanel } from "./code-editor-panel";
 import { WhiteboardPanel } from "./whiteboard-panel";
 import { ReportData } from "./result-card";
-import { Loader2, Code2, PenTool } from "lucide-react";
+import { Loader2, Code2, PenTool, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InterviewCompletionDialog } from "./interview-completion-dialog";
 import { Button } from "@/components/ui/button";
@@ -66,8 +68,34 @@ export function ChatInterviewRoom({
   >([]);
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const [showAccessDeniedDialog, setShowAccessDeniedDialog] = useState(false);
+  // Pre-join welcome screen — shown before the session (and clock) starts.
+  const [preview, setPreview] = useState<{
+    template: ChatInterviewTemplate;
+    sessionStatus: string | null;
+  } | null>(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  // Tracks viewport ≥1024px so the work tools (code/whiteboard) are rendered as
+  // a side panel on desktop, and via a bottom tab switcher (Chat ↔ Workspace)
+  // on mobile/tablet — never both at once (avoids two Monaco instances).
+  const [lgUp, setLgUp] = useState(true);
+  const [mobileTab, setMobileTab] = useState<"chat" | "workspace">("chat");
 
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLgUp(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Reset to the chat tab when returning to the desktop layout.
+  useEffect(() => {
+    if (lgUp) setMobileTab("chat");
+  }, [lgUp]);
 
   const sessionIdRef = useRef<string | null>(null);
   const sessionRef = useRef<ChatInterviewSession | null>(null);
@@ -91,74 +119,101 @@ export function ChatInterviewRoom({
     }
   }, [isComplete, onComplete]);
 
-  // Initialize session on mount
-  useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      try {
-        const data = await store.startChatInterview(userInterviewId);
-        if (cancelled) return;
-        setSession(data);
-        setMessages(data.chatMessages ?? []);
-        const alreadyDone =
-          data.status === "COMPLETED" || data.status === "ENDED";
-        setIsComplete(alreadyDone);
-        sessionIdRef.current = data.sessionId;
-        analytics.track("chat_interview_session_started", {
-          template_id: data.template?.id,
-          position: data.template?.position,
-          company: data.template?.company,
-          difficulty: data.template?.difficulty,
-          duration: data.template?.duration,
-          category: data.template?.category,
-          session_id: data.sessionId,
-          is_resuming: alreadyDone,
-        });
+  // Start (or resume) the session. Called from the welcome screen CTA, or
+  // automatically when an already-completed session is reopened. This is the
+  // ONLY place the clock starts and an access slot is consumed.
+  const beginInterview = useCallback(async () => {
+    setIsStartingSession(true);
+    setInitError(null);
+    setInitErrorCode(null);
+    try {
+      const data = await store.startChatInterview(userInterviewId);
+      setSession(data);
+      setMessages(data.chatMessages ?? []);
+      const alreadyDone =
+        data.status === "COMPLETED" || data.status === "ENDED";
+      setIsComplete(alreadyDone);
+      sessionIdRef.current = data.sessionId;
+      setHasStarted(true);
+      analytics.track("chat_interview_session_started", {
+        template_id: data.template?.id,
+        position: data.template?.position,
+        company: data.template?.company,
+        difficulty: data.template?.difficulty,
+        duration: data.template?.duration,
+        category: data.template?.category,
+        session_id: data.sessionId,
+        is_resuming: alreadyDone,
+      });
 
-        if (alreadyDone) {
-          // Session was already complete before this mount — fetch stored report
-          // directly from DB/cache without triggering AI generation.
-          autoResultFiredRef.current = true; // prevent useEffect from also firing
-          try {
-            const report = await store.getChatSessionReport(data.sessionId);
-            if (cancelled) return;
-            if (report) {
-              setResultsData(report);
-              if (report.questionAnalysis?.length) {
-                setQuestionAnalysis(
-                  report.questionAnalysis.map((q: any) => ({
-                    score: q.score,
-                    feedback: q.feedback,
-                  })),
-                );
-                setResultsRevealed(true);
-              }
-            } else {
-              // Report not yet generated — let useEffect trigger generation
-              autoResultFiredRef.current = false;
+      if (alreadyDone) {
+        // Session was already complete before this mount — fetch stored report
+        // directly from DB/cache without triggering AI generation.
+        autoResultFiredRef.current = true; // prevent useEffect from also firing
+        try {
+          const report = await store.getChatSessionReport(data.sessionId);
+          if (report) {
+            setResultsData(report);
+            if (report.questionAnalysis?.length) {
+              setQuestionAnalysis(
+                report.questionAnalysis.map((q: any) => ({
+                  score: q.score,
+                  feedback: q.feedback,
+                })),
+              );
+              setResultsRevealed(true);
             }
-          } catch {
-            // Report doesn't exist yet — fall through to generation via useEffect
+          } else {
+            // Report not yet generated — let useEffect trigger generation
             autoResultFiredRef.current = false;
           }
+        } catch {
+          // Report doesn't exist yet — fall through to generation via useEffect
+          autoResultFiredRef.current = false;
         }
-      } catch (err: any) {
-        if (!cancelled) {
-          const code = err?.response?.data?.code ?? null;
-          setInitErrorCode(code);
-          setInitError(
-            err?.message ?? "Failed to start interview. Please try again.",
-          );
-          analytics.track("chat_interview_session_start_failed", {
-            error_code: code,
-            error_message: err?.message,
-          });
+      }
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? null;
+      setInitErrorCode(code);
+      setInitError(
+        err?.message ?? "Failed to start interview. Please try again.",
+      );
+      analytics.track("chat_interview_session_start_failed", {
+        error_code: code,
+        error_message: err?.message,
+      });
+    } finally {
+      setIsStartingSession(false);
+      setIsInitializing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, userInterviewId]);
+
+  // On mount, fetch a lightweight preview (template + session status) WITHOUT
+  // starting anything, so we can show the welcome screen first. An already
+  // completed/ended session skips the welcome and jumps straight to results.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPreview() {
+      try {
+        const data = await store.getChatInterviewPreview(userInterviewId);
+        if (cancelled) return;
+        setPreview(data);
+        if (
+          data?.sessionStatus === "COMPLETED" ||
+          data?.sessionStatus === "ENDED"
+        ) {
+          beginInterview(); // keeps the full-screen spinner, lands on results
+        } else {
+          setIsInitializing(false);
         }
-      } finally {
-        if (!cancelled) setIsInitializing(false);
+      } catch {
+        if (cancelled) return;
+        // Preview failed — fall back to legacy behavior (start immediately).
+        beginInterview();
       }
     }
-    init();
+    loadPreview();
     return () => {
       cancelled = true;
     };
@@ -538,8 +593,23 @@ export function ChatInterviewRoom({
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Starting interview…</p>
+          <p className="text-sm text-muted-foreground">Loading interview…</p>
         </div>
+      </div>
+    );
+  }
+
+  // Pre-join welcome screen — shown until the learner starts (or resumes).
+  if (!hasStarted && !initError && preview?.template) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <ChatInterviewWelcome
+          template={preview.template}
+          resuming={preview.sessionStatus === "IN_PROGRESS"}
+          starting={isStartingSession}
+          onStart={beginInterview}
+          onBack={embedded ? undefined : () => router.push("/mock-interviews")}
+        />
       </div>
     );
   }
@@ -587,6 +657,79 @@ export function ChatInterviewRoom({
       ? session.whiteboardArtifact
       : undefined;
 
+  // Tab switcher for the work tools (Code Editor / Whiteboard). Shared by the
+  // desktop side panel and the mobile overlay so they stay in sync.
+  const workToolsTabs = (
+    <>
+      <button
+        onClick={() => {
+          setActivePanel("code");
+          analytics.track("chat_interview_panel_switched", {
+            panel: "code",
+            template_id: session.template?.id,
+          });
+        }}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+          activePanel === "code"
+            ? "bg-background text-foreground shadow-sm border border-border"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+        )}
+      >
+        <Code2 className="w-3.5 h-3.5" />
+        Code Editor
+      </button>
+      <button
+        onClick={() => {
+          setActivePanel("whiteboard");
+          analytics.track("chat_interview_panel_switched", {
+            panel: "whiteboard",
+            template_id: session.template?.id,
+          });
+        }}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+          activePanel === "whiteboard"
+            ? "bg-background text-foreground shadow-sm border border-border"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+        )}
+      >
+        <PenTool className="w-3.5 h-3.5" />
+        Whiteboard
+      </button>
+    </>
+  );
+
+  // The active work-tool panel itself. Mounted in EXACTLY ONE place at a time
+  // (desktop side panel OR mobile overlay) so we never have two Monaco editors.
+  const activeWorkPanel =
+    activePanel === "code" ? (
+      <CodeEditorPanel
+        key={messages.filter((m) => m.role === "user").length}
+        onSendToKap={handleCodeSend}
+        disabled={isComplete}
+        savedCode={session.codeArtifact}
+        savedLanguage={session.codeLanguage}
+      />
+    ) : (
+      <WhiteboardPanel
+        onSendToKap={handleWhiteboardSend}
+        disabled={isComplete}
+        savedDiagram={savedDiagram}
+      />
+    );
+
+  // Full body of the work tools (tabs + active panel) — reused on desktop and
+  // inside the mobile overlay.
+  const rightPanelBody = (
+    <>
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+        {workToolsTabs}
+      </div>
+      <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+    </>
+  );
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header — hidden in the Path embed (top bar owns timer + End). */}
@@ -603,97 +746,131 @@ export function ChatInterviewRoom({
       )}
 
       {/* Main content */}
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="flex-1 min-h-0 overflow-hidden"
-      >
-        {/* Chat panel */}
-        <ResizablePanel
-          defaultSize="55"
-          minSize="25"
-          maxSize="75"
-          className="flex flex-col min-h-0"
+      {lgUp ? (
+        // Desktop: chat + resizable work-tools side panel.
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
         >
-          <ChatPanel
-            messages={messages}
-            session={session}
-            isComplete={isComplete}
-            isStreaming={isStreaming}
-            onSend={handleSend}
-            resultsData={resultsData}
-            isLoadingResults={isLoadingResults}
-            resultsProgress={resultsProgress}
-            resultsError={resultsError}
-            onGetResults={handleGetResults}
-            questionAnalysis={questionAnalysis}
-            resultsRevealed={resultsRevealed}
-            insufficientAnswers={insufficientAnswers}
-            userName={userName}
-            userAvatar={userAvatar}
-            onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
-            onRestart={handleRestart}
-            isRestartLoading={isCheckingAccess}
-          />
-        </ResizablePanel>
+          {/* Chat panel */}
+          <ResizablePanel
+            defaultSize="55"
+            minSize="25"
+            maxSize="75"
+            className="flex flex-col min-h-0"
+          >
+            <ChatPanel
+              messages={messages}
+              session={session}
+              isComplete={isComplete}
+              isStreaming={isStreaming}
+              onSend={handleSend}
+              resultsData={resultsData}
+              isLoadingResults={isLoadingResults}
+              resultsProgress={resultsProgress}
+              resultsError={resultsError}
+              onGetResults={handleGetResults}
+              questionAnalysis={questionAnalysis}
+              resultsRevealed={resultsRevealed}
+              insufficientAnswers={insufficientAnswers}
+              userName={userName}
+              userAvatar={userAvatar}
+              onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
+              onRestart={handleRestart}
+              isRestartLoading={isCheckingAccess}
+            />
+          </ResizablePanel>
 
-        {/* Resize handle (desktop only) */}
-        <ResizableHandle withHandle className="hidden lg:flex" />
+          <ResizableHandle withHandle />
 
-        {/* Right panels (desktop only) */}
-        <ResizablePanel
-          defaultSize="45"
-          minSize="25"
-          maxSize="75"
-          className="hidden lg:flex flex-col min-h-0"
-        >
-          {/* Tab switcher */}
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            <button
-              onClick={() => { setActivePanel("code"); analytics.track("chat_interview_panel_switched", { panel: "code", template_id: session.template?.id }); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                activePanel === "code"
-                  ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              Code Editor
-            </button>
-            <button
-              onClick={() => { setActivePanel("whiteboard"); analytics.track("chat_interview_panel_switched", { panel: "whiteboard", template_id: session.template?.id }); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                activePanel === "whiteboard"
-                  ? "bg-background text-foreground shadow-sm border border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              Whiteboard
-            </button>
-          </div>
-
-          {/* Active panel */}
-          <div className="flex-1 min-h-0">
-            {activePanel === "code" ? (
-              <CodeEditorPanel
-                key={messages.filter((m) => m.role === "user").length}
-                onSendToKap={handleCodeSend}
-                disabled={isComplete}
-                savedCode={session.codeArtifact}
-                savedLanguage={session.codeLanguage}
-              />
-            ) : (
-              <WhiteboardPanel
-                onSendToKap={handleWhiteboardSend}
-                disabled={isComplete}
-                savedDiagram={savedDiagram}
-              />
+          {/* Right panels */}
+          <ResizablePanel
+            defaultSize="45"
+            minSize="25"
+            maxSize="75"
+            className="flex flex-col min-h-0"
+          >
+            {rightPanelBody}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        // Mobile/tablet: a bottom tab switcher flips between Chat and Workspace.
+        // Both sections stay mounted (toggled with `hidden`) so chat + editor
+        // state survive switches; only this branch renders below lg, so the
+        // panels mount exactly once.
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* CHAT section */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "chat" ? "flex" : "hidden",
             )}
+          >
+            <ChatPanel
+              messages={messages}
+              session={session}
+              isComplete={isComplete}
+              isStreaming={isStreaming}
+              onSend={handleSend}
+              resultsData={resultsData}
+              isLoadingResults={isLoadingResults}
+              resultsProgress={resultsProgress}
+              resultsError={resultsError}
+              onGetResults={handleGetResults}
+              questionAnalysis={questionAnalysis}
+              resultsRevealed={resultsRevealed}
+              insufficientAnswers={insufficientAnswers}
+              userName={userName}
+              userAvatar={userAvatar}
+              onExit={embedded ? undefined : () => setShowCompletionDialog(true)}
+              onRestart={handleRestart}
+              isRestartLoading={isCheckingAccess}
+            />
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+
+          {/* WORKSPACE section (code editor / whiteboard) */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "workspace" ? "flex" : "hidden",
+            )}
+          >
+            {rightPanelBody}
+          </div>
+
+          {/* Bottom tab switcher */}
+          <div className="flex flex-shrink-0 gap-1 border-t border-border bg-card p-1.5">
+            <button
+              type="button"
+              aria-selected={mobileTab === "chat"}
+              onClick={() => setMobileTab("chat")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "chat"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <MessageSquare className="h-[18px] w-[18px]" />
+              Interview
+            </button>
+            <button
+              type="button"
+              aria-selected={mobileTab === "workspace"}
+              onClick={() => setMobileTab("workspace")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "workspace"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Code2 className="h-[18px] w-[18px]" />
+              Workspace
+            </button>
+          </div>
+        </div>
+      )}
 
       <InterviewCompletionDialog
         open={showCompletionDialog}

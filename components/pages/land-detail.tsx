@@ -105,10 +105,10 @@ export function LandDetailPage({ landId, onNavigate }: LandDetailPageProps) {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-[#13AECE]" />
+              <Target className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Stages</span>
             </div>
             <p className="text-2xl font-bold mt-1">{land.stages.length}</p>
@@ -158,7 +158,7 @@ export function LandDetailPage({ landId, onNavigate }: LandDetailPageProps) {
       </div>
 
       {/* Progress */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+      <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />
@@ -360,7 +360,7 @@ export function LandDetailPage({ landId, onNavigate }: LandDetailPageProps) {
                     key={player.rank}
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       player.isUser
-                        ? "bg-[#13AECE]/10 border border-[#13AECE]/20"
+                        ? "bg-primary/10 border border-primary/20"
                         : "bg-muted/50"
                     }`}
                   >
@@ -382,7 +382,7 @@ export function LandDetailPage({ landId, onNavigate }: LandDetailPageProps) {
                       {player.isUser && (
                         <Badge
                           variant="outline"
-                          className="bg-[#13AECE]/10 text-[#13AECE]"
+                          className="bg-primary/10 text-primary"
                         >
                           You
                         </Badge>

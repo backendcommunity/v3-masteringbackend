@@ -125,7 +125,7 @@ export function InlineQuiz({
           <Button
             onClick={() => setRevealed(true)}
             disabled={selected == null}
-            className="h-9 rounded-lg bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-5 text-[13px] font-bold text-[#06222b] hover:brightness-110 disabled:opacity-40"
+            className="h-9 rounded-lg bg-gradient-to-br from-primary to-[#2BB8D8] px-5 text-[13px] font-bold text-[#06222b] hover:brightness-110 disabled:opacity-40"
           >
             Submit Answer
           </Button>

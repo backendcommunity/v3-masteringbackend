@@ -9,8 +9,6 @@ import { DashboardLayout } from "@/components/dashboard-layout";
  * Keep route for 30 days for backward compatibility.
  * Delete after March 31, 2026 if no stakeholder requests.
  */
-export const dynamic = "force-dynamic";
-
 export default function CommunityDeprecated() {
   return (
     <DashboardLayout>

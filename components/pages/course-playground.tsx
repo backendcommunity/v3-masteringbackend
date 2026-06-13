@@ -36,12 +36,10 @@ export function CoursePlaygroundPage({
     "index.js": `// Welcome to the JavaScript Playground!
 // Write your code here and click "Run" to see the output
 
-console.log("Hello, World!");
 
 // Try some JavaScript basics:
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(n => n * 2);
-console.log("Doubled numbers:", doubled);
 
 // Create a simple function
 function greet(name) {
@@ -185,7 +183,7 @@ export function capitalize(str) {
                   key={fileName}
                   className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
                     activeFile === fileName
-                      ? "bg-blue-100 text-blue-800"
+                      ? "bg-primary/10 text-primary"
                       : "hover:bg-gray-100"
                   }`}
                   onClick={() => setActiveFile(fileName)}
@@ -241,7 +239,7 @@ export function capitalize(str) {
                     [activeFile]: e.target.value,
                   }))
                 }
-                className="w-full h-full p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-full p-3 font-mono text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Write your code here..."
               />
             </CardContent>

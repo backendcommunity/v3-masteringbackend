@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Mic, Video, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, ChatInterviewTemplate } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
 import { ChatInterviewRoom } from "@/components/pages/mock-interviews/chat/chat-interview-room";
+import { ChatInterviewWelcome } from "@/components/pages/mock-interviews/chat/chat-interview-welcome";
 import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session";
-import { ChatInterviewReplayRoom } from "@/components/pages/mock-interviews/chat/chat-interview-replay-room";
+import { AvResults } from "@/components/pages/mock-interviews/av-results";
 
 // Modality comes from the template's `format` — the learner doesn't choose it.
 // Everything (room + results) happens inside the path step; advancing only
@@ -24,7 +25,7 @@ function ContinueBar({ onClick }: { onClick: () => void }) {
     <div className="flex flex-shrink-0 items-center justify-center border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
       <Button
         onClick={onClick}
-        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
       >
         Continue <ArrowRight className="h-4 w-4" />
       </Button>
@@ -47,7 +48,11 @@ export function PathMockInterview({
     null,
   );
   const [format, setFormat] = useState<string | null>(null);
+  const [template, setTemplate] = useState<ChatInterviewTemplate | null>(null);
   const [avSessionId, setAvSessionId] = useState<string | null>(null);
+  // Audio/video pre-join gate: the LiveKit room (and clock) only starts after
+  // the learner hits "Start interview" on the welcome screen.
+  const [avStarted, setAvStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +71,10 @@ export function PathMockInterview({
         const interview = res?.interview;
         if (!interview?.id) throw new Error("no interview");
         setUserInterviewId(interview.id);
-        setFormat(interview.template?.format ?? null);
+        // Modality comes from the path-link type (step.interviewFormat); fall
+        // back to the template format only for legacy links without a type.
+        setFormat(step.interviewFormat ?? interview.template?.format ?? null);
+        setTemplate((interview.template ?? null) as ChatInterviewTemplate | null);
         setCompletedSessionId(interview.completedSessionId ?? null);
         // Returning to an already-finished interview → show its results.
         if (interview.status === "COMPLETED" || step.status === "DONE") {
@@ -88,11 +96,13 @@ export function PathMockInterview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id]);
 
-  // Audio/video: create the LiveKit room once, then embed it (no redirect).
+  // Audio/video: create the LiveKit room once the learner starts, then embed
+  // it (no redirect). Gated on avStarted so the welcome screen shows first.
   const enteredRef = useRef(false);
   useEffect(() => {
     if (loading || error || finished || !userInterviewId) return;
-    if (isChatFormat(format)) return; // chat embeds directly
+    if (isChatFormat(format)) return; // chat embeds directly (own welcome)
+    if (!avStarted) return; // wait for the welcome-screen CTA
     if (avSessionId || enteredRef.current) return;
     enteredRef.current = true;
     (async () => {
@@ -110,7 +120,7 @@ export function PathMockInterview({
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, error, finished, userInterviewId, format, avSessionId]);
+  }, [loading, error, finished, userInterviewId, format, avSessionId, avStarted]);
 
   if (loading) {
     return (
@@ -146,7 +156,7 @@ export function PathMockInterview({
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
             <Button
               onClick={advance}
-              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
+              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
             >
               Continue path <ArrowRight className="h-4 w-4" />
             </Button>
@@ -160,14 +170,15 @@ export function PathMockInterview({
   const isVideo = (format ?? "").toLowerCase().includes("video");
   const ModeIcon = isVideo ? Video : Mic;
 
-  // Finished → show the results replay in-path (or a fallback card), + Continue.
+  // Finished → show the results (same ResultCard as chat) in-path, + Continue.
+  // AvResults has no header of its own, so there's no extra top nav.
   if (finished) {
     const resultsSessionId = avSessionId ?? completedSessionId;
     if (resultsSessionId) {
       return (
         <div className="flex h-full w-full flex-col">
           <div className="min-h-0 flex-1">
-            <ChatInterviewReplayRoom sessionId={resultsSessionId} embedded />
+            <AvResults sessionId={resultsSessionId} embedded />
           </div>
           <ContinueBar onClick={advance} />
         </div>
@@ -187,12 +198,31 @@ export function PathMockInterview({
             </p>
             <Button
               onClick={advance}
-              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
+              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
             >
               Continue <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Pre-join welcome screen — shown before the live room (and clock) starts.
+  if (!avStarted) {
+    return (
+      <div className="flex h-full w-full flex-col">
+        {template ? (
+          <ChatInterviewWelcome
+            template={template}
+            starting={false}
+            onStart={() => setAvStarted(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Loader isFull={false} />
+          </div>
+        )}
       </div>
     );
   }

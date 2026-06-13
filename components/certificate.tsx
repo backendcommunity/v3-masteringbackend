@@ -197,8 +197,8 @@ export function Certificate({
         ref={certificateRef}
         className={
           isGeneratingPDF
-            ? "w-[1100px] mx-auto relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200"
-            : "relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200"
+            ? "w-[1100px] mx-auto relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
+            : "relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
         }
       >
         {/* Decorative Elements */}
@@ -389,7 +389,7 @@ export function Certificate({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Verification:</span>
-                <span className="font-medium text-blue-600">
+                <span className="font-medium text-primary">
                   GloballyCheck Verified
                 </span>
               </div>
@@ -412,7 +412,7 @@ export function Certificate({
               variant="outline"
               className="justify-start"
             >
-              <Linkedin className="mr-2 h-4 w-4 text-blue-700" />
+              <Linkedin className="mr-2 h-4 w-4 text-primary" />
               Share on LinkedIn
             </Button>
             <Button
@@ -420,7 +420,7 @@ export function Certificate({
               variant="outline"
               className="justify-start"
             >
-              <Twitter className="mr-2 h-4 w-4 text-blue-400" />
+              <Twitter className="mr-2 h-4 w-4 text-primary" />
               Share on Twitter
             </Button>
             <Button

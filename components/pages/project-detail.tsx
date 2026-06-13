@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -21,7 +22,6 @@ import {
   Award,
   Share,
   Lock,
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   BadgeIcon as Certificate,
@@ -140,7 +140,7 @@ export function ProjectDetailPage({
       case "Beginner":
         return "bg-green-100 text-green-800 border-green-200";
       case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-primary/10 text-primary border-primary/30";
       case "Advanced":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "Expert":
@@ -174,10 +174,6 @@ export function ProjectDetailPage({
     toast.success("You have successfully enrolled");
   };
 
-  const handleBackToProjects = () => {
-    onNavigate(routes.projects);
-  };
-
   const handleEnrollNow = async () => {
     try {
       analytics.track("project_start_clicked", {
@@ -189,7 +185,6 @@ export function ProjectDetailPage({
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
-      console.log(slug);
       // add from here inside dialog
       const userProject = await handleEnrollment(slug);
       if (!userProject) {
@@ -198,6 +193,11 @@ export function ProjectDetailPage({
       }
       updateProject(project?.id!, { enrolled: true });
       Object.assign(project!, { enrolled: true });
+
+      // Same as the cards: pro/enterprise enroll → drop straight into the
+      // first value point (the task list) rather than sitting on the detail page.
+      toast.success("Enrolled — taking you to your first task…");
+      handleContinueLearning(project!.slug);
 
       // await handleProjectSetup(userProject); //TODO: Activate this to handle clone
     } catch (error: any) {
@@ -280,70 +280,97 @@ export function ProjectDetailPage({
 
   if (loading) return <Loader isLoader={false} />;
   return (
-    <div className="flex-1 space-y-6">
-      {/* Project Header */}
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <Button variant="outline" onClick={handleBackToProjects}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
-        </Button>
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">project</div>
+            <h1 className="text-3xl font-bold mt-1.5">{project?.title}</h1>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
-            className="w-full sm:w-auto"
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Leaderboard
-          </Button>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {project?.enrolled ? (
+                <button
+                  onClick={() => handleContinueLearning(project!.slug)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                  Continue Building
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleEnrollNow}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start Building
+                  </button>
+                  {project?.isPremium && !user?.isPremium && (
+                    <span className="text-sm text-white/[.65]">
+                      Included in Pro
+                    </span>
+                  )}
+                </>
+              )}
+              <button
+                onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+              >
+                <Trophy className="w-4 h-4" />
+                Leaderboard
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950 capitalize">
+                {project?.level}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="w-4 h-4 opacity-70" />
+                {project?.duration} hours
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 opacity-70" />
+                {project?.projectTasks?.length} Project Tasks
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Award className="w-4 h-4 opacity-70" />
+                Certificate included
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — enrolled only */}
+        {project?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              project completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${Math.floor(project?.progress ?? 0)}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">
+                {Math.floor(project?.progress ?? 0)}%
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge
-              className="capitalize"
-              variant={
-                project?.level === "Advanced"
-                  ? "destructive"
-                  : project?.level === "Intermediate"
-                    ? "default"
-                    : "secondary"
-              }
-            >
-              {project?.level}
-            </Badge>
-          </div>
-
-          <h1 className="text-3xl font-bold tracking-tight">
-            {project?.title}
-          </h1>
-
           {/* Short Description */}
-
           <article
             className="text-lg text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: project?.summary!,
-            }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(project?.summary!) }}
           ></article>
-
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {project?.duration} hours
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              {project?.projectTasks?.length} Project Tasks
-            </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-4 w-4" />
-              Certificate included
-            </div>
-          </div>
 
           <div className="flex flex-wrap gap-2">
             {project?.technologies?.map((tech) => (
@@ -417,7 +444,7 @@ export function ProjectDetailPage({
                   ?.split("\n\n")
                   .map((paragraph: string, index: number) => (
                     <article
-                      dangerouslySetInnerHTML={{ __html: paragraph }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(paragraph) }}
                       key={index}
                       className="text-muted-foreground leading-relaxed [&>*>span]:!text-muted-foreground [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6"
                     >
@@ -718,9 +745,7 @@ export function ProjectDetailPage({
                           </h3>
 
                           <article
-                            dangerouslySetInnerHTML={{
-                              __html: projectTask?.summary,
-                            }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(projectTask?.summary) }}
                             className="text-xs text-muted-foreground [&>*>span]:!text-muted-foreground"
                           ></article>
                         </div>
@@ -783,9 +808,7 @@ export function ProjectDetailPage({
                                   {task.title}
                                 </h4>
                                 <article
-                                  dangerouslySetInnerHTML={{
-                                    __html: task?.summary,
-                                  }}
+                                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(task?.summary) }}
                                   className="text-xs text-muted-foreground"
                                 ></article>
                                 <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-muted-foreground">

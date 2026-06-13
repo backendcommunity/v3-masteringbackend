@@ -14,7 +14,6 @@ import {
   Users,
   Crown,
   Gift,
-  TrendingUp,
   Sparkles,
   Menu,
   CheckSquare,
@@ -37,7 +36,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { routes } from "@/lib/routes";
 import { useAuth } from "@/store/auth";
 import { useUser } from "@/hooks/use-user";
@@ -243,7 +241,7 @@ export function NavigationBar({
     {
       name: "Python",
       icon: "🐍",
-      color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+      color: "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary",
     },
     {
       name: "Ruby",
@@ -366,7 +364,7 @@ export function NavigationBar({
 
   return (
     <>
-      <nav className="sticky p-1 md:pl-72 top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky md:pl-72 top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border">
         <div className="flex gap-2 h-16 items-center px-4">
           {/* Mobile Menu Button */}
           {isMobile && (
@@ -404,7 +402,7 @@ export function NavigationBar({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
                   <Input
                     type="search"
-                    placeholder="Search courses, roadmaps, projects, bootcamps..."
+                    placeholder="Search courses, projects, bootcamps..."
                     value={exploreSearchQuery}
                     onChange={(e) => setExploreSearchQuery(e.target.value)}
                     onClick={() => !isExploreOpen && setIsExploreOpen(true)}
@@ -491,42 +489,6 @@ export function NavigationBar({
                                         ✓ Enrolled
                                       </Badge>
                                     )}
-                                  </button>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Roadmaps Results */}
-                        {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                          <div className="space-y-3">
-                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                              🛣️ Roadmaps{" "}
-                              <span className="font-normal">
-                                ({exploreSearchResults!.roadmaps.length})
-                              </span>
-                            </h3>
-                            <div className="space-y-2">
-                              {exploreSearchResults!.roadmaps
-                                .slice(0, 3)
-                                .map((roadmap) => (
-                                  <button
-                                    key={roadmap.id}
-                                    className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                    onClick={() => {
-                                      setIsExploreOpen(false);
-                                      setExploreSearchQuery("");
-                                      onNavigate(
-                                        routes.roadmapDetail(roadmap.slug),
-                                      );
-                                    }}
-                                  >
-                                    <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate text-foreground">
-                                        {roadmap.title}
-                                      </p>
-                                    </div>
                                   </button>
                                 ))}
                             </div>
@@ -666,45 +628,6 @@ export function NavigationBar({
                                     ✓ Enrolled
                                   </Badge>
                                 )}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Popular Roadmaps */}
-                    {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                          🛣️ Popular Roadmaps
-                        </h3>
-                        <div className="space-y-2">
-                          {exploreSearchResults!.roadmaps
-                            .slice(0, 4)
-                            .map((roadmap) => (
-                              <button
-                                key={roadmap.id}
-                                className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                onClick={() => {
-                                  analytics.track("search_result_clicked", {
-                                    resultType: "roadmap",
-                                    resultId: roadmap.id,
-                                    resultTitle: roadmap.title,
-                                    query: exploreSearchQuery,
-                                  });
-                                  setIsExploreOpen(false);
-                                  setExploreSearchQuery("");
-                                  onNavigate(
-                                    routes.roadmapDetail(roadmap.slug),
-                                  );
-                                }}
-                              >
-                                <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate text-foreground">
-                                    {roadmap.title}
-                                  </p>
-                                </div>
                               </button>
                             ))}
                         </div>
@@ -918,7 +841,6 @@ export function NavigationBar({
               isMobile ? "justify-end w-full" : "ml-auto gap-4"
             } flex items-center space-x-1`}
           >
-            {!isMobile && <ThemeToggle />}
 
             <Button
               variant="outline"
@@ -983,8 +905,8 @@ export function NavigationBar({
                     {notifications.filter((n: Activity) => !n.isRead).length >
                       0 && (
                       <div>
-                        <div className="sticky top-0 px-4 py-2 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800">
-                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
+                        <div className="sticky top-0 px-4 py-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/30 dark:border-primary/30">
+                          <p className="text-xs font-semibold text-primary dark:text-primary uppercase">
                             🆕 New (
                             {
                               notifications.filter((n: Activity) => !n.isRead)
@@ -1019,7 +941,7 @@ export function NavigationBar({
                                                 "MILESTONE",
                                               )
                                             ? "bg-orange-500 animate-pulse"
-                                            : "bg-blue-500"
+                                            : "bg-primary"
                                   }`}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -1033,7 +955,7 @@ export function NavigationBar({
                                     {format(notification.createdAt)}
                                   </p>
                                 </div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                                <div className="w-3 h-3 bg-primary rounded-full flex-shrink-0 mt-1" />
                               </div>
                             </div>
                           ))}
@@ -1144,10 +1066,6 @@ export function NavigationBar({
                   <Code className="mr-2 h-4 w-4" />
                   <span>My Projects</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.roadmaps)}>
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  <span>Roadmaps</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onNavigate(routes.project30)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   <span>Project30</span>
@@ -1158,10 +1076,6 @@ export function NavigationBar({
                 >
                   <User className="mr-2 h-4 w-4" />
                   <span>My Portfolio</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.community)}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Leaderboard</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (

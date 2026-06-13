@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
 import DOMPurify from "isomorphic-dompurify";
 import {
@@ -192,7 +193,7 @@ export function PathResource({
                 {contentHtml && (
                   <article
                     className={`mt-5 ${PROSE}`}
-                    dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentHtml) }}
                   />
                 )}
 
@@ -201,7 +202,7 @@ export function PathResource({
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] transition hover:brightness-110 sm:w-auto sm:px-7"
+                    className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] transition hover:brightness-110 sm:w-auto sm:px-7"
                   >
                     <ExternalLink className="h-4 w-4" />
                     Open resource
@@ -222,7 +223,7 @@ export function PathResource({
                 variant={done ? "default" : "outline"}
                 className={
                   done
-                    ? "h-11 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
+                    ? "h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
                     : "h-11 gap-1.5 rounded-xl border-border bg-transparent px-7"
                 }
               >

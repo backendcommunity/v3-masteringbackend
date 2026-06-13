@@ -250,9 +250,9 @@ export function CourseQuizPage({
             </CardHeader>
             <CardContent className="space-y-6 dark:text-white">
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-center p-4 bg-primary/5 rounded-lg">
                   <p className="text-sm text-gray-600">Questions</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-primary">
                     {quiz?.questions?.length}
                   </p>
                 </div>

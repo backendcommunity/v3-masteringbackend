@@ -154,7 +154,7 @@ function VoiceAssistantStage() {
             state === "speaking"
               ? "bg-green-500"
               : state === "listening"
-                ? "bg-blue-500"
+                ? "bg-primary"
                 : state === "connecting"
                   ? "bg-yellow-500"
                   : "bg-gray-500",
@@ -195,7 +195,7 @@ function VoiceAssistantStage() {
               state === "speaking"
                 ? "bg-green-500 animate-[audioWave_0.5s_ease-in-out_infinite]"
                 : state === "listening"
-                  ? "bg-blue-500 animate-pulse"
+                  ? "bg-primary animate-pulse"
                   : "bg-primary/30",
             )}
             style={{
@@ -213,6 +213,8 @@ function VoiceAssistantStage() {
 // INTERVIEW STAGE - Main Video/Audio Stage
 // =============================================================================
 function InterviewStage({ className }: { className?: string }) {
+  // Subscribe to the participant list so the stage re-renders when the AI agent
+  // joins/leaves the room (and its camera track becomes available below).
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
   const connectionState = useConnectionState();
@@ -231,7 +233,7 @@ function InterviewStage({ className }: { className?: string }) {
       t.source === Track.Source.Camera,
   );
 
-  // Find remote participant (AI agent)
+  // The remote participant (AI agent) — present once it has joined the room.
   const remoteParticipant = participants.find(
     (p) => p.identity !== localParticipant?.identity,
   );
@@ -267,17 +269,6 @@ function InterviewStage({ className }: { className?: string }) {
         ) : (
           <VoiceAssistantStage />
         )}
-
-        {/* AI Label */}
-        <div className="absolute top-4 left-4 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm font-medium text-white">
-              {remoteParticipant?.identity || "Kap AI"}
-            </span>
-            <Bot className="w-4 h-4 text-primary" />
-          </div>
-        </div>
 
         {/* Connection Status */}
         <div className="absolute top-4 right-4 z-10 hidden md:block">
@@ -341,9 +332,11 @@ function InterviewStage({ className }: { className?: string }) {
 function MediaControls({
   onEndInterview,
   isEnding,
+  compact = false,
 }: {
   onEndInterview: () => void;
   isEnding?: boolean;
+  compact?: boolean;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
@@ -368,9 +361,17 @@ function MediaControls({
     });
   }, [isSpeakerMuted]);
 
+  const btn = compact ? "w-9 h-9 rounded-lg" : "w-12 h-12 rounded-xl";
+  const ic = compact ? "w-[17px] h-[17px]" : "w-5 h-5";
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex items-center justify-center  gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl">
+      <div
+        className={cn(
+          "flex items-center justify-center gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl",
+          compact && "gap-1 p-1.5 rounded-xl shadow-lg",
+        )}
+      >
         {/* Microphone */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -379,16 +380,17 @@ function MediaControls({
               size="icon"
               onClick={toggleMicrophone}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isMicrophoneEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isMicrophoneEnabled ? (
-                <Mic className="w-5 h-5" />
+                <Mic className={ic} />
               ) : (
-                <MicOff className="w-5 h-5" />
+                <MicOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -405,16 +407,17 @@ function MediaControls({
               size="icon"
               onClick={toggleCamera}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isCameraEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isCameraEnabled ? (
-                <Video className="w-5 h-5" />
+                <Video className={ic} />
               ) : (
-                <VideoOff className="w-5 h-5" />
+                <VideoOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -431,16 +434,17 @@ function MediaControls({
               size="icon"
               onClick={toggleSpeaker}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 !isSpeakerMuted
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {!isSpeakerMuted ? (
-                <Volume2 className="w-5 h-5" />
+                <Volume2 className={ic} />
               ) : (
-                <VolumeX className="w-5 h-5" />
+                <VolumeX className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -449,7 +453,7 @@ function MediaControls({
           </TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-8 bg-border/50 mx-1" />
+        <div className={cn("w-px bg-border/50 mx-1", compact ? "h-6" : "h-8")} />
 
         {/* End Interview */}
         <Tooltip>
@@ -459,12 +463,12 @@ function MediaControls({
               size="icon"
               onClick={onEndInterview}
               disabled={isEnding}
-              className="w-12 h-12 rounded-xl shadow-lg shadow-destructive/20"
+              className={cn(btn, "shadow-lg shadow-destructive/20")}
             >
               {isEnding ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -521,6 +525,26 @@ function InterviewRoom({
   const [activePanel, setActivePanel] = useState<"code" | "whiteboard">("code");
   // Locally-injected transcript bubbles for shared code / diagrams.
   const [sharedEntries, setSharedEntries] = useState<TranscriptEntry[]>([]);
+  // Viewport ≥1024px → side-by-side desktop layout; below → stacked mobile
+  // layout with a bottom tab switcher between the interview and the work tools.
+  // Gating on lgUp means the heavy panels mount in exactly one layout.
+  const [lgUp, setLgUp] = useState(true);
+  const [mobileTab, setMobileTab] = useState<"interview" | "workspace">(
+    "interview",
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLgUp(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (lgUp) setMobileTab("interview");
+  }, [lgUp]);
 
   // Best-effort: deliver a chat message to the live Kap agent over LiveKit's
   // text stream (the `lk.chat` topic agents listen on). Falls back to a raw
@@ -599,10 +623,6 @@ function InterviewRoom({
     const allTranscript = transcriptRef.current || [];
     const finalTranscript = allTranscript.filter((t) => t.isFinal);
 
-    console.log("=== END INTERVIEW ===");
-    console.log("Total transcript entries:", allTranscript.length);
-    console.log("Final transcript entries:", allTranscript);
-    console.log("Transcript data:", JSON.stringify(allTranscript, null, 2));
 
     try {
       // End session and submit transcript
@@ -676,6 +696,51 @@ function InterviewRoom({
         : "text-muted-foreground hover:text-foreground hover:bg-background/50",
     );
 
+  const fmtTime = (s: number) => {
+    const safe = Math.max(0, s);
+    const m = Math.floor(safe / 60);
+    const sec = safe % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  // Tab switcher for the work tools — shared by desktop panel + mobile overlay.
+  const workToolsTabs = (
+    <>
+      <button
+        onClick={() => setActivePanel("code")}
+        className={tabBtn(activePanel === "code")}
+      >
+        <Code2 className="w-3.5 h-3.5" />
+        Code Editor
+      </button>
+      <button
+        onClick={() => setActivePanel("whiteboard")}
+        className={tabBtn(activePanel === "whiteboard")}
+      >
+        <PenTool className="w-3.5 h-3.5" />
+        Whiteboard
+      </button>
+    </>
+  );
+
+  // The active work-tool panel — mounted in EXACTLY ONE place at a time
+  // (desktop side panel OR mobile overlay) so we never run two Monaco editors.
+  const activeWorkPanel =
+    activePanel === "code" ? (
+      <CodeEditorPanel
+        onSendToKap={saveCode}
+        disabled={isEnding}
+        savedCode={sessionAny.codeArtifact}
+        savedLanguage={sessionAny.codeLanguage}
+      />
+    ) : (
+      <WhiteboardPanel
+        onSendToKap={saveWhiteboard}
+        disabled={isEnding}
+        savedDiagram={savedDiagram}
+      />
+    );
+
   return (
     <div
       className={`${embedded ? "h-full" : "h-screen"} flex flex-col bg-background`}
@@ -693,98 +758,157 @@ function InterviewRoom({
         />
       )}
 
-      {/* Main content — chat-style split: video + transcript left, code/whiteboard right */}
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="flex-1 min-h-0 overflow-hidden"
-      >
-        {/* Left: focused video (top) + live transcript chat (below) */}
-        <ResizablePanel
-          defaultSize="55"
-          minSize="30"
-          maxSize="75"
-          className="flex flex-col min-h-0"
+      {lgUp ? (
+        /* Desktop: chat-style split — video + transcript left, tools right. */
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
         >
-          <ResizablePanelGroup
-            orientation="vertical"
-            className="mx-auto h-full min-h-0 w-full max-w-[900px]"
+          {/* Left: focused video (top) + live transcript chat (below) */}
+          <ResizablePanel
+            defaultSize="55"
+            minSize="30"
+            maxSize="75"
+            className="flex flex-col min-h-0"
           >
-            {/* Video stage */}
-            <ResizablePanel defaultSize="58" minSize="30" className="min-h-0">
-              <div className="relative h-full min-h-0 p-3 sm:p-4">
-                <InterviewStage className="h-full w-full" />
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-                  <MediaControls
-                    onEndInterview={handleEndInterview}
-                    isEnding={isEnding}
-                  />
-                </div>
-              </div>
-            </ResizablePanel>
-
-            {/* Same look as the video ↔ code/whiteboard divider */}
-            <ResizableHandle orientation="vertical" withHandle />
-
-            {/* Live transcript — scrollable, auto-scrolls, captures for grading */}
-            <ResizablePanel
-              defaultSize="42"
-              minSize="18"
-              className="min-h-0 p-3 pt-0 sm:p-4 sm:pt-0"
+            <ResizablePanelGroup
+              orientation="vertical"
+              className="mx-auto h-full min-h-0 w-full max-w-[900px]"
             >
+              {/* Video stage */}
+              <ResizablePanel defaultSize="58" minSize="30" className="min-h-0">
+                <div className="relative h-full min-h-0 p-3 sm:p-4">
+                  <InterviewStage className="h-full w-full" />
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+                    <MediaControls
+                      onEndInterview={handleEndInterview}
+                      isEnding={isEnding}
+                    />
+                  </div>
+                </div>
+              </ResizablePanel>
+
+              {/* Same look as the video ↔ code/whiteboard divider */}
+              <ResizableHandle orientation="vertical" withHandle />
+
+              {/* Live transcript — scrollable, auto-scrolls, captures for grading */}
+              <ResizablePanel
+                defaultSize="42"
+                minSize="18"
+                className="min-h-0 p-3 pt-0 sm:p-4 sm:pt-0"
+              >
+                <InterviewTranscriptPanel
+                  className="h-full"
+                  transcriptRef={transcriptRef}
+                  injected={sharedEntries}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Right: code editor / whiteboard */}
+          <ResizablePanel
+            defaultSize="45"
+            minSize="25"
+            maxSize="70"
+            className="flex flex-col min-h-0"
+          >
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+              {workToolsTabs}
+            </div>
+            <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        /* Mobile: a bottom tab switcher flips between the interview and the
+           work tools. Both sections stay mounted (toggled with `hidden`) so the
+           editor/whiteboard keep their state across switches; only this mobile
+           branch renders (desktop is gated off), so panels mount exactly once. */
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* INTERVIEW section */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "interview" ? "flex" : "hidden",
+            )}
+          >
+            {/* Video stage + compact controls below it */}
+            <div className="flex-shrink-0 p-3 pb-1.5">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40">
+                <InterviewStage className="h-full w-full" />
+                <span
+                  className="absolute left-3 top-3 z-20 rounded-lg bg-black/55 px-2 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur"
+                  aria-label="Time remaining"
+                >
+                  {fmtTime(timeRemaining)}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-shrink-0 justify-center">
+                <MediaControls
+                  compact
+                  onEndInterview={handleEndInterview}
+                  isEnding={isEnding}
+                />
+              </div>
+            </div>
+            {/* Transcript fills the remaining space */}
+            <div className="min-h-0 flex-1 px-3 pb-2">
               <InterviewTranscriptPanel
                 className="h-full"
                 transcriptRef={transcriptRef}
                 injected={sharedEntries}
               />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </ResizablePanel>
-
-        {/* Resize handle (desktop only) */}
-        <ResizableHandle withHandle className="hidden lg:flex" />
-
-        {/* Right: code editor / whiteboard (desktop only) */}
-        <ResizablePanel
-          defaultSize="45"
-          minSize="25"
-          maxSize="70"
-          className="hidden lg:flex flex-col min-h-0"
-        >
-          <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
-            <button
-              onClick={() => setActivePanel("code")}
-              className={tabBtn(activePanel === "code")}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              Code Editor
-            </button>
-            <button
-              onClick={() => setActivePanel("whiteboard")}
-              className={tabBtn(activePanel === "whiteboard")}
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              Whiteboard
-            </button>
+            </div>
           </div>
 
-          <div className="flex-1 min-h-0">
-            {activePanel === "code" ? (
-              <CodeEditorPanel
-                onSendToKap={saveCode}
-                disabled={isEnding}
-                savedCode={sessionAny.codeArtifact}
-                savedLanguage={sessionAny.codeLanguage}
-              />
-            ) : (
-              <WhiteboardPanel
-                onSendToKap={saveWhiteboard}
-                disabled={isEnding}
-                savedDiagram={savedDiagram}
-              />
+          {/* WORKSPACE section (code editor / whiteboard) */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "workspace" ? "flex" : "hidden",
             )}
+          >
+            <div className="flex flex-shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-3 py-2">
+              {workToolsTabs}
+            </div>
+            <div className="min-h-0 flex-1">{activeWorkPanel}</div>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+
+          {/* Bottom tab switcher */}
+          <div className="flex flex-shrink-0 gap-1 border-t border-border bg-card p-1.5">
+            <button
+              type="button"
+              aria-selected={mobileTab === "interview"}
+              onClick={() => setMobileTab("interview")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "interview"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Video className="h-[18px] w-[18px]" />
+              Interview
+            </button>
+            <button
+              type="button"
+              aria-selected={mobileTab === "workspace"}
+              onClick={() => setMobileTab("workspace")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "workspace"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Code2 className="h-[18px] w-[18px]" />
+              Workspace
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CRITICAL: RoomAudioRenderer handles all remote audio playback */}
       <RoomAudioRenderer />

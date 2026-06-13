@@ -1,9 +1,13 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Search,
+  Code2,
+  X,
+  Trophy,
+  DownloadCloud,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,348 +15,446 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Code2,
-  Clock,
-  Search,
-  Play,
-  CheckCircle2,
-  Trophy,
-  DownloadCloud,
-  BarChart2,
-} from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useEffect, useState } from "react";
-import { Meta, Project, StarterKitItem } from "@/lib/data";
-import { useDebounce } from "@/hooks/use-debounce";
-import { Loader } from "../ui/loader";
+import { useUser } from "@/hooks/use-user";
+import { startItem } from "@/lib/start-flow";
+import { analytics } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/loader";
+import { Pager } from "@/components/ui/pager";
+import { Project, StarterKitItem } from "@/lib/data";
 import { FreeStarterSection } from "@/components/free-starter-section";
-import { getTagIcon } from "@/lib/tag-icons";
+import { JourneyGlyph } from "@/components/journey-glyph";
+import { ProjectCard, ProjectCardData } from "@/components/pages/projects/project-card";
 
 interface ProjectsPageProps {
   onNavigate: (path: string) => void;
 }
 
+type ProjectTab = "all" | "in_progress" | "completed" | "saved";
+
+interface ProjectItem extends ProjectCardData {
+  /** raw project for any downstream needs */
+  raw: Project;
+}
+
+const TABS: { value: ProjectTab; label: string }[] = [
+  { value: "all", label: "All projects" },
+  { value: "in_progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+  { value: "saved", label: "Saved" },
+];
+
+const PAGE_SIZE = 12;
+
+const canonLevel = (raw?: string): string => {
+  const l = (raw || "").toLowerCase();
+  if (l.startsWith("beg")) return "Beginner";
+  if (l.startsWith("adv")) return "Advanced";
+  if (l.startsWith("inter")) return "Intermediate";
+  return raw || "Intermediate";
+};
+
 export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
   const store = useAppStore();
-  const [projects, setProjects] = useState<Project[]>();
-  const [meta, setMeta] = useState<Meta>();
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedLevel, setSelectedLevel] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 500);
-  const [loading, setLoading] = useState(false);
+  const user = useUser();
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [freeStarters, setFreeStarters] = useState<StarterKitItem[]>([]);
+  const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
+  const [savingSlug, setSavingSlug] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [tab, setTab] = useState<ProjectTab>("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [result, bookmarksRes] = await Promise.all([
+          store.getProjects({ page: 200, size: 0, filters: {} }),
+          store.getBookmarks(200, 0).catch(() => ({ bookmarks: [] })),
+        ]);
 
-    async function load() {
-      if (
-        selectedStatus.includes("all") &&
-        selectedLevel.includes("all")
-        //&& !debouncedSearch.trim()
-      )
-        return;
+        const rawProjects: Project[] = result?.projects ?? [];
+        const merged: ProjectItem[] = rawProjects.map((p) => {
+          const completed = !!p.userProject?.completed;
+          return {
+            raw: p,
+            id: p.id,
+            slug: p.slug,
+            title: p.title,
+            description: p.summary ?? p.description,
+            level: canonLevel(p.level),
+            category: p.technologies?.[0] ?? null,
+            tasks: p.totalTasks ?? 0,
+            duration: p.timeframe ?? p.duration ?? "Self-paced",
+            enrolled: !!p.userProject,
+            completed,
+            progress: completed ? 100 : (p.progress ?? 0),
+          };
+        });
 
-      setLoading(true);
-      const projects = await store.getProjects({
-        page: 20,
-        size: 0,
-        filters: {
-          terms: debouncedSearch,
-          level: selectedLevel,
-          category: selectedStatus,
-        },
-      });
+        setProjects(merged);
+        setFreeStarters((result as any)?.freeStarters ?? []);
 
-      if (!cancelled) {
-        setProjects(projects.projects);
-        setMeta(projects.meta);
+        const saved = new Set<string>(
+          (bookmarksRes?.bookmarks ?? [])
+            .filter((b: any) => b?.project?.slug)
+            .map((b: any) => b.project.slug as string),
+        );
+        setSavedSlugs(saved);
+
+        analytics.page("Projects", { projects: merged.length });
+      } catch (error) {
+        console.error("Failed to load projects:", error);
+        setProjects([]);
+      } finally {
         setLoading(false);
       }
-    }
+    };
 
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearch, selectedLevel, selectedStatus, store]);
-
+  // Reset to first page whenever filters change
   useEffect(() => {
-    let cancelled = false;
+    setPage(1);
+  }, [search, levelFilter, categoryFilter, tab]);
 
-    async function load() {
-      setLoading(true);
-      const projects = await store.getProjects({
-        page: 20,
-        size: 0,
-        filters: {},
-      });
-      if (!cancelled) {
-        setProjects(projects.projects);
-        setMeta(projects.meta);
-        setFreeStarters((projects as any).freeStarters ?? []);
-        setLoading(false);
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => p.category && set.add(p.category));
+    return Array.from(set).sort();
+  }, [projects]);
+
+  const counts = useMemo(
+    () => ({
+      all: projects.length,
+      in_progress: projects.filter((p) => p.enrolled && !p.completed).length,
+      completed: projects.filter((p) => p.completed).length,
+      saved: projects.filter((p) => savedSlugs.has(p.slug)).length,
+    }),
+    [projects, savedSlugs],
+  );
+
+  const filteredProjects = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return projects.filter((p) => {
+      const matchesSearch =
+        !q ||
+        p.title?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q);
+      const matchesLevel =
+        levelFilter === "all" ||
+        p.level.toLowerCase() === levelFilter.toLowerCase();
+      const matchesCategory = !categoryFilter || p.category === categoryFilter;
+      const matchesTab =
+        tab === "all" ||
+        (tab === "in_progress" && p.enrolled && !p.completed) ||
+        (tab === "completed" && p.completed) ||
+        (tab === "saved" && savedSlugs.has(p.slug));
+      return matchesSearch && matchesLevel && matchesCategory && matchesTab;
+    });
+  }, [projects, search, levelFilter, categoryFilter, tab, savedSlugs]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const hasActiveFilters =
+    !!search || levelFilter !== "all" || !!categoryFilter || tab !== "all";
+
+  const showFreeStarters =
+    freeStarters.length > 0 &&
+    tab === "all" &&
+    !search &&
+    !categoryFilter &&
+    levelFilter === "all";
+
+  const goToProject = (p: ProjectItem) => {
+    analytics.track("project_card_clicked", {
+      slug: p.slug,
+      enrolled: p.enrolled,
+      level: p.level,
+    });
+    // free → detail; pro/enterprise → enroll + first task; enrolled → resume.
+    startItem({
+      type: "project",
+      slug: p.slug,
+      id: p.id,
+      enrolled: p.enrolled,
+      completed: p.completed,
+      isPremiumUser: !!user?.isPremium,
+      store,
+      onNavigate,
+    });
+  };
+
+  const toggleSave = async (p: ProjectItem) => {
+    if (savingSlug) return;
+    const isSaved = savedSlugs.has(p.slug);
+    setSavingSlug(p.slug);
+    // optimistic
+    setSavedSlugs((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(p.slug);
+      else next.add(p.slug);
+      return next;
+    });
+    try {
+      if (isSaved) {
+        await store.deleteBookmark({ projectId: p.id });
+      } else {
+        await store.createBookmark({
+          type: "PROJECT",
+          bookmarkType: "BOOKMARK",
+          projectId: p.id,
+        });
       }
+      analytics.track("project_bookmark_toggled", {
+        slug: p.slug,
+        saved: !isSaved,
+      });
+    } catch (e) {
+      // revert on failure
+      setSavedSlugs((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(p.slug);
+        else next.delete(p.slug);
+        return next;
+      });
+    } finally {
+      setSavingSlug(null);
     }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [store]);
+  };
 
   if (loading) return <Loader isLoader={false} />;
 
   return (
-    <div className="flex-1 space-y-4 md:space-y-6 relative">
-      {/* <WIP /> */}
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            MB Projects
-          </h1>
-          <p className="text-muted-foreground text-sm md:text-base">
-            Build real-world projects to strengthen your backend development
-            skills
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            className="w-full md:w-auto"
-            variant={"outline"}
-            onClick={() => onNavigate("/projects/leaderboard")}
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Global Leaderboard
-          </Button>
-
-          <Button
-            className="w-full md:w-auto"
-            onClick={() => onNavigate("/projects/submissions")}
-          >
-            <DownloadCloud className="mr-2 h-4 w-4" />
-            My Submissions
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Total Projects
-            </CardTitle>
-            <Code2 className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-bold">{meta?.total}</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Completed
-            </CardTitle>
-            <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-bold">
-              {projects?.filter((p) => p?.userProject?.completed)?.length}
-            </div>
-            <p className="text-xs text-muted-foreground">67% completion rate</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              In Progress
-            </CardTitle>
-            <Play className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-bold">
-              {
-                projects?.filter(
-                  (p) => p?.userProject && !p?.userProject?.completed,
-                )?.length
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">Active projects</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">
-              Avg. Time
-            </CardTitle>
-            <Clock className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-bold">2.5w</div>
-            <p className="text-xs text-muted-foreground">Per project</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects..."
-            className="pl-8"
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* ── Blueprint hero (navy anchor · build pillar) ── */}
+      <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+          <JourneyGlyph
+            stage="build"
+            className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
           />
-        </div>
-        <div className="flex gap-2 sm:gap-3">
-          <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-            <SelectTrigger className="w-full sm:w-[120px] md:w-[180px]">
-              <SelectValue placeholder="Level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              <SelectItem value="beginners">Beginners</SelectItem>
-              <SelectItem value="intermediate">Intermediate</SelectItem>
-              <SelectItem value="advance">Advance</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-full sm:w-[120px] md:w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="not-started">Not Started</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="max-w-2xl">
+            <div className="eyebrow-mono text-[#4AC5E8]">build</div>
+            <h1 className="text-2xl font-bold mt-1.5">Projects</h1>
+            <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+              Build real-world backend projects — ship working code against a
+              live sandbox and grow a portfolio that proves you can do the job.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => onNavigate("/projects/submissions")}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+              >
+                <DownloadCloud className="w-4 h-4" />
+                My Submissions
+              </button>
+              <button
+                onClick={() => onNavigate("/projects/leaderboard")}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 text-white font-semibold px-5 py-2.5 text-sm hover:bg-white/10 transition"
+              >
+                <Trophy className="w-4 h-4" />
+                Global Leaderboard
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Free Starter Section */}
-      {freeStarters.length > 0 && (
-        <>
-          <FreeStarterSection items={freeStarters} type="project" />
-          <div className="relative flex items-center gap-4">
-            <div className="flex-1 border-t" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-              All Projects
-            </span>
-            <div className="flex-1 border-t" />
+      {/* ── Content ── */}
+      <div>
+        {/* Filter row */}
+        <div className="flex gap-3 items-center flex-wrap mb-6">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search projects…"
+              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
           </div>
-        </>
-      )}
 
-      {/* Projects Grid */}
-      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {projects?.map((project) => (
-          <Card
-            key={project.slug}
-            className="overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => onNavigate(`/projects/${project.slug}`)}
-          >
-            <CardHeader className="p-4 pb-3 flex-1 space-y-3">
-              {/* Type label */}
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Project
-              </p>
-
-              {/* Title */}
-              <CardTitle className="text-base font-bold line-clamp-2 leading-snug">
-                {project.title}
-              </CardTitle>
-
-              {/* Level */}
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <BarChart2 className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="capitalize">
-                  {project.level ?? "All levels"}
-                </span>
-              </div>
-
-              {/* Description */}
-              <p
-                className="text-sm text-muted-foreground line-clamp-3"
-                dangerouslySetInnerHTML={{
-                  __html: project.summary ?? project.description,
-                }}
-              />
-
-              {/* Progress if enrolled */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {(project as any).industries?.[0] ?? "Backend"}
-                </span>
-                {project.userProject && (
-                  <span className="text-xs text-muted-foreground">
-                    {project.userProject.completed
-                      ? "Completed"
-                      : "In Progress"}
-                  </span>
-                )}
-              </div>
-
-              {/* First technology tag */}
-              {project.technologies?.length > 0 && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] uppercase tracking-wide w-fit"
-                >
-                  {project.technologies[0]}
-                </Badge>
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => {
+                if (t.value !== tab) {
+                  analytics.track("project_tab_changed", {
+                    tab: t.value,
+                    from: tab,
+                  });
+                }
+                setTab(t.value);
+              }}
+              className={cn(
+                "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors",
+                tab === t.value
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground",
               )}
-            </CardHeader>
+            >
+              {t.label} <span className="opacity-70">{counts[t.value]}</span>
+            </button>
+          ))}
 
-            {/* Footer */}
-            <CardContent className="p-4 pt-3 border-t">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground flex-shrink-0">
-                    {(() => {
-                      const Icon = getTagIcon(project.technologies);
-                      return <Icon className="h-4 w-4 text-background" />;
-                    })()}
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {project.timeframe ?? project.duration}
-                  </span>
-                </div>
-                {project.userProject ? (
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate(`/projects/${project.slug}/tasks`);
-                    }}
-                  >
-                    Continue
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate(`/projects/${project.slug}`);
-                    }}
-                  >
-                    Start
-                  </Button>
+          <div className="ml-auto">
+            <Select
+              value={levelFilter}
+              onValueChange={(v) => {
+                setLevelFilter(v);
+                analytics.track("project_filter_applied", {
+                  filter_type: "level",
+                  value: v,
+                });
+              }}
+            >
+              <SelectTrigger className="w-[140px] rounded-xl">
+                <SelectValue placeholder="All levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All levels</SelectItem>
+                <SelectItem value="Beginner">Beginner</SelectItem>
+                <SelectItem value="Intermediate">Intermediate</SelectItem>
+                <SelectItem value="Advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Category pills */}
+        {(tab === "all" || tab === "saved") && categories.length > 0 && (
+          <div className="flex flex-wrap gap-2 py-2 mb-4">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  const next = categoryFilter === cat ? "" : cat;
+                  setCategoryFilter(next);
+                  analytics.track("project_filter_applied", {
+                    filter_type: "category",
+                    value: next || "all",
+                  });
+                }}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap",
+                  categoryFilter === cat
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Free starter kits — only on the unfiltered "all" view */}
+        {showFreeStarters && (
+          <div className="mb-6 space-y-6">
+            <FreeStarterSection items={freeStarters} type="project" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex-1 border-t" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                All Projects
+              </span>
+              <div className="flex-1 border-t" />
+            </div>
+          </div>
+        )}
+
+        {/* Grid / empty states */}
+        {projects.length === 0 ? (
+          <EmptyState
+            icon={<Code2 className="h-12 w-12 text-muted-foreground mb-4" />}
+            title="No Projects Available"
+            subtitle="Check back soon! We're constantly adding new projects to help you build your portfolio."
+          />
+        ) : filteredProjects.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-12 w-12 text-muted-foreground mb-4" />}
+            title="No projects match your filters"
+            subtitle="Try adjusting your search or filters to find what you're looking for."
+            action={
+              hasActiveFilters ? (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setLevelFilter("all");
+                    setCategoryFilter("");
+                    setTab("all");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-primary/30 hover:text-primary transition-colors"
+                >
+                  <X className="h-4 w-4" /> Clear filters
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedProjects.map((p) => (
+                <ProjectCard
+                  key={p.slug}
+                  project={p}
+                  isSaved={savedSlugs.has(p.slug)}
+                  isSaving={savingSlug === p.slug}
+                  onToggleSave={() => toggleSave(p)}
+                  onSelect={() => goToProject(p)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <Pager
+                hasPrev={currentPage > 1}
+                hasNext={currentPage < totalPages}
+                onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex flex-col items-center justify-center py-12 px-6">
+        {icon}
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-muted-foreground text-center max-w-md mb-4">
+          {subtitle}
+        </p>
+        {action}
       </div>
     </div>
   );

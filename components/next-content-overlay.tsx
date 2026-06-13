@@ -52,7 +52,7 @@ export function NextContentOverlay({
   const getIcon = () => {
     switch (nextItem?.type?.toLowerCase()) {
       case "video":
-        return <Play className="w-12 h-12 text-blue-500" />;
+        return <Play className="w-12 h-12 text-primary" />;
       case "quiz":
         return <CheckCircle2 className="w-12 h-12 text-orange-500" />;
       case "exercise":
@@ -60,7 +60,7 @@ export function NextContentOverlay({
       case "article":
         return <BookOpen className="w-12 h-12 text-purple-500" />;
       default:
-        return <Play className="w-12 h-12 text-blue-500" />;
+        return <Play className="w-12 h-12 text-primary" />;
     }
   };
 

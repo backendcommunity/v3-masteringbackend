@@ -252,7 +252,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
           <Button
             onClick={save}
             disabled={saving}
-            className="h-9 gap-1.5 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
+            className="h-9 gap-1.5 bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -480,7 +480,7 @@ function BlockCard({
           <textarea
             value={row.html ?? ""}
             onChange={(e) => onUpdate({ html: e.target.value })}
-            placeholder="<h2>Section heading</h2>\n<p>Write HTML here…</p>"
+            placeholder={"## Section heading\n\nWrite **Markdown** here… (HTML also works)"}
             rows={6}
             className="w-full resize-y rounded-lg border border-border bg-background p-3 font-mono text-[13px] outline-none focus:border-primary"
           />

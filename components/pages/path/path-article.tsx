@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import DOMPurify from "isomorphic-dompurify";
+import { marked } from "marked";
 import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
@@ -32,6 +34,16 @@ interface ArticleItem {
   cover?: string;
   image?: string;
   blocks?: ArticleBlock[];
+}
+
+// Article prose (both the `content` fallback and each html block) is authored
+// as Markdown — optionally with embedded HTML. Render it to HTML the same way
+// everywhere: GitHub-flavored Markdown → sanitize → PROSE styles. marked passes
+// raw HTML through, so legacy HTML-only articles keep rendering unchanged.
+marked.setOptions({ gfm: true, breaks: true });
+function mdToHtml(raw: string): string {
+  if (!raw) return "";
+  return DOMPurify.sanitize(marked.parse(raw, { async: false }) as string);
 }
 
 // Strip tags to estimate reading time and to fall back to a description.
@@ -65,10 +77,11 @@ export const PROSE = [
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:font-mono [&_pre_code]:text-slate-200",
   // blockquote → callout
   "[&_blockquote]:my-5 [&_blockquote]:rounded-r-lg [&_blockquote]:border-l-[3px] [&_blockquote]:border-primary [&_blockquote]:bg-primary/[0.06] [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-foreground/80 [&_blockquote_p]:my-1",
-  // media + rules + tables
-  "[&_img]:my-6 [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-[0_8px_30px_-16px_rgba(0,0,0,0.4)]",
+  // media + rules + tables — keep wide media inside the column on mobile
+  "[&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl [&_img]:border [&_img]:border-border [&_img]:shadow-[0_8px_30px_-16px_rgba(0,0,0,0.4)]",
+  "[&_iframe]:my-6 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:max-w-full [&_iframe]:rounded-xl [&_iframe]:border [&_iframe]:border-border",
   "[&_hr]:my-9 [&_hr]:border-border",
-  "[&_table]:my-5 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm",
+  "[&_table]:my-5 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_table]:text-sm",
   "[&_th]:border [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold",
   "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2",
 ].join(" ");
@@ -114,9 +127,7 @@ export function PathArticle({
   }, [step.id, itemData]);
 
   const rawHtml = item?.content ?? item?.body ?? item?.summary ?? "";
-  const html = useMemo(() => (rawHtml ? DOMPurify.sanitize(rawHtml) : ""), [
-    rawHtml,
-  ]);
+  const html = useMemo(() => mdToHtml(rawHtml), [rawHtml]);
 
   const blocks = item?.blocks;
   const blocksText = useMemo(
@@ -203,9 +214,7 @@ export function PathArticle({
                     <article
                       key={i}
                       className={PROSE}
-                      dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(b.html),
-                      }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(mdToHtml(b.html)) }}
                     />
                   );
                 })}
@@ -213,7 +222,7 @@ export function PathArticle({
             ) : html ? (
               <article
                 className={`mt-8 ${PROSE}`}
-                dangerouslySetInnerHTML={{ __html: html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
               />
             ) : (
               <p className="mt-8 text-[15px] text-muted-foreground">
@@ -232,7 +241,7 @@ export function PathArticle({
               </p>
               <Button
                 onClick={() => onComplete(step.id, { done: true })}
-                className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] px-7 text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+                className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
               >
                 {done ? (
                   <>

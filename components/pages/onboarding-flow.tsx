@@ -126,7 +126,7 @@ export function OnboardingFlow() {
               <div
                 className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3"
                 style={{
-                  borderColor: "#13AECE",
+                  borderColor: "hsl(var(--primary))",
                   borderTopColor: "transparent",
                 }}
               />

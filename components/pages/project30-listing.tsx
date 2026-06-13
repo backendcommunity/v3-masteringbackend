@@ -1,17 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -19,629 +8,260 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  PlayCircle,
-  Clock,
-  Star,
-  Search,
-  Filter,
-  BookOpen,
-  Code2,
-  Database,
-  Globe,
-  Smartphone,
-  Brain,
-  ChevronRight,
-  Calendar,
-  Trophy,
-  Crown,
-} from "lucide-react";
+import { Pager } from "@/components/ui/pager";
+import { JourneyGlyph } from "@/components/journey-glyph";
+import { Project30Card } from "@/components/pages/project30/project30-card";
 import { useAppStore } from "@/lib/store";
-import { Meta, Project30, UserProject30 } from "@/lib/data";
-import { formatDate } from "@/lib/utils";
-import { useDebounce } from "@/hooks/use-debounce";
+import { Project30, UserProject30 } from "@/lib/data";
 import { Loader } from "../ui/loader";
+import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 
 interface Project30ListingPageProps {
   onNavigate: (path: string) => void;
+}
+
+const PAGE_SIZE = 9;
+
+const CATEGORIES = [
+  "Backend",
+  "Full-Stack",
+  "Mobile",
+  "DevOps",
+  "AI/ML",
+] as const;
+
+const TABS = [
+  { value: "all", label: "All" },
+  { value: "my", label: "My" },
+  { value: "popular", label: "Popular" },
+  { value: "new", label: "New" },
+] as const;
+
+/** Map a UserProject30 (my-list shape) onto the Project30 shape the card needs. */
+function toEnrolledProject30(up: UserProject30): Project30 {
+  return {
+    ...(up.offer as Project30),
+    isEnrolled: true,
+    progress: up.progress ?? 0,
+  };
+}
+
+function categoryName(project30: Project30): string {
+  return typeof project30.category === "string"
+    ? project30.category
+    : project30.category?.name ?? "";
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex flex-col items-center justify-center py-12 px-6">
+        <Search className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">
+          No challenges match your filters
+        </h3>
+        <p className="text-muted-foreground text-center max-w-md">
+          Try adjusting your search or filters to find what you&apos;re looking
+          for.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function Project30ListingPage({
   onNavigate,
 }: Project30ListingPageProps) {
   const store = useAppStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedLevel, setSelectedLevel] = useState("all");
-  const [loading, setLoading] = useState(false);
+
+  const [tab, setTab] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [level, setLevel] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [page, setPage] = useState(0);
+
   const [offers, setOffers] = useState<Project30[]>([]);
-  const [enrolledCourses, setEnrolledCourses] = useState<UserProject30[]>();
-  const [meta, setMeta] = useState<Meta>();
-  const [activeTab, setActiveTab] = useState("all-courses");
-  const debouncedSearch = useDebounce(searchQuery, 500);
+  const [enrolled, setEnrolled] = useState<UserProject30[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  async function loadProject30s() {
-    try {
-      setLoading(true);
-      const data = await store.getProject30s();
-      setOffers(data?.offers);
-      setMeta(data?.meta);
-      setLoading(false);
-    } catch (error) {
-      setLoading(false);
-    }
-  }
+  const handleNavigate = (slug: string) => onNavigate(`/project30/${slug}`);
 
+  // ── Load all/popular/new source (getProject30s) ──
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
-      if (
-        selectedCategory.includes("all") &&
-        !debouncedSearch &&
-        selectedLevel.includes("all")
-      ) {
-        await loadProject30s();
-        return;
-      }
-
-      const data = await store.getProject30s({
-        filters: {
-          category: selectedCategory,
-          terms: debouncedSearch,
-          level: selectedLevel,
-        },
-      });
-      if (!cancelled) {
-        setOffers(data?.offers);
-        setMeta(data?.meta);
+      setLoading(true);
+      try {
+        const data = await store.getProject30s();
+        if (!cancelled) setOffers(data?.offers ?? []);
+      } catch {
+        if (!cancelled) setOffers([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
-
     load();
-
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearch, selectedCategory, selectedLevel, store]);
+  }, [store]);
 
+  // ── Load my list (loadMyProject30s) when My tab active ──
   useEffect(() => {
+    if (tab !== "my") return;
     let cancelled = false;
-
-    if (activeTab.includes("my-courses")) {
-      const load = async () => {
+    async function load() {
+      try {
         const data = await store.loadMyProject30s();
-        if (!cancelled) {
-          setEnrolledCourses(data?.data);
-        }
-      };
-      load();
+        if (!cancelled) setEnrolled(data ?? []);
+      } catch {
+        if (!cancelled) setEnrolled([]);
+      }
     }
-
+    load();
     return () => {
       cancelled = true;
     };
-  }, [activeTab, store]);
+  }, [tab, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  // Reset page whenever a filter or tab changes
+  useEffect(() => {
+    setPage(0);
+  }, [tab, search, level, category]);
 
-  const categories = [
-    { value: "all", label: "All Categories", icon: BookOpen },
-    { value: "Backend", label: "Backend", icon: Database },
-    { value: "Full-Stack", label: "Full-Stack", icon: Globe },
-    { value: "Mobile", label: "Mobile", icon: Smartphone },
-    { value: "DevOps", label: "DevOps", icon: Code2 },
-    { value: "AI/ML", label: "AI/ML", icon: Brain },
-  ];
+  // ── Derive the active list per tab, then apply client-side filters ──
+  const baseList: Project30[] = useMemo(() => {
+    if (tab === "my") return enrolled.map(toEnrolledProject30);
+    if (tab === "popular")
+      return [...offers].sort((a, b) => (b.students ?? 0) - (a.students ?? 0));
+    // "new" keeps API order (no date field on the list shape); "all" = API order
+    return offers;
+  }, [tab, offers, enrolled]);
 
-  const levels = [
-    { value: "all", label: "All Levels" },
-    { value: "Beginner", label: "Beginner" },
-    { value: "Intermediate", label: "Intermediate" },
-    { value: "Advanced", label: "Advanced" },
-  ];
+  const filteredList = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return baseList.filter((p) => {
+      const matchesSearch =
+        !term ||
+        p.title?.toLowerCase().includes(term) ||
+        p.description?.toLowerCase().includes(term);
+      const matchesLevel = level === "all" || p.level === level;
+      const matchesCategory =
+        category === "all" || categoryName(p) === category;
+      return matchesSearch && matchesLevel && matchesCategory;
+    });
+  }, [baseList, search, level, category]);
 
-  // Filter courses based on search and filters
-  const filteredCourses = offers.filter((course) => {
-    const matchesSearch =
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course?.instructor?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || course.category === selectedCategory;
-    const matchesLevel =
-      selectedLevel === "all" || course.level === selectedLevel;
-
-    return matchesSearch && matchesCategory && matchesLevel;
-  });
-
-  // const enrolledCourses = offers.filter((course) => course.isEnrolled);
-
-  const getCategoryIcon = (category: string) => {
-    const categoryData = categories.find((cat) => cat.value === category);
-    return categoryData ? categoryData.icon : BookOpen;
-  };
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case "Beginner":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Advanced":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
+  const pagedList = filteredList.slice(
+    page * PAGE_SIZE,
+    page * PAGE_SIZE + PAGE_SIZE,
+  );
 
   return (
-    <div className="flex-1 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Project30 Courses
-          </h1>
-          <p className="text-muted-foreground">
-            Choose from our collection of 30-day project-based courses to master
-            backend development
-          </p>
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* ── Build hero (navy anchor · build pillar) ── */}
+      <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
+          <JourneyGlyph
+            stage="build"
+            className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+          />
+          <div className="max-w-2xl">
+            <div className="eyebrow-mono text-[#4AC5E8]">build</div>
+            <h1 className="text-2xl font-bold mt-1.5">Project30</h1>
+            <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+              Build real-world backend projects in focused 30-day challenges.
+            </p>
+          </div>
         </div>
-        {/* <div className="flex gap-2">
-          <Button variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-          </Button>
-        </div> */}
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search courses, instructors, or technologies..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+      {/* ── Filter row (mirrors courses) ── */}
+      <div className="flex gap-3 items-center flex-wrap">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search challenges…"
+            className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category.value} value={category.value}>
-                <div className="flex items-center gap-2">
-                  <category.icon className="h-4 w-4" />
-                  {category.label}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-          <SelectTrigger className="w-full md:w-32">
-            <SelectValue placeholder="Level" />
-          </SelectTrigger>
-          <SelectContent>
-            {levels.map((level) => (
-              <SelectItem key={level.value} value={level.value}>
-                {level.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={
+              tab === t.value
+                ? "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors bg-primary text-primary-foreground"
+                : "rounded-xl px-3.5 py-2 text-sm font-medium transition-colors border border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Select value={level} onValueChange={setLevel}>
+            <SelectTrigger className="w-[130px] rounded-xl">
+              <SelectValue placeholder="Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All levels</SelectItem>
+              <SelectItem value="Beginner">Beginner</SelectItem>
+              <SelectItem value="Intermediate">Intermediate</SelectItem>
+              <SelectItem value="Advanced">Advanced</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <Tabs
-        defaultValue="all-courses"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4"
-      >
-        <TabsList>
-          <TabsTrigger value="all-courses">
-            All Courses ({filteredCourses?.length ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="my-courses">
-            My Courses ({enrolledCourses?.length ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="popular">Popular</TabsTrigger>
-          <TabsTrigger value="new">New Releases</TabsTrigger>
-        </TabsList>
+      {/* ── Category pills (All tab only) ── */}
+      {tab === "all" && (
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(category === cat ? "all" : cat)}
+              className={
+                category === cat
+                  ? "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-primary bg-primary/10 text-primary font-medium"
+                  : "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              }
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
-        <TabsContent value="all-courses" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredCourses?.map((course) => {
-              const CategoryIcon = getCategoryIcon(course.category?.name);
-              return (
-                <Card
-                  key={course.id}
-                  className="group hover:shadow-lg transition-all duration-200 cursor-pointer"
-                >
-                  <div className="relative">
-                    <img
-                      src={course.banner || "/placeholder.svg"}
-                      alt={course.title}
-                      className="w-full h-48 object-cover rounded-t-lg"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-t-lg flex items-center justify-center">
-                      <PlayCircle className="h-12 w-12 text-white" />
-                    </div>
-                    <div className="absolute top-3 left-3">
-                      <Badge className={getLevelColor(course?.level)}>
-                        {course?.level}
-                      </Badge>
-                    </div>
-                    <div className="absolute top-3 right-3">
-                      <Badge
-                        variant="secondary"
-                        className={` text-white border-none ${
-                          course?.userProject30?.isCompleted
-                            ? "bg-green-500"
-                            : "bg-black/70"
-                        }`}
-                      >
-                        {course?.userProject30?.isCompleted
-                          ? "Completed"
-                          : `$${course.amount}`}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {course?.category?.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {course.isPremium && (
-                          <Badge
-                            variant="outline"
-                            className="bg-green-100 text-green-800 border-green-200 text-xs"
-                          >
-                            <Crown className="mr-1 h-3 w-3" />
-                            Included in Pro
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <CardTitle className="text-lg leading-tight">
-                      {course.title}
-                    </CardTitle>
-                    <CardDescription
-                      dangerouslySetInnerHTML={{ __html: course.description }}
-                      className="line-clamp-2"
-                    ></CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {course.totalDuration}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <PlayCircle className="h-4 w-4" />
-                        {course.totalContents} videos
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={"/placeholder.svg"}
-                        alt={course.instructor?.banner}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {course?.instructor?.name ?? "Masteringbackend"}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {course?.technologies!?.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="outline" className="text-xs">
-                          {tech}
-                        </Badge>
-                      ))}
-                      {course?.technologies!?.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{course?.technologies!?.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-
-                    {course.isEnrolled ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{course.progress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={` h-2 rounded-full ${
-                              course?.userProject30?.isCompleted
-                                ? "bg-green-500/70"
-                                : "bg-[#F2C94C]"
-                            }`}
-                            style={{ width: `${course.progress}%` }}
-                          ></div>
-                        </div>
-                        <Button
-                          className="w-full"
-                          onClick={() =>
-                            onNavigate(`/project30/${course.slug}`)
-                          }
-                        >
-                          {course?.userProject30?.isCompleted
-                            ? "Review Learning"
-                            : "Continue Learning"}
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        className="w-full"
-                        onClick={() => onNavigate(`/project30/${course.slug}`)}
-                      >
-                        View Course
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+      {/* ── Grid ── */}
+      {loading ? (
+        <Loader isLoader={false} />
+      ) : filteredList.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {pagedList.map((p) => (
+              <Project30Card
+                key={p.id}
+                project30={p}
+                onNavigate={handleNavigate}
+              />
+            ))}
           </div>
-        </TabsContent>
-
-        <TabsContent value="my-courses" className="space-y-4">
-          {enrolledCourses?.length! > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {enrolledCourses?.map((course) => {
-                const CategoryIcon = getCategoryIcon(
-                  course?.offer?.category?.name
-                );
-
-                return (
-                  <Card
-                    key={course?.offer?.id}
-                    className="group hover:shadow-lg transition-all duration-200"
-                  >
-                    <div className="relative">
-                      <img
-                        src={course?.offer?.banner || "/placeholder.svg"}
-                        alt={course?.offer?.title}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <Badge className="bg-green-100 text-green-800 border-green-200">
-                          {course?.isCompleted ? "Completed" : "Enrolled"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {course?.offer?.category?.name}
-                        </span>
-                      </div>
-                      <CardTitle className="text-lg leading-tight">
-                        {course?.offer?.title}
-                      </CardTitle>
-                      <CardDescription>
-                        Last accessed: {formatDate(course?.updatedAt + "")}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{course.progress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={` h-2 rounded-full ${
-                              course?.isCompleted
-                                ? "bg-green-500"
-                                : "bg-[#F2C94C]"
-                            }`}
-                            style={{ width: `${course.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      <Button
-                        className={`w-full`}
-                        onClick={() =>
-                          onNavigate(`/project30/${course?.offer?.slug}`)
-                        }
-                      >
-                        {course?.isCompleted
-                          ? "Review Learning"
-                          : "Continue Learning"}
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  No enrolled courses
-                </h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Start your learning journey by enrolling in a Project30 course
-                </p>
-                <Button onClick={() => setSelectedCategory("all")}>
-                  Browse All Courses
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="popular" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {offers
-              .sort((a, b) => b.students - a.students)
-              .slice(0, 6)
-              .map((course) => {
-                const CategoryIcon = getCategoryIcon(course.category?.name);
-
-                return (
-                  <Card
-                    key={course.id}
-                    className="group hover:shadow-lg transition-all duration-200"
-                  >
-                    <div className="relative">
-                      <img
-                        src={course.banner || "/placeholder.svg"}
-                        alt={course.title}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                          <Trophy className="h-3 w-3 mr-1" />
-                          Popular
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {course.category?.name}
-                          </span>
-                        </div>
-                        {/* <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">
-                            {course.rating}
-                          </span>
-                        </div> */}
-                      </div>
-                      <CardTitle className="text-lg leading-tight">
-                        {course.title}
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {course.description}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {course.totalDuration}
-                        </div>
-                      </div>
-
-                      <Button
-                        className="w-full"
-                        onClick={() => onNavigate(`/project30/${course.slug}`)}
-                      >
-                        View Course
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="new" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {offers
-              .slice(-3)
-              .reverse()
-              .map((course) => {
-                const CategoryIcon = getCategoryIcon(course.category?.name);
-
-                return (
-                  <Card
-                    key={course.id}
-                    className="group hover:shadow-lg transition-all duration-200"
-                  >
-                    <div className="relative">
-                      <img
-                        src={course.banner || "/placeholder.svg"}
-                        alt={course.title}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                          New
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {course.category?.name}
-                          </span>
-                        </div>
-                        {/* <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">
-                            {course.rating}
-                          </span>
-                        </div> */}
-                      </div>
-                      <CardTitle className="text-lg leading-tight">
-                        {course.title}
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {course.description}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          Just released
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {course.totalDuration}
-                        </div>
-                      </div>
-
-                      <Button
-                        className="w-full"
-                        onClick={() => onNavigate(`/project30/${course.slug}`)}
-                      >
-                        View Course
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
-        </TabsContent>
-      </Tabs>
+          <Pager
+            hasPrev={page > 0}
+            hasNext={(page + 1) * PAGE_SIZE < filteredList.length}
+            onPrev={() => setPage((p) => p - 1)}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </>
+      )}
     </div>
   );
 }

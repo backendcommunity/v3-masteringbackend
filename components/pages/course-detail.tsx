@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -17,13 +18,8 @@ import {
   Play,
   CheckCircle2,
   Clock,
-  Star,
   BookOpen,
-  Award,
-  Share,
-  Heart,
   Lock,
-  ArrowLeft,
   Brain,
   Code,
   Gamepad2,
@@ -138,10 +134,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     toast.success("You have successfully enrolled");
   };
 
-  const handleBackToCourses = () => {
-    onNavigate(routes.courses);
-  };
-
   const handleEnrollNow = async () => {
     try {
       analytics.track("course_enroll_clicked", {
@@ -233,68 +225,112 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
   if (loading) return <Loader isLoader={false} />;
 
-  return (
-    <div className="flex-1 space-y-6">
-      {/* Course Header */}
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <Button variant="outline" onClick={handleBackToCourses}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Courses
-        </Button>
+  const courseLevel = course?.level || "Beginner";
+  const totalVideos =
+    course?.chapters?.reduce(
+      (sum: number, ch: any) => sum + (ch.videos?.length || 0),
+      0,
+    ) ?? 0;
+  const courseProgress = course?.progress ?? 0;
 
-        <div className="flex items-center gap-2">
-          {course?.category && (
-            <Badge variant="outline">{course?.category?.name}</Badge>
-          )}
-          <Badge variant="outline">{course?.totalDuration ?? 0} hours</Badge>
+  return (
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">course</div>
+            <h1 className="text-3xl font-bold mt-1.5">{course?.title}</h1>
+
+            <div className="mt-4">
+              {course?.enrolled ? (
+                <button
+                  onClick={handleContinueLearning}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" /> Continue Course
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    disabled={enrolling}
+                    onClick={handleEnrollNow}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    {enrolling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    {enrolling ? "Enrolling…" : "Start Learning"}
+                  </button>
+                  <span className="text-sm text-white/[.65]">
+                    {!course?.isPremium || user?.isPremium ? (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-white">Pro</span>
+                      </>
+                    ) : (
+                      <span className="font-semibold text-white">
+                        {course?.amount
+                          ? `$${course.amount}`
+                          : "Premium membership required"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+                {courseLevel}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="w-4 h-4 opacity-70" />
+                {course?.totalDuration ?? 0} hours
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 opacity-70" />
+                {course?.chapters?.length ?? 0} chapters
+              </span>
+              {totalVideos > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Play className="w-4 h-4 opacity-70" />
+                  {totalVideos} videos
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — the hero earns its keep (enrolled only) */}
+        {course?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              course completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${courseProgress}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">{courseProgress}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={
-                course?.level === "Advanced"
-                  ? "destructive"
-                  : course?.level === "Intermediate"
-                    ? "default"
-                    : "secondary"
-              }
-            >
-              {course?.level}
-            </Badge>
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm">{course?.rating ?? 4.5}</span>
-            </div>
-          </div>
-
-          <h1 className="text-3xl font-bold tracking-tight">{course?.title}</h1>
-
           {/* Short Description */}
-
           <article
-            className="text-lg text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: course?.summary!,
-            }}
+            className="text-lg text-muted-foreground [&>*>span]:!text-foreground [&>p]:text-foreground dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(course?.summary!) }}
           ></article>
-
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {course?.totalDuration} hours
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              {course?.chapters.length} chapters
-            </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-4 w-4" />
-              Certificate included
-            </div>
-          </div>
 
           <div className="flex flex-wrap gap-2">
             {course?.tags?.map((tag) => (
@@ -305,7 +341,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           </div>
 
           {/* Expandable Long Description */}
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Course Overview
@@ -334,7 +370,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   ?.split("\n\n")
                   .map((paragraph: string, index: number) => (
                     <article
-                      dangerouslySetInnerHTML={{ __html: paragraph }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(paragraph) }}
                       key={index}
                       className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
                     >
@@ -356,7 +392,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
           {/* Course Features Section */}
           {/* {course?.enrolled && ( */}
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Course Features</CardTitle>
               <CardDescription>
@@ -413,7 +449,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
         <div className="space-y-6">
           {/* Course Enrollment Card */}
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <div className="aspect-video bg-muted rounded-lg overflow-hidden">
                 <img
@@ -441,7 +477,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   {course?.isPremium && !user?.isPremium && (
                     <Badge
                       variant="outline"
-                      className="bg-green-100 text-green-800 border-green-200 text-xs"
+                      className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 text-xs"
                     >
                       <Crown className="mr-1 h-3 w-3" />
                       Included in Pro
@@ -491,23 +527,25 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
           {/* Certification Card */}
           <Card
-            className={`${
+            className={`rounded-2xl ${
               canEarnCertificate
-                ? "border-green-200 bg-green-50/50"
-                : "border-orange-200 bg-orange-50/50"
+                ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                : ""
             }`}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    canEarnCertificate ? "bg-green-100" : "bg-orange-100"
+                    canEarnCertificate
+                      ? "bg-emerald-100 dark:bg-emerald-950/40"
+                      : "bg-primary/10"
                   }`}
                 >
                   {canEarnCertificate ? (
-                    <Trophy className="h-6 w-6 text-green-600" />
+                    <Trophy className="h-6 w-6 text-emerald-600" />
                   ) : (
-                    <Certificate className="h-6 w-6 text-orange-600" />
+                    <Certificate className="h-6 w-6 text-primary" />
                   )}
                 </div>
                 <div>
@@ -556,7 +594,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
               {canEarnCertificate ? (
                 <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => onNavigate(routes.courseCertificate(slug))}
                 >
                   <Certificate className="mr-2 h-4 w-4" />
@@ -596,7 +634,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </TabsList>
 
         <TabsContent value="curriculum" className="space-y-4">
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Course Curriculum</CardTitle>
               <CardDescription>
@@ -610,7 +648,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   return (
                     <div
                       key={chapter.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50 ${
+                      className={`flex items-center justify-between p-3 rounded-xl border border-border cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-colors ${
                         currentChapter?.id === chapter.id ? "bg-muted" : ""
                       }`}
                       onClick={() => handleChapterClick(chapter, index)}
@@ -618,7 +656,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                           {isChapterCompleted(chapter.id) ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                           ) : course?.enrolled || !chapter.isPremium ? (
                             <span className="text-sm font-medium">
                               {index + 1}
@@ -634,10 +672,10 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                               variant="outline"
                               className={`text-xs ${
                                 !chapter.isPremium
-                                  ? "border-green-600 text-green-600"
+                                  ? "border-emerald-600 text-emerald-600"
                                   : course?.enrolled
-                                    ? "border-blue-600 text-blue-600"
-                                    : "border-orange-600 text-orange-600"
+                                    ? "border-primary text-primary"
+                                    : "border-amber-600 text-amber-600"
                               }`}
                             >
                               {!chapter.isPremium
@@ -654,7 +692,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                             {chapter?.quizzes?.length! > 0 && (
                               <Badge
                                 variant="outline"
-                                className="text-xs border-purple-600 text-purple-600"
+                                className="text-xs border-border text-muted-foreground"
                               >
                                 QUIZ
                               </Badge>
@@ -662,7 +700,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                             {chapter.exercise && (
                               <Badge
                                 variant="outline"
-                                className="text-xs border-blue-600 text-blue-600"
+                                className="text-xs border-border text-muted-foreground"
                               >
                                 EXERCISE
                               </Badge>
@@ -670,7 +708,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                             {chapter.playground && (
                               <Badge
                                 variant="outline"
-                                className="text-xs border-green-600 text-green-600"
+                                className="text-xs border-border text-muted-foreground"
                               >
                                 PLAYGROUND
                               </Badge>
@@ -692,7 +730,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                         }}
                       >
                         {isChapterCompleted(chapter.id) ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                         ) : course?.enrolled || !chapter.isPremium ? (
                           <Play className="h-4 w-4" />
                         ) : (
@@ -708,7 +746,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </TabsContent>
 
         <TabsContent value="instructor">
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>About the Instructor</CardTitle>
             </CardHeader>
@@ -740,7 +778,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </TabsContent>
 
         <TabsContent value="reviews">
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Student Reviews</CardTitle>
             </CardHeader>

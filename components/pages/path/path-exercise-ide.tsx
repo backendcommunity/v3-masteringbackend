@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
@@ -98,7 +99,12 @@ export function PathExerciseIde({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 1023px)");
-    const update = () => setNarrow(mq.matches);
+    const update = () => {
+      setNarrow(mq.matches);
+      // On narrow screens give the editor the room: start with the
+      // instructions collapsed (the learner can reopen them any time).
+      setCollapsed(mq.matches);
+    };
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
@@ -321,7 +327,7 @@ export function PathExerciseIde({
           <Button
             onClick={submit}
             disabled={submitting}
-            className="h-9 bg-gradient-to-br from-[#13AECE] to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
+            className="h-9 bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
           >
             {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Submit Answer
@@ -435,7 +441,7 @@ export function PathExerciseIde({
             {instructionsHtml ? (
               <div
                 className="text-[13px] leading-relaxed text-foreground [&_li]:ml-4 [&_li]:list-disc [&_li]:py-0.5 [&_ol]:space-y-1 [&_ul]:space-y-1 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]"
-                dangerouslySetInnerHTML={{ __html: instructionsHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructionsHtml) }}
               />
             ) : (
               <p className="text-[13px] text-muted-foreground">
@@ -450,9 +456,7 @@ export function PathExerciseIde({
             {showHint ? (
               <div
                 className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(hintHtml),
-                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(DOMPurify.sanitize(hintHtml),) }}
               />
             ) : (
               <Button

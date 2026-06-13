@@ -60,7 +60,6 @@ export function InterviewTranscriptPanel({
 
   // Process transcriptions
   useEffect(() => {
-    console.log(transcriptions, "Transcriptions received in Transcript Panel");
 
     if (!transcriptions || transcriptions.length === 0) return;
 

@@ -23,6 +23,9 @@ export interface PathSessionStep {
   url?: string | null;
   maxPoints: number;
   optional: boolean;
+  // MOCK_INTERVIEW only: per-link modality (chat | audio | video) chosen when the
+  // interview was assigned to the topic. Drives which interview UI runs.
+  interviewFormat?: string | null;
   status: PathStepStatus;
   recommended: boolean;
   earnedPoints: number;
@@ -83,4 +86,38 @@ export interface PathSessionDelta {
     earnedPoints: number;
     certEligible: boolean;
   };
+  celebrations: CelebrationEvent[];
 }
+
+export type CelebrationEvent =
+  | { kind: "stepUnlocked"; nextTitle?: string | null }
+  | { kind: "percent"; bracket: 25 | 50 | 75 | 100 }
+  | { kind: "topicCompleted"; title: string }
+  | { kind: "achievement"; id: string; title: string; icon?: string | null; rarity?: string | null }
+  | { kind: "levelUp"; oldLevel: number; newLevel: number }
+  | { kind: "certUnlocked" };
+
+export interface PathCertificateRemaining {
+  type: PathStepType;
+  title: string;
+}
+
+export type PathCertificate =
+  | {
+      unlocked: false;
+      masteryPct: number;
+      earnedPoints: number;
+      certThreshold: number;
+      pointsToGo: number;
+      remaining: PathCertificateRemaining[];
+    }
+  | {
+      unlocked: true;
+      recipientName: string;
+      pathTitle: string;
+      finalScore: number;
+      issuedAt: string;
+      certId: string;
+      shareUrl: string;
+      stats: { points: number; itemsCompleted: number; totalItems: number };
+    };

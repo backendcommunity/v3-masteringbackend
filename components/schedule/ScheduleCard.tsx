@@ -74,9 +74,11 @@ export function ScheduleCard({ schedule, onChanged }: ScheduleCardProps) {
       };
     }
     if (schedule.roadmap?.roadmap) {
+      // Standalone Roadmaps UI has been removed; show the title without a link
+      // into the deleted /roadmaps route.
       return {
         title: schedule.roadmap.roadmap.title,
-        url: routes.roadmapDetail(schedule.roadmap.roadmap.slug),
+        url: routes.dashboard,
         label: "Roadmap",
       };
     }

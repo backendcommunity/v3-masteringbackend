@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Pager } from "@/components/ui/pager";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,8 +38,6 @@ import {
   Sparkles,
   Layout,
   Play,
-  ChevronLeft,
-  ChevronRight,
   Search,
   Loader2,
   Crown,
@@ -50,6 +49,7 @@ import {
 import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
+import { JourneyGlyph } from "@/components/journey-glyph";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -135,7 +135,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [completedInterviews, setCompletedInterviews] = useState<
     UserInterview[]
   >([]);
-  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("templates");
 
@@ -224,7 +223,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   // Load stats, booked, completed interviews, and access on initial mount
   useEffect(() => {
-    loadStats();
     loadBookedInterviews();
     loadCompletedInterviews();
     loadInterviewAccess();
@@ -274,9 +272,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       // Send filters as an object
       params.filters = filterObj;
 
-      console.log("Fetching templates with params:", params);
       const data = await store.getMockInterviewTemplates(params);
-      console.log("Templates API Response:", data);
 
       // Handle both response structures
       if (data?.interviews) {
@@ -325,15 +321,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       toast.error("Failed to load completed interviews");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const data = await store.getUserInterviewStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load stats");
     }
   };
 
@@ -502,7 +489,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
         // Reload templates and stats
         await loadTemplates();
-        await loadStats();
 
         // Stay on templates tab to show the new template
         setActiveTab("templates");
@@ -674,152 +660,86 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* ── Sticky Header ──────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 border-b bg-background">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Mock Interviews
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {(
-                {
-                  Backend:
-                    "Practice with Kap AI · Land your next backend engineering role",
-                  DevOps:
-                    "Practice with Kap AI · Nail your next DevOps interview",
-                  Cybersecurity:
-                    "Practice with Kap AI · Sharpen your security engineering edge",
-                  Fullstack:
-                    "Practice with Kap AI · Stand out as a fullstack engineer",
-                } as Record<string, string>
-              )[filters.category] ??
-                "Practice with Kap AI · Ace your next engineering interview"}
-            </p>
-            {/* Stats row */}
-            {stats && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {stats.averageScore ?? 0}%
-                  </span>{" "}
-                  avg score
-                </span>
-                <span className="text-muted-foreground/40 text-xs">·</span>
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {stats.practicedHours ?? 0}h
-                  </span>{" "}
-                  practiced
-                </span>
-                {stats.bestScore != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {stats.bestScore}%
-                      </span>{" "}
-                      best
-                    </span>
-                  </>
-                )}
-                {stats.passRate != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          stats.passRate >= 70
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-amber-600 dark:text-amber-400",
-                        )}
-                      >
-                        {stats.passRate}%
-                      </span>{" "}
-                      pass rate
-                    </span>
-                  </>
-                )}
-                {stats.scoreImprovement != null && (
-                  <>
-                    <span className="text-muted-foreground/40 text-xs">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          stats.scoreImprovement >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-500",
-                        )}
-                      >
-                        {stats.scoreImprovement >= 0 ? "+" : ""}
-                        {stats.scoreImprovement}%
-                      </span>{" "}
-                      improvement
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-            {/* Session access badge */}
-            {interviewAccess &&
-              (interviewAccess.tier === "free" ||
-                interviewAccess.tier === "pro") && (
-                <Badge
-                  variant={
-                    interviewAccess.remainingSessions === 0
-                      ? "destructive"
-                      : "secondary"
-                  }
-                  className="text-xs mt-1.5"
-                >
-                  {interviewAccess.tier === "free"
-                    ? interviewAccess.remainingSessions === 0
-                      ? "Free trial used"
-                      : "1 free trial interview available"
-                    : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
-                </Badge>
-              )}
-            {/* {interviewAccess?.tier === "enterprise" && (
-              <Badge variant="secondary" className="mt-1.5 text-xs">
-                <Crown className="h-3 w-3 mr-1" />
-                Enterprise — Unlimited sessions
-              </Badge>
-            )} */}
-          </div>
+    <div className="min-h-screen">
+      {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
+      <div className="max-w-7xl mx-auto px-6 pt-6">
+        <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+          <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+            <div className="hero-grid absolute inset-0" aria-hidden="true" />
+            <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
+              <JourneyGlyph
+                stage="grow"
+                className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+              />
+              <div className="max-w-2xl">
+                <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
+                <h1 className="text-2xl font-bold mt-1.5">Mock Interviews</h1>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+                  {(
+                    {
+                      Backend: "Land your next backend engineering role",
+                      DevOps: "Nail your next DevOps interview",
+                      Cybersecurity: "Sharpen your security engineering edge",
+                      Fullstack: "Stand out as a fullstack engineer",
+                    } as Record<string, string>
+                  )[filters.category] ??
+                    "Rehearse real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
+                </p>
 
-          {/* Right: Practice for a real job CTA */}
-          {interviewAccess?.tier === "free" ? (
-            <Button
-              variant="outline"
-              className="shrink-0 gap-2 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
-              onClick={() => {
-                analytics.track("mock_interview_upgrade_cta_clicked", {
-                  from: "practice_cta_header",
-                  tier: "free",
-                });
-                onNavigate("/subscription/plans");
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Practice for a real job
-            </Button>
-          ) : (
-            <Button
-              className="shrink-0 gap-2"
-              onClick={() => {
-                analytics.track("mock_interview_practice_for_job_clicked", {
-                  tier: interviewAccess?.tier ?? "pro",
-                });
-                onNavigate("/mock-interviews/prepare");
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Practice for a real job
-            </Button>
-          )}
+                <div className="mt-4">
+                  {interviewAccess?.tier === "free" ? (
+                    <button
+                      onClick={() => {
+                        analytics.track("mock_interview_upgrade_cta_clicked", {
+                          from: "practice_cta_header",
+                          tier: "free",
+                        });
+                        onNavigate("/subscription/plans");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        analytics.track(
+                          "mock_interview_practice_for_job_clicked",
+                          { tier: interviewAccess?.tier ?? "pro" },
+                        );
+                        onNavigate("/mock-interviews/prepare");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
+                  )}
+                </div>
+
+                {/* Session access */}
+                {interviewAccess &&
+                  (interviewAccess.tier === "free" ||
+                    interviewAccess.tier === "pro") && (
+                    <p
+                      className={cn(
+                        "text-xs mt-2",
+                        interviewAccess.remainingSessions === 0
+                          ? "text-red-300"
+                          : "text-white/[.55]",
+                      )}
+                    >
+                      {interviewAccess.tier === "free"
+                        ? interviewAccess.remainingSessions === 0
+                          ? "Free trial used"
+                          : "1 free trial interview available"
+                        : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
+                    </p>
+                  )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -855,10 +775,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {/* ── Filter row ───────────────────────────────────────────────────── */}
         <div className="flex gap-3 items-center flex-wrap mb-6">
           {/* Search input */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
-              className="pl-9 pr-4 py-2 w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="Search templates…"
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
@@ -1039,42 +959,22 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
                     {/* Pagination — templates tab */}
                     {activeTab === "templates" && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {pagination.skip + 1}–
-                          {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
-                          of {totalTemplates} templates
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={pagination.skip === 0}>
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasMore}>
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={pagination.skip > 0}
+                        hasNext={hasMore}
+                        onPrev={handlePrevPage}
+                        onNext={handleNextPage}
+                      />
                     )}
 
                     {/* Pagination — saved tab */}
                     {activeTab === "saved" && savedTotal > PAGE_SIZE && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {savedPage * PAGE_SIZE + 1}–{Math.min((savedPage + 1) * PAGE_SIZE, savedTotal)} of {savedTotal} saved
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p - 1)} disabled={savedPage === 0}>
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => setSavedPage((p) => p + 1)} disabled={(savedPage + 1) * PAGE_SIZE >= savedTotal}>
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={savedPage > 0}
+                        hasNext={(savedPage + 1) * PAGE_SIZE < savedTotal}
+                        onPrev={() => setSavedPage((p) => p - 1)}
+                        onNext={() => setSavedPage((p) => p + 1)}
+                      />
                     )}
                   </>
                 )}
@@ -1180,21 +1080,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             )}
             {bookedTotal > PAGE_SIZE && bookedInterviews.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
-                  Showing {bookedPage * PAGE_SIZE + 1}–{Math.min((bookedPage + 1) * PAGE_SIZE, bookedTotal)} of {bookedTotal} booked
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p - 1)} disabled={bookedPage === 0}>
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setBookedPage((p) => p + 1)} disabled={(bookedPage + 1) * PAGE_SIZE >= bookedTotal}>
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Pager
+                hasPrev={bookedPage > 0}
+                hasNext={(bookedPage + 1) * PAGE_SIZE < bookedTotal}
+                onPrev={() => setBookedPage((p) => p - 1)}
+                onNext={() => setBookedPage((p) => p + 1)}
+              />
             )}
           </>
         )}
@@ -1273,21 +1164,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </div>
             )}
             {completedTotal > PAGE_SIZE && completedInterviews.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
-                  Showing {completedPage * PAGE_SIZE + 1}–{Math.min((completedPage + 1) * PAGE_SIZE, completedTotal)} of {completedTotal} completed
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p - 1)} disabled={completedPage === 0}>
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCompletedPage((p) => p + 1)} disabled={(completedPage + 1) * PAGE_SIZE >= completedTotal}>
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Pager
+                hasPrev={completedPage > 0}
+                hasNext={(completedPage + 1) * PAGE_SIZE < completedTotal}
+                onPrev={() => setCompletedPage((p) => p - 1)}
+                onNext={() => setCompletedPage((p) => p + 1)}
+              />
             )}
           </>
         )}
@@ -1346,37 +1228,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </div>
 
                     {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
-                      <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-muted-foreground">
-                          Showing {myTemplatesPage * MY_TEMPLATES_PAGE_SIZE + 1}
-                          –
-                          {Math.min(
-                            (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
-                            myTemplates.length,
-                          )}{" "}
-                          of {myTemplates.length} templates
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMyTemplatesPage((p) => p - 1)}
-                            disabled={myTemplatesPage === 0}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMyTemplatesPage((p) => p + 1)}
-                            disabled={myTemplatesPage >= totalPages - 1}
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <Pager
+                        hasPrev={myTemplatesPage > 0}
+                        hasNext={myTemplatesPage < totalPages - 1}
+                        onPrev={() => setMyTemplatesPage((p) => p - 1)}
+                        onNext={() => setMyTemplatesPage((p) => p + 1)}
+                      />
                     )}
                   </>
                 );

@@ -63,7 +63,7 @@ function getLevelColor(level: string) {
     case "Advanced":
       return "border-[#9B59B6]/40 text-[#9B59B6] bg-[#9B59B6]/10";
     case "Intermediate":
-      return "border-[#13AECE]/40 text-[#13AECE] bg-[#13AECE]/10";
+      return "border-primary/40 text-primary bg-primary/10";
     default:
       return "border-[#27AE60]/40 text-[#27AE60] bg-[#27AE60]/10";
   }
@@ -165,7 +165,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
                 </h4>
               </a>
               {project.isVerified && (
-                <CheckCircle2 className="h-3.5 w-3.5 text-[#13AECE] shrink-0" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
               )}
               {project.featured && (
                 <Badge className="bg-[#F2C94C]/15 text-[#F2C94C] border-[#F2C94C]/30 hover:bg-[#F2C94C]/20 text-[9px] px-1.5 py-0 gap-0.5">
