@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, Route, X, ChevronLeft, ChevronRight, Flag } from "lucide-react";
+import { Search, Route, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,13 +28,6 @@ interface PathItem extends PathCardData {
   roadmapId: string;
 }
 
-interface OverviewStats {
-  totalPaths: number;
-  totalLearners: number;
-  totalContentHours: number;
-  certificatesIssued: number;
-}
-
 const TABS: { value: PathTab; label: string }[] = [
   { value: "all", label: "All paths" },
   { value: "in_progress", label: "In progress" },
@@ -44,15 +37,9 @@ const TABS: { value: PathTab; label: string }[] = [
 
 const PAGE_SIZE = 12;
 
-function compactNumber(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `${n}`;
-}
-
 export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const store = useAppStore();
   const [paths, setPaths] = useState<PathItem[]>([]);
-  const [stats, setStats] = useState<OverviewStats | null>(null);
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,9 +53,8 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     const load = async () => {
       try {
         setLoading(true);
-        const [result, overview, bookmarksRes] = await Promise.all([
+        const [result, bookmarksRes] = await Promise.all([
           store.getRoadmaps({ skip: 0, size: 50 }),
-          store.getPathsOverview().catch(() => null),
           store.getBookmarks(50, 0).catch(() => ({ bookmarks: [] })),
         ]);
 
@@ -104,8 +90,6 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
         });
 
         setPaths(merged);
-        if (overview?.stats) setStats(overview.stats);
-
         const saved = new Set<string>(
           (bookmarksRes?.bookmarks ?? [])
             .filter((b: any) => b?.roadmap?.slug)
@@ -256,62 +240,11 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
-            <div className="flex items-center gap-3 flex-wrap mt-1.5">
-              <h1 className="text-2xl font-bold">Learning Paths</h1>
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#13AECE]/[.18] text-[#4AC5E8]">
-                <Flag className="w-3.5 h-3.5" /> Mastery-gated
-              </span>
-            </div>
+            <h1 className="text-2xl font-bold mt-1.5">Learning Paths</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Structured, mentor-designed journeys — go from fundamentals to
               job-ready, one mastered milestone at a time.
             </p>
-            {stats && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3.5 text-sm text-white/[.65]">
-                <span>
-                  <span className="font-semibold text-white">
-                    {stats.totalPaths}
-                  </span>{" "}
-                  paths
-                </span>
-                <span className="opacity-40 text-xs">·</span>
-                <span>
-                  <span className="font-semibold text-white">
-                    {compactNumber(stats.totalLearners)}
-                  </span>{" "}
-                  learners
-                </span>
-                <span className="opacity-40 text-xs">·</span>
-                <span>
-                  <span className="font-semibold text-white">
-                    {stats.totalContentHours}h
-                  </span>{" "}
-                  of content
-                </span>
-                {stats.certificatesIssued > 0 && (
-                  <>
-                    <span className="opacity-40 text-xs">·</span>
-                    <span>
-                      <span className="font-semibold text-emerald-400">
-                        {compactNumber(stats.certificatesIssued)}
-                      </span>{" "}
-                      certificates earned
-                    </span>
-                  </>
-                )}
-                {counts.in_progress > 0 && (
-                  <>
-                    <span className="opacity-40 text-xs">·</span>
-                    <span>
-                      <span className="font-semibold text-white">
-                        {counts.in_progress}
-                      </span>{" "}
-                      active
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

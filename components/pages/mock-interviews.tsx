@@ -136,7 +136,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [completedInterviews, setCompletedInterviews] = useState<
     UserInterview[]
   >([]);
-  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("templates");
 
@@ -225,7 +224,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   // Load stats, booked, completed interviews, and access on initial mount
   useEffect(() => {
-    loadStats();
     loadBookedInterviews();
     loadCompletedInterviews();
     loadInterviewAccess();
@@ -326,15 +324,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       toast.error("Failed to load completed interviews");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const data = await store.getUserInterviewStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load stats");
     }
   };
 
@@ -503,7 +492,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
         // Reload templates and stats
         await loadTemplates();
-        await loadStats();
 
         // Stay on templates tab to show the new template
         setActiveTab("templates");
@@ -688,12 +676,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               />
               <div className="max-w-2xl">
                 <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
-                <div className="flex items-center gap-3 flex-wrap mt-1.5">
-                  <h1 className="text-2xl font-bold">Mock Interviews</h1>
-                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#13AECE]/[.18] text-[#4AC5E8]">
-                    <Sparkles className="w-3.5 h-3.5" /> Practice with Kap AI
-                  </span>
-                </div>
+                <h1 className="text-2xl font-bold mt-1.5">Mock Interviews</h1>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
                   {(
                     {
@@ -737,73 +720,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </button>
                   )}
                 </div>
-
-                {/* Personal stats — the hero earns its keep */}
-                {stats && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3.5 text-sm text-white/[.65]">
-                    <span>
-                      <span className="font-semibold text-white">
-                        {stats.averageScore ?? 0}%
-                      </span>{" "}
-                      avg score
-                    </span>
-                    <span className="opacity-40 text-xs">·</span>
-                    <span>
-                      <span className="font-semibold text-white">
-                        {stats.practicedHours ?? 0}h
-                      </span>{" "}
-                      practiced
-                    </span>
-                    {stats.bestScore != null && (
-                      <>
-                        <span className="opacity-40 text-xs">·</span>
-                        <span>
-                          <span className="font-semibold text-emerald-400">
-                            {stats.bestScore}%
-                          </span>{" "}
-                          best
-                        </span>
-                      </>
-                    )}
-                    {stats.passRate != null && (
-                      <>
-                        <span className="opacity-40 text-xs">·</span>
-                        <span>
-                          <span
-                            className={cn(
-                              "font-semibold",
-                              stats.passRate >= 70
-                                ? "text-emerald-400"
-                                : "text-amber-300",
-                            )}
-                          >
-                            {stats.passRate}%
-                          </span>{" "}
-                          pass rate
-                        </span>
-                      </>
-                    )}
-                    {stats.scoreImprovement != null && (
-                      <>
-                        <span className="opacity-40 text-xs">·</span>
-                        <span>
-                          <span
-                            className={cn(
-                              "font-semibold",
-                              stats.scoreImprovement >= 0
-                                ? "text-emerald-400"
-                                : "text-red-400",
-                            )}
-                          >
-                            {stats.scoreImprovement >= 0 ? "+" : ""}
-                            {stats.scoreImprovement}%
-                          </span>{" "}
-                          improvement
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
 
                 {/* Session access */}
                 {interviewAccess &&

@@ -178,7 +178,6 @@ interface AppState {
   getMyTemplates: () => any;
   deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
-  getUserInterviewStats: () => any;
   getInterviewAccess: () => any;
   getInterviewSession: (id: string) => any;
   createInterviewRoom: (sessionId: string, withAgent?: boolean) => any;
@@ -206,14 +205,6 @@ interface AppState {
   ) => Promise<any>;
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
-  getPathsOverview: () => Promise<{
-    stats: {
-      totalPaths: number;
-      totalLearners: number;
-      totalContentHours: number;
-      certificatesIssued: number;
-    };
-  }>;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
   getQuiz: (id: string) => Quiz | any;
   getRoadmapBySlug: (slug: string) => any;
@@ -900,10 +891,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     return data?.data;
   },
-  getPathsOverview: async () => {
-    const { data } = await api.get(`/roadmaps/overview`);
-    return data?.data;
-  },
   getUserRoadmaps: async ({ filters, size, skip }: UserRoadmapFilters) => {
     const { data } = await api.get(
       `/users/roadmaps?skip=${skip}&size=${size}&filters=${filters}`,
@@ -956,10 +943,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getUserInterviewStats: async () => {
-    const { data } = await api.get("/mock-interviews/user/stats");
-    return data?.data;
-  },
 
   getMyTemplates: async () => {
     const { data } = await api.get("/mock-interviews/my-templates");
