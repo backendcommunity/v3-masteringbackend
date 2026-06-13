@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   AlertCircle,
-  BarChart2,
   LogOut,
   MessageSquareOff,
   RotateCcw,
@@ -64,7 +63,10 @@ export function ChatPanel({
   }, [messages.length, isStreaming, resultsData]);
 
   const userMessages = messages.filter((m) => m.role === "user");
-  const totalQuestions = session.template.questions || 10;
+  // Must match the backend's completion count (chat-engine: template.questions || 5).
+  // A different fallback here showed e.g. "5 / 10" then completed at 5 — the
+  // "confusing question count before result" bug.
+  const totalQuestions = session.template.questions || 5;
 
   // Show typing indicator when AI placeholder message has no content yet
   const lastMsg = messages.at(-1);
@@ -220,25 +222,31 @@ export function ChatPanel({
                     Try again
                   </Button>
                 </div>
+              ) : insufficientAnswers ? (
+                <div className="flex flex-col items-center gap-3 p-5 rounded-xl border border-border bg-muted/30 text-center">
+                  <MessageSquareOff className="w-6 h-6 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Interview ended
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Not enough responses to generate a report.
+                    </p>
+                  </div>
+                </div>
               ) : (
+                // Results auto-generate on completion (chat-interview-room);
+                // no manual button — just reflect that generation is underway.
                 <div className="flex flex-col items-center gap-3 p-5 rounded-xl border border-primary/20 bg-primary/5 text-center">
-                  <BarChart2 className="w-6 h-6 text-primary" />
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
                   <div>
                     <p className="text-sm font-semibold text-foreground">
                       Interview Complete!
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Your performance report is ready to generate.
+                      Generating your performance report…
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => { analytics.track("chat_interview_get_results_clicked"); onGetResults(); }}
-                    disabled={isLoadingResults}
-                    className="h-8 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    Get your Result
-                  </Button>
                 </div>
               )}
             </div>
