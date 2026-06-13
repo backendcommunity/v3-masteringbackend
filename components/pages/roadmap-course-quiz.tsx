@@ -179,7 +179,7 @@ export function RoadmapCourseQuiz({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onNavigate(routes.roadmapDetail(roadmapId))}
+                    onClick={() => onNavigate(routes.pathDetail(roadmapId))}
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to Roadmap
@@ -279,7 +279,7 @@ export function RoadmapCourseQuiz({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onNavigate(routes.roadmapDetail(roadmapId))}
+                    onClick={() => onNavigate(routes.pathDetail(roadmapId))}
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to Roadmap

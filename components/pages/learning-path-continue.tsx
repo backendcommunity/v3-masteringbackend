@@ -405,7 +405,7 @@ export function LearningPathContinuePage({
               switch (item.type) {
                 case "course":
                   onNavigate?.(
-                    routes.roadmapCoursePreview(pathId, topicId, item.id),
+                    routes.pathCoursePreview(pathId, topicId, item.id),
                   );
                   break;
                 case "exercise":

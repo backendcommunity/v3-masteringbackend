@@ -33,25 +33,6 @@ export const routes = {
     `/courses/${courseId}/projects/${projectId}`,
   courseCertificate: (courseId: string) => `/courses/${courseId}/certificate`,
 
-  // Roadmap route builders retained as internal plumbing for the Paths feature.
-  // The standalone Roadmaps product UI has been removed; these helpers are still
-  // referenced by Paths components (path-video-watch, learning-path-continue,
-  // roadmap-course-quiz) which reuse roadmap routes under the hood.
-  roadmapDetail: (roadmapId: string) => `/roadmaps/${roadmapId}`,
-  roadmapVideoWatch: (
-    roadmapId: string,
-    topicId: string,
-    course: string,
-    chapterId: string,
-    videoId: string,
-  ) =>
-    `/roadmaps/${roadmapId}/topics/${topicId}/courses/${course}/${chapterId}/videos/${videoId}`,
-  roadmapCoursePreview: (
-    roadmapId: string,
-    topicId: string,
-    courseId: string,
-  ) => `/roadmaps/${roadmapId}/topics/${topicId}/courses/${courseId}`,
-
   // Learning Paths
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,

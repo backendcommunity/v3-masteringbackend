@@ -82,7 +82,7 @@ export function RoadmapVideoWatchPage({
   const buildWatchUrl =
     routeBuilder ??
     ((cs: string, ch: string, vs: string) =>
-      routes.roadmapVideoWatch(slug, topicId, cs, ch, vs));
+      routes.pathVideoWatch(slug, topicId, cs, ch, vs));
 
   const [roadmap, setRoadmap] = useState<Roadmap>();
   const [userCourse, setUserCourse] = useState<UserCourse>();
