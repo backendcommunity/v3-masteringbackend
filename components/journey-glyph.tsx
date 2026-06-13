@@ -32,7 +32,8 @@ export function JourneyGlyph({
 
   return (
     <svg
-      className={className}
+      // Dimmed uniformly — the glyph is hero texture, not a competing element
+      className={`opacity-60 ${className ?? ""}`}
       width="240"
       height="158"
       viewBox="0 0 240 158"
