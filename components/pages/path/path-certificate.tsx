@@ -69,8 +69,9 @@ interface PathCertificateProps {
   ) => Promise<import("@/lib/path-types").PathCertificate>;
   // The Alumni Lounge is a path-only community perk. Courses hide it.
   showAlumniLounge?: boolean;
-  // Noun used throughout the certificate copy: "path" (default) or "course".
-  kind?: "path" | "course";
+  // Noun used throughout the certificate copy: "path" (default), "course", or
+  // "project".
+  kind?: "path" | "course" | "project";
 }
 
 export function PathCertificate({
@@ -82,10 +83,18 @@ export function PathCertificate({
 }: PathCertificateProps) {
   const store = useAppStore();
   const fetchFn = fetcher ?? store.getPathCertificate;
-  const isCourse = kind === "course";
-  const completedLabel = isCourse ? "Course Completed" : "Path Completed";
-  const nounLower = isCourse ? "course" : "learning path"; // "...the {X}."
-  const nounTitle = isCourse ? "Course" : "Learning Path"; // "Learning Path: ..."
+  const completedLabel =
+    kind === "course"
+      ? "Course Completed"
+      : kind === "project"
+        ? "Project Completed"
+        : "Path Completed";
+  // "...the {X}."
+  const nounLower =
+    kind === "course" ? "course" : kind === "project" ? "project" : "learning path";
+  // "Learning Path: ..."
+  const nounTitle =
+    kind === "course" ? "Course" : kind === "project" ? "Project" : "Learning Path";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<PathCertificateData | null>(null);

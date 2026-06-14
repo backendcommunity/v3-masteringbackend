@@ -405,6 +405,9 @@ interface AppState {
   getCourseCertificate: (
     slug: string,
   ) => Promise<import("./path-types").PathCertificate>;
+  getProjectCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
   // Project ↔ GitHub
   getProjectGithub: (
     slug: string,
@@ -1539,6 +1542,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // slug resolution; course slugs are used directly).
   getCourseCertificate: async (slug: string) => {
     const { data } = await api.get(`/courses/${slug}/certificate`);
+    return data?.data;
+  },
+
+  // Project certificate — same PathCertificate shape, project endpoint. Used by
+  // the standalone /projects/[slug]/tasks page (not the in-path project step).
+  getProjectCertificate: async (slug: string) => {
+    const { data } = await api.get(`/projects/${slug}/certificate`);
     return data?.data;
   },
 

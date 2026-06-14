@@ -10,6 +10,7 @@ import {
   Check,
   ListChecks,
   Sparkles,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,13 @@ import { useUser } from "@/hooks/use-user";
 import { ArticleBlocks } from "@/components/pages/path/path-article";
 import { ChatInput } from "@/components/pages/mock-interviews/chat/chat-input";
 
-type Task = { id: string; title: string; description?: string; blocks?: any[] };
+type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  blocks?: any[];
+  mb?: number;
+};
 type ProjectTaskGroup = { id?: string; title?: string; tasks?: Task[] };
 type UserTask = { taskId: string; isCompleted: boolean };
 type KapMsg = { role: "ai" | "me"; text: string };
@@ -49,12 +56,21 @@ export function PathProjectTasks({
   onNavigate,
   backHref,
   onProjectLoaded,
+  onViewCertificate,
+  onProgress,
 }: {
   projectId: string;
   // Path step: advance the path. Standalone: omit (a "Back to project" shows).
   onComplete?: () => void;
   onNavigate?: (path: string) => void;
   backHref?: string;
+  // Standalone only: once every task is done, the last-task footer offers the
+  // project certificate instead of "Back to project".
+  onViewCertificate?: () => void;
+  // Reports the points accumulated by building this project (sum of completed
+  // tasks' `mb`), reactively as tasks are marked done — host renders it in the
+  // top nav.
+  onProgress?: (info: { earnedPoints: number; totalPoints: number }) => void;
   // Fired once the project loads, so a host (e.g. the route's breadcrumb) can
   // show its title without a second fetch.
   onProjectLoaded?: (project: { title?: string }) => void;
@@ -144,6 +160,17 @@ export function PathProjectTasks({
   const doneCount = allTasks.filter((t) => isDone(t.id)).length;
   const total = allTasks.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  // Points accrued by completing tasks (each task's `mb`). Reported up so the
+  // host top nav can display it; rises reactively with userTasks.
+  const totalPoints = allTasks.reduce((sum, t) => sum + (t.mb ?? 0), 0);
+  const earnedPoints = allTasks.reduce(
+    (sum, t) => (isDone(t.id) ? sum + (t.mb ?? 0) : sum),
+    0,
+  );
+  useEffect(() => {
+    onProgress?.({ earnedPoints, totalPoints });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earnedPoints, totalPoints]);
 
   const selected = allTasks.find((t) => t.id === selectedId);
   const selectedGroup = groups.find((g) =>
@@ -356,21 +383,23 @@ export function PathProjectTasks({
         <div className="mx-auto w-full max-w-[760px] px-5 py-8 sm:px-8 sm:py-10">
           {selected ? (
             <>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Task
-                {selectedGroup?.title && (
-                  <>
-                    <span className="text-muted-foreground/50">·</span>
-                    {selectedGroup.title}
-                  </>
-                )}
-                {isDone(selected.id) && (
-                  <span className="inline-flex items-center gap-1 text-primary">
-                    <span className="text-muted-foreground/50">·</span>
-                    <Check className="h-3.5 w-3.5" /> Done
-                  </span>
-                )}
-              </span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Task
+                  {selectedGroup?.title && (
+                    <>
+                      <span className="text-muted-foreground/50">·</span>
+                      {selectedGroup.title}
+                    </>
+                  )}
+                  {isDone(selected.id) && (
+                    <span className="inline-flex items-center gap-1 text-primary">
+                      <span className="text-muted-foreground/50">·</span>
+                      <Check className="h-3.5 w-3.5" /> Done
+                    </span>
+                  )}
+                </span>
+              </div>
               <h1 className="mt-3 text-[28px] font-extrabold leading-tight tracking-tight">
                 {selected.title}
               </h1>
@@ -405,6 +434,10 @@ export function PathProjectTasks({
                     className="gap-1.5"
                   >
                     Next task <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : total > 0 && doneCount === total && onViewCertificate ? (
+                  <Button onClick={() => onViewCertificate()} className="gap-1.5">
+                    <Award className="h-4 w-4" /> View certificate
                   </Button>
                 ) : onComplete ? (
                   <Button onClick={() => onComplete()} className="gap-1.5">
