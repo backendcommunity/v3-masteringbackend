@@ -13,36 +13,45 @@ type MilestoneEvent =
 interface PathMilestoneModalProps {
   event: MilestoneEvent;
   onDone: () => void;
+  // Noun for the copy: "path" (default) or "course".
+  kind?: "path" | "course";
 }
 
-const BRACKET_COPY: Record<
-  25 | 50 | 75 | 100,
-  { headline: string; subtext: string }
-> = {
+const bracketCopy = (
+  noun: string,
+  nounCap: string,
+): Record<25 | 50 | 75 | 100, { headline: string; subtext: string }> => ({
   25: {
     headline: "Great start!",
     subtext: "You've laid the foundation. Momentum is on your side now.",
   },
   50: {
     headline: "Halfway there!",
-    subtext: "You're halfway through the path. The hard part is behind you.",
+    subtext: `You're halfway through the ${noun}. The hard part is behind you.`,
   },
   75: {
     headline: "Almost there!",
     subtext: "Three quarters done. The finish line is in sight.",
   },
   100: {
-    headline: "Path complete!",
-    subtext: "You finished the entire path. Time to put it on your portfolio.",
+    headline: `${nounCap} complete!`,
+    subtext: `You finished the entire ${noun}. Time to put it on your portfolio.`,
   },
-};
+});
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
+export function PathMilestoneModal({
+  event,
+  onDone,
+  kind = "path",
+}: PathMilestoneModalProps) {
+  const noun = kind === "course" ? "course" : "path";
+  const nounCap = kind === "course" ? "Course" : "Path";
+  const topicCap = kind === "course" ? "Chapter" : "Topic";
   const firedRef = useRef(false);
   const dismiss = useCelebrationDismiss(onDone, 5000);
 
@@ -67,7 +76,7 @@ export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
 
   const { Icon, headline, subtext, eyebrow } = useMemo(() => {
     if (event.kind === "percent") {
-      const copy = BRACKET_COPY[event.bracket];
+      const copy = bracketCopy(noun, nounCap)[event.bracket];
       const PercentIcon =
         event.bracket === 100 ? Trophy : event.bracket === 25 ? Rocket : Flag;
       return {
@@ -80,10 +89,10 @@ export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
     return {
       Icon: Trophy,
       headline: `${event.title} complete`,
-      subtext: "Topic mastered. Keep the streak alive and tackle the next one.",
-      eyebrow: "Topic complete" as string | null,
+      subtext: `${topicCap} mastered. Keep the streak alive and tackle the next one.`,
+      eyebrow: `${topicCap} complete` as string | null,
     };
-  }, [event]);
+  }, [event, noun, nounCap, topicCap]);
 
   return (
     <CelebrationToast>
@@ -131,7 +140,7 @@ export function PathMilestoneModal({ event, onDone }: PathMilestoneModalProps) {
         {event.kind === "topicCompleted" && (
           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#F2C94C]/15 px-2.5 py-1 text-xs font-medium text-[#946C00] dark:text-[#F2C94C]">
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Topic completed
+            {topicCap} completed
           </div>
         )}
 

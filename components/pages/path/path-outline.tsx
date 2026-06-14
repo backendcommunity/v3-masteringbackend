@@ -64,10 +64,14 @@ export function PathOutline({
   session,
   currentStepId,
   onSelectStep,
+  groupLabel = "Course",
 }: {
   session: PathSession;
   currentStepId?: string;
   onSelectStep: (id: string) => void;
+  // Label on each group chip. Path groups are courses ("Course"); course groups
+  // are chapters ("Chapter").
+  groupLabel?: string;
 }) {
   const stepById = new Map(session.steps.map((s) => [s.id, s]));
   const groupStateById = new Map(session.groupsState.map((g) => [g.id, g]));
@@ -134,7 +138,7 @@ export function PathOutline({
                       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
                         <div className="flex-1 space-y-1.5 pr-2 text-left">
                           <span className="inline-block rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
-                            Course
+                            {groupLabel}
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">

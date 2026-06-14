@@ -18,6 +18,8 @@ export function PathOutlineDrawer({
   certEligible,
   onOpenCertificate,
   onSelectStep,
+  title = "Path Outline",
+  groupLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,6 +30,10 @@ export function PathOutlineDrawer({
   /** Opens the path-branded certificate landing (locked or unlocked). */
   onOpenCertificate?: () => void;
   onSelectStep: (id: string) => void;
+  /** Drawer title — "Path Outline" (path) or "Course Outline" (course). */
+  title?: string;
+  /** Group chip label forwarded to PathOutline — "Course" vs "Chapter". */
+  groupLabel?: string;
 }) {
   const unlocked = !!certEligible;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,7 +59,7 @@ export function PathOutlineDrawer({
       >
         <SheetHeader className="border-b px-4 py-3 text-left">
           <SheetTitle className="text-gradient text-base font-bold tracking-tight">
-            Path Outline
+            {title}
           </SheetTitle>
         </SheetHeader>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
@@ -61,6 +67,7 @@ export function PathOutlineDrawer({
             session={session}
             currentStepId={currentStepId}
             onSelectStep={onSelectStep}
+            groupLabel={groupLabel}
           />
 
           {/* Certificate — always reachable (locked state is motivating). */}

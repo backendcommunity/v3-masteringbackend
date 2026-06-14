@@ -12,6 +12,8 @@ interface PathCelebrationsProps {
   onCertUnlocked: () => void;
   /** Called once when the queue has been fully played. */
   onAllDone: () => void;
+  /** Noun for milestone copy: "path" (default) or "course". */
+  kind?: "path" | "course";
 }
 
 /**
@@ -24,6 +26,7 @@ export function PathCelebrations({
   queue,
   onCertUnlocked,
   onAllDone,
+  kind = "path",
 }: PathCelebrationsProps) {
   const [index, setIndex] = useState(0);
 
@@ -85,7 +88,14 @@ export function PathCelebrations({
       );
     case "percent":
     case "topicCompleted":
-      return <PathMilestoneModal key={index} event={current} onDone={advance} />;
+      return (
+        <PathMilestoneModal
+          key={index}
+          event={current}
+          onDone={advance}
+          kind={kind}
+        />
+      );
     case "achievement":
     case "levelUp":
       return (

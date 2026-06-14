@@ -14,13 +14,24 @@ export function StepStage({
   pathId,
   step,
   onComplete,
+  onReachComplete,
   onNavigate,
+  updateProgress,
 }: {
   pathId: string;
   step?: PathSessionStep;
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
+  // 90%-watched mark (no advance) — only VideoStep uses it.
+  onReachComplete?: (stepId: string, payload?: Record<string, unknown>) => void;
   onSelectStep: (id: string) => void;
   onNavigate: (path: string) => void;
+  // Watch-progress heartbeat sink. Defaults to the path endpoint inside
+  // VideoStep when omitted; the course route passes its course equivalent.
+  updateProgress?: (
+    id: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<unknown>;
 }) {
   if (!step)
     return (
@@ -37,7 +48,15 @@ export function StepStage({
   const render = () => {
     switch (step.type) {
       case "VIDEO":
-        return <VideoStep pathId={pathId} step={step} onComplete={onComplete} />;
+        return (
+          <VideoStep
+            pathId={pathId}
+            step={step}
+            onComplete={onComplete}
+            onReachComplete={onReachComplete}
+            updateProgress={updateProgress}
+          />
+        );
       case "ARTICLE":
         return <ArticleStep step={step} onComplete={onComplete} />;
       case "RESOURCE":

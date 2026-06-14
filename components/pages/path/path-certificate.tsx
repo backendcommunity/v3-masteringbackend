@@ -62,10 +62,30 @@ function formatIssuedAt(iso: string) {
 interface PathCertificateProps {
   slug: string;
   pathTitle: string;
+  // Where to fetch the certificate from. Defaults to the path endpoint; the
+  // course workspace injects the course certificate fetcher.
+  fetcher?: (
+    slug: string,
+  ) => Promise<import("@/lib/path-types").PathCertificate>;
+  // The Alumni Lounge is a path-only community perk. Courses hide it.
+  showAlumniLounge?: boolean;
+  // Noun used throughout the certificate copy: "path" (default) or "course".
+  kind?: "path" | "course";
 }
 
-export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
+export function PathCertificate({
+  slug,
+  pathTitle,
+  fetcher,
+  showAlumniLounge = true,
+  kind = "path",
+}: PathCertificateProps) {
   const store = useAppStore();
+  const fetchFn = fetcher ?? store.getPathCertificate;
+  const isCourse = kind === "course";
+  const completedLabel = isCourse ? "Course Completed" : "Path Completed";
+  const nounLower = isCourse ? "course" : "learning path"; // "...the {X}."
+  const nounTitle = isCourse ? "Course" : "Learning Path"; // "Learning Path: ..."
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<PathCertificateData | null>(null);
@@ -79,7 +99,7 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
     try {
       setLoading(true);
       setError(false);
-      const result = await store.getPathCertificate(slug);
+      const result = await fetchFn(slug);
       setData(result);
     } catch {
       setError(true);
@@ -157,16 +177,16 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
     const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(
       data.shareUrl,
     )}&title=${encodeURIComponent(
-      `I completed the ${pathTitle} learning path`,
+      `I completed the ${pathTitle} ${nounLower}`,
     )}&summary=${encodeURIComponent(
-      `I just earned my certificate for the ${pathTitle} learning path on Mastering Backend!`,
+      `I just earned my certificate for the ${pathTitle} ${nounLower} on Mastering Backend!`,
     )}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
   const handleTwitterShare = () => {
     if (!data?.unlocked) return;
-    const text = `I just earned my certificate for the ${pathTitle} learning path on @Master_Backend! 🎓\n\nLevelling up my backend engineering skills.`;
+    const text = `I just earned my certificate for the ${pathTitle} ${nounLower} on @Master_Backend! 🎓\n\nLevelling up my backend engineering skills.`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
       text,
     )}&url=${encodeURIComponent(data.shareUrl)}`;
@@ -176,7 +196,7 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
   const handleAddToResume = async () => {
     if (!data?.unlocked) return;
     try {
-      const resumeText = `Certificate of Completion\nLearning Path: ${data.pathTitle}\nFinal Score: ${data.finalScore}%\nIssued: ${formatIssuedAt(
+      const resumeText = `Certificate of Completion\n${nounTitle}: ${data.pathTitle}\nFinal Score: ${data.finalScore}%\nIssued: ${formatIssuedAt(
         data.issuedAt,
       )}\nCertificate ID: ${data.certId}\nVerify: ${data.shareUrl}\nIssued by: Mastering Backend`;
       await navigator.clipboard.writeText(resumeText);
@@ -246,7 +266,7 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
               }}
             >
               <Sparkles className="mr-1 h-3 w-3" />
-              Path Completed
+              {completedLabel}
             </Badge>
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
               Congratulations, {data.recipientName.split(" ")[0]}!
@@ -256,7 +276,7 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
               <span className="font-semibold text-foreground">
                 {data.pathTitle}
               </span>{" "}
-              learning path.
+              {nounLower}.
             </p>
           </div>
         </div>
@@ -318,7 +338,7 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
                 {data.recipientName}
               </h3>
               <p className="pt-2 text-sm text-gray-600">
-                has successfully completed the learning path
+                has successfully completed the {nounLower}
               </p>
               <p className="text-xl font-semibold" style={{ color: BRAND }}>
                 {data.pathTitle}
@@ -445,11 +465,13 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
           </Button>
         </div>
 
-        {/* Alumni Lounge — accepted */}
-        <AlumniLoungeCard
-          unlocked
-          firstName={data.recipientName.split(" ")[0]}
-        />
+        {/* Alumni Lounge — accepted (path only) */}
+        {showAlumniLounge && (
+          <AlumniLoungeCard
+            unlocked
+            firstName={data.recipientName.split(" ")[0]}
+          />
+        )}
       </div>
     );
   }
@@ -525,12 +547,14 @@ export function PathCertificate({ slug, pathTitle }: PathCertificateProps) {
         </CardContent>
       </Card>
 
-      {/* Alumni Lounge — locked elite tier */}
-      <AlumniLoungeCard
-        certThreshold={data.certThreshold}
-        pct={pct}
-        pointsToGo={data.pointsToGo}
-      />
+      {/* Alumni Lounge — locked elite tier (path only) */}
+      {showAlumniLounge && (
+        <AlumniLoungeCard
+          certThreshold={data.certThreshold}
+          pct={pct}
+          pointsToGo={data.pointsToGo}
+        />
+      )}
     </div>
   );
 }

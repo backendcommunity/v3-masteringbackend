@@ -18,6 +18,7 @@ import {
   PathSessionStep,
   PathSessionDelta,
   CelebrationEvent,
+  PathCertificate as PathCertificateType,
 } from "@/lib/path-types";
 import { Loader } from "@/components/ui/loader";
 import { StepStage } from "@/components/pages/path/step-stage";
@@ -36,6 +37,37 @@ export interface PathWorkspaceProps {
   pathId: string;
   initialStepId?: string;
   onNavigate: (path: string) => void;
+  // Data source is pluggable so the SAME workspace can be driven by either a
+  // path session or a course session. All props default to the path behavior,
+  // so omitting them keeps the path step byte-identical to before.
+  loadSession?: (id: string) => Promise<PathSession>;
+  completeStep?: (
+    id: string,
+    stepId: string,
+    payload?: Record<string, unknown>,
+  ) => Promise<PathSessionDelta>;
+  updateProgress?: (
+    id: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<void>;
+  stepRoute?: (id: string, stepId: string) => string;
+  // Outline drawer labels — default to path wording; course route overrides
+  // with "Course Outline" + "Chapter".
+  outlineTitle?: string;
+  groupLabel?: string;
+  // Whether this workspace issues a certificate. Both paths and courses do; set
+  // false to suppress the cert landing + outline button entirely.
+  hasCertificate?: boolean;
+  // Where the cert landing fetches from. Defaults to the path endpoint; the
+  // course route injects the course certificate fetcher.
+  certificateFetcher?: (
+    slug: string,
+  ) => Promise<PathCertificateType>;
+  // Alumni Lounge (Discord community perk) is path-only; course passes false.
+  showAlumniLounge?: boolean;
+  // Noun for certificate copy: "path" (default) or "course".
+  entityKind?: "path" | "course";
 }
 
 // Run server + Preview, surfaced in the path top bar for embedded PROJECT steps.
@@ -72,8 +104,27 @@ export function PathWorkspace({
   pathId,
   initialStepId,
   onNavigate,
+  loadSession,
+  completeStep: completeStepProp,
+  updateProgress: updateProgressProp,
+  stepRoute,
+  outlineTitle,
+  groupLabel,
+  hasCertificate = true,
+  certificateFetcher,
+  showAlumniLounge = true,
+  entityKind = "path",
 }: PathWorkspaceProps) {
   const store = useAppStore();
+  // Default to the path data source. Course callers pass course-session
+  // equivalents; the path step passes nothing and behaves exactly as before.
+  const loadSessionFn = loadSession ?? store.getPathSession;
+  const completeStepFn = completeStepProp ?? store.completePathStep;
+  const updateProgressFn = updateProgressProp ?? store.updatePathStepProgress;
+  const stepRouteFn =
+    stepRoute ??
+    ((id: string, stepId: string) =>
+      `/paths/${id}/learn/${encodeURIComponent(stepId)}`);
   const [session, setSession] = useState<PathSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStepId, setCurrentStepId] = useState<string | undefined>(
@@ -92,7 +143,7 @@ export function PathWorkspace({
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await store.getPathSession(pathId);
+      const data = await loadSessionFn(pathId);
       setSession(data);
       setCurrentStepId(
         (prev) => prev ?? data?.cursor?.resumeStepId ?? data?.steps?.[0]?.id,
@@ -120,9 +171,9 @@ export function PathWorkspace({
       // Selecting any normal step always exits the certificate landing.
       setShowCertificate(false);
       setCurrentStepId(stepId);
-      onNavigate(`/paths/${pathId}/learn/${encodeURIComponent(stepId)}`);
+      onNavigate(stepRouteFn(pathId, stepId));
     },
-    [pathId, onNavigate],
+    [pathId, onNavigate, stepRouteFn],
   );
 
   const applyDelta = useCallback((delta: PathSessionDelta) => {
@@ -142,9 +193,9 @@ export function PathWorkspace({
   const completeStep = useCallback(
     async (stepId: string, payload?: Record<string, unknown>) => {
       try {
-        const delta = await store.completePathStep(pathId, stepId, payload);
+        const delta = await completeStepFn(pathId, stepId, payload);
         applyDelta(delta);
-        const fresh = await store.getPathSession(pathId);
+        const fresh = await loadSessionFn(pathId);
         setSession(fresh);
 
         const cel = delta.celebrations ?? [];
@@ -152,11 +203,14 @@ export function PathWorkspace({
 
         // Advance immediately to the next step in order. Celebrations are
         // non-blocking bottom-right toasts, so they play over the new step
-        // rather than gating the advance.
-        if (certUnlocked || !delta.cursor.nextStepId) {
+        // rather than gating the advance. Courses have no path certificate
+        // (hasCertificate=false), so finishing the last step just ends the run.
+        if (hasCertificate && (certUnlocked || !delta.cursor.nextStepId)) {
           setShowCertificate(true);
-        } else {
+        } else if (delta.cursor.nextStepId) {
           setCurrentStepId(delta.cursor.nextStepId);
+        } else {
+          toast.success("You've completed this course! 🎉");
         }
         // Only meaningful pops (levels, achievements, % milestones, topic
         // completion) surface — the per-step "unlocked" ribbon is dropped, and
@@ -170,7 +224,29 @@ export function PathWorkspace({
         toast.error("Could not mark this step complete.");
       }
     },
-    [pathId, store, applyDelta],
+    [pathId, completeStepFn, loadSessionFn, applyDelta],
+  );
+
+  // Mark a step complete WITHOUT advancing — the 90%-watched video signal.
+  // Records completion + awards and surfaces celebrations, but keeps the learner
+  // on the current step; the advance happens separately at 100% via completeStep.
+  const markComplete = useCallback(
+    async (stepId: string, payload?: Record<string, unknown>) => {
+      try {
+        const delta = await completeStepFn(pathId, stepId, payload);
+        applyDelta(delta);
+        const fresh = await loadSessionFn(pathId);
+        setSession(fresh);
+        setCelebrationQueue(
+          (delta.celebrations ?? []).filter(
+            (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
+          ),
+        );
+      } catch {
+        // Non-fatal: the 100% advance re-attempts completion.
+      }
+    },
+    [pathId, completeStepFn, loadSessionFn, applyDelta],
   );
 
   const ordered = useMemo(
@@ -240,6 +316,7 @@ export function PathWorkspace({
       queue={celebrationQueue}
       onCertUnlocked={onCertUnlocked}
       onAllDone={onAllDone}
+      kind={entityKind}
     />
   );
 
@@ -249,15 +326,21 @@ export function PathWorkspace({
       onOpenChange={setOutlineOpen}
       session={session}
       currentStepId={showCertificate ? undefined : currentStepId}
-      certEligible={session.path.certEligible}
-      onOpenCertificate={() => {
-        setShowCertificate(true);
-        setOutlineOpen(false);
-      }}
+      certEligible={hasCertificate && session.path.certEligible}
+      onOpenCertificate={
+        hasCertificate
+          ? () => {
+              setShowCertificate(true);
+              setOutlineOpen(false);
+            }
+          : undefined
+      }
       onSelectStep={(id) => {
         selectStep(id);
         setOutlineOpen(false);
       }}
+      title={outlineTitle}
+      groupLabel={groupLabel}
     />
   );
 
@@ -291,7 +374,13 @@ export function PathWorkspace({
           onNavigate={onNavigate}
         />
         <div className="flex-1 min-h-0 w-full overflow-y-auto">
-          <PathCertificate slug={pathId} pathTitle={session.path.title} />
+          <PathCertificate
+            slug={pathId}
+            pathTitle={session.path.title}
+            fetcher={certificateFetcher}
+            showAlumniLounge={showAlumniLounge}
+            kind={entityKind}
+          />
         </div>
         {outlineDrawer}
         {celebrations}
@@ -335,8 +424,10 @@ export function PathWorkspace({
             pathId={pathId}
             step={currentStep}
             onComplete={completeStep}
+            onReachComplete={markComplete}
             onSelectStep={selectStep}
             onNavigate={onNavigate}
+            updateProgress={updateProgressFn}
           />
         </div>
         {outlineDrawer}
@@ -410,8 +501,10 @@ export function PathWorkspace({
               pathId={pathId}
               step={currentStep}
               onComplete={completeStep}
+              onReachComplete={markComplete}
               onSelectStep={selectStep}
               onNavigate={onNavigate}
+              updateProgress={updateProgressFn}
             />
           </PathStage>
 

@@ -402,6 +402,9 @@ interface AppState {
   getPathCertificate: (
     slug: string,
   ) => Promise<import("./path-types").PathCertificate>;
+  getCourseCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -412,6 +415,22 @@ interface AppState {
     payload?: Record<string, any>,
   ) => Promise<import("./path-types").PathSessionDelta>;
   updatePathStepProgress: (
+    slug: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<{ stepId: string; currentDuration?: number }>;
+
+  // Course session actions (course watch reuses the path workspace, driven by
+  // course data instead of a path session). Mirrors the path session methods.
+  getCourseSession: (
+    slug: string,
+  ) => Promise<import("./path-types").PathSession>;
+  completeCourseStep: (
+    slug: string,
+    stepId: string,
+    payload?: Record<string, any>,
+  ) => Promise<import("./path-types").PathSessionDelta>;
+  updateCourseStepProgress: (
     slug: string,
     stepId: string,
     payload: { duration: number },
@@ -1489,6 +1508,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  // Course certificate — same PathCertificate shape, course endpoint (no roadmap
+  // slug resolution; course slugs are used directly).
+  getCourseCertificate: async (slug: string) => {
+    const { data } = await api.get(`/courses/${slug}/certificate`);
+    return data?.data;
+  },
+
   getPathItem: async (endpoint: string) => {
     const path = endpoint.replace(/^\/api\/v3/, "");
     const { data } = await api.get(path);
@@ -1523,6 +1549,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.patch(
       `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/progress`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  // Course session — mirrors the path session methods but hits the course
+  // endpoints. Course slugs are used directly (no roadmap slug resolution).
+  getCourseSession: async (slug) => {
+    const { data } = await api.get(`/courses/${slug}/session`);
+    return data?.data;
+  },
+
+  completeCourseStep: async (slug, stepId, payload = {}) => {
+    const { data } = await api.post(
+      `/courses/${slug}/steps/${encodeURIComponent(stepId)}/complete`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  updateCourseStepProgress: async (slug, stepId, payload) => {
+    const { data } = await api.post(
+      `/courses/${slug}/steps/${encodeURIComponent(stepId)}/progress`,
       payload,
     );
     return data?.data;
