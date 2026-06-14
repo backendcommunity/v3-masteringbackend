@@ -405,6 +405,33 @@ interface AppState {
   getCourseCertificate: (
     slug: string,
   ) => Promise<import("./path-types").PathCertificate>;
+  // Project ↔ GitHub
+  getProjectGithub: (
+    slug: string,
+  ) => Promise<{
+    connected: boolean;
+    installUrl: string;
+    repo: { fullName: string; htmlUrl: string } | null;
+  }>;
+  listGithubOwners: () => Promise<
+    { login: string; type: "user" | "org"; avatarUrl?: string }[]
+  >;
+  listGithubRepos: (
+    owner: string,
+    q?: string,
+  ) => Promise<
+    { name: string; fullName: string; htmlUrl: string; private: boolean }[]
+  >;
+  createGithubRepo: (
+    owner: string,
+    name: string,
+    isPrivate?: boolean,
+  ) => Promise<{ name: string; fullName: string; htmlUrl: string; cloneUrl: string }>;
+  connectProjectRepo: (
+    slug: string,
+    repository: string,
+    owner: string,
+  ) => Promise<{ fullName: string; htmlUrl: string }>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -1513,6 +1540,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCourseCertificate: async (slug: string) => {
     const { data } = await api.get(`/courses/${slug}/certificate`);
     return data?.data;
+  },
+
+  // Project ↔ GitHub
+  getProjectGithub: async (slug: string) => {
+    const { data } = await api.get(`/projects/${slug}/github`);
+    return data?.data;
+  },
+  listGithubOwners: async () => {
+    const { data } = await api.get(`/github/owners`);
+    return data?.data?.owners ?? [];
+  },
+  listGithubRepos: async (owner: string, q = "") => {
+    const { data } = await api.get(`/github/repos`, { params: { owner, q } });
+    return data?.data?.repos ?? [];
+  },
+  createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
+    const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });
+    return data?.data?.repo;
+  },
+  connectProjectRepo: async (slug: string, repository: string, owner: string) => {
+    const { data } = await api.post(`/projects/${slug}/github`, {
+      repository,
+      owner,
+    });
+    return data?.data?.repo;
   },
 
   getPathItem: async (endpoint: string) => {

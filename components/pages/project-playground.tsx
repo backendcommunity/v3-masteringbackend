@@ -26,6 +26,7 @@ import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
 import Image from "next/image";
 import { PathFeedbackDialog } from "./path/path-feedback-dialog";
+import { GithubConnectDialog } from "./path/github-connect-dialog";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { Loader } from "../ui/loader";
@@ -1290,11 +1291,6 @@ export function ProjectPlaygroundPage({
   runServerRef.current = handleRunProject;
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
 
-  const connectGitHub = () => {
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=Ov23li2TmT8axelh1vDq&scope=repo,user&state=githupapp+${encodeURIComponent(
-      window.location.origin + pathname,
-    )}+${user?.email}`;
-  };
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
@@ -1660,7 +1656,21 @@ export function ProjectPlaygroundPage({
             />
           </button>
           <div className="crumb">
-            Build&nbsp;&nbsp;›&nbsp;&nbsp;<b>{project?.title}</b>
+            <button
+              type="button"
+              onClick={() => onNavigate("/projects")}
+              className="hover:text-foreground hover:underline"
+            >
+              Build
+            </button>
+            &nbsp;&nbsp;›&nbsp;&nbsp;
+            <button
+              type="button"
+              onClick={() => onNavigate("/projects/" + slug)}
+              className="hover:text-foreground hover:underline"
+            >
+              <b>{project?.title}</b>
+            </button>
           </div>
           <div className="spacer" />
           <div className="status" aria-live="polite">
@@ -1710,17 +1720,11 @@ export function ProjectPlaygroundPage({
             )}
           </button>
           <PathFeedbackDialog />
-          {!connected && (
-            <button
-              className="btn ghost"
-              onClick={connectGitHub}
-              title="Connect GitHub"
-              aria-label="Connect GitHub"
-              style={{ color: "var(--red)" }}
-            >
-              {I.link}
-            </button>
-          )}
+          <GithubConnectDialog
+            slug={slug}
+            triggerClassName="btn ghost"
+            onConnected={() => setConnected(true)}
+          />
         </div>
       )}
 

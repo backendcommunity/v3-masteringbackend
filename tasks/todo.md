@@ -1,38 +1,32 @@
-# Course watch → exact Path Step (PathWorkspace) experience
+# Project playground → GitHub connect + repo create/select (org support)
 
-Goal: course `/watch` renders the EXACT path-step component (`PathWorkspace`), full-bleed,
-own `PathTopBar`, sidebar transcript — driven by a course-built `PathSession`.
+Replace the chain "connect" icon with a GitHub icon + dialog. States:
+- Not connected (no githubInstallationId) → "Connect GitHub" (App install URL — works for user OR org).
+- Connected, no repo → Create new repo (name, owner=user|org, public default) OR Connect existing (owner select + repo list/search).
+- Connected + repo linked → show repo + "Change repository".
+Org GitHub allowed throughout (owner = user or any org the App is installed on).
 
-## Contract (both sides agree)
-PathSession / PathSessionStep / PathSessionDelta / CelebrationEvent — see `lib/path-types.ts`.
+## Contract
 
-Endpoints (REST, `/api/v3`):
-- `GET  /courses/:slug/session`                → PathSession (built from the course)
-- `POST /courses/:slug/steps/:stepId/complete` → PathSessionDelta   (body = payload)
-- `POST /courses/:slug/steps/:stepId/progress` → 200                (body = { duration })
+### mb-executor (Octokit + GitHub App; auth via installationId in body/query like existing /api/project/*)
+- `GET  /api/github/owners?installationId=`            → { owners: [{ login, type:"user"|"org", avatarUrl }] }
+- `GET  /api/github/repos?installationId=&owner=&q=`   → { repos: [{ name, fullName, htmlUrl, private }] }
+- `POST /api/github/repos` { installationId, owner, name, isPrivate=false } → { repo: { name, fullName, htmlUrl, cloneUrl } }
+  - owner = user → repos.createForAuthenticatedUser; owner = org → repos.createInOrg.
 
-`payloadRef.endpoint` per step must resolve to existing course item endpoints whose shape the
-path step components already consume (getPathItem is generic — just GETs it).
+### academy (proxies executor with req.user.githubInstallationId; persists on Solution)
+- `GET  /api/v3/projects/:slug/github`  → { connected: boolean, installUrl, repo: {fullName, htmlUrl}|null }
+- `GET  /api/v3/github/owners`          → proxy executor owners
+- `GET  /api/v3/github/repos?owner=&q=` → proxy executor repos
+- `POST /api/v3/github/repos` {owner,name,isPrivate} → proxy executor create
+- `POST /api/v3/projects/:slug/github` { repository, owner } → upsert Solution{projectId,userId,repository} → { repo }
+  installUrl = https://github.com/apps/masteringbackend/installations/new?state=<email>+<return>
 
-## Backend (academy repo · Solomon)
-- [ ] Mirror `src/modules/paths/helpers/build-session.ts` → build PathSession from a Course:
-      chapters → PathGroup(type:"COURSE"); videos/quizzes/exercises/playgrounds → steps; cursor.resumeStepId =
-      first incomplete; path progress/mastery/points/isCompleted from course progress. Courses don't issue path
-      certs → certEligible:false (PathWorkspace tolerates no-cert).
-- [ ] Mirror `complete-step.ts` → complete a course step → PathSessionDelta; map to existing markVideoComplete /
-      quiz / exercise completion + points; celebrations percent/levelUp/topicCompleted (NO certUnlocked).
-- [ ] progress endpoint → persist watch duration. Preserve premium gating via step `access.allowed/reason`.
-- [ ] Mount under courses module routes.
-
-## Frontend (v3 repo · Quadri)
-- [ ] Store methods: getCourseSession / completeCourseStep / updateCourseStepProgress → the 3 endpoints.
-- [ ] Generalize `PathWorkspace` WITHOUT forking — optional injected props defaulting to path store methods:
-      loadSession?, completeStep?, updateProgress?, stepRoute?(id,stepId)=>string. Path step stays identical.
-- [ ] Full-bleed course route mirroring path learn route: add `app/courses/[slug]/learn/[[...stepId]]/page.tsx`
-      → bare `<main h-screen overflow-hidden>` + `<PathWorkspace>` with course loaders + stepRoute. NO DashboardLayout.
-- [ ] Old watch route → resolve chapter/video to a stepId and redirect to `/courses/:slug/learn/:stepId`.
-- [ ] Do NOT touch path-* files except the minimal PathWorkspace prop additions.
+## Frontend (v3 · this session)
+- [ ] project-playground top bar: chain icon → lucide `Github` icon, ALWAYS shown, opens dialog.
+- [ ] GithubConnectDialog component: 3 states above; owner select (user+orgs); create form (name + public default); existing list (search). On create/select → POST connect → update local repo state + toast.
+- [ ] store methods: getProjectGithub(slug), listGithubOwners(), listGithubRepos(owner,q), createGithubRepo(owner,name,isPrivate), connectProjectRepo(slug,repository,owner).
+- [ ] Repo connection flows to the executor push/pull (already uses installationId + repository).
 
 ## Verify
-- [ ] Path step unchanged (regression). Course watch = exact PathWorkspace, full-bleed, transcript centered.
-- [ ] Premium gate still blocks premium videos. Both builds green.
+- [ ] Not-connected → install; after install → create/select works; org repos listed; linked repo persists + shows on reopen. Builds green.
