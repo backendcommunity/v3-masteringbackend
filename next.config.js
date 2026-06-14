@@ -4,6 +4,11 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 const nextConfig = {
+  // Output dir is overridable so a production `next build` can target a separate
+  // folder and never collide with a running `next dev` (which uses `.next`).
+  // Sharing `.next` between build + dev causes the
+  // "ENOENT … _buildManifest.js.tmp.*" rename race. Deploy stays on `.next`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   eslint: {
     ignoreDuringBuilds: true,
   },
