@@ -394,7 +394,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           {/* Tags */}
           {course?.tags?.length ? (
             <div className="flex flex-wrap gap-2">
-              {course.tags.map((tag) => (
+              {course?.tags?.map((tag) => (
                 <Badge key={tag} variant="outline">
                   {tag}
                 </Badge>
