@@ -10,9 +10,14 @@ import { useUserStore } from "@/lib/user-store";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  /**
+   * Full-bleed mode: skip the centered `max-w-7xl` content container.
+   * Use for immersive pages (course/path watch, playground) that need full width.
+   */
+  fluid?: boolean;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
   const isMobile = useMobile();
   const pathname = usePathname();
   const router = useRouter();
@@ -117,8 +122,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             isCollapsed ? "md:ml-20" : "md:ml-72"
           }`}
         >
-          <main className="flex-1 overflow-y-auto w-full p-4 md:p-6">
-            {children}
+          {/* Centralized content container — every page aligns to the same
+              `max-w-7xl` width + `px-6 py-6` padding (matches mock-interviews).
+              Full-bleed pages opt out via `fluid`. */}
+          <main className="flex-1 overflow-y-auto w-full">
+            {fluid ? (
+              <div className="p-4 md:p-6">{children}</div>
+            ) : (
+              <div className="mx-auto w-full max-w-7xl px-6 py-6">{children}</div>
+            )}
           </main>
           {/* <KapAIAssistant /> */}
         </div>

@@ -20,7 +20,7 @@ export default function InterviewProjectEditorRoute({
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <InterviewProjectPage
         interviewId={params.interviewId}
         onNavigate={handleNavigate}

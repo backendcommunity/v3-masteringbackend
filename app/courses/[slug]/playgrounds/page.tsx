@@ -22,7 +22,7 @@ export default function CoursePlaygroundsPageRoute({
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <CoursePlaygroundsPage
         courseId={params.courseId}
         onNavigate={handleNavigate}

@@ -17,7 +17,7 @@ export default function ProjectPlaygroundPageRoute() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <ProjectPlaygroundPage slug={slug} onNavigate={handleNavigate} />
     </DashboardLayout>
   );

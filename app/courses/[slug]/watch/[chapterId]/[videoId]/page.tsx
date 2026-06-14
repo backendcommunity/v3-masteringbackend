@@ -25,7 +25,7 @@ export default function CourseWatchPageRoute() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <CourseWatchPage
         slug={slug}
         chapterSlug={chapterSlug}

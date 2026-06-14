@@ -166,7 +166,7 @@ export function Project30ListingPage({
         <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
           <JourneyGlyph
             stage="build"
-            className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+            className="absolute right-4 top-4 w-20 opacity-40 md:right-10 md:top-1/2 md:w-60 md:-translate-y-1/2 md:opacity-100"
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">build</div>

@@ -32,9 +32,7 @@ export function JourneyGlyph({
 
   return (
     <svg
-      className={className}
-      width="240"
-      height="158"
+      className={["h-auto", className].filter(Boolean).join(" ")}
       viewBox="0 0 240 158"
       fill="none"
       aria-hidden="true"

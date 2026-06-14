@@ -662,14 +662,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   return (
     <div className="min-h-screen">
       {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
-      <div className="max-w-7xl mx-auto px-6 pt-6">
+      <div>
         <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
           <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
             <div className="hero-grid absolute inset-0" aria-hidden="true" />
             <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
               <JourneyGlyph
                 stage="grow"
-                className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+                className="absolute right-4 top-4 w-20 opacity-40 md:right-10 md:top-1/2 md:w-60 md:-translate-y-1/2 md:opacity-100"
               />
               <div className="max-w-2xl">
                 <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
@@ -744,7 +744,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="pt-6">
         {/* Session limit banner */}
         {interviewAccess && !interviewAccess.hasAccess && (
           <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 mb-4">

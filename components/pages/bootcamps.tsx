@@ -100,14 +100,14 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
   const pagedList = list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   return (
-    <div className="max-w-7xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       {/* ── Grow hero (navy anchor · grow pillar) ── */}
       <div className="bg-[#0E1F33] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
           <JourneyGlyph
             stage="learn"
-            className="absolute right-10 top-1/2 -translate-y-1/2 hidden md:block"
+            className="absolute right-4 top-4 w-20 opacity-40 md:right-10 md:top-1/2 md:w-60 md:-translate-y-1/2 md:opacity-100"
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
