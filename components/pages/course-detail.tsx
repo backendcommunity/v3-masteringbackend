@@ -24,7 +24,6 @@ import {
   Lock,
   Brain,
   Code,
-  FolderOpen,
   BadgeIcon as Certificate,
   Trophy,
   Loader2,
@@ -248,7 +247,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     ) ?? 0;
 
   // ── Share helpers ──
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareUrl = `https://courses.masteringbackend.com/courses/${slug}?ref=app`;
   const shareText = `Check out the ${course?.title} course on MasteringBackend`;
   const openShare = (network: string, url: string) => {
     analytics.track("course_share_clicked", { courseId: course?.id, network });
@@ -628,143 +627,74 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
-          {/* What's inside (paths enrollCard parity) */}
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-[15px] mb-3">What&apos;s inside</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <BookOpen className="w-4 h-4" />
-                  Chapters
-                </span>
-                <span className="font-medium">
-                  {course?.chapters?.length ?? 0}
-                </span>
-              </div>
-              {totalVideos > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Play className="w-4 h-4" />
-                    Videos
-                  </span>
-                  <span className="font-medium">{totalVideos}</span>
-                </div>
-              )}
-              {(course?.hasQuizzes || (course?.totalQuizzes ?? 0) > 0) && (
-                <button
-                  disabled={!course?.enrolled}
-                  onClick={() => onNavigate(routes.courseQuizzes(slug))}
-                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Brain className="w-4 h-4" />
-                    Quizzes
-                  </span>
-                  <span className="font-medium">
-                    {course?.totalQuizzes ?? 0}
-                  </span>
-                </button>
-              )}
-              {course?.hasExercises && (
-                <button
-                  disabled={!course?.enrolled}
-                  onClick={() => onNavigate(routes.courseExercises(slug))}
-                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Code className="w-4 h-4" />
-                    Exercises
-                  </span>
-                  <span className="font-medium">{course?.totalTasks ?? 0}</span>
-                </button>
-              )}
-              {course?.hasPlaygrounds && (
-                <button
-                  disabled={!course?.enrolled}
-                  onClick={() => onNavigate(routes.coursePlaygrounds(slug))}
-                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Wrench className="w-4 h-4" />
-                    Playgrounds
-                  </span>
-                  <span className="font-medium">
-                    {course?.totalPlaygrounds ?? 0}
-                  </span>
-                </button>
-              )}
-              {course?.hasProjects && (
-                <button
-                  disabled={!course?.enrolled}
-                  onClick={() => onNavigate(routes.courseProjects(slug))}
-                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <FolderOpen className="w-4 h-4" />
-                    Projects
-                  </span>
-                  <span className="font-medium">
-                    {course?.totalProjects ?? 0}
-                  </span>
-                </button>
-              )}
-              {(course?.totalDuration ?? 0) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    Est. time
-                  </span>
-                  <span className="font-medium">
-                    {course?.totalDuration} hours
-                  </span>
-                </div>
-              )}
-            </div>
+          {showPaymentDialog && (
+            <PaymentDialog
+              onClose={() => setShowPaymentDialog(false)}
+              open={showPaymentDialog}
+              data={{ ...course, type: "course" }}
+              onHandlePreview={() => {}}
+              onHandlePurchase={(id: string, type: any, success: boolean) =>
+                handlePurchase(id, type, success)
+              }
+            />
+          )}
 
-            {/* Footer: enroll CTA (not-enrolled only) */}
-            {!course?.enrolled && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="text-sm text-muted-foreground mb-3">
-                  {!course?.isPremium || user?.isPremium ? (
-                    <>
-                      Free with{" "}
-                      <span className="font-semibold text-foreground">Pro</span>
-                    </>
-                  ) : (
-                    <span className="font-semibold text-foreground">
-                      {course?.amount
-                        ? `$${course.amount}`
-                        : "Premium membership required"}
-                    </span>
-                  )}
+          {/* Share card — prominent, action-oriented */}
+          {(() => {
+            const tileCls =
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border py-3 text-xs font-semibold text-muted-foreground transition-colors";
+            return (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="flex items-center gap-2 font-semibold text-[15px] mb-1">
+                  <Share2 className="w-4 h-4" />
+                  Share this course
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Help a friend level up their backend skills.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={shareLinkedIn}
+                    aria-label="Share on LinkedIn"
+                    className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+                    </svg>
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={shareX}
+                    aria-label="Share on X"
+                    className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    X
+                  </button>
+                  <button
+                    onClick={shareFacebook}
+                    aria-label="Share on Facebook"
+                    className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+                    </svg>
+                    Facebook
+                  </button>
                 </div>
                 <button
-                  disabled={enrolling}
-                  onClick={handleEnrollNow}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  onClick={copyShareLink}
+                  aria-label="Copy link"
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
-                  {enrolling ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  {enrolling ? "Enrolling…" : "Start Learning"}
+                  <LinkIcon className="w-4 h-4" />
+                  Copy link
                 </button>
               </div>
-            )}
-
-            {showPaymentDialog && (
-              <PaymentDialog
-                onClose={() => setShowPaymentDialog(false)}
-                open={showPaymentDialog}
-                data={{ ...course, type: "course" }}
-                onHandlePreview={() => {}}
-                onHandlePurchase={(id: string, type: any, success: boolean) =>
-                  handlePurchase(id, type, success)
-                }
-              />
-            )}
-          </div>
+            );
+          })()}
 
           {/* Certification Card */}
           <Card
@@ -869,66 +799,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           {course?.enrolled && course?.userCourse?.id && (
             <ScheduleWidget courseId={course.userCourse.id} />
           )}
-
-          {/* Share row */}
-          {(() => {
-            const shareBtnCls =
-              "h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors";
-            return (
-              <div className="flex items-center gap-1.5">
-                <span className="flex items-center gap-1.5 mr-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <Share2 className="w-3.5 h-3.5" />
-                  Share
-                </span>
-                <button
-                  onClick={shareLinkedIn}
-                  className={shareBtnCls}
-                  aria-label="Share on LinkedIn"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="w-3.5 h-3.5"
-                  >
-                    <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={shareX}
-                  className={shareBtnCls}
-                  aria-label="Share on X"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="w-3 h-3"
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={shareFacebook}
-                  className={shareBtnCls}
-                  aria-label="Share on Facebook"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="w-3.5 h-3.5"
-                  >
-                    <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={copyShareLink}
-                  className={shareBtnCls}
-                  aria-label="Copy link"
-                >
-                  <LinkIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            );
-          })()}
         </div>
       </div>
 
