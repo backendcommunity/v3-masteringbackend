@@ -112,26 +112,41 @@ export function Terminal({
     });
     const fit = new FitAddon();
     xt.loadAddon(fit);
-    xt.open(hostRef.current);
-    requestAnimationFrame(() => {
-      try {
-        fit.fit();
-      } catch {}
-    });
     xtRef.current = xt;
     fitRef.current = fit;
 
-    // seed with any run-log lines already collected by the playground
-    (output ?? []).forEach((l) => xt.writeln(ansi(l)));
-    writtenRef.current = (output ?? []).length;
-
-    // start the interactive PTY in the sandbox container
-    socket.emit("term:start", {
-      userId: user?.id,
-      projectName: slug,
-      cols: xt.cols,
-      rows: xt.rows,
-    });
+    const host = hostRef.current;
+    let opened = false;
+    const safeFit = () => {
+      if (!host || !host.offsetWidth || !host.offsetHeight) return;
+      try {
+        fit.fit();
+      } catch {}
+    };
+    // Defer open()/fit() until the host actually has a size. Opening xterm on a
+    // zero-size element (collapsed terminal panel, or before layout settles)
+    // leaves the renderer without dimensions, and the next refresh throws
+    // "Cannot read properties of undefined (reading 'dimensions')". The
+    // ResizeObserver below opens it the moment the host gets a real size.
+    const openTerminal = () => {
+      if (opened || !host || !host.offsetWidth || !host.offsetHeight) return;
+      opened = true;
+      xt.open(host);
+      safeFit();
+      // seed any run-log lines collected before the terminal opened
+      const out = output ?? [];
+      for (let i = writtenRef.current; i < out.length; i++)
+        xt.writeln(ansi(out[i]));
+      writtenRef.current = out.length;
+      // start the interactive PTY (cols/rows now reflect the fitted size)
+      socket.emit("term:start", {
+        userId: user?.id,
+        projectName: slug,
+        cols: xt.cols,
+        rows: xt.rows,
+      });
+    };
+    requestAnimationFrame(openTerminal);
 
     // forward every keystroke to the PTY (raw — the shell echoes back)
     const dataDisp = xt.onData((d: string) => {
@@ -145,7 +160,8 @@ export function Terminal({
     });
 
     const onTermData = ({ sessionId, data }: any) => {
-      if (!sessionRef.current || sessionId === sessionRef.current) xt.write(data);
+      if (opened && (!sessionRef.current || sessionId === sessionRef.current))
+        xt.write(data);
     };
     const onStarted = ({ sessionId }: { sessionId: string }) => {
       sessionRef.current = sessionId;
@@ -165,9 +181,8 @@ export function Terminal({
     socket.on("term:error", onError);
 
     const ro = new ResizeObserver(() => {
-      try {
-        fit.fit();
-      } catch {}
+      if (!opened) openTerminal();
+      else safeFit();
     });
     ro.observe(hostRef.current);
 
