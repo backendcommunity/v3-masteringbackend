@@ -60,9 +60,25 @@ export function VideoTranscript({
     };
   }, [vimeoId]);
 
+  // Keep the active caption vertically centered in the transcript panel so the
+  // user reads at eye level instead of chasing it toward the bottom. Scroll only
+  // the nearest scrollable ancestor (never the page).
   useEffect(() => {
-    const active = listRef.current?.querySelector("[data-active='true']");
-    active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>("[data-active='true']");
+    if (!list || !active) return;
+
+    let scroller: HTMLElement | null = list;
+    while (scroller && scroller.scrollHeight <= scroller.clientHeight) {
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return;
+
+    const scRect = scroller.getBoundingClientRect();
+    const aRect = active.getBoundingClientRect();
+    const delta =
+      aRect.top - scRect.top - (scroller.clientHeight / 2 - aRect.height / 2);
+    scroller.scrollBy({ top: delta, behavior: "smooth" });
   }, [currentTime]);
 
   if (!vimeoId)
