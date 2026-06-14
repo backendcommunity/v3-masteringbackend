@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Accordion,
   AccordionContent,
@@ -39,6 +38,7 @@ import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
@@ -235,6 +235,17 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       0,
     ) ?? 0;
   const courseProgress = course?.progress ?? 0;
+  const totalMb =
+    course?.chapters?.reduce(
+      (sum: number, ch: any) =>
+        sum +
+        (ch.videos?.reduce(
+          (s: number, v: any) => s + (v.mb || 0),
+          0,
+        ) || 0) +
+        (ch.exercise?.points || 0),
+      0,
+    ) ?? 0;
 
   // ── Share helpers ──
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -363,32 +374,39 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Course description (plain block below hero — mirrors paths) */}
+          {/* Course description (rich HTML — collapsible, can be large) */}
           {(() => {
-            const descriptionText = stripHtmlTags(course?.summary || "");
-            const descriptionIsLong = descriptionText.length > 240;
-            return descriptionText ? (
+            const html = course?.description || course?.summary || "";
+            if (!html) return null;
+            const isLong = stripHtmlTags(html).length > 280;
+            return (
               <div>
-                <h3 className="font-semibold text-[15px] mb-1.5">
+                <h3 className="font-semibold text-[15px] mb-2">
                   Course description
                 </h3>
-                <p
-                  className={`text-sm text-muted-foreground leading-relaxed max-w-3xl ${
-                    descriptionIsLong && !descExpanded ? "line-clamp-3" : ""
-                  }`}
-                >
-                  {descriptionText}
-                </p>
-                {descriptionIsLong && (
+                <div className="relative">
+                  <article
+                    className={`prose-sm max-w-3xl text-sm leading-relaxed text-muted-foreground [&_a]:text-amber-600 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-3 [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:mt-1 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mt-2 [&_pre]:mt-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-zinc-900 [&_pre]:p-3 [&_pre]:text-zinc-100 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 ${
+                      isLong && !descExpanded
+                        ? "max-h-[15rem] overflow-hidden"
+                        : ""
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+                  />
+                  {isLong && !descExpanded && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  )}
+                </div>
+                {isLong && (
                   <button
                     onClick={() => setDescExpanded((v) => !v)}
-                    className="mt-1 text-sm font-medium text-primary hover:underline"
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
                   >
                     {descExpanded ? "Show less" : "Show more"}
                   </button>
                 )}
               </div>
-            ) : null;
+            );
           })()}
 
           {/* Tags */}
@@ -502,6 +520,59 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                                     )}
                                   </p>
                                 )}
+                                {(() => {
+                                  const items: {
+                                    icon: any;
+                                    label: string;
+                                    mb?: number;
+                                  }[] = [];
+                                  (chapter.videos || []).forEach((v) =>
+                                    items.push({
+                                      icon: Play,
+                                      label: v.title,
+                                      mb: v.mb,
+                                    }),
+                                  );
+                                  (chapter.quizzes || []).forEach((q) =>
+                                    items.push({ icon: Brain, label: q.title }),
+                                  );
+                                  if (chapter.exercise)
+                                    items.push({
+                                      icon: Code,
+                                      label: chapter.exercise.title,
+                                      mb: chapter.exercise.points,
+                                    });
+                                  if (chapter.playground)
+                                    items.push({
+                                      icon: Wrench,
+                                      label:
+                                        chapter.playground.title || "Playground",
+                                    });
+                                  if (!items.length) return null;
+                                  return (
+                                    <ul className="space-y-1.5">
+                                      {items.map((it, i) => {
+                                        const Icon = it.icon;
+                                        return (
+                                          <li
+                                            key={i}
+                                            className="flex items-center gap-2 text-sm"
+                                          >
+                                            <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                            <span className="flex-1 truncate text-foreground/80">
+                                              {it.label}
+                                            </span>
+                                            {it.mb ? (
+                                              <span className="flex-shrink-0 text-[11px] font-semibold text-amber-600">
+                                                +{it.mb} MB
+                                              </span>
+                                            ) : null}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  );
+                                })()}
                                 {completed ? (
                                   <Button
                                     size="sm"
@@ -650,68 +721,49 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               )}
             </div>
 
-            {/* Footer: progress + continue (enrolled) OR price + enroll */}
-            <div className="mt-4 pt-4 border-t border-border">
-              {course?.enrolled ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Your progress</span>
-                    <span className="font-medium">{courseProgress}%</span>
-                  </div>
-                  <Progress value={courseProgress} className="h-2" />
-                  <button
-                    onClick={handleContinueLearning}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition"
-                  >
-                    <Play className="w-4 h-4" />
-                    Continue Learning
-                  </button>
+            {/* Footer: enroll CTA (not-enrolled only) */}
+            {!course?.enrolled && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="text-sm text-muted-foreground mb-3">
+                  {!course?.isPremium || user?.isPremium ? (
+                    <>
+                      Free with{" "}
+                      <span className="font-semibold text-foreground">Pro</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      {course?.amount
+                        ? `$${course.amount}`
+                        : "Premium membership required"}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <>
-                  <div className="text-sm text-muted-foreground mb-3">
-                    {!course?.isPremium || user?.isPremium ? (
-                      <>
-                        Free with{" "}
-                        <span className="font-semibold text-foreground">
-                          Pro
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-foreground">
-                        {course?.amount
-                          ? `$${course.amount}`
-                          : "Premium membership required"}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    disabled={enrolling}
-                    onClick={handleEnrollNow}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
-                  >
-                    {enrolling ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                    {enrolling ? "Enrolling…" : "Start Learning"}
-                  </button>
-                </>
-              )}
+                <button
+                  disabled={enrolling}
+                  onClick={handleEnrollNow}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                >
+                  {enrolling ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  {enrolling ? "Enrolling…" : "Start Learning"}
+                </button>
+              </div>
+            )}
 
-              {showPaymentDialog && (
-                <PaymentDialog
-                  onClose={() => setShowPaymentDialog(false)}
-                  open={showPaymentDialog}
-                  data={{ ...course, type: "course" }}
-                  onHandlePreview={() => {}}
-                  onHandlePurchase={(id: string, type: any, success: boolean) =>
-                    handlePurchase(id, type, success)
-                  }
-                />
-              )}
-            </div>
+            {showPaymentDialog && (
+              <PaymentDialog
+                onClose={() => setShowPaymentDialog(false)}
+                open={showPaymentDialog}
+                data={{ ...course, type: "course" }}
+                onHandlePreview={() => {}}
+                onHandlePurchase={(id: string, type: any, success: boolean) =>
+                  handlePurchase(id, type, success)
+                }
+              />
+            )}
           </div>
 
           {/* Certification Card */}
@@ -755,13 +807,15 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     : "Complete all chapters and pass the final assessment to earn your verified certificate."}
                 </p>
 
-                {course?.enrolled && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress to Certificate</span>
-                      <span>{Math.floor(course?.progress)}%</span>
-                    </div>
-                    <Progress value={course?.progress} className="h-2" />
+                {totalMb > 0 && (
+                  <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 dark:bg-amber-950/20">
+                    <span className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                      <Trophy className="h-4 w-4" />
+                      {canEarnCertificate ? "MB earned" : "MB to earn"}
+                    </span>
+                    <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                      {totalMb} MB
+                    </span>
                   </div>
                 )}
               </div>
@@ -814,51 +868,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
           {course?.enrolled && course?.userCourse?.id && (
             <ScheduleWidget courseId={course.userCourse.id} />
-          )}
-
-          {/* Chapter mini-map (desktop, multi-chapter) */}
-          {(course?.chapters?.length ?? 0) > 1 && (
-            <div className="hidden lg:block rounded-2xl border border-border bg-card p-4">
-              <div className="eyebrow-mono text-muted-foreground mb-3">
-                Chapters
-              </div>
-              <nav className="space-y-0.5 max-h-[40vh] overflow-y-auto no-scrollbar">
-                {course?.chapters?.map((chapter: Chapter, i) => {
-                  const done = isChapterCompleted(chapter.id);
-                  const locked = !course?.enrolled && chapter.isPremium;
-                  return (
-                    <button
-                      key={chapter.id}
-                      onClick={() => {
-                        analytics.track("course_chapter_map_clicked", {
-                          courseId: course?.id,
-                          chapterId: chapter.id,
-                          index: i,
-                        });
-                        document
-                          .getElementById(`chapter-${chapter.id}`)
-                          ?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                      }}
-                      className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-secondary text-muted-foreground"
-                    >
-                      {done ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      ) : locked ? (
-                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                      ) : (
-                        <span className="w-3.5 h-3.5 grid place-items-center shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
-                        </span>
-                      )}
-                      <span className="flex-1 truncate">{chapter.title}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
           )}
 
           {/* Share row */}
