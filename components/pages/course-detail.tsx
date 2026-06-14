@@ -423,61 +423,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             </div>
           ) : null}
 
-          {/* Course Features Section */}
-          {/* {course?.enrolled && ( */}
-          <Card className="rounded-2xl">
-            <CardHeader>
-              <CardTitle>Course Features</CardTitle>
-              <CardDescription>
-                Interactive learning tools and resources
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {course?.hasQuizzes && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseQuizzes(slug))}
-                  >
-                    <Brain className="h-6 w-6" />
-                    <span className="text-sm">Quizzes</span>
-                  </Button>
-                )}
-                {course?.hasExercises && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseExercises(slug))}
-                  >
-                    <Code className="h-6 w-6" />
-                    <span className="text-sm">Exercises</span>
-                  </Button>
-                )}
-                {course?.hasPlaygrounds && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.coursePlaygrounds(slug))}
-                  >
-                    <Gamepad2 className="h-6 w-6" />
-                    <span className="text-sm">Playgrounds</span>
-                  </Button>
-                )}
-                {course?.hasProjects && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseProjects(slug))}
-                  >
-                    <FolderOpen className="h-6 w-6" />
-                    <span className="text-sm">Projects</span>
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          {/* )} */}
         </div>
 
         <div className="space-y-6">
