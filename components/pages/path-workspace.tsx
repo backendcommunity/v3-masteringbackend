@@ -244,6 +244,11 @@ export function PathWorkspace({
     currentStep?.type === "MOCK_INTERVIEW" ||
     currentStep?.type === "BOOTCAMP";
   const contextLabel = isBuild ? "Build" : isGrow ? "Grow" : "Learn";
+  // Breadcrumb base routes are entity-aware: course steps must link back to
+  // /courses, not /paths (the workspace is shared between both).
+  const listHref = entityKind === "course" ? "/courses" : "/paths";
+  const detailHref =
+    entityKind === "course" ? `/courses/${pathId}` : `/paths/${pathId}`;
   const hasContext = !!currentStep && !fullBleed;
 
   const milestoneSteps = ordered.filter(
@@ -323,8 +328,8 @@ export function PathWorkspace({
       >
         <PathTopBar
           crumbs={[
-            { label: contextLabel, href: "/paths" },
-            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: contextLabel, href: listHref },
+            { label: session.path.title, href: detailHref },
             { label: "Certificate" },
           ]}
           position={idx >= 0 ? idx + 1 : 0}
@@ -367,8 +372,8 @@ export function PathWorkspace({
       >
         <PathTopBar
           crumbs={[
-            { label: contextLabel, href: "/paths" },
-            { label: session.path.title, href: `/paths/${pathId}` },
+            { label: contextLabel, href: listHref },
+            { label: session.path.title, href: detailHref },
             { label: activeGroup?.title },
             { label: currentStep?.title },
           ]}
@@ -411,8 +416,8 @@ export function PathWorkspace({
     >
       <PathTopBar
         crumbs={[
-          { label: contextLabel, href: "/paths" },
-          { label: session.path.title, href: `/paths/${pathId}` },
+          { label: contextLabel, href: listHref },
+          { label: session.path.title, href: detailHref },
           { label: activeGroup?.title },
           { label: currentStep?.title },
         ]}
