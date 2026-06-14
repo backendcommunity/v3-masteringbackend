@@ -26,6 +26,8 @@ import {
   Code,
   BadgeIcon as Certificate,
   Trophy,
+  Star,
+  Sparkles,
   Loader2,
   RotateCcw,
   Share2,
@@ -39,6 +41,7 @@ import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { PaymentDialog } from "../payment-dialog";
+import { CoursePreviewDialog } from "../course-preview-dialog";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -59,6 +62,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -346,6 +350,11 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                 <span className="inline-flex items-center gap-1.5">
                   <Play className="w-4 h-4 opacity-70" />
                   {totalVideos} videos
+                </span>
+              )}
+              {totalMb > 0 && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+                  {totalMb} MB to earn
                 </span>
               )}
             </div>
@@ -639,62 +648,140 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             />
           )}
 
-          {/* Share card — prominent, action-oriented */}
-          {(() => {
-            const tileCls =
-              "flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border py-3 text-xs font-semibold text-muted-foreground transition-colors";
-            return (
+          <CoursePreviewDialog
+            open={showPreviewDialog}
+            onClose={() => setShowPreviewDialog(false)}
+            onEnroll={() => {
+              setShowPreviewDialog(false);
+              handleEnrollNow();
+            }}
+            course={course}
+            onPreviewChapter={(chapter) => handleFreeChapterClick(chapter)}
+          />
+
+          {/* Primary action — buy (cold) or continue (warm) */}
+          {course?.enrolled ? (
+            <>
+              {/* Continue card */}
               <div className="rounded-2xl border border-border bg-card p-5">
-                <h3 className="flex items-center gap-2 font-semibold text-[15px] mb-1">
-                  <Share2 className="w-4 h-4" />
-                  Share this course
-                </h3>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Help a friend level up their backend skills.
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={shareLinkedIn}
-                    aria-label="Share on LinkedIn"
-                    className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
-                    </svg>
-                    LinkedIn
-                  </button>
-                  <button
-                    onClick={shareX}
-                    aria-label="Share on X"
-                    className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    X
-                  </button>
-                  <button
-                    onClick={shareFacebook}
-                    aria-label="Share on Facebook"
-                    className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
-                    </svg>
-                    Facebook
-                  </button>
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="font-semibold text-[15px]">
+                    Your progress
+                  </span>
+                  <span className="font-bold text-primary">
+                    {courseProgress}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden bg-muted mb-4">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${courseProgress}%` }}
+                  />
                 </div>
                 <button
-                  onClick={copyShareLink}
-                  aria-label="Copy link"
-                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                  onClick={handleContinueLearning}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                 >
-                  <LinkIcon className="w-4 h-4" />
-                  Copy link
+                  <Play className="w-4 h-4" />
+                  {courseProgress > 0 ? "Continue Learning" : "Start Learning"}
                 </button>
               </div>
-            );
-          })()}
+
+              {course?.userCourse?.id && (
+                <ScheduleWidget courseId={course.userCourse.id} />
+              )}
+            </>
+          ) : (
+            /* Buy card */
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="text-2xl font-bold mb-1">
+                {!course?.isPremium || user?.isPremium ? (
+                  <span className="flex items-baseline gap-2">
+                    Free
+                    <span className="text-sm font-medium text-muted-foreground">
+                      with Pro
+                    </span>
+                  </span>
+                ) : course?.amount ? (
+                  `$${course.amount}`
+                ) : (
+                  <span className="text-lg">Premium membership</span>
+                )}
+              </div>
+
+              {(() => {
+                // Social proof for a young catalog: never expose tiny absolute
+                // counts (2–3 learners reads as "nobody's here" — negative
+                // proof). Only surface a learner count once it's credible
+                // (≥ threshold); below that, lead with novelty + risk reversal.
+                const MIN_CREDIBLE_LEARNERS = 100;
+                const learners = course?.totalStudents || course?.students || 0;
+                const rating = course?.rating || 0;
+                const showLearners = learners >= MIN_CREDIBLE_LEARNERS;
+                const showRating = rating > 0;
+                if (showLearners || showRating) {
+                  return (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
+                      {showRating && (
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          {rating.toFixed(1)}
+                        </span>
+                      )}
+                      {showLearners && (
+                        <span>{learners.toLocaleString()} learners</span>
+                      )}
+                    </div>
+                  );
+                }
+                // No credible numbers yet → freshness framing, not fake counts.
+                return (
+                  <div className="flex items-center gap-2 text-sm mb-4">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                      <Sparkles className="w-3 h-3" />
+                      Newly launched
+                    </span>
+                    <span className="text-muted-foreground">
+                      Be among the first to complete it
+                    </span>
+                  </div>
+                );
+              })()}
+
+              <button
+                disabled={enrolling}
+                onClick={handleEnrollNow}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-3 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+              >
+                {enrolling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {enrolling ? "Enrolling…" : "Start Learning"}
+              </button>
+
+              <button
+                onClick={() => {
+                  analytics.track("course_preview_opened", {
+                    courseId: course?.id,
+                    courseTitle: course?.title,
+                  });
+                  setShowPreviewDialog(true);
+                }}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-sm font-semibold text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                Preview course
+              </button>
+
+              <p className="mt-3 text-xs text-center text-muted-foreground">
+                {!course?.isPremium || user?.isPremium
+                  ? "Cancel anytime · Full lifetime access"
+                  : "30-day money-back guarantee"}
+              </p>
+            </div>
+          )}
 
           {/* Certification Card */}
           <Card
@@ -796,9 +883,62 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             </CardContent>
           </Card>
 
-          {course?.enrolled && course?.userCourse?.id && (
-            <ScheduleWidget courseId={course.userCourse.id} />
-          )}
+          {/* Share — demoted below the primary action + certificate */}
+          {(() => {
+            const tileCls =
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border py-3 text-xs font-semibold text-muted-foreground transition-colors";
+            return (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="flex items-center gap-2 font-semibold text-[15px] mb-1">
+                  <Share2 className="w-4 h-4" />
+                  Share this course
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Help a friend level up their backend skills.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={shareLinkedIn}
+                    aria-label="Share on LinkedIn"
+                    className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+                    </svg>
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={shareX}
+                    aria-label="Share on X"
+                    className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    X
+                  </button>
+                  <button
+                    onClick={shareFacebook}
+                    aria-label="Share on Facebook"
+                    className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+                    </svg>
+                    Facebook
+                  </button>
+                </div>
+                <button
+                  onClick={copyShareLink}
+                  aria-label="Copy link"
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Copy link
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
