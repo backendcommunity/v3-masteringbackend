@@ -13,7 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Play,
   CheckCircle2,
@@ -30,12 +35,17 @@ import {
   Trophy,
   Crown,
   Loader2,
+  RotateCcw,
+  Share2,
+  Link as LinkIcon,
+  Wrench,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
 import DisqusCommentBlock from "../ui/comment";
+import { stripHtmlTags } from "@/lib/html-utils";
 import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Course, UserChapter, Video } from "@/lib/data";
 import { toast } from "sonner";
@@ -57,6 +67,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   useEffect(() => {
@@ -249,6 +260,37 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       0,
     ) ?? 0;
   const courseProgress = course?.progress ?? 0;
+
+  // ── Share helpers ──
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = `Check out the ${course?.title} course on MasteringBackend`;
+  const openShare = (network: string, url: string) => {
+    analytics.track("course_share_clicked", { courseId: course?.id, network });
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const shareLinkedIn = () =>
+    openShare(
+      "linkedin",
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+    );
+  const shareX = () =>
+    openShare(
+      "x",
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+    );
+  const shareFacebook = () =>
+    openShare(
+      "facebook",
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+    );
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
