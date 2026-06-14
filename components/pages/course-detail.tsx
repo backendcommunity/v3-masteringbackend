@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -12,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Accordion,
   AccordionContent,
@@ -27,13 +25,9 @@ import {
   Lock,
   Brain,
   Code,
-  Gamepad2,
   FolderOpen,
-  ChevronDown,
-  ChevronUp,
   BadgeIcon as Certificate,
   Trophy,
-  Crown,
   Loader2,
   RotateCcw,
   Share2,
@@ -44,10 +38,9 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
-import DisqusCommentBlock from "../ui/comment";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { PaymentDialog } from "../payment-dialog";
-import { Chapter, Course, UserChapter, Video } from "@/lib/data";
+import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
@@ -89,22 +82,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     return course?.userCourse?.userChapters?.find(
       (ch: any) => ch.chapterId === chapterId,
     )?.isCompleted;
-  };
-
-  const handleChapterComplete = (chapterId: string) => {
-    const updatedChapters = course?.chapters.map((chapter) =>
-      chapter.id === chapterId ? { ...chapter, completed: true } : chapter,
-    );
-    const completedCount = updatedChapters?.filter((c) => c.isCompleted).length;
-    const newProgress = Math.round(
-      (completedCount! / updatedChapters?.length!) * 100,
-    );
-
-    updateCourse(slug, {
-      ...course,
-      chapters: updatedChapters,
-      progress: newProgress,
-    });
   };
 
   const handlePurchase = async (
