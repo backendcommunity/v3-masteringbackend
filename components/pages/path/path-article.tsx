@@ -86,6 +86,66 @@ export const PROSE = [
   "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2",
 ].join(" ");
 
+// Renders article content as either a block sequence (prose + inline
+// playground/quiz widgets) or plain Markdown/HTML — the shared "article block"
+// renderer used by PathArticle and the in-path project task pane.
+export function ArticleBlocks({
+  content,
+  blocks,
+}: {
+  content?: string;
+  blocks?: ArticleBlock[];
+}) {
+  const html = useMemo(() => mdToHtml(content ?? ""), [content]);
+
+  if (blocks && blocks.length) {
+    return (
+      <div>
+        {blocks.map((b, i) => {
+          if (b.type === "playground")
+            return (
+              <InlinePlayground
+                key={i}
+                language={b.language}
+                code={b.code}
+                title={b.title}
+              />
+            );
+          if (b.type === "quiz")
+            return (
+              <InlineQuiz
+                key={i}
+                question={b.question}
+                options={b.options}
+                answer={b.answer}
+                explanation={b.explanation}
+              />
+            );
+          return (
+            <article
+              key={i}
+              className={PROSE}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(mdToHtml(b.html)) }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (html)
+    return (
+      <article
+        className={PROSE}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+      />
+    );
+
+  return (
+    <p className="text-[15px] text-muted-foreground">No content yet.</p>
+  );
+}
+
 export function PathArticle({
   step,
   onComplete,

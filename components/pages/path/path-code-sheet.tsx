@@ -23,7 +23,13 @@ export function PathCodeSheet({ step }: { step?: PathSessionStep }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!open || !step) return;
+    if (!open) return;
+    // No step (standalone) → scratch editor with the default snippet.
+    if (!step) {
+      setPlayground(undefined);
+      setLoaded(true);
+      return;
+    }
     let active = true;
     setLoaded(false);
     (async () => {

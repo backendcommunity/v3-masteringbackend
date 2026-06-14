@@ -9,7 +9,6 @@ import {
   PanelBottomOpen,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ProjectTopControls } from "@/components/pages/path/project-top-controls";
 import {
   PathSession,
   PathSessionStep,
@@ -384,7 +383,6 @@ export function PathWorkspace({
           onNext={() => next && selectStep(next.id)}
           onOpenOutline={() => setOutlineOpen(true)}
           onNavigate={onNavigate}
-          projectActions={<ProjectTopControls />}
         />
         <div className="flex flex-1 min-h-0 w-full min-w-0">
           <StepStage
