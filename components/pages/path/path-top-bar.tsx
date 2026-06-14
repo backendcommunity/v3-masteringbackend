@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,12 +52,9 @@ export function PathTopBar({
   onNavigate,
   projectActions,
 }: PathTopBarProps) {
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const interviewSeconds = useInterviewTimer((s) => s.seconds);
   const interviewOnEnd = useInterviewTimer((s) => s.onEnd);
-  useEffect(() => setMounted(true), []);
 
   const fmtTimer = (s: number) => {
     const m = Math.floor(Math.max(0, s) / 60);
@@ -71,8 +67,7 @@ export function PathTopBar({
       : interviewSeconds != null && interviewSeconds <= 300
         ? "text-amber-500"
         : "text-foreground";
-  const logoSrc =
-    mounted && theme === "light" ? "/blue-icon-logo.png" : "/logo.png";
+  const logoSrc = "/main-logo.png";
 
   // crumbs = [ Learn, pathTitle, groupTitle, stepTitle ]
   const items = crumbs.filter((c) => c?.label);
@@ -96,15 +91,21 @@ export function PathTopBar({
     <header className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
       {/* Left: brand + (desktop) breadcrumb / (mobile) outline */}
       <div className="flex items-center gap-3 min-w-0">
-        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onNavigate("/")}
+          title="Go to dashboard"
+          aria-label="Go to dashboard"
+          className="flex-shrink-0 w-9 h-9 rounded-full bg-[#0E1F33] flex items-center justify-center overflow-hidden transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
           <Image
             src={logoSrc}
             alt="Mastering Backend"
-            width={26}
-            height={26}
-            className="object-contain"
+            width={36}
+            height={36}
+            className="h-full w-full object-cover"
           />
-        </div>
+        </button>
         <nav className="hidden md:flex min-w-0 items-center gap-1.5 text-sm">
           {context.map((c, i) => {
             const last = i === context.length - 1;
