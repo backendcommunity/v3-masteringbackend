@@ -63,7 +63,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const user = useUser();
   const [course, setCourse] = useState<Course>();
   const { updateCourse } = store;
-  const [currentChapter] = useState(course?.chapters[0]);
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -291,6 +290,9 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     }
   };
 
+  const chapterBadgeCls =
+    "inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted-foreground/20";
+
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* Blueprint hero — navy anchor; the grid lives here only */}
@@ -423,6 +425,158 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             </div>
           ) : null}
 
+          {/* Curriculum timeline (chapters → accordion items) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Course Curriculum</CardTitle>
+              <CardDescription>
+                {course?.chapters?.length ?? 0} chapters ·{" "}
+                {course?.totalDuration ?? 0} total hours
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 pt-0">
+              <div className="relative px-4 py-3">
+                <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+                <Accordion type="single" collapsible className="space-y-3">
+                  {course?.chapters?.map((chapter: Chapter, index) => {
+                    const completed = isChapterCompleted(chapter.id);
+                    const accessible = course?.enrolled || !chapter.isPremium;
+                    const num = index + 1;
+                    const numBgCls = completed ? "bg-emerald-600" : "bg-foreground";
+                    return (
+                      <AccordionItem
+                        key={chapter.id}
+                        value={chapter.id}
+                        id={`chapter-${chapter.id}`}
+                        className="border-0 scroll-mt-6"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${
+                              completed ? "bg-emerald-600" : "bg-foreground/20"
+                            }`}
+                          />
+                          <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                            <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                              <div className="space-y-1.5 text-left flex-1 pr-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={chapterBadgeCls}>Chapter</span>
+                                  {completed && (
+                                    <Badge className="bg-emerald-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-emerald-700">
+                                      ✓ Done
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] py-0 px-1.5 h-auto ${
+                                      !chapter.isPremium
+                                        ? "border-emerald-600 text-emerald-600"
+                                        : course?.enrolled
+                                          ? "border-primary text-primary"
+                                          : "border-amber-600 text-amber-600"
+                                    }`}
+                                  >
+                                    {!chapter.isPremium
+                                      ? "FREE"
+                                      : course?.enrolled
+                                        ? "ENROLLED"
+                                        : "PREMIUM"}
+                                  </Badge>
+                                  {(chapter.quizzes?.length ?? 0) > 0 && (
+                                    <span className={chapterBadgeCls}>Quiz</span>
+                                  )}
+                                  {chapter.exercise && (
+                                    <span className={chapterBadgeCls}>
+                                      Exercise
+                                    </span>
+                                  )}
+                                  {chapter.playground && (
+                                    <span className={chapterBadgeCls}>
+                                      Playground
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                  >
+                                    {String(num).padStart(2, "0")}
+                                  </span>
+                                  <span className="font-bold text-sm leading-snug">
+                                    {chapter.title}
+                                  </span>
+                                  {!accessible && (
+                                    <Lock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                </div>
+                                {chapter.duration && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {chapter.duration}
+                                  </p>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4 pt-0">
+                              <div className="border-t pt-3 space-y-3">
+                                {(chapter.summary || chapter.description) && (
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {stripHtmlTags(
+                                      chapter.summary || chapter.description,
+                                    )}
+                                  </p>
+                                )}
+                                {completed ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      handleChapterClick(chapter, index)
+                                    }
+                                  >
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                    Review Chapter
+                                  </Button>
+                                ) : accessible ? (
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      handleChapterClick(chapter, index)
+                                    }
+                                  >
+                                    <Play className="h-3 w-3 mr-1" />
+                                    {course?.enrolled ? "Continue" : "Start"}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    disabled={enrolling}
+                                    onClick={handleEnrollNow}
+                                  >
+                                    {enrolling ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Lock className="h-3 w-3 mr-1" />
+                                    )}
+                                    {enrolling
+                                      ? "Enrolling…"
+                                      : "Enroll to Unlock"}
+                                  </Button>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </div>
+                        </div>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -686,178 +840,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           </Card>
         </div>
       </div>
-
-      {/* Course Content */}
-      <Tabs defaultValue="curriculum" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-          <TabsTrigger value="instructor">Instructor</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="curriculum" className="space-y-4">
-          <Card className="rounded-2xl">
-            <CardHeader>
-              <CardTitle>Course Curriculum</CardTitle>
-              <CardDescription>
-                {course?.chapters.length} chapters •{" "}
-                {course?.totalDuration ?? 0} total hours
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {course?.chapters.map((chapter: Chapter, index) => {
-                  return (
-                    <div
-                      key={chapter.id}
-                      className={`flex items-center justify-between p-3 rounded-xl border border-border cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-colors ${
-                        currentChapter?.id === chapter.id ? "bg-muted" : ""
-                      }`}
-                      onClick={() => handleChapterClick(chapter, index)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          {isChapterCompleted(chapter.id) ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          ) : course?.enrolled || !chapter.isPremium ? (
-                            <span className="text-sm font-medium">
-                              {index + 1}
-                            </span>
-                          ) : (
-                            <Lock className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium">{chapter.title}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                !chapter.isPremium
-                                  ? "border-emerald-600 text-emerald-600"
-                                  : course?.enrolled
-                                    ? "border-primary text-primary"
-                                    : "border-amber-600 text-amber-600"
-                              }`}
-                            >
-                              {!chapter.isPremium
-                                ? "FREE"
-                                : course?.enrolled
-                                  ? "ENROLLED"
-                                  : "PREMIUM"}
-                            </Badge>
-                            <span>{chapter.duration}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {chapter?.type?.toUpperCase()}
-                            </Badge>
-                            {/* Feature indicators */}
-                            {chapter?.quizzes?.length! > 0 && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-border text-muted-foreground"
-                              >
-                                QUIZ
-                              </Badge>
-                            )}
-                            {chapter.exercise && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-border text-muted-foreground"
-                              >
-                                EXERCISE
-                              </Badge>
-                            )}
-                            {chapter.playground && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-border text-muted-foreground"
-                              >
-                                PLAYGROUND
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (
-                            course?.enrolled &&
-                            isChapterCompleted(chapter.id)
-                          ) {
-                            handleChapterComplete(chapter.id);
-                          }
-                        }}
-                      >
-                        {isChapterCompleted(chapter.id) ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        ) : course?.enrolled || !chapter.isPremium ? (
-                          <Play className="h-4 w-4" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="instructor">
-          <Card className="rounded-2xl">
-            <CardHeader>
-              <CardTitle>About the Instructor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  {course?.instructor
-                    ?.split(" ")
-                    .map((n: string) => n.charAt(0))
-                    .join("") ?? "MB"}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    {course?.instructor ?? "Mastering Backend"}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Senior Backend Engineer with 8+ years of experience building
-                    scalable systems. Previously worked at Google and Netflix.
-                  </p>
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span>15 courses</span>
-
-                    <span>4.9 rating</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reviews">
-          <Card className="rounded-2xl">
-            <CardHeader>
-              <CardTitle>Student Reviews</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <DisqusCommentBlock
-                  config={{
-                    url: "/courses/" + slug,
-                    identifier: slug,
-                    title: course?.title,
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
     </div>
   );
