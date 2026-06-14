@@ -579,7 +579,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 lg:sticky lg:top-6 self-start">
           {/* What's inside (paths enrollCard parity) */}
           <div className="rounded-2xl border border-border bg-card p-5">
             <h3 className="font-semibold text-[15px] mb-3">What&apos;s inside</h3>
@@ -737,10 +737,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             </div>
           </div>
 
-          {course?.enrolled && course?.userCourse?.id && (
-            <ScheduleWidget courseId={course.userCourse.id} />
-          )}
-
           {/* Certification Card */}
           <Card
             className={`rounded-2xl ${
@@ -838,6 +834,115 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               )}
             </CardContent>
           </Card>
+
+          {course?.enrolled && course?.userCourse?.id && (
+            <ScheduleWidget courseId={course.userCourse.id} />
+          )}
+
+          {/* Chapter mini-map (desktop, multi-chapter) */}
+          {(course?.chapters?.length ?? 0) > 1 && (
+            <div className="hidden lg:block rounded-2xl border border-border bg-card p-4">
+              <div className="eyebrow-mono text-muted-foreground mb-3">
+                Chapters
+              </div>
+              <nav className="space-y-0.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+                {course?.chapters?.map((chapter: Chapter, i) => {
+                  const done = isChapterCompleted(chapter.id);
+                  const locked = !course?.enrolled && chapter.isPremium;
+                  return (
+                    <button
+                      key={chapter.id}
+                      onClick={() => {
+                        analytics.track("course_chapter_map_clicked", {
+                          courseId: course?.id,
+                          chapterId: chapter.id,
+                          index: i,
+                        });
+                        document
+                          .getElementById(`chapter-${chapter.id}`)
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-secondary text-muted-foreground"
+                    >
+                      {done ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      ) : locked ? (
+                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                      ) : (
+                        <span className="w-3.5 h-3.5 grid place-items-center shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+                        </span>
+                      )}
+                      <span className="flex-1 truncate">{chapter.title}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          {/* Share row */}
+          {(() => {
+            const shareBtnCls =
+              "h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors";
+            return (
+              <div className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 mr-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <Share2 className="w-3.5 h-3.5" />
+                  Share
+                </span>
+                <button
+                  onClick={shareLinkedIn}
+                  className={shareBtnCls}
+                  aria-label="Share on LinkedIn"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-3.5 h-3.5"
+                  >
+                    <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={shareX}
+                  className={shareBtnCls}
+                  aria-label="Share on X"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-3 h-3"
+                  >
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={shareFacebook}
+                  className={shareBtnCls}
+                  aria-label="Share on Facebook"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-3.5 h-3.5"
+                  >
+                    <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={copyShareLink}
+                  className={shareBtnCls}
+                  aria-label="Copy link"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
