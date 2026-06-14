@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
+import Image from "next/image";
+import { PathFeedbackDialog } from "./path/path-feedback-dialog";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { Loader } from "../ui/loader";
@@ -1643,12 +1645,19 @@ export function ProjectPlaygroundPage({
       {!embedded && (
       <div className="topbar">
           <button
-            className="logo"
-            aria-label="Back to project"
-            title="Back to project"
-            onClick={() => onNavigate("/projects/" + slug)}
+            type="button"
+            aria-label="Go to dashboard"
+            title="Go to dashboard"
+            onClick={() => onNavigate("/")}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0E1F33] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            M
+            <Image
+              src="/main-logo.png"
+              alt="Mastering Backend"
+              width={32}
+              height={32}
+              className="h-full w-full object-cover"
+            />
           </button>
           <div className="crumb">
             Build&nbsp;&nbsp;›&nbsp;&nbsp;<b>{project?.title}</b>
@@ -1700,6 +1709,7 @@ export function ProjectPlaygroundPage({
               </svg>
             )}
           </button>
+          <PathFeedbackDialog />
           {!connected && (
             <button
               className="btn ghost"
@@ -2761,10 +2771,10 @@ export function ProjectPlaygroundPage({
           background: var(--bg);
           overflow: hidden;
         }
-        .pg-root :global(*) {
+        .pg-root * {
           box-sizing: border-box;
         }
-        .pg-root :global(svg.i) {
+        .pg-root svg.i {
           /* Sane default size so any icon whose context lacks an explicit rule
              never balloons to the SVG default. Per-context rules override. */
           width: 16px;
@@ -2874,7 +2884,7 @@ export function ProjectPlaygroundPage({
           opacity: 0.55;
           cursor: not-allowed;
         }
-        .pg-root .btn :global(svg.i) {
+        .pg-root .btn svg.i {
           width: 15px;
           height: 15px;
           flex: 0 0 auto;
@@ -2900,7 +2910,7 @@ export function ProjectPlaygroundPage({
           color: var(--text);
           background: var(--panel);
         }
-        .pg-root .btn.ghost :global(svg.i) {
+        .pg-root .btn.ghost svg.i {
           width: 16px;
           height: 16px;
         }
@@ -3014,7 +3024,7 @@ export function ProjectPlaygroundPage({
             font-weight: 600;
             cursor: pointer;
           }
-          .pg-root .mtabs button :global(svg.i) {
+          .pg-root .mtabs button svg.i {
             width: 18px;
             height: 18px;
           }
@@ -3056,7 +3066,7 @@ export function ProjectPlaygroundPage({
           gap: 7px;
           transition: 0.14s;
         }
-        .pg-root .seg button :global(svg.i) {
+        .pg-root .seg button svg.i {
           width: 15px;
           height: 15px;
           flex: 0 0 15px;
@@ -3073,7 +3083,7 @@ export function ProjectPlaygroundPage({
           border-color: rgba(19, 174, 206, 0.32);
           color: var(--cyan);
         }
-        .pg-root .seg button.on :global(svg.i) {
+        .pg-root .seg button.on svg.i {
           color: var(--cyan);
         }
         .pg-root .railbody {
@@ -3094,7 +3104,7 @@ export function ProjectPlaygroundPage({
         .pg-root .pv-empty {
           gap: 6px;
         }
-        .pg-root .pv-empty :global(svg.i) {
+        .pg-root .pv-empty svg.i {
           width: 34px;
           height: 34px;
           color: var(--muted-2);
@@ -3112,7 +3122,7 @@ export function ProjectPlaygroundPage({
           max-width: 260px;
           line-height: 1.5;
         }
-        .pg-root .empty :global(svg.i) {
+        .pg-root .empty svg.i {
           width: 24px;
           height: 24px;
         }
@@ -3165,7 +3175,7 @@ export function ProjectPlaygroundPage({
           color: var(--text);
           background: var(--panel);
         }
-        .pg-root .exact :global(svg.i) {
+        .pg-root .exact svg.i {
           width: 14px;
           height: 14px;
         }
@@ -3211,7 +3221,7 @@ export function ProjectPlaygroundPage({
           display: grid;
           place-items: center;
         }
-        .pg-root .chev :global(svg.i) {
+        .pg-root .chev svg.i {
           width: 13px;
           height: 13px;
         }
@@ -3224,7 +3234,7 @@ export function ProjectPlaygroundPage({
           display: grid;
           place-items: center;
         }
-        .pg-root .node .ico :global(svg.i) {
+        .pg-root .node .ico svg.i {
           width: 15px;
           height: 15px;
         }
@@ -3272,7 +3282,7 @@ export function ProjectPlaygroundPage({
           display: grid;
           place-items: center;
         }
-        .pg-root .node .acts button :global(svg.i) {
+        .pg-root .node .acts button svg.i {
           width: 13px;
           height: 13px;
         }
@@ -3315,7 +3325,7 @@ export function ProjectPlaygroundPage({
           display: grid;
           place-items: center;
         }
-        .pg-root .ms-h .ic :global(svg.i) {
+        .pg-root .ms-h .ic svg.i {
           width: 13px;
           height: 13px;
         }
@@ -3357,7 +3367,7 @@ export function ProjectPlaygroundPage({
           flex: 0 0 16px;
           border: 1.5px solid var(--muted-2);
         }
-        .pg-root .st :global(svg.i) {
+        .pg-root .st svg.i {
           width: 11px;
           height: 11px;
         }
@@ -3469,7 +3479,7 @@ export function ProjectPlaygroundPage({
           display: grid;
           place-items: center;
         }
-        .pg-root .tab .x :global(svg.i) {
+        .pg-root .tab .x svg.i {
           width: 12px;
           height: 12px;
         }
@@ -3558,7 +3568,7 @@ export function ProjectPlaygroundPage({
           line-height: 1.65;
           font-size: 14px;
         }
-        .pg-root .wsum :global(b) {
+        .pg-root .wsum b {
           color: var(--text);
         }
         .pg-root .wmeta {
@@ -3578,7 +3588,7 @@ export function ProjectPlaygroundPage({
           border-radius: 99px;
           padding: 5px 12px;
         }
-        .pg-root .wchip :global(svg.i) {
+        .pg-root .wchip svg.i {
           width: 14px;
           height: 14px;
           color: var(--teal);
@@ -3590,7 +3600,7 @@ export function ProjectPlaygroundPage({
           border-color: rgba(242, 201, 76, 0.3);
           font-weight: 700;
         }
-        .pg-root .wchip-xp :global(svg.i) {
+        .pg-root .wchip-xp svg.i {
           color: var(--gold);
         }
         .pg-root .wtags {
@@ -3675,7 +3685,7 @@ export function ProjectPlaygroundPage({
           font-size: 12px;
           color: var(--muted);
         }
-        .pg-root .whint :global(b) {
+        .pg-root .whint b {
           color: var(--text);
         }
 
@@ -3723,7 +3733,7 @@ export function ProjectPlaygroundPage({
           align-items: center;
           gap: 6px;
         }
-        .pg-root .seg-b :global(svg.i) {
+        .pg-root .seg-b svg.i {
           width: 14px;
           height: 14px;
           flex: 0 0 auto;
@@ -3779,7 +3789,7 @@ export function ProjectPlaygroundPage({
         .pg-root .pvbtn:hover {
           color: var(--text);
         }
-        .pg-root .pvbtn :global(svg.i) {
+        .pg-root .pvbtn svg.i {
           width: 14px;
           height: 14px;
         }
@@ -3788,7 +3798,7 @@ export function ProjectPlaygroundPage({
           min-height: 0;
           background: #fff;
         }
-        .pg-root .pv-frame :global(iframe) {
+        .pg-root .pv-frame iframe {
           width: 100%;
           height: 100%;
           border: none;
@@ -3877,7 +3887,7 @@ export function ProjectPlaygroundPage({
           border-radius: 99px;
           white-space: nowrap;
         }
-        .pg-root .dh .pts :global(svg.i) {
+        .pg-root .dh .pts svg.i {
           width: 12px;
           height: 12px;
           color: var(--gold);
@@ -3887,7 +3897,7 @@ export function ProjectPlaygroundPage({
           background: rgba(95, 176, 176, 0.14);
           border-color: rgba(95, 176, 176, 0.35);
         }
-        .pg-root .dh .pts.done :global(svg.i) {
+        .pg-root .dh .pts.done svg.i {
           color: var(--teal);
         }
         .pg-root .dmeta {
@@ -3906,7 +3916,7 @@ export function ProjectPlaygroundPage({
           border-radius: 6px;
           padding: 2px 7px;
         }
-        .pg-root .task-desc :global(code) {
+        .pg-root .task-desc code {
           font-family: var(--mono);
           font-size: 12px;
           color: var(--cyan-2);
@@ -3950,7 +3960,7 @@ export function ProjectPlaygroundPage({
           background: var(--panel-2);
           color: var(--muted);
         }
-        .pg-root .chk .ci :global(svg.i) {
+        .pg-root .chk .ci svg.i {
           width: 11px;
           height: 11px;
         }
@@ -3984,7 +3994,7 @@ export function ProjectPlaygroundPage({
         .pg-root .chk.no .ex {
           color: var(--red);
         }
-        .pg-root .ci.run :global(svg.i) {
+        .pg-root .ci.run svg.i {
           width: 14px;
           height: 14px;
           color: var(--cyan);
@@ -4042,10 +4052,10 @@ export function ProjectPlaygroundPage({
           line-height: 1.6;
           font-size: 13px;
         }
-        .pg-root .task-desc :global(p) {
+        .pg-root .task-desc p {
           margin: 0 0 8px;
         }
-        .pg-root .task-desc :global(pre) {
+        .pg-root .task-desc pre {
           background: var(--bg);
           border: 1px solid var(--line);
           border-radius: 10px;
@@ -4054,14 +4064,14 @@ export function ProjectPlaygroundPage({
           font-family: var(--mono);
           font-size: 12px;
         }
-        .pg-root .task-desc :global(code) {
+        .pg-root .task-desc code {
           font-family: var(--mono);
           font-size: 12px;
           background: rgba(127, 140, 170, 0.18);
           padding: 1px 5px;
           border-radius: 5px;
         }
-        .pg-root .task-desc :global(a) {
+        .pg-root .task-desc a {
           color: var(--gold);
         }
         .pg-root .df {
@@ -4121,7 +4131,7 @@ export function ProjectPlaygroundPage({
           font-size: 11px;
           overflow: hidden;
         }
-        .pg-root .msg .av :global(.av-img) {
+        .pg-root .msg .av .av-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
@@ -4167,7 +4177,7 @@ export function ProjectPlaygroundPage({
           background: rgba(242, 201, 76, 0.08);
           border: 1px solid rgba(242, 201, 76, 0.25);
         }
-        .pg-root .kapnote :global(svg.i) {
+        .pg-root .kapnote svg.i {
           width: 16px;
           height: 16px;
           flex: 0 0 16px;
