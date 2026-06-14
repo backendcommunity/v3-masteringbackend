@@ -426,50 +426,147 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </div>
 
         <div className="space-y-6">
-          {/* Course Enrollment Card */}
-          <Card className="rounded-2xl">
-            <CardHeader>
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                <img
-                  src={course?.banner ?? "/placeholder.svg"}
-                  alt={course?.title}
-                  className="h-full w-full object-cover"
-                />
+          {/* What's inside (paths enrollCard parity) */}
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <h3 className="font-semibold text-[15px] mb-3">What&apos;s inside</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <BookOpen className="w-4 h-4" />
+                  Chapters
+                </span>
+                <span className="font-medium">
+                  {course?.chapters?.length ?? 0}
+                </span>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              {totalVideos > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Play className="w-4 h-4" />
+                    Videos
+                  </span>
+                  <span className="font-medium">{totalVideos}</span>
+                </div>
+              )}
+              {(course?.hasQuizzes || (course?.totalQuizzes ?? 0) > 0) && (
+                <button
+                  disabled={!course?.enrolled}
+                  onClick={() => onNavigate(routes.courseQuizzes(slug))}
+                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Brain className="w-4 h-4" />
+                    Quizzes
+                  </span>
+                  <span className="font-medium">
+                    {course?.totalQuizzes ?? 0}
+                  </span>
+                </button>
+              )}
+              {course?.hasExercises && (
+                <button
+                  disabled={!course?.enrolled}
+                  onClick={() => onNavigate(routes.courseExercises(slug))}
+                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Code className="w-4 h-4" />
+                    Exercises
+                  </span>
+                  <span className="font-medium">{course?.totalTasks ?? 0}</span>
+                </button>
+              )}
+              {course?.hasPlaygrounds && (
+                <button
+                  disabled={!course?.enrolled}
+                  onClick={() => onNavigate(routes.coursePlaygrounds(slug))}
+                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Wrench className="w-4 h-4" />
+                    Playgrounds
+                  </span>
+                  <span className="font-medium">
+                    {course?.totalPlaygrounds ?? 0}
+                  </span>
+                </button>
+              )}
+              {course?.hasProjects && (
+                <button
+                  disabled={!course?.enrolled}
+                  onClick={() => onNavigate(routes.courseProjects(slug))}
+                  className="w-full flex items-center justify-between disabled:cursor-default enabled:hover:text-primary transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <FolderOpen className="w-4 h-4" />
+                    Projects
+                  </span>
+                  <span className="font-medium">
+                    {course?.totalProjects ?? 0}
+                  </span>
+                </button>
+              )}
+              {(course?.totalDuration ?? 0) > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    Est. time
+                  </span>
+                  <span className="font-medium">
+                    {course?.totalDuration} hours
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer: progress + continue (enrolled) OR price + enroll */}
+            <div className="mt-4 pt-4 border-t border-border">
               {course?.enrolled ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Your Progress</span>
-                    <span>{course?.progress}%</span>
+                    <span className="text-muted-foreground">Your progress</span>
+                    <span className="font-medium">{courseProgress}%</span>
                   </div>
-                  <Progress value={course?.progress ?? 0} className="h-2" />
-                  <Button className="w-full" onClick={handleContinueLearning}>
-                    <Play className="mr-2 h-4 w-4" />
+                  <Progress value={courseProgress} className="h-2" />
+                  <button
+                    onClick={handleContinueLearning}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                  >
+                    <Play className="w-4 h-4" />
                     Continue Learning
-                  </Button>
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {course?.isPremium && !user?.isPremium && (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 text-xs"
-                    >
-                      <Crown className="mr-1 h-3 w-3" />
-                      Included in Pro
-                    </Badge>
-                  )}
-                  <Button className="w-full" onClick={handleEnrollNow} disabled={enrolling}>
-                    {enrolling ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    {!course?.isPremium || user?.isPremium ? (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-foreground">
+                          Pro
+                        </span>
+                      </>
                     ) : (
-                      <Play className="mr-2 h-4 w-4" />
+                      <span className="font-semibold text-foreground">
+                        {course?.amount
+                          ? `$${course.amount}`
+                          : "Premium membership required"}
+                      </span>
                     )}
-                    {enrolling ? "Enrolling..." : "Start Learning"}
-                  </Button>
-                </div>
+                  </div>
+                  <button
+                    disabled={enrolling}
+                    onClick={handleEnrollNow}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-medium px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    {enrolling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    {enrolling ? "Enrolling…" : "Start Learning"}
+                  </button>
+                </>
               )}
 
               {showPaymentDialog && (
@@ -483,21 +580,8 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   }
                 />
               )}
-
-              {/* <Separator /> */}
-
-              {/* <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Heart className="mr-2 h-4 w-4" />
-                  Wishlist
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Share className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-              </div> */}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {course?.enrolled && course?.userCourse?.id && (
             <ScheduleWidget courseId={course.userCourse.id} />
