@@ -308,13 +308,22 @@ export function DashboardSidebar({
 
       {/* Footer */}
       <div className="border-t border-white/10 p-4">
-        <div
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 border border-white/20">
+        {!collapsed &&
+        (user as any)?.hasFinishedOnboarding &&
+        !(user as any)?.experienceLevel ? (
+          <button
+            onClick={() => onNavigate(routes.onboarding)}
+            className="w-full rounded-md bg-primary px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          >
+            Getting Started
+          </button>
+        ) : (
+          <div
+            className={`flex items-center ${
+              collapsed ? "justify-center" : "justify-start gap-2"
+            }`}
+          >
+            <Avatar className="h-8 w-8 border border-white/20 flex-shrink-0">
               <AvatarImage
                 src={user?.avatar || "/placeholder.svg"}
                 alt={user?.name}
@@ -324,7 +333,7 @@ export function DashboardSidebar({
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
-              <div className="grid text-left text-sm leading-tight">
+              <div className="grid min-w-0 text-left text-sm leading-tight">
                 <span className="truncate font-medium text-white/90">
                   {user?.name}
                 </span>
@@ -334,7 +343,7 @@ export function DashboardSidebar({
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

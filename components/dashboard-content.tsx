@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Code2, Trophy, Clock, Award, Flame } from "lucide-react";
-import { OnboardingSkipBanner } from "@/components/onboarding/onboarding-skip-banner";
 import { ContinueLearningCard } from "@/components/continue-learning-card";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { ScheduleList } from "@/components/schedule/ScheduleList";
@@ -98,11 +97,6 @@ export function DashboardContent({}: DashboardContentProps) {
 
   return (
     <div className="space-y-6">
-      {/* Onboarding Skip Banner */}
-      {user?.hasFinishedOnboarding && !user?.experienceLevel && (
-        <OnboardingSkipBanner userName={user.name} />
-      )}
-
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
