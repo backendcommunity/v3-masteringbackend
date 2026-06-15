@@ -70,8 +70,6 @@ export const routes = {
     `/bootcamps/${bootcampId}/certificate`,
   bootcampDashboard: (bootcampId: string) =>
     `/bootcamps/${bootcampId}/dashboard`,
-  bootcampLeaderboard: (bootcampId: string, cohortId: string) =>
-    `/bootcamps/${bootcampId}/leaderboard?cohortId=${cohortId}`,
   bootcampWeek: (bootcampId: string, cohort: string, weekId: string) =>
     `/bootcamps/${bootcampId}/${cohort}/weeks/${weekId}`,
   bootcampWatch: (
@@ -87,8 +85,6 @@ export const routes = {
   project30Day: (courseId: string, dayNumber: string) =>
     `/project30/${courseId}/day/${dayNumber}`,
   project30Community: (courseId: string) => `/project30/${courseId}/community`,
-  project30Leaderboard: (courseId: string) =>
-    `/project30/${courseId}/leaderboard`,
 
   // Projects
   projects: "/projects",

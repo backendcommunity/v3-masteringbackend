@@ -5,7 +5,6 @@ import {
   Search,
   Code2,
   X,
-  Trophy,
   DownloadCloud,
 } from "lucide-react";
 import {
@@ -262,13 +261,6 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
               >
                 <DownloadCloud className="w-4 h-4" />
                 My Submissions
-              </button>
-              <button
-                onClick={() => onNavigate("/projects/leaderboard")}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 text-white font-semibold px-5 py-2.5 text-sm hover:bg-white/10 transition"
-              >
-                <Trophy className="w-4 h-4" />
-                Global Leaderboard
               </button>
             </div>
           </div>

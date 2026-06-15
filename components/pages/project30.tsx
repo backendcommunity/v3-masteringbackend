@@ -308,12 +308,6 @@ export function Project30Page({
                   <Lock className="w-4 h-4" /> Get Access
                 </button>
               )}
-              <button
-                onClick={() => onNavigate(`/project30/${slug}/leaderboard`)}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 text-white font-semibold px-5 py-2.5 text-sm hover:bg-white/5 transition"
-              >
-                <Trophy className="w-4 h-4" /> Leaderboard
-              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
@@ -1566,15 +1560,6 @@ export function Project30Page({
                         </div>
                       </div>
                     ))}
-                    <Button
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={() =>
-                        onNavigate(`/project30/${slug}/leaderboard`)
-                      }
-                    >
-                      View Full Leaderboard
-                    </Button>
                   </div>
                 ) : (
                   <div className="text-center py-8">

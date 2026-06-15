@@ -51,12 +51,10 @@ export function LeaderboardPage({ slug, onNavigate }: LeaderboardPage) {
   const [activeTab, setActiveTab] = useState("overall");
 
   const loadWeekly = async () => {
-    const data = await store.getProject30Leaderboard(slug, {
-      weekly: true,
-    });
-    setLeaderboards(data.leaderboardUsers);
-    setWeeklyCurrentUser(data.currentUser);
-    setWeeklyTopUsers(data.topUsers);
+    // MB League data source is being reworked. Render empty until wired up.
+    setLeaderboards([]);
+    setWeeklyCurrentUser(undefined);
+    setWeeklyTopUsers([]);
   };
 
   const loadAchievements = async () => {
@@ -68,13 +66,11 @@ export function LeaderboardPage({ slug, onNavigate }: LeaderboardPage) {
     let cancelled = false;
 
     const load = async () => {
-      const data = await store.getProject30Leaderboard(slug, {
-        weekly: false,
-      });
+      // MB League data source is being reworked. Render empty until wired up.
       if (!cancelled) {
-        setLeaderboards(data.leaderboardUsers);
-        setTopUsers(data.topUsers);
-        setCurrentUser(data.currentUser);
+        setLeaderboards([]);
+        setTopUsers([]);
+        setCurrentUser(undefined);
       }
     };
     load();

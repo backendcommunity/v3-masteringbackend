@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Users,
   Target,
-  Trophy,
   Calendar,
   VideoIcon,
   AudioWaveform,
@@ -21,7 +20,6 @@ import { Bootcamp, Lesson, UserCohort, Week } from "@/lib/data";
 import { Loader } from "../ui/loader";
 import Countdown from "../ui/count-down";
 import { formatRelativeDate } from "@/lib/utils";
-import { routes } from "@/lib/routes";
 
 interface BootcampDashboardPageProps {
   bootcampId: string;
@@ -560,21 +558,6 @@ export function BootcampDashboardPage({
                   <Users className="mr-2 h-4 w-4" />
                   Join Study Group
                 </a>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() =>
-                  onNavigate?.(
-                    routes.bootcampLeaderboard(
-                      bootcampId,
-                      userCohort?.cohortId + "",
-                    ),
-                  )
-                }
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                View Leaderboard
               </Button>
             </CardContent>
           </Card>

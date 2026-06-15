@@ -334,13 +334,6 @@ export function ProjectDetailPage({
                   )}
                 </>
               )}
-              <button
-                onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
-              >
-                <Trophy className="w-4 h-4" />
-                Leaderboard
-              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
