@@ -79,6 +79,8 @@ export function transformPortfolioResponse(
       certificates: response.stats.certificates,
       globalRank: response.stats.globalRank,
       totalUsers: response.stats.totalUsers,
+      interviewAvgScore: response.stats.interviewAvgScore,
+      isInterviewReady: response.stats.isInterviewReady,
     },
     skills: (response.skills ?? []).map((s) => ({
       name: s.name,

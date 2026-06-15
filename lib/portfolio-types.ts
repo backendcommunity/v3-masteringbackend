@@ -61,6 +61,8 @@ export interface PortfolioStats {
   certificates: number;
   globalRank: number;
   totalUsers: number;
+  interviewAvgScore?: number;
+  isInterviewReady?: boolean;
 }
 
 export interface SkillEvidenceItem {
@@ -230,6 +232,8 @@ export interface PortfolioResponse {
     certificates: number;
     globalRank: number;
     totalUsers: number;
+    interviewAvgScore?: number;
+    isInterviewReady?: boolean;
   };
   projects: Array<{
     id: string;

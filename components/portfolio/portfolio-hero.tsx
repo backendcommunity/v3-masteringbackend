@@ -26,6 +26,7 @@ import {
   Download,
   Mail,
   Pencil,
+  Mic,
 } from "lucide-react";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
@@ -225,6 +226,22 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     Open to Work
                   </span>
                 </span>
+              )}
+              {stats.isInterviewReady && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 bg-primary/15 border border-primary/30 rounded-full px-2 py-0.5">
+                      <Mic className="h-2.5 w-2.5 text-primary" />
+                      <span className="text-primary text-[10px] font-semibold">
+                        Interview-ready
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Avg mock-interview score {stats.interviewAvgScore}% across
+                    practice sessions
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
             <p className="text-white/60 text-sm mt-0.5">{user.title}</p>
