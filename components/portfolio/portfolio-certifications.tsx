@@ -1,25 +1,76 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { routes } from "@/lib/routes";
 import type {
   PortfolioCertificate,
   PortfolioRoadmap,
 } from "@/lib/portfolio-types";
-import { Award, BadgeCheck, ShieldCheck } from "lucide-react";
+import {
+  Award,
+  BadgeCheck,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 interface PortfolioCertificationsProps {
   certificates: PortfolioCertificate[];
   roadmaps: PortfolioRoadmap[];
 }
 
+const INITIAL_VISIBLE = 3;
+
+function ShowMoreButton({
+  expanded,
+  remaining,
+  onClick,
+}: {
+  expanded: boolean;
+  remaining: number;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="w-full text-muted-foreground"
+      onClick={onClick}
+    >
+      {expanded ? (
+        <>
+          <ChevronUp className="mr-1 h-4 w-4" />
+          Show less
+        </>
+      ) : (
+        <>
+          <ChevronDown className="mr-1 h-4 w-4" />
+          Show {remaining} more
+        </>
+      )}
+    </Button>
+  );
+}
+
 export function PortfolioCertifications({
   certificates,
   roadmaps,
 }: PortfolioCertificationsProps) {
+  const [certsExpanded, setCertsExpanded] = useState(false);
+  const [pathsExpanded, setPathsExpanded] = useState(false);
+
   if (!certificates.length && !roadmaps.length) return null;
+
+  const visibleCerts = certsExpanded
+    ? certificates
+    : certificates.slice(0, INITIAL_VISIBLE);
+  const visiblePaths = pathsExpanded
+    ? roadmaps
+    : roadmaps.slice(0, INITIAL_VISIBLE);
 
   return (
     <Card>
@@ -44,7 +95,7 @@ export function PortfolioCertifications({
               credential.
             </p>
             <div className="space-y-2.5">
-              {certificates.map((cert) => (
+              {visibleCerts.map((cert) => (
                 <div
                   key={cert.id}
                   className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card"
@@ -80,6 +131,13 @@ export function PortfolioCertifications({
                 </div>
               ))}
             </div>
+            {certificates.length > INITIAL_VISIBLE && (
+              <ShowMoreButton
+                expanded={certsExpanded}
+                remaining={certificates.length - INITIAL_VISIBLE}
+                onClick={() => setCertsExpanded((v) => !v)}
+              />
+            )}
           </div>
         )}
 
@@ -90,7 +148,7 @@ export function PortfolioCertifications({
               Learning Paths
             </h4>
             <div className="space-y-4">
-              {roadmaps.map((roadmap) => (
+              {visiblePaths.map((roadmap) => (
                 <div key={roadmap.id} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium truncate">{roadmap.name}</span>
@@ -102,6 +160,13 @@ export function PortfolioCertifications({
                 </div>
               ))}
             </div>
+            {roadmaps.length > INITIAL_VISIBLE && (
+              <ShowMoreButton
+                expanded={pathsExpanded}
+                remaining={roadmaps.length - INITIAL_VISIBLE}
+                onClick={() => setPathsExpanded((v) => !v)}
+              />
+            )}
           </div>
         )}
       </CardContent>
