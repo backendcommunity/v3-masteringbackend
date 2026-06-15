@@ -238,8 +238,9 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Avg mock-interview score {stats.interviewAvgScore}% across
-                    practice sessions
+                    {isOwner && stats.interviewAvgScore != null
+                      ? `Avg mock-interview score ${stats.interviewAvgScore}% across practice sessions`
+                      : "Consistently strong in mock interview practice"}
                   </TooltipContent>
                 </Tooltip>
               )}
