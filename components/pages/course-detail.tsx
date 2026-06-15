@@ -262,12 +262,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const shareLinkedIn = () =>
     openShare(
       "linkedin",
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${course?.title} course`)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`,
     );
   const shareX = () =>
     openShare(
       "x",
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
     );
   const shareFacebook = () =>
     openShare(

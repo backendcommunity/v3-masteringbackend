@@ -674,7 +674,7 @@ export function LearningPathDetailPage({
   const shareLinkedIn = () =>
     openShare(
       "linkedin",
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${roadmap.title} learning path`)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`,
     );
   const shareFacebook = () =>
     openShare(
@@ -684,7 +684,7 @@ export function LearningPathDetailPage({
   const shareX = () =>
     openShare(
       "x",
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
     );
   const copyShareLink = async () => {
     try {

@@ -98,13 +98,13 @@ export function Certificate({
 
   const handleLinkedInShare = () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`I completed ${courseName}`)}&summary=${encodeURIComponent(`I just earned a certificate for completing ${courseName} on Mastering Backend!`)}`;
+    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`I completed ${courseName}`)}&summary=${encodeURIComponent(`I just earned a certificate for completing ${courseName} on Mastering Backend! @masteringbackend`)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
   const handleTwitterShare = () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const text = `I just earned a certificate for completing ${courseName} on @Master_Backend! 🎓\n\nJoin me and level up your backend engineering skills!`;
+    const text = `I just earned a certificate for completing ${courseName} on @master_backend! 🎓\n\nJoin me and level up your backend engineering skills!`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=400");
   };

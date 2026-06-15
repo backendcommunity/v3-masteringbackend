@@ -64,13 +64,13 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
   const shareText = `Check out ${user.name}'s developer portfolio on MasteringBackend!`;
   const shareX = () =>
     window.open(
-      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
       "_blank",
       "noopener,noreferrer",
     );
   const shareLinkedIn = () =>
     window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${user.name}'s developer portfolio`)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`,
       "_blank",
       "noopener,noreferrer",
     );

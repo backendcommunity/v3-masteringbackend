@@ -140,12 +140,14 @@ export function CompletionShare({
   }, [open, confettiColors]);
 
   const handleTwitterShare = () => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    // shareText is platform-agnostic; append the X handle here so LinkedIn
+    // doesn't inherit the Twitter mention (and vice versa).
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} @master_backend`)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=400");
   };
 
   const handleLinkedInShare = () => {
-    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(shareText)}`;
+    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
@@ -402,7 +404,7 @@ export function WeekCompletionShare({
         { icon: Star, value: points, label: "MB Points", color: "#F2C94C" },
         { icon: Zap, value: "100%", label: "Progress", color: "#27AE60" },
       ]}
-      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on @Master_Backend!\n\n${lessonsCount} lessons done, ${points} MB points earned.\n\nJoin me and level up your backend engineering skills!`}
+      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on Mastering Backend!\n\n${lessonsCount} lessons done, ${points} MB points earned.\n\nJoin me and level up your backend engineering skills!`}
       cta={
         onStartNextWeek
           ? {

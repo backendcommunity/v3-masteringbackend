@@ -188,14 +188,14 @@ export function PathCertificate({
     )}&title=${encodeURIComponent(
       `I completed the ${pathTitle} ${nounLower}`,
     )}&summary=${encodeURIComponent(
-      `I just earned my certificate for the ${pathTitle} ${nounLower} on Mastering Backend!`,
+      `I just earned my certificate for the ${pathTitle} ${nounLower} on Mastering Backend! @masteringbackend`,
     )}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
   const handleTwitterShare = () => {
     if (!data?.unlocked) return;
-    const text = `I just earned my certificate for the ${pathTitle} ${nounLower} on @Master_Backend! 🎓\n\nLevelling up my backend engineering skills.`;
+    const text = `I just earned my certificate for the ${pathTitle} ${nounLower} on @master_backend! 🎓\n\nLevelling up my backend engineering skills.`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
       text,
     )}&url=${encodeURIComponent(data.shareUrl)}`;
