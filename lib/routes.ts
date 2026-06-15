@@ -4,6 +4,8 @@ export const routes = {
   home: "/dashboard",
   profile: "/profile",
   settings: "/settings",
+  activity: "/activity",
+  leaderboard: "/leaderboard",
 
   // Courses
   courses: "/courses",

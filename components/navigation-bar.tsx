@@ -840,17 +840,26 @@ export function NavigationBar({
             } flex items-center space-x-1`}
           >
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:bg-gradient-to- hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
-              onClick={() => onNavigate(routes.subscriptionManagement)}
-            >
-              {!subscriptionName.includes("Free") && (
+            {user?.isPremium ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
+                onClick={() => onNavigate(routes.subscriptionManagement)}
+              >
                 <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
-              )}
-              {!isMobile && subscriptionName}
-            </Button>
+                {!isMobile && subscriptionName}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
+                onClick={() => onNavigate(routes.subscriptionManagement)}
+              >
+                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
+                {!isMobile && "Upgrade"}
+              </Button>
+            )}
 
             {/* MB Balance - Compact on mobile */}
             {!isMobile && (

@@ -11,23 +11,17 @@ import {
   Zap,
   Target,
   Sparkles,
-  Crown,
-  Gift,
-  Award,
   ChevronLeft,
   ChevronRight,
-  Star,
-  Flame,
+  LayoutDashboard,
+  Activity,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/lib/routes";
 import { useUser } from "@/hooks/use-user";
-import { useLevel } from "@/hooks/use-level";
-import { useAuth } from "@/store/auth";
 import { useTheme } from "next-themes";
 
 interface DashboardSidebarProps {
@@ -128,8 +122,18 @@ export function DashboardSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const user = useUser();
   const { theme } = useTheme();
-  const { level, mbToNextLevel, progressPct } = useLevel();
   const router = useRouter();
+
+  const mainNav = [
+    { title: "Dashboard", url: routes.dashboard, icon: LayoutDashboard },
+    { title: "My Activity", url: routes.activity, icon: Activity },
+    { title: "Leaderboard", url: routes.leaderboard, icon: Trophy },
+    {
+      title: "My Portfolio",
+      url: routes.portfolio(user?.id || ""),
+      icon: Briefcase,
+    },
+  ];
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setCollapsed(isCollapsed), [isCollapsed]);
@@ -207,86 +211,43 @@ export function DashboardSidebar({
         </Button>
       </div>
 
-      {/* User Progress (hidden when collapsed) */}
-      {!collapsed && (
-        <div className="p-4 border-b border-white/10">
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="h-4 w-4 text-yellow-500" />
-              <button
-                onClick={() => onNavigate(routes.levels)}
-                className="text-sm font-medium text-white/90 hover:text-primary transition-colors"
-              >
-                Level {user?.level} Engineer
-              </button>
-              {user?.isPremium ? (
-                <Badge
-                  variant="outline"
-                  className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 dark:text-yellow-400"
-                >
-                  <Crown className="h-3 w-3 mr-1" />
-                  {user?.subscription?.name}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 dark:text-yellow-400"
-                >
-                  Free
-                </Badge>
-              )}
-            </div>
-            <Progress
-              value={progressPct}
-              className="h-2 mb-1 bg-white/10 [&>div]:bg-primary"
-            />
-            <div className="flex justify-between text-xs text-white/50">
-              <span>{user?.points?.toLocaleString()} MB</span>
-              <span>
-                {mbToNextLevel?.toLocaleString()} MB to Level{" "}
-                {(user?.level ?? 0) + 1}
-              </span>
-            </div>
-
-            {/* Streak display */}
-            {(user?.currentStreak ?? user?.streak ?? 0) > 0 && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs font-medium text-orange-500">
-                  {user?.currentStreak ?? user?.streak ?? 0}-day streak
-                </span>
-                {(user?.currentStreak ?? user?.streak ?? 0) >= 7 && (
-                  <span className="ml-auto text-xs font-bold text-orange-500 bg-orange-500/10 rounded px-1.5 py-0.5">
-                    {(user?.currentStreak ?? user?.streak ?? 0) >= 30
-                      ? "1.5×"
-                      : "1.25×"}{" "}
-                    MB
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <Button
-              variant="outline"
-              className="w-full justify-between bg-transparent border-white/15 hover:bg-white/10 hover:border-primary/50 transition-colors"
-              onClick={() => onNavigate(routes.xpStore)}
-            >
-              <div className="flex items-center gap-2">
-                <Gift className="h-4 w-4 text-primary" />
-                <span className="text-primary">
-                  {user?.points?.toLocaleString()} MB
-                </span>
-              </div>
-              <span className="text-xs text-primary">Redeem</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-2 ">
+        {/* Main — primary destinations above the learn/build/grow catalog */}
+        <div className="px-3 py-2">
+          <div className="space-y-1">
+            {mainNav.map((item) => {
+              const active =
+                item.url === "/"
+                  ? currentPath === "/"
+                  : currentPath === item.url ||
+                    currentPath.startsWith(item.url);
+              return (
+                <button
+                  key={item.title}
+                  onClick={() => onNavigate(item.url)}
+                  title={collapsed ? item.title : ""}
+                  className={`flex w-full items-center ${
+                    collapsed ? "justify-center" : "justify-start"
+                  } gap-2 px-4 py-2 rounded-md transition-colors ${
+                    active
+                      ? "bg-primary/15 text-primary"
+                      : "text-white/65 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <item.icon
+                    className={`${collapsed ? "h-6 w-6" : "h-4 w-4"} transition-all`}
+                  />
+                  {!collapsed && <span>{item.title}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Divider between primary destinations and the catalog */}
+        <div className="mx-4 my-2 border-t border-white/10" />
+
         {Object.entries(navigationData).map(([section, items]) => (
           <div key={section} className="px-3 py-2">
             {!collapsed && (
