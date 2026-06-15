@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,8 +25,6 @@ import {
 } from "lucide-react";
 
 type VerifyStatus = "loading" | "valid" | "invalid" | "error";
-
-const TEAL = "#13AECE";
 
 export default function VerifyCertificatePage() {
   const params = useParams();
@@ -71,12 +70,20 @@ export default function VerifyCertificatePage() {
       {/* Branded hero card */}
       <div className="w-full max-w-md">
         <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 text-center mb-4">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="absolute -top-20 -left-20 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
-          <div className="relative z-10 flex flex-col items-center gap-2">
-            <span className="text-lg font-bold text-white">
-              <span style={{ color: TEAL }}>Mastering</span>Backend
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
+          <div className="relative z-10 flex flex-col items-center gap-3">
+            <Link href="/" aria-label="MasteringBackend">
+              <Image
+                src="/logo-trimed.png"
+                alt="Mastering Backend"
+                width={180}
+                height={36}
+                priority
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-white/60">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               Certificate Verification
             </span>
