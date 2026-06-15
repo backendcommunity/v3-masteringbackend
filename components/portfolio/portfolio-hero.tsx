@@ -38,6 +38,11 @@ import {
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import {
+  LeagueTierEmblem,
+  TIER_CONFIG,
+  type Tier,
+} from "@/components/pages/league/league-tier";
 import type { PortfolioUser, PortfolioStats } from "@/lib/portfolio-types";
 
 interface PortfolioHeroProps {
@@ -253,6 +258,21 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     {isOwner && stats.interviewAvgScore != null
                       ? `Avg mock-interview score ${stats.interviewAvgScore}% across practice sessions`
                       : "Consistently strong in mock interview practice"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {user.leagueTier && TIER_CONFIG[user.leagueTier as Tier] && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1.5">
+                      <LeagueTierEmblem tier={user.leagueTier as Tier} size={18} />
+                      <span className="text-white/70 text-[10px] font-semibold">
+                        {TIER_CONFIG[user.leagueTier as Tier].label}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    MB League · {TIER_CONFIG[user.leagueTier as Tier].label} tier
                   </TooltipContent>
                 </Tooltip>
               )}

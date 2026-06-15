@@ -63,6 +63,7 @@ export function transformPortfolioResponse(
       isPremium: response.user.isPremium ?? false, // ✅ From API (User.isPremium)
       isTrial: response.user.isTrial ?? false, // ✅ From API (User.isTrial)
       isOpenToWork: response.user.openToWork || false, // ✅ From API (user.openToWork)
+      leagueTier: response.user.leagueTier ?? null,
       joinedAt: response.user.joinedAt,
       resume: response.user.resume, // ✅ From API (user.resume)
       socialLinks: {

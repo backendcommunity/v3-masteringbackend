@@ -44,6 +44,7 @@ export interface PortfolioUser {
   isPremium: boolean;
   isTrial: boolean;
   isOpenToWork: boolean;
+  leagueTier?: string | null; // MB League tier (LOCALHOST..PLANET_SCALE)
   joinedAt: string;
   resume?: string; // Resume URL
   socialLinks: {
@@ -217,6 +218,7 @@ export interface PortfolioResponse {
     joinedAt: string;
     location: string; // From user.address
     openToWork?: boolean; // From user.openToWork
+    leagueTier?: string | null; // From UserLeague.currentTier
     resume?: string; // From user.resume (URL)
     socialLinks: {
       github?: string;
