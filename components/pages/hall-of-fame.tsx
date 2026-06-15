@@ -51,8 +51,15 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
 
   if (!rows) return <Loader isLoader={false} />;
 
-  const top3 = rows.slice(0, 3);
-  const rest = rows.slice(3);
+  // The board is the top 100; an off-board current user (rank > 100) is appended
+  // by the API — pull them out so they render as a pinned "your standing" row
+  // instead of inline with a jarring rank gap.
+  const board = rows.filter((r) => r.rank <= 100);
+  const offBoardMe =
+    rows.find((r) => r.isCurrentUser && r.rank > 100) ?? null;
+
+  const top3 = board.slice(0, 3);
+  const rest = board.slice(3);
   // Podium visual order: 2nd · 1st · 3rd
   const podium = [top3[1], top3[0], top3[2]].filter(Boolean);
 
@@ -213,6 +220,39 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Pinned "your standing" when the viewer isn't in the top 100 */}
+          {offBoardMe && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 overflow-hidden">
+              <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Your standing
+              </div>
+              <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border">
+                <span className="w-12 text-sm font-bold tabular-nums text-primary">
+                  #{offBoardMe.rank.toLocaleString()}
+                </span>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={offBoardMe.avatar || undefined}
+                    alt={offBoardMe.name}
+                  />
+                  <AvatarFallback className="text-xs">
+                    {offBoardMe.name?.charAt(0) ?? "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex-1 truncate text-sm font-bold">
+                  {offBoardMe.name}
+                  <span className="ml-1.5 text-xs text-primary">you</span>
+                </span>
+                <span className="w-20 text-right text-sm font-semibold tabular-nums">
+                  {offBoardMe.totalPoints?.toLocaleString() ?? 0} MB
+                </span>
+              </div>
+              <p className="px-5 pb-3 pt-1 text-xs text-muted-foreground">
+                Break into the top 100 to enter the Hall of Fame.
+              </p>
             </div>
           )}
         </>
