@@ -4,6 +4,9 @@ import { jwtVerify } from "jose";
 
 const AUTH_PATHS = ["/auth/", "/xpayment", "/ai/payment"];
 
+// Publicly accessible (no login) — recruiters + social crawlers must reach these.
+const PUBLIC_PATHS = ["/portfolios/", "/certifications/verify/"];
+
 async function isTokenValid(token: string): Promise<boolean> {
   const secret = process.env.AUTH_TOKEN_SECRET;
   if (!secret) {
@@ -47,7 +50,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p));
-  const isProtected = !isAuthPage;
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isProtected = !isAuthPage && !isPublic;
 
   const accessCookie = request.cookies.get("mb_token");
   const refreshCookie = request.cookies.get("mb_refresh_token");
