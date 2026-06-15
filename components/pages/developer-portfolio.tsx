@@ -14,7 +14,6 @@ import { PortfolioHeatmap } from "@/components/portfolio/portfolio-heatmap";
 import { PortfolioInterviews } from "@/components/portfolio/portfolio-interviews";
 import { PortfolioAchievements } from "@/components/portfolio/portfolio-achievements";
 import { PortfolioCertifications } from "@/components/portfolio/portfolio-certifications";
-import { PortfolioQuickStats } from "@/components/portfolio/portfolio-quick-stats";
 import { PortfolioBootcamps } from "@/components/portfolio/portfolio-bootcamps";
 
 interface DeveloperPortfolioPageProps {
@@ -122,12 +121,6 @@ export function DeveloperPortfolioPage({
               roadmaps={portfolio.roadmaps}
             />
             <PortfolioBootcamps bootcamps={portfolio.bootcamps} />
-            {isOwner && (
-              <PortfolioQuickStats
-                quizExerciseSummary={portfolio.quizExerciseSummary}
-                bootcamps={portfolio.bootcamps}
-              />
-            )}
             {isOwner && (
               <PortfolioAchievements achievements={portfolio.achievements} />
             )}
