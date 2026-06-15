@@ -15,6 +15,10 @@ interface HallOfFamePageProps {
   onNavigate: (path: string) => void;
 }
 
+// Open a user's portfolio in a new tab.
+const openPortfolio = (userId: string) =>
+  window.open(routes.portfolio(userId), "_blank", "noopener,noreferrer");
+
 interface HallRow {
   id: string;
   name: string;
@@ -126,10 +130,9 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                     key={row.id}
                     role="link"
                     tabIndex={0}
-                    onClick={() => onNavigate(routes.portfolio(row.id))}
+                    onClick={() => openPortfolio(row.id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter")
-                        onNavigate(routes.portfolio(row.id));
+                      if (e.key === "Enter") openPortfolio(row.id);
                     }}
                     className={cn(
                       "flex flex-col items-center rounded-2xl border bg-card p-4 cursor-pointer transition-shadow hover:shadow-md",
@@ -191,10 +194,9 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                     key={row.id}
                     role="link"
                     tabIndex={0}
-                    onClick={() => onNavigate(routes.portfolio(row.id))}
+                    onClick={() => openPortfolio(row.id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter")
-                        onNavigate(routes.portfolio(row.id));
+                      if (e.key === "Enter") openPortfolio(row.id);
                     }}
                     className={cn(
                       "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 transition-colors",
@@ -246,10 +248,9 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
               <div
                 role="link"
                 tabIndex={0}
-                onClick={() => onNavigate(routes.portfolio(offBoardMe.id))}
+                onClick={() => openPortfolio(offBoardMe.id)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter")
-                    onNavigate(routes.portfolio(offBoardMe.id));
+                  if (e.key === "Enter") openPortfolio(offBoardMe.id);
                 }}
                 className="flex items-center gap-3 px-5 py-2.5 border-t border-border cursor-pointer hover:bg-muted/50 transition-colors"
               >
