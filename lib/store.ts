@@ -202,6 +202,7 @@ interface AppState {
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
   getMyActivity: () => Promise<any>;
   getLeague: () => Promise<any>;
+  getHallOfFame: () => Promise<any>;
   getQuiz: (id: string) => Quiz | any;
   getRoadmapBySlug: (slug: string) => any;
   getRoadmapMilestones: (slug: string) => any;
@@ -922,6 +923,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   getLeague: async () => {
     const { data } = await api.get("/leaderboard");
+    return data?.data;
+  },
+  getHallOfFame: async () => {
+    const { data } = await api.get("/users/leaderboard");
     return data?.data;
   },
   getUserAchievement: async (type?: string) => {
