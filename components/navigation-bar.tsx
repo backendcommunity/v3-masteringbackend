@@ -837,7 +837,7 @@ export function NavigationBar({
           {/* Right Section */}
           <div
             className={`${
-              isMobile ? "justify-end w-full" : "ml-auto gap-4"
+              isMobile ? "flex-1 justify-end min-w-0" : "ml-auto gap-4"
             } flex items-center space-x-1`}
           >
 

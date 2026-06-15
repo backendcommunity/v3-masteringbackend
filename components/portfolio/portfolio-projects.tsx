@@ -145,6 +145,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
   return (
     <Card
       className={cn(
+        "min-w-0",
         isInProgress
           ? "border-dashed border-muted-foreground/30"
           : "hover:border-primary/20 transition-colors",
@@ -159,6 +160,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
                 href={`/projects/${project.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="min-w-0 max-w-full"
               >
                 <h4 className="font-semibold text-sm truncate">
                   {project.title}

@@ -111,7 +111,7 @@ export function DeveloperPortfolioPage({
         {/* Main grid */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left column — 2/3 */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 min-w-0">
             <PortfolioTechStack skills={portfolio.skills} />
             {isOwner && <PortfolioHeatmap activity={portfolio.activity} />}
             {isOwner && (
@@ -120,7 +120,7 @@ export function DeveloperPortfolioPage({
           </div>
 
           {/* Right column — 1/3 */}
-          <div className="space-y-6">
+          <div className="space-y-6 min-w-0">
             <PortfolioCertifications
               certificates={portfolio.certificates}
               roadmaps={portfolio.roadmaps}

@@ -128,7 +128,7 @@ export function PortfolioTechStack({ skills }: PortfolioTechStackProps) {
 
                       {/* Evidence — linked projects & courses backing this skill */}
                       {hasEvidence && (
-                        <div className="flex flex-wrap items-center gap-1.5 pl-[7.75rem]">
+                        <div className="flex flex-wrap items-center gap-1.5 pl-0 sm:pl-[7.75rem]">
                           {evidenceProjects.map((p) => (
                             <Tooltip key={`p-${p.slug}`}>
                               <TooltipTrigger asChild>
