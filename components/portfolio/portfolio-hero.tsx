@@ -61,7 +61,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
   const strokeOffset = circumference * (1 - xpProgress);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const shareText = `Check out ${user.name}'s developer portfolio on MasteringBackend!`;
+  const shareText = `Check out my developer portfolio on MasteringBackend!`;
   const shareX = () =>
     window.open(
       `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
