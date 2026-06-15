@@ -6,6 +6,7 @@ export const routes = {
   settings: "/settings",
   activity: "/activity",
   leaderboard: "/leaderboard",
+  hallOfFame: "/leaderboard/hall-of-fame",
 
   // Courses
   courses: "/courses",

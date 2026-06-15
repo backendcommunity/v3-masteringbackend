@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader } from "@/components/ui/loader";
 import { EmptyStateCard } from "@/components/empty-state-card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
@@ -43,34 +43,16 @@ interface League {
   ladder: Tier[];
   cohortSize?: number;
   season: { key: string };
-  // present only when joined
   cohortRank?: number;
   zone?: "PROMOTE" | "STAY" | "DEMOTE";
   cohort?: CohortRow[];
 }
 
-interface HallRow {
-  id: string;
-  name: string;
-  username?: string | null;
-  avatar?: string | null;
-  totalPoints: number;
-  rank: number;
-  totalCompletedCourses?: number;
-  isCurrentUser?: boolean;
-}
-
 export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   const store = useAppStore();
-  const [tab, setTab] = useState<"league" | "hall">("league");
-
   const [league, setLeague] = useState<League | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  const [hall, setHall] = useState<HallRow[] | null>(null);
-  const [hallLoading, setHallLoading] = useState(false);
-  const hallRequested = useRef(false);
 
   useEffect(() => {
     analytics.track("league_viewed");
@@ -97,29 +79,6 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
     };
   }, [store]);
 
-  // Lazy-load Hall of Fame the first time the tab is opened. Fetch once via a
-  // ref so setState inside doesn't re-trigger + self-cancel the in-flight call.
-  useEffect(() => {
-    if (tab !== "hall" || hallRequested.current) return;
-    hallRequested.current = true;
-    let cancelled = false;
-    (async () => {
-      try {
-        setHallLoading(true);
-        const data = await store.getHallOfFame();
-        if (!cancelled)
-          setHall(Array.isArray(data) ? data : (data?.users ?? []));
-      } catch {
-        if (!cancelled) setHall([]);
-      } finally {
-        if (!cancelled) setHallLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, store]);
-
   const countdown = useCountdown(league?.weekEndsAt);
 
   if (loading) return <Loader isLoader={false} />;
@@ -139,21 +98,24 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto w-full space-y-6">
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "league" | "hall")}>
-        <TabsList>
-          <TabsTrigger value="league">MB League</TabsTrigger>
-          <TabsTrigger value="hall">Hall of Fame</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Header: title + Hall of Fame link */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold tracking-tight">MB League</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => onNavigate(routes.hallOfFame)}
+        >
+          <Trophy className="h-4 w-4 text-[#F2C94C]" />
+          Hall of Fame
+        </Button>
+      </div>
 
-      {tab === "league" ? (
-        league.joined ? (
-          <LeagueBoard league={league} countdown={countdown} />
-        ) : (
-          <JoinGate league={league} countdown={countdown} />
-        )
+      {league.joined ? (
+        <LeagueBoard league={league} countdown={countdown} />
       ) : (
-        <HallOfFame rows={hall} loading={hallLoading} />
+        <JoinGate league={league} countdown={countdown} />
       )}
     </div>
   );
@@ -169,7 +131,7 @@ function JoinGate({ league, countdown }: { league: League; countdown: string }) 
         {countdown} left to join
       </span>
       <h1 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">
-        Gain {league.joinThreshold} XP to join this week&apos;s{" "}
+        Gain {league.joinThreshold} MB to join this week&apos;s{" "}
         {league.tierName} League
       </h1>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
@@ -179,7 +141,7 @@ function JoinGate({ league, countdown }: { league: League; countdown: string }) 
       <div className="mt-6 flex w-full max-w-md items-center gap-3">
         <Progress value={pct} className="h-2.5 flex-1" />
         <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-          {league.weeklyXp} / {league.joinThreshold} XP
+          {league.weeklyXp} / {league.joinThreshold} MB
         </span>
       </div>
     </div>
@@ -233,7 +195,7 @@ function LeagueBoard({
               <div className="text-3xl font-bold tabular-nums">
                 {league.weeklyXp.toLocaleString()}
               </div>
-              <div className="text-xs text-white/50">XP this week</div>
+              <div className="text-xs text-white/50">MB this week</div>
             </div>
             <div className="ml-auto max-w-xs text-sm text-white/70">
               {zoneCopy}
@@ -354,79 +316,6 @@ function LeagueBoard({
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Hall of Fame: all-time top by MB ─── */
-function HallOfFame({
-  rows,
-  loading,
-}: {
-  rows: HallRow[] | null;
-  loading: boolean;
-}) {
-  if (loading || !rows) return <Loader isLoader={false} />;
-  if (rows.length === 0) {
-    return (
-      <EmptyStateCard
-        icon={Trophy}
-        title="No legends yet"
-        description="The all-time Hall of Fame fills as engineers rack up MB points."
-      />
-    );
-  }
-  const medal = ["text-[#F2C94C]", "text-slate-400", "text-amber-700"];
-  return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-        <h2 className="font-semibold flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-[#F2C94C]" />
-          Hall of Fame
-        </h2>
-        <span className="text-xs text-muted-foreground">all-time · by MB</span>
-      </div>
-      <ul>
-        {rows.map((row) => (
-          <li
-            key={row.id}
-            className={cn(
-              "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0",
-              row.isCurrentUser &&
-                "bg-primary/5 ring-1 ring-inset ring-primary/30",
-            )}
-          >
-            <span
-              className={cn(
-                "w-7 text-sm font-bold tabular-nums",
-                row.rank <= 3 ? medal[row.rank - 1] : "text-muted-foreground",
-              )}
-            >
-              {row.rank}
-            </span>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={row.avatar || undefined} alt={row.name} />
-              <AvatarFallback className="text-xs">
-                {row.name?.charAt(0) ?? "?"}
-              </AvatarFallback>
-            </Avatar>
-            <span
-              className={cn(
-                "flex-1 truncate text-sm",
-                row.isCurrentUser ? "font-bold" : "font-medium",
-              )}
-            >
-              {row.name}
-              {row.isCurrentUser && (
-                <span className="ml-1.5 text-xs text-primary">you</span>
-              )}
-            </span>
-            <span className="w-20 text-right text-sm font-semibold tabular-nums">
-              {row.totalPoints?.toLocaleString() ?? 0} MB
-            </span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
