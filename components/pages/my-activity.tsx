@@ -16,58 +16,131 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader } from "@/components/ui/loader";
 import { EmptyStateCard } from "@/components/empty-state-card";
-import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { BookOpen, Search, Target } from "lucide-react";
+import {
+  BookOpen,
+  Code2,
+  Calendar,
+  CalendarDays,
+  Search,
+  Target,
+  Video,
+} from "lucide-react";
 
 interface MyActivityPageProps {
   onNavigate: (path: string) => void;
 }
 
-type ActivityType = "course" | "path";
+type ActivityType =
+  | "course"
+  | "path"
+  | "project"
+  | "project30"
+  | "bootcamp"
+  | "mock_interview";
 
 interface ActivityItem {
   id: string;
   type: ActivityType;
   title: string;
-  /** Navigation target for the Continue button. */
-  href: string;
+  subtitle?: string | null;
+  slug?: string | null;
   progress: number;
   isCompleted: boolean;
+  meta?: Record<string, any>;
 }
+
+interface ActivityStats {
+  coursesCompleted: number;
+  pathsCompleted: number;
+  projectsCompleted: number;
+  mockInterviewsCompleted: number;
+  bootcampsCompleted: number;
+  project30Completed: number;
+  certifications: number;
+}
+
+const TYPE_CONFIG: Record<
+  ActivityType,
+  { label: string; icon: any; filterLabel: string }
+> = {
+  course: { label: "COURSE", icon: BookOpen, filterLabel: "Courses" },
+  path: { label: "PATH", icon: Target, filterLabel: "Paths" },
+  project: { label: "PROJECT", icon: Code2, filterLabel: "Projects" },
+  project30: {
+    label: "PROJECT30",
+    icon: CalendarDays,
+    filterLabel: "Project30",
+  },
+  bootcamp: { label: "BOOTCAMP", icon: Calendar, filterLabel: "Bootcamps" },
+  mock_interview: {
+    label: "MOCK INTERVIEW",
+    icon: Video,
+    filterLabel: "Mock Interviews",
+  },
+};
 
 const clampProgress = (value: number): number => {
   if (Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
 };
 
+// Build the Continue target per type from the slug + routing meta the backend
+// returns. Falls back to the type's listing page when an id is missing.
+const hrefFor = (item: ActivityItem): string => {
+  const m = item.meta || {};
+  switch (item.type) {
+    case "course":
+      return item.slug ? routes.courseDetail(item.slug) : routes.courses;
+    case "path":
+      return item.slug ? routes.pathWorkspace(item.slug) : routes.paths;
+    case "project":
+      return item.slug ? routes.projectDetail(item.slug) : routes.projects;
+    case "project30": {
+      const id = item.slug || m.offerId;
+      return id && m.dayNumber
+        ? routes.project30Day(id, String(m.dayNumber))
+        : routes.project30;
+    }
+    case "bootcamp": {
+      const id = m.bootcampId || item.slug;
+      return id ? routes.bootcampDetail(id) : routes.bootcamps;
+    }
+    case "mock_interview":
+      if (item.isCompleted && m.userInterviewId)
+        return routes.mockInterviewResults(m.userInterviewId);
+      return m.templateId
+        ? routes.mockInterviewDetail(m.templateId)
+        : routes.mockInterviews;
+    default:
+      return routes.dashboard;
+  }
+};
+
 export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
   const store = useAppStore();
-  const user = useUser();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [items, setItems] = useState<ActivityItem[]>([]);
+  const [stats, setStats] = useState<ActivityStats>({
+    coursesCompleted: 0,
+    pathsCompleted: 0,
+    projectsCompleted: 0,
+    mockInterviewsCompleted: 0,
+    bootcampsCompleted: 0,
+    project30Completed: 0,
+    certifications: 0,
+  });
 
   const [activeTab, setActiveTab] = useState<"in-progress" | "completed">(
     "in-progress",
   );
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "course" | "path">(
-    "all",
-  );
-
-  // Stats that we can reliably derive from the API. Anything not reliably
-  // available defaults to 0 rather than being fabricated.
-  const [stats, setStats] = useState({
-    coursesCompleted: 0,
-    pathsCompleted: 0,
-    projectsCompleted: 0,
-    certifications: 0,
-  });
+  const [typeFilter, setTypeFilter] = useState<"all" | ActivityType>("all");
 
   useEffect(() => {
     analytics.track("activity_viewed");
@@ -81,58 +154,24 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
         setLoading(true);
         setError(false);
 
-        const [userCourses, userRoadmaps] = await Promise.all([
-          store.getUserCourses(),
-          store.getUserRoadmaps({ filters: "", size: 50, skip: 0 }),
-        ]);
-
-        const courseItems: ActivityItem[] = (
-          (userCourses as any[]) || []
-        )
-          .filter((uc) => uc?.course)
-          .map((uc) => {
-            const slug: string = uc.course?.slug ?? "";
-            const progress = clampProgress(
-              uc.progress ?? uc.course?.progress ?? 0,
-            );
-            return {
-              id: uc.id ?? slug,
-              type: "course" as const,
-              title: uc.course?.title ?? "Untitled course",
-              href: routes.courseDetail(slug),
-              progress,
-              isCompleted: Boolean(uc.isCompleted) || progress >= 100,
-            };
-          });
-
-        const pathItems: ActivityItem[] = ((userRoadmaps as any[]) || [])
-          .filter((ur) => ur?.roadmap)
-          .map((ur) => {
-            const pathId: string = ur.roadmap?.slug ?? ur.roadmapId ?? "";
-            const progress = clampProgress(ur.roadmap?.progress ?? 0);
-            return {
-              id: ur.id ?? pathId,
-              type: "path" as const,
-              title: ur.roadmap?.title ?? "Untitled path",
-              href: routes.pathWorkspace(pathId),
-              progress,
-              isCompleted: Boolean(ur.isCompleted) || progress >= 100,
-            };
-          });
-
-        const allItems = [...courseItems, ...pathItems];
+        const res = await store.getMyActivity();
 
         if (cancelled) return;
 
-        setItems(allItems);
-        setStats({
-          coursesCompleted: courseItems.filter((c) => c.isCompleted).length,
-          pathsCompleted: pathItems.filter((p) => p.isCompleted).length,
-          // numberOfProjectsBuilt is the closest reliable "projects completed"
-          // signal on the User type; falls back to 0 when absent.
-          projectsCompleted: user?.numberOfProjectsBuilt ?? 0,
-          certifications: user?.numberOfCertificateEarned ?? 0,
-        });
+        const rawItems: any[] = res?.items ?? [];
+        const normalized: ActivityItem[] = rawItems.map((it) => ({
+          id: String(it.id),
+          type: it.type as ActivityType,
+          title: it.title ?? "Untitled",
+          subtitle: it.subtitle ?? null,
+          slug: it.slug ?? null,
+          progress: clampProgress(it.progress ?? 0),
+          isCompleted: Boolean(it.isCompleted),
+          meta: it.meta ?? {},
+        }));
+
+        setItems(normalized);
+        if (res?.stats) setStats((prev) => ({ ...prev, ...res.stats }));
       } catch (err) {
         if (cancelled) return;
         setError(true);
@@ -147,7 +186,7 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [store, user?.numberOfProjectsBuilt, user?.numberOfCertificateEarned]);
+  }, [store]);
 
   const inProgressItems = useMemo(
     () => items.filter((i) => !i.isCompleted),
@@ -202,7 +241,7 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">My Activity</h1>
         <p className="text-muted-foreground">
-          Everything you&apos;re working on and have completed
+          Everything you&apos;ve joined, activated, and completed
         </p>
       </div>
 
@@ -264,19 +303,19 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
           <Select
             value={typeFilter}
             onValueChange={(value) =>
-              setTypeFilter(value as "all" | "course" | "path")
+              setTypeFilter(value as "all" | ActivityType)
             }
           >
-            <SelectTrigger
-              className="sm:w-40"
-              aria-label="Filter by type"
-            >
+            <SelectTrigger className="sm:w-44" aria-label="Filter by type">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              <SelectItem value="course">Courses</SelectItem>
-              <SelectItem value="path">Paths</SelectItem>
+              {(Object.keys(TYPE_CONFIG) as ActivityType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {TYPE_CONFIG[t].filterLabel}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -298,8 +337,8 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
             }
             description={
               activeTab === "in-progress"
-                ? "Enroll in a course or learning path to start making progress."
-                : "Finish a course or path to see your completed work here."
+                ? "Join a course, path, project, bootcamp, or interview to start making progress."
+                : "Finish something to see your completed work here."
             }
             primaryCTA={{
               label: "Browse courses",
@@ -316,7 +355,7 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
               <ActivityRow
                 key={`${item.type}-${item.id}`}
                 item={item}
-                onContinue={() => onNavigate(item.href)}
+                onContinue={() => onNavigate(hrefFor(item))}
               />
             ))}
           </ul>
@@ -333,9 +372,8 @@ function ActivityRow({
   item: ActivityItem;
   onContinue: () => void;
 }) {
-  const isCourse = item.type === "course";
-  const Icon = isCourse ? BookOpen : Target;
-  const typeLabel = isCourse ? "COURSE" : "PATH";
+  const cfg = TYPE_CONFIG[item.type];
+  const Icon = cfg?.icon ?? BookOpen;
 
   return (
     <li>
@@ -350,9 +388,16 @@ function ActivityRow({
           </div>
 
           <div className="min-w-0 flex-1 space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {typeLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {cfg?.label ?? "ITEM"}
+              </span>
+              {item.subtitle && (
+                <span className="truncate text-xs text-muted-foreground/80">
+                  · {item.subtitle}
+                </span>
+              )}
+            </div>
             <p className="truncate font-bold text-foreground">{item.title}</p>
             <div className="flex items-center gap-3">
               <Progress
@@ -372,9 +417,9 @@ function ActivityRow({
           <Button
             onClick={onContinue}
             className={cn("w-full sm:w-auto")}
-            aria-label={`Continue ${item.title}`}
+            aria-label={`${item.isCompleted ? "Review" : "Continue"} ${item.title}`}
           >
-            Continue
+            {item.isCompleted ? "Review" : "Continue"}
           </Button>
         </div>
       </div>

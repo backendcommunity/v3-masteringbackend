@@ -206,6 +206,7 @@ interface AppState {
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
+  getMyActivity: () => Promise<any>;
   getQuiz: (id: string) => Quiz | any;
   getRoadmapBySlug: (slug: string) => any;
   getRoadmapMilestones: (slug: string) => any;
@@ -944,6 +945,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/users/roadmaps?skip=${skip}&size=${size}&filters=${filters}`,
     );
+    return data?.data;
+  },
+  getMyActivity: async () => {
+    const { data } = await api.get("/users/activity");
     return data?.data;
   },
   getUserAchievement: async (type?: string) => {
