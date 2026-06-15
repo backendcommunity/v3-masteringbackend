@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
+import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
@@ -994,6 +995,21 @@ export function LearningPathDetailPage({
         )}
       </div>
       <div className="mt-4 pt-4 border-t border-border">
+        {/* Social proof — gated: hide tiny counts (negative proof), else
+            novelty framing. Shared threshold across course/path/project. */}
+        {isCredibleLearnerCount(studentsCount) ? (
+          <div className="text-sm text-muted-foreground mb-3">
+            {studentsCount.toLocaleString()} learners enrolled
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm mb-3">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+              <Sparkles className="w-3 h-3" />
+              Newly launched
+            </span>
+            <span className="text-muted-foreground">Be among the first</span>
+          </div>
+        )}
         <div className="text-sm text-muted-foreground mb-3">
           {!roadmap.isPremium || user?.isPremium ? (
             <>

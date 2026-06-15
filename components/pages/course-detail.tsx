@@ -28,6 +28,7 @@ import {
   Trophy,
   Star,
   Sparkles,
+  BarChart3,
   Loader2,
   RotateCcw,
   Share2,
@@ -40,6 +41,7 @@ import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { PaymentDialog } from "../payment-dialog";
 import { CoursePreviewDialog } from "../course-preview-dialog";
 import { Chapter, Course, Video } from "@/lib/data";
@@ -335,7 +337,8 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+              <span className="inline-flex items-center gap-1.5">
+                <BarChart3 className="w-4 h-4 opacity-70" />
                 {courseLevel}
               </span>
               <span className="inline-flex items-center gap-1.5">
@@ -712,12 +715,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               {(() => {
                 // Social proof for a young catalog: never expose tiny absolute
                 // counts (2–3 learners reads as "nobody's here" — negative
-                // proof). Only surface a learner count once it's credible
-                // (≥ threshold); below that, lead with novelty + risk reversal.
-                const MIN_CREDIBLE_LEARNERS = 100;
+                // proof). Only surface a learner count once it's credible;
+                // below that, lead with novelty + risk reversal. Threshold is
+                // shared across course / path / project — see lib/social-proof.
                 const learners = course?.totalStudents || course?.students || 0;
                 const rating = course?.rating || 0;
-                const showLearners = learners >= MIN_CREDIBLE_LEARNERS;
+                const showLearners = isCredibleLearnerCount(learners);
                 const showRating = rating > 0;
                 if (showLearners || showRating) {
                   return (

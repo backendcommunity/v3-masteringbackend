@@ -32,8 +32,10 @@ import {
   ChevronRight,
   Users,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
@@ -496,6 +498,24 @@ export function ProjectDetailPage({
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Social proof — gated: hide tiny counts (negative proof), else
+                  novelty framing. Shared threshold across course/path/project. */}
+              {!project?.enrolled &&
+                (isCredibleLearnerCount(project?.students) ? (
+                  <div className="text-sm text-muted-foreground">
+                    {(project?.students ?? 0).toLocaleString()} builders enrolled
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                      <Sparkles className="w-3 h-3" />
+                      Newly launched
+                    </span>
+                    <span className="text-muted-foreground">
+                      Be among the first
+                    </span>
+                  </div>
+                ))}
               {project?.enrolled ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
