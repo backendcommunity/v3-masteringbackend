@@ -398,7 +398,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                 className="h-8 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs gap-1.5"
                 asChild
               >
-                <a href={routes.settings}>
+                <a href={routes.profile}>
                   <Pencil className="h-3.5 w-3.5" />
                   Edit profile
                 </a>
