@@ -9,6 +9,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   CheckCircle2,
   Github,
   Globe,
@@ -27,6 +33,7 @@ import {
   Mail,
   Pencil,
   Mic,
+  Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
@@ -53,21 +60,26 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
   const circumference = 2 * Math.PI * 52; // radius=52 for the ring
   const strokeOffset = circumference * (1 - xpProgress);
 
-  const handleShare = () => {
-    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const shareText = `Check out ${user.name}'s developer portfolio on MasteringBackend!`;
-
-    if (typeof navigator !== "undefined" && navigator.share) {
-      navigator
-        .share({
-          title: `${user.name} — Portfolio`,
-          text: shareText,
-          url: shareUrl,
-        })
-        .catch(() => {});
-    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(shareUrl);
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = `Check out ${user.name}'s developer portfolio on MasteringBackend!`;
+  const shareX = () =>
+    window.open(
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  const shareLinkedIn = () =>
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
       toast.success("Portfolio link copied to clipboard!");
+    } catch {
+      toast.error("Couldn't copy the link");
     }
   };
 
@@ -375,20 +387,32 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
               </Tooltip>
             )}
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs gap-1.5"
-                  onClick={handleShare}
                 >
                   <Share2 className="h-3.5 w-3.5" />
                   Share
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>Share this portfolio</TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={shareX}>
+                  <Twitter className="mr-2 h-4 w-4" />
+                  Share on X
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={shareLinkedIn}>
+                  <Linkedin className="mr-2 h-4 w-4" />
+                  Share on LinkedIn
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={copyShareLink}>
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                  Copy link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Edit profile — owner only */}
             {isOwner && (
