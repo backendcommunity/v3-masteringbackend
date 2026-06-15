@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -29,27 +29,23 @@ interface HallRow {
 export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
   const store = useAppStore();
   const [rows, setRows] = useState<HallRow[] | null>(null);
-  const requested = useRef(false);
 
   useEffect(() => {
     analytics.track("hall_of_fame_viewed");
   }, []);
 
   useEffect(() => {
-    if (requested.current) return;
-    requested.current = true;
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await store.getHallOfFame();
-        if (!cancelled)
-          setRows(Array.isArray(data) ? data : (data?.users ?? []));
-      } catch {
-        if (!cancelled) setRows([]);
-      }
-    })();
+    let active = true;
+    store
+      .getHallOfFame()
+      .then((data) => {
+        if (active) setRows(Array.isArray(data) ? data : (data?.users ?? []));
+      })
+      .catch(() => {
+        if (active) setRows([]);
+      });
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [store]);
 

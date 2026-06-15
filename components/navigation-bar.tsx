@@ -17,6 +17,7 @@ import {
   Sparkles,
   Menu,
   CheckSquare,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1083,6 +1084,10 @@ export function NavigationBar({
                 >
                   <User className="mr-2 h-4 w-4" />
                   <span>My Portfolio</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onNavigate(routes.hallOfFame)}>
+                  <Trophy className="mr-2 h-4 w-4" />
+                  <span>Hall of Fame</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
