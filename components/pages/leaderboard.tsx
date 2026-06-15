@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Loader } from "@/components/ui/loader";
@@ -70,6 +70,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
 
   const [hall, setHall] = useState<HallRow[] | null>(null);
   const [hallLoading, setHallLoading] = useState(false);
+  const hallRequested = useRef(false);
 
   useEffect(() => {
     analytics.track("league_viewed");
@@ -96,15 +97,18 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
     };
   }, [store]);
 
-  // Lazy-load Hall of Fame the first time the tab is opened.
+  // Lazy-load Hall of Fame the first time the tab is opened. Fetch once via a
+  // ref so setState inside doesn't re-trigger + self-cancel the in-flight call.
   useEffect(() => {
-    if (tab !== "hall" || hall || hallLoading) return;
+    if (tab !== "hall" || hallRequested.current) return;
+    hallRequested.current = true;
     let cancelled = false;
     (async () => {
       try {
         setHallLoading(true);
         const data = await store.getHallOfFame();
-        if (!cancelled) setHall(Array.isArray(data) ? data : (data?.users ?? []));
+        if (!cancelled)
+          setHall(Array.isArray(data) ? data : (data?.users ?? []));
       } catch {
         if (!cancelled) setHall([]);
       } finally {
@@ -114,7 +118,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [tab, hall, hallLoading, store]);
+  }, [tab, store]);
 
   const countdown = useCountdown(league?.weekEndsAt);
 
