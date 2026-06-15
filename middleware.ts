@@ -5,6 +5,8 @@ import { jwtVerify } from "jose";
 const AUTH_PATHS = ["/auth/", "/xpayment", "/ai/payment"];
 
 // Publicly accessible (no login) — recruiters + social crawlers must reach these.
+// NOT in AUTH_PATHS: these aren't login pages, so logged-in owners must still
+// reach them (AUTH_PATHS bounces authenticated users away to "/").
 const PUBLIC_PATHS = ["/portfolios/", "/certifications/verify/"];
 
 async function isTokenValid(token: string): Promise<boolean> {
@@ -60,13 +62,16 @@ export async function middleware(request: NextRequest) {
   const hasRefreshToken = !!refreshCookie?.value;
 
   // Verify access token validity at the edge
-  const accessValid = hasAccessToken ? await isTokenValid(accessCookie!.value) : false;
+  const accessValid = hasAccessToken
+    ? await isTokenValid(accessCookie!.value)
+    : false;
 
   // If access token is expired but refresh token exists and is valid,
   // let the request through — the client-side interceptor will silently refresh.
-  const refreshValid = !accessValid && hasRefreshToken
-    ? await isTokenValid(refreshCookie!.value)
-    : false;
+  const refreshValid =
+    !accessValid && hasRefreshToken
+      ? await isTokenValid(refreshCookie!.value)
+      : false;
 
   const isAuthenticated = accessValid || refreshValid;
 
