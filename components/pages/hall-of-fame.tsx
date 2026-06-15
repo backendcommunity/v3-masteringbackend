@@ -124,8 +124,15 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                 return (
                   <div
                     key={row.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => onNavigate(routes.portfolio(row.id))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        onNavigate(routes.portfolio(row.id));
+                    }}
                     className={cn(
-                      "flex flex-col items-center rounded-2xl border bg-card p-4",
+                      "flex flex-col items-center rounded-2xl border bg-card p-4 cursor-pointer transition-shadow hover:shadow-md",
                       tall ? "pt-6 pb-7" : "pt-4",
                       row.isCurrentUser
                         ? "border-primary/40 ring-1 ring-primary/30"
@@ -182,8 +189,15 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                 {rest.map((row) => (
                   <li
                     key={row.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => onNavigate(routes.portfolio(row.id))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        onNavigate(routes.portfolio(row.id));
+                    }}
                     className={cn(
-                      "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0",
+                      "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 transition-colors",
                       row.isCurrentUser &&
                         "bg-primary/5 ring-1 ring-inset ring-primary/30",
                     )}
@@ -229,7 +243,16 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
               <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Your standing
               </div>
-              <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border">
+              <div
+                role="link"
+                tabIndex={0}
+                onClick={() => onNavigate(routes.portfolio(offBoardMe.id))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    onNavigate(routes.portfolio(offBoardMe.id));
+                }}
+                className="flex items-center gap-3 px-5 py-2.5 border-t border-border cursor-pointer hover:bg-muted/50 transition-colors"
+              >
                 <span className="w-12 text-sm font-bold tabular-nums text-primary">
                   #{offBoardMe.rank.toLocaleString()}
                 </span>

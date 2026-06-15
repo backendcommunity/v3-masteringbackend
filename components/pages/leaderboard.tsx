@@ -113,7 +113,11 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
       </div>
 
       {league.joined ? (
-        <LeagueBoard league={league} countdown={countdown} />
+        <LeagueBoard
+          league={league}
+          countdown={countdown}
+          onNavigate={onNavigate}
+        />
       ) : (
         <JoinGate league={league} countdown={countdown} />
       )}
@@ -152,9 +156,11 @@ function JoinGate({ league, countdown }: { league: League; countdown: string }) 
 function LeagueBoard({
   league,
   countdown,
+  onNavigate,
 }: {
   league: League;
   countdown: string;
+  onNavigate: (path: string) => void;
 }) {
   const cohort = league.cohort ?? [];
   const zoneCopy =
@@ -256,8 +262,15 @@ function LeagueBoard({
                   <ZoneHeader kind="DEMOTE" label="Demotion zone" />
                 )}
                 <div
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => onNavigate(routes.portfolio(row.userId))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter")
+                      onNavigate(routes.portfolio(row.userId));
+                  }}
                   className={cn(
-                    "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0",
+                    "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 transition-colors",
                     row.isMe && "bg-primary/5 ring-1 ring-inset ring-primary/30",
                     row.zone === "PROMOTE" && "bg-emerald-500/[.04]",
                     row.zone === "DEMOTE" && "bg-red-500/[.04]",
