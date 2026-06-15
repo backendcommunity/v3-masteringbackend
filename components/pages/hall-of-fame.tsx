@@ -125,7 +125,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
         <>
           {/* Podium — top 3 */}
           {top3.length > 0 && (
-            <div className="grid grid-cols-3 gap-3 items-end">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
               {podium.map((row) => {
                 const place = row.rank; // 1 | 2 | 3
                 const tall = place === 1;
@@ -151,8 +151,8 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                       if (e.key === "Enter") openPortfolio(row.id);
                     }}
                     className={cn(
-                      "flex flex-col items-center rounded-2xl border bg-card p-4 cursor-pointer transition-shadow hover:shadow-md",
-                      tall ? "pt-6 pb-7" : "pt-4",
+                      "flex flex-col items-center rounded-2xl border bg-card p-2.5 sm:p-4 cursor-pointer transition-shadow hover:shadow-md",
+                      tall ? "pt-5 pb-6 sm:pt-6 sm:pb-7" : "pt-3 sm:pt-4",
                       row.isCurrentUser
                         ? "border-primary/40 ring-1 ring-primary/30"
                         : "border-border",
@@ -165,7 +165,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                       <Avatar
                         className={cn(
                           "ring-2 ring-offset-2 ring-offset-background",
-                          tall ? "h-16 w-16" : "h-12 w-12",
+                          tall ? "h-12 w-12 sm:h-16 sm:w-16" : "h-10 w-10 sm:h-12 sm:w-12",
                           ring,
                         )}
                       >
@@ -187,8 +187,8 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                     </div>
                     <p
                       className={cn(
-                        "mt-3 text-sm font-semibold truncate max-w-full text-center",
-                        tall ? "" : "text-[13px]",
+                        "mt-3 text-xs sm:text-sm font-semibold truncate max-w-full text-center",
+                        tall ? "" : "sm:text-[13px]",
                       )}
                     >
                       {row.name}
@@ -196,7 +196,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                         <span className="ml-1 text-xs text-primary">you</span>
                       )}
                     </p>
-                    <p className="text-xs font-bold text-[#F2C94C] tabular-nums mt-0.5">
+                    <p className="text-[11px] sm:text-xs font-bold text-[#F2C94C] tabular-nums mt-0.5 truncate max-w-full text-center">
                       {row.totalPoints?.toLocaleString() ?? 0} MB
                     </p>
                   </div>

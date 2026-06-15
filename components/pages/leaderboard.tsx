@@ -175,15 +175,15 @@ function LeagueBoard({
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-20 -left-16 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col gap-5">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <LeagueTierEmblem tier={league.tier} size={52} />
             <div className="min-w-0">
               <div className="eyebrow-mono text-white/[.55]">MB League</div>
-              <h1 className="text-2xl font-bold leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight">
                 {league.tierName} League
               </h1>
             </div>
-            <div className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-white/[.06] px-3 py-1.5 text-sm">
+            <div className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-white/[.06] px-3 py-1.5 text-xs sm:text-sm whitespace-nowrap">
               <Clock className="w-4 h-4 opacity-70" />
               resets in {countdown}
             </div>

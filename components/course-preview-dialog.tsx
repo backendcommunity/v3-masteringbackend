@@ -40,7 +40,7 @@ export function CoursePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border border-border bg-background">
+      <DialogContent className="w-[calc(100%-1.5rem)] max-w-2xl p-0 overflow-hidden rounded-2xl border border-border bg-background">
         <div className="h-1 w-full bg-primary" />
 
         <DialogHeader className="px-6 pt-5 pb-0">

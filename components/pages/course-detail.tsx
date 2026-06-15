@@ -294,7 +294,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">course</div>
-            <h1 className="text-3xl font-bold mt-1.5">{course?.title}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">{course?.title}</h1>
 
             <div className="mt-4">
               {course?.enrolled ? (
@@ -305,7 +305,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   <Play className="w-4 h-4" /> Continue Course
                 </button>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <button
                     disabled={enrolling}
                     onClick={handleEnrollNow}

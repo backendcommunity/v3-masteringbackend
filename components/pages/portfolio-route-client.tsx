@@ -62,8 +62,13 @@ export function PortfolioRouteClient({
               MasteringBackend
             </span>
           </button>
-          <Button size="sm" onClick={() => router.push(routes.dashboard)}>
-            Build your portfolio
+          <Button
+            size="sm"
+            className="shrink-0"
+            onClick={() => router.push(routes.dashboard)}
+          >
+            <span className="sm:hidden">Build portfolio</span>
+            <span className="hidden sm:inline">Build your portfolio</span>
           </Button>
         </div>
       </header>

@@ -239,7 +239,7 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">My Activity</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Activity</h1>
         <p className="text-muted-foreground">
           Everything you&apos;ve joined, activated, and completed
         </p>
