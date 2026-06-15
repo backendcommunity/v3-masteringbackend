@@ -19,6 +19,22 @@ interface HallOfFamePageProps {
 const openPortfolio = (userId: string) =>
   window.open(routes.portfolio(userId), "_blank", "noopener,noreferrer");
 
+// Deterministic avatar tint (used when a user has no avatar image).
+const AVATAR_PALETTE = [
+  "#13AECE",
+  "#9B59B6",
+  "#27AE60",
+  "#F2C94C",
+  "#e26d5c",
+  "#5c7cfa",
+  "#f06595",
+  "#20c997",
+  "#845ef7",
+  "#fa5252",
+];
+const tintFor = (rank: number) =>
+  AVATAR_PALETTE[(rank - 1) % AVATAR_PALETTE.length];
+
 interface HallRow {
   id: string;
   name: string;
@@ -154,7 +170,11 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                         )}
                       >
                         <AvatarImage src={row.avatar || undefined} alt={row.name} />
-                        <AvatarFallback>{row.name?.charAt(0) ?? "?"}</AvatarFallback>
+                        <AvatarFallback
+                          style={{ background: tintFor(row.rank), color: "#fff" }}
+                        >
+                          {row.name?.charAt(0) ?? "?"}
+                        </AvatarFallback>
                       </Avatar>
                       <span
                         className={cn(
@@ -185,10 +205,11 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
             </div>
           )}
 
-          {/* Ranked list — 4th onward */}
+          {/* Ranked list — 4th onward (contained scroll for long boards) */}
           {rest.length > 0 && (
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <ul>
+              <ul className="max-h-[520px] overflow-y-auto">
+
                 {rest.map((row) => (
                   <li
                     key={row.id}
@@ -209,7 +230,10 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
                     </span>
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={row.avatar || undefined} alt={row.name} />
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback
+                        className="text-xs"
+                        style={{ background: tintFor(row.rank), color: "#fff" }}
+                      >
                         {row.name?.charAt(0) ?? "?"}
                       </AvatarFallback>
                     </Avatar>
