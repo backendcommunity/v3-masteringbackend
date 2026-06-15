@@ -1075,7 +1075,7 @@ export function NavigationBar({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onNavigate(routes.project30)}>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  <span>Project30</span>
+                  <span>Ship</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

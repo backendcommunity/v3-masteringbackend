@@ -71,9 +71,9 @@ const TYPE_CONFIG: Record<
   path: { label: "PATH", icon: Target, filterLabel: "Paths" },
   project: { label: "PROJECT", icon: Code2, filterLabel: "Projects" },
   project30: {
-    label: "PROJECT30",
+    label: "SHIP",
     icon: CalendarDays,
-    filterLabel: "Project30",
+    filterLabel: "Ship",
   },
   bootcamp: { label: "BOOTCAMP", icon: Calendar, filterLabel: "Bootcamps" },
   mock_interview: {

@@ -137,7 +137,7 @@ export function Project30Page({
 
   if (loading) return <Loader isLoader={false} />;
 
-  if (!project30) return <div>Project30 not found</div>;
+  if (!project30) return <div>Ship not found</div>;
 
   if ((project30 as any)?.isWaiting) {
     return (
@@ -146,7 +146,7 @@ export function Project30Page({
         summary={(project30?.description || "").replace(/<[^>]+>/g, "")}
         waitingLink={(project30 as any)?.waitingLink}
         kindLabel="challenge"
-        backLabel="Browse Project30"
+        backLabel="Browse Ship"
         onBack={() => onNavigate("/project30")}
       />
     );
@@ -213,7 +213,7 @@ export function Project30Page({
         project30?.id,
       );
       if (!startProject30) {
-        toast.error("Unable to start Project30. Please try again.");
+        toast.error("Unable to start Ship. Please try again.");
         return;
       }
       setProject30({
@@ -252,7 +252,7 @@ export function Project30Page({
         onClick={() => onNavigate("/project30")}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
       >
-        <ArrowLeft className="h-4 w-4" /> Project30
+        <ArrowLeft className="h-4 w-4" /> Ship
       </button>
 
       {/* Blueprint detail hero — navy anchor; the grid lives here only */}
@@ -422,7 +422,7 @@ export function Project30Page({
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm md:text-base">
-                      Unlock Project30 Challenge
+                      Unlock Ship Challenge
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
                       Get access to 30 days of hands-on project building with
@@ -679,7 +679,7 @@ export function Project30Page({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-gray-500" />
-                  Project30 Challenge Preview
+                  Ship Challenge Preview
                 </CardTitle>
                 <CardDescription>
                   Get access to unlock 30 days of project-based learning
@@ -768,7 +768,7 @@ export function Project30Page({
                 Recent Lessons
               </CardTitle>
               <CardDescription className="text-sm">
-                Your latest Project30 lessons
+                Your latest Ship lessons
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1460,7 +1460,7 @@ export function Project30Page({
                 Achievements
               </CardTitle>
               <CardDescription className="text-sm">
-                Unlock badges as you progress through Project30
+                Unlock badges as you progress through Ship
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1606,7 +1606,7 @@ export function Project30Page({
                   Community Stats
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Project30 community insights
+                  Ship community insights
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

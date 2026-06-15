@@ -65,7 +65,7 @@ const navigationData = {
       beta: false,
     },
     {
-      title: "Project30",
+      title: "Ship",
       url: routes.project30,
       icon: Sparkles,
       active: true,

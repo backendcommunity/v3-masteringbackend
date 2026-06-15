@@ -143,7 +143,7 @@ export function Project30LeaderboardPage({
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Project30 Leaderboard</h1>
+          <h1 className="text-3xl font-bold">Ship Leaderboard</h1>
           <p className="text-muted-foreground">
             See how you rank against other participants
           </p>
@@ -154,7 +154,7 @@ export function Project30LeaderboardPage({
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Project30
+          Back to Ship
         </Button>
       </div>
 

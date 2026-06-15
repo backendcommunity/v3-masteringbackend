@@ -46,7 +46,7 @@ export function Project30Card({ project30, onNavigate }: Project30CardProps) {
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
           <span className="text-muted-foreground font-medium truncate">
-            Project30
+            Ship
           </span>
           {categoryName && (
             <>

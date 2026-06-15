@@ -170,7 +170,7 @@ export function Project30ListingPage({
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">build</div>
-            <h1 className="text-2xl font-bold mt-1.5">Project30</h1>
+            <h1 className="text-2xl font-bold mt-1.5">Ship</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Build real-world backend projects in focused 30-day challenges.
             </p>
