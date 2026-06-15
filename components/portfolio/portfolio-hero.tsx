@@ -76,8 +76,29 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
     .join("")
     .slice(0, 2);
 
+  // Only allow http/https hrefs — socialLinks/resume are user-controlled, so a
+  // `javascript:` URL would be stored XSS for anyone who clicks. Reject anything
+  // that isn't an http(s) absolute URL.
+  const safeUrl = (u?: string | null): string | null => {
+    if (!u) return null;
+    try {
+      const { protocol } = new URL(u);
+      return protocol === "http:" || protocol === "https:" ? u : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const links = {
+    github: safeUrl(user.socialLinks.github),
+    linkedin: safeUrl(user.socialLinks.linkedin),
+    twitter: safeUrl(user.socialLinks.twitter),
+    website: safeUrl(user.socialLinks.website),
+    resume: safeUrl(user.resume),
+  };
+
   // Contact / Hire CTA target — prefer LinkedIn, then website.
-  const contactHref = user.socialLinks.linkedin || user.socialLinks.website || null;
+  const contactHref = links.linkedin || links.website || null;
 
   const handleContact = () => {
     if (!contactHref) return;
@@ -229,7 +250,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
 
           {/* Social links + share */}
           <div className="flex items-center gap-2 flex-wrap">
-            {user.socialLinks.github && (
+            {links.github && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -239,7 +260,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     asChild
                   >
                     <a
-                      href={user.socialLinks.github}
+                      href={links.github}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -250,7 +271,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                 <TooltipContent>View GitHub Profile</TooltipContent>
               </Tooltip>
             )}
-            {user.socialLinks.linkedin && (
+            {links.linkedin && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -260,7 +281,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     asChild
                   >
                     <a
-                      href={user.socialLinks.linkedin}
+                      href={links.linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -271,7 +292,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                 <TooltipContent>View LinkedIn Profile</TooltipContent>
               </Tooltip>
             )}
-            {user.socialLinks.twitter && (
+            {links.twitter && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -281,7 +302,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     asChild
                   >
                     <a
-                      href={user.socialLinks.twitter}
+                      href={links.twitter}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -292,7 +313,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                 <TooltipContent>Follow on X (Twitter)</TooltipContent>
               </Tooltip>
             )}
-            {user.socialLinks.website && (
+            {links.website && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -302,7 +323,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     asChild
                   >
                     <a
-                      href={user.socialLinks.website}
+                      href={links.website}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -313,7 +334,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                 <TooltipContent>Visit Website</TooltipContent>
               </Tooltip>
             )}
-            {user.resume && (
+            {links.resume && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -323,7 +344,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
                     asChild
                   >
                     <a
-                      href={user.resume}
+                      href={links.resume}
                       target="_blank"
                       rel="noopener noreferrer"
                       download
