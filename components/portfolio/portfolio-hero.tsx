@@ -24,16 +24,21 @@ import {
   Calendar,
   Crown,
   Download,
+  Mail,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
+import { analytics } from "@/lib/analytics";
+import { routes } from "@/lib/routes";
 import type { PortfolioUser, PortfolioStats } from "@/lib/portfolio-types";
 
 interface PortfolioHeroProps {
   user: PortfolioUser;
   stats: PortfolioStats;
+  isOwner: boolean;
 }
 
-export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
+export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
   // xpToNextLevel is the remaining XP needed. Progress within current level span:
   //   (xp / (xp + xpToNextLevel)) gives progress from 0 to the next threshold,
   //   which is the correct fraction when the previous threshold is treated as 0.
@@ -71,14 +76,30 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
     .join("")
     .slice(0, 2);
 
-  const statItems = [
+  // Contact / Hire CTA target — prefer LinkedIn, then website.
+  const contactHref = user.socialLinks.linkedin || user.socialLinks.website || null;
+
+  const handleContact = () => {
+    if (!contactHref) return;
+    analytics.track("portfolio_contact_clicked", {
+      userId: user.id,
+      channel: contactHref.includes("linkedin") ? "linkedin" : "website",
+    });
+  };
+
+  // Public credibility pills (always shown).
+  const publicStatItems = [
     { icon: Trophy, value: stats.totalProjects, label: "Projects" },
+    { icon: BookOpen, value: stats.coursesCompleted, label: "Courses" },
+  ];
+
+  // Platform-internal gamification pills (owner only).
+  const ownerStatItems = [
     {
       icon: Award,
       value: stats.totalPoints.toLocaleString(),
       label: "MB Points",
     },
-    { icon: BookOpen, value: stats.coursesCompleted, label: "Courses" },
     {
       icon: Hash,
       value: `#${stats.globalRank}`,
@@ -86,12 +107,17 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
     },
   ];
 
+  const statItems = isOwner
+    ? [...publicStatItems, ...ownerStatItems]
+    : publicStatItems;
+
   return (
     <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-8">
+      {/* Brand blueprint dot-grid */}
+      <div className="hero-grid absolute inset-0" aria-hidden="true" />
       {/* Decorative orbs */}
       <div className="absolute -top-24 -left-24 w-56 h-56 bg-primary/15 rounded-full blur-3xl" />
       <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-[#9B59B6]/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
         {/* Avatar with XP ring */}
@@ -132,17 +158,22 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
               {initials}
             </AvatarFallback>
           </Avatar>
-          {/* Level badge */}
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-            <Badge className="bg-primary hover:bg-primary text-white text-[10px] px-2 py-0.5 shadow-lg shadow-primary/25 whitespace-nowrap">
-              Lv.{user.level} — {user.levelName}
-            </Badge>
-          </div>
+          {/* Level badge — owner only (platform-internal gamification) */}
+          {isOwner && (
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
+              <Badge className="bg-primary hover:bg-primary text-white text-[10px] px-2 py-0.5 shadow-lg shadow-primary/25 whitespace-nowrap">
+                Lv.{user.level} — {user.levelName}
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0 space-y-3">
           <div>
+            <div className="eyebrow-mono text-white/[.55] mb-1.5">
+              backend engineer · open to roles
+            </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                 {user.name}
@@ -319,7 +350,45 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
               </TooltipTrigger>
               <TooltipContent>Share this portfolio</TooltipContent>
             </Tooltip>
+
+            {/* Edit profile — owner only */}
+            {isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg text-xs gap-1.5"
+                asChild
+              >
+                <a href={routes.settings}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit profile
+                </a>
+              </Button>
+            )}
           </div>
+
+          {/* Contact / Hire CTA */}
+          {contactHref && (
+            <Button
+              size="sm"
+              className={
+                user.isOpenToWork
+                  ? "h-9 bg-primary hover:bg-primary/90 text-white rounded-lg gap-1.5 shadow-lg shadow-primary/25"
+                  : "h-9 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 rounded-lg gap-1.5"
+              }
+              asChild
+            >
+              <a
+                href={contactHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleContact}
+              >
+                <Mail className="h-4 w-4" />
+                Contact / Hire me
+              </a>
+            </Button>
+          )}
         </div>
 
         {/* Stat pills */}
@@ -341,8 +410,8 @@ export function PortfolioHero({ user, stats }: PortfolioHeroProps) {
         </div>
       </div>
 
-      {/* Streak badge */}
-      {user.streak > 0 && (
+      {/* Streak badge — owner only (platform-internal gamification) */}
+      {isOwner && user.streak > 0 && (
         <div className="absolute top-4 right-4 md:top-6 md:right-6 z-10">
           <div className="flex items-center gap-1 bg-orange-500/15 border border-orange-500/25 rounded-full px-2.5 py-1">
             <Flame className="h-3.5 w-3.5 text-orange-400" />

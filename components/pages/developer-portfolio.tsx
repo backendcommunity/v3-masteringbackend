@@ -5,6 +5,7 @@ import { Loader } from "@/components/ui/loader";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { PortfolioData, PortfolioResponse } from "@/lib/portfolio-types";
 import { transformPortfolioResponse } from "@/lib/portfolio-transformer";
+import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { PortfolioHero } from "@/components/portfolio/portfolio-hero";
 import { PortfolioTechStack } from "@/components/portfolio/portfolio-tech-stack";
@@ -27,6 +28,8 @@ export function DeveloperPortfolioPage({
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const store = useAppStore();
+  const currentUser = useUser();
+  const isOwner = Boolean(currentUser?.id && currentUser.id === userId);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,32 +79,42 @@ export function DeveloperPortfolioPage({
     <TooltipProvider delayDuration={100}>
       <div className="flex-1 space-y-6">
         {/* Hero */}
-        <PortfolioHero user={portfolio.user} stats={portfolio.stats} />
-
-        {/* Quick Stats — full-width row */}
-        <PortfolioQuickStats
-          quizExerciseSummary={portfolio.quizExerciseSummary}
-          bootcamps={portfolio.bootcamps}
+        <PortfolioHero
+          user={portfolio.user}
+          stats={portfolio.stats}
+          isOwner={isOwner}
         />
+
+        {/* Projects — promoted: full-width, directly under the hero */}
+        <PortfolioProjects projects={portfolio.projects} />
 
         {/* Main grid */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left column — 2/3 */}
           <div className="lg:col-span-2 space-y-6">
-            <PortfolioProjects projects={portfolio.projects} />
-            <PortfolioHeatmap activity={portfolio.activity} />
-            <PortfolioInterviews mockInterviews={portfolio.mockInterviews} />
+            <PortfolioTechStack skills={portfolio.skills} />
+            {isOwner && <PortfolioHeatmap activity={portfolio.activity} />}
+            {isOwner && (
+              <PortfolioInterviews mockInterviews={portfolio.mockInterviews} />
+            )}
           </div>
 
           {/* Right column — 1/3 */}
           <div className="space-y-6">
-            <PortfolioTechStack skills={portfolio.skills} />
-            <PortfolioBootcamps bootcamps={portfolio.bootcamps} />
-            <PortfolioAchievements achievements={portfolio.achievements} />
             <PortfolioCertifications
               certificates={portfolio.certificates}
               roadmaps={portfolio.roadmaps}
             />
+            <PortfolioBootcamps bootcamps={portfolio.bootcamps} />
+            {isOwner && (
+              <PortfolioQuickStats
+                quizExerciseSummary={portfolio.quizExerciseSummary}
+                bootcamps={portfolio.bootcamps}
+              />
+            )}
+            {isOwner && (
+              <PortfolioAchievements achievements={portfolio.achievements} />
+            )}
           </div>
         </div>
       </div>
