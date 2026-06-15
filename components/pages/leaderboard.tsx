@@ -1,504 +1,290 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Medal, Trophy, Award, ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Loader } from "@/components/ui/loader";
+import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
+import { routes } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { Clock, Trophy, ChevronUp, ChevronDown, Sparkles } from "lucide-react";
+import {
+  LeagueTierEmblem,
+  TIER_CONFIG,
+  type Tier,
+} from "./league/league-tier";
+import { useCountdown } from "./league/use-countdown";
 
-interface LeaderboardUser {
-  id: string;
-  name: string;
-  avatar: string;
-  projects: number;
-  streak: number;
-  mb: number;
-  rank: number;
-}
-
-interface Archievement {
-  name: string;
-  description: string;
-  count: number;
-}
-
-interface LeaderboardPage {
-  slug: string;
+interface LeaderboardPageProps {
   onNavigate: (path: string) => void;
 }
 
-export function LeaderboardPage({ slug, onNavigate }: LeaderboardPage) {
+interface CohortRow {
+  userId: string;
+  name: string;
+  username?: string | null;
+  avatar?: string | null;
+  xp: number;
+  rank: number;
+  zone: "PROMOTE" | "STAY" | "DEMOTE";
+  isMe: boolean;
+}
+
+interface League {
+  tier: Tier;
+  tierName: string;
+  cohortRank: number;
+  weeklyXp: number;
+  zone: "PROMOTE" | "STAY" | "DEMOTE";
+  weekEndsAt: string;
+  ladder: Tier[];
+  cohortSize: number;
+  season: { key: string };
+  cohort: CohortRow[];
+}
+
+export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
   const store = useAppStore();
-  const [leaderboards, setLeaderboards] = useState<LeaderboardUser[]>([]);
-  const [weeklyLeaderboards, setWeeklyLeaderboards] = useState<
-    LeaderboardUser[]
-  >([]);
-  const [topUsers, setTopUsers] = useState<LeaderboardUser[]>([]);
-  const [achievements, setAchievements] = useState<Archievement[]>([]);
+  const [league, setLeague] = useState<League | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const [weeklyTopUsers, setWeeklyTopUsers] = useState<LeaderboardUser[]>([]);
-  const [currentUser, setCurrentUser] = useState<LeaderboardUser>();
-  const [weeklycurrentUser, setWeeklyCurrentUser] = useState<LeaderboardUser>();
-  const [activeTab, setActiveTab] = useState("overall");
-
-  const loadWeekly = async () => {
-    // MB League data source is being reworked. Render empty until wired up.
-    setLeaderboards([]);
-    setWeeklyCurrentUser(undefined);
-    setWeeklyTopUsers([]);
-  };
-
-  const loadAchievements = async () => {
-    const data = await store.getProject30Achievements(slug);
-    setAchievements(data);
-  };
+  useEffect(() => {
+    analytics.track("league_viewed");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-
-    const load = async () => {
-      // MB League data source is being reworked. Render empty until wired up.
-      if (!cancelled) {
-        setLeaderboards([]);
-        setTopUsers([]);
-        setCurrentUser(undefined);
+    (async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        const data = await store.getLeague();
+        if (cancelled) return;
+        if (data?.cohort) setLeague(data);
+        else setError(true);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    };
-    load();
-
+    })();
     return () => {
       cancelled = true;
     };
-  }, [slug, store]);
+  }, [store]);
 
-  useEffect(() => {
-    if (activeTab.includes("weekly")) {
-      loadWeekly();
-    }
+  const countdown = useCountdown(league?.weekEndsAt);
 
-    if (activeTab.includes("achievements")) {
-      loadAchievements();
-    }
-  }, [activeTab, slug, store]);
+  if (loading) return <Loader isLoader={false} />;
 
-  const isTop10 = (id: string) => {
-    return !!(
-      leaderboards.find((l) => l.id === id) || topUsers.find((t) => t.id === id)
+  if (error || !league) {
+    return (
+      <EmptyStateCard
+        icon={Trophy}
+        title="Your league is warming up"
+        description="Earn some XP — finish a lesson, ship a project — and you'll join this week's league."
+        primaryCTA={{
+          label: "Browse courses",
+          onClick: () => onNavigate(routes.courses),
+        }}
+      />
     );
-  };
+  }
 
-  const isWeeklyTop10 = (id: string) => {
-    return !!(
-      weeklyLeaderboards.find((l) => l.id === id) ||
-      weeklyTopUsers.find((t) => t.id === id)
-    );
-  };
-
-  // const achievements = [
-  //   {
-  //     name: "30-Day Champion",
-  //     description: "Complete all 30 projects",
-  //     count: 24,
-  //   },
-  //   {
-  //     name: "Perfect Streak",
-  //     description: "Maintain a 30-day streak",
-  //     count: 18,
-  //   },
-  //   { name: "Code Master", description: "Earn 10,000+ MB", count: 12 },
-  //   {
-  //     name: "Community Helper",
-  //     description: "Help 50+ community members",
-  //     count: 35,
-  //   },
-  //   {
-  //     name: "Speed Coder",
-  //     description: "Complete 5 projects in under 2 hours each",
-  //     count: 42,
-  //   },
-  // ];
+  const zoneCopy =
+    league.zone === "PROMOTE"
+      ? "You're in the promotion zone — hold it to climb."
+      : league.zone === "DEMOTE"
+        ? "You're in the demotion zone — earn XP to climb out."
+        : "Keep earning XP to reach the promotion zone.";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Ship Leaderboard</h1>
-          <p className="text-muted-foreground">
-            See how you rank against other participants
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => onNavigate(`/project30/${slug}`)}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Ship
-        </Button>
-      </div>
+    <div className="max-w-4xl mx-auto w-full space-y-6">
+      {/* Standing hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-7 text-white">
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="absolute -top-20 -left-16 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
+        <div className="relative z-10 flex flex-col gap-5">
+          <div className="flex items-center gap-4">
+            <LeagueTierEmblem tier={league.tier} size={52} />
+            <div className="min-w-0">
+              <div className="eyebrow-mono text-white/[.55]">MB League</div>
+              <h1 className="text-2xl font-bold leading-tight">
+                {league.tierName} League
+              </h1>
+            </div>
+            <div className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-white/[.06] px-3 py-1.5 text-sm">
+              <Clock className="w-4 h-4 opacity-70" />
+              resets in {countdown}
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Top 3 Users */}
-        <div className="col-span-full">
-          <h2 className="text-xl font-semibold mb-4">Top Performers</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 2nd Place */}
-            <Card className="border-2 border-silver">
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-2">
-                  <Medal className="h-8 w-8 text-gray-400" />
-                </div>
-                <CardTitle className="text-lg">2nd Place</CardTitle>
-              </CardHeader>
-              {topUsers?.[1] && (
-                <CardContent className="text-center pt-0">
-                  <Avatar className="h-16 w-16 mx-auto mb-2">
-                    <AvatarImage
-                      src={topUsers?.[1]?.avatar || "/placeholder.svg"}
-                      alt={topUsers?.[1]?.name}
-                    />
-                    <AvatarFallback>
-                      {topUsers?.[1]?.name.substring(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h3 className="font-medium">{topUsers?.[1]?.name}</h3>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    <div>Projects: {topUsers?.[1]?.projects}</div>
-                    <div>Streak: {topUsers?.[1]?.streak} days</div>
-                    <div>MB: {topUsers?.[1]?.mb}</div>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* 1st Place */}
-
-            <Card className="border-2 border-amber-400 -mt-4">
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-2">
-                  <Trophy className="h-10 w-10 text-amber-400" />
-                </div>
-                <CardTitle className="text-xl">1st Place</CardTitle>
-              </CardHeader>
-              {topUsers?.[0] && (
-                <CardContent className="text-center pt-0">
-                  <Avatar className="h-20 w-20 mx-auto mb-2">
-                    <AvatarImage
-                      src={topUsers?.[0]?.avatar || "/placeholder.svg"}
-                      alt={topUsers?.[0]?.name}
-                    />
-                    <AvatarFallback>
-                      {topUsers?.[0]?.name.substring(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h3 className="font-medium text-lg">{topUsers?.[0]?.name}</h3>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    <div>Projects: {topUsers?.[0]?.projects}</div>
-                    <div>Streak: {topUsers?.[0]?.streak} days</div>
-                    <div>MB: {topUsers?.[0]?.mb}</div>
-                  </div>
-                  <Badge className="mt-2 bg-amber-400 text-amber-950">
-                    Champion
-                  </Badge>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* 3rd Place */}
-            <Card className="border-2 border-amber-700">
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-2">
-                  <Award className="h-8 w-8 text-amber-700" />
-                </div>
-                <CardTitle className="text-lg">3rd Place</CardTitle>
-              </CardHeader>
-              {topUsers?.[2] && (
-                <CardContent className="text-center pt-0">
-                  <Avatar className="h-16 w-16 mx-auto mb-2">
-                    <AvatarImage
-                      src={topUsers?.[2]?.avatar || "/placeholder.svg"}
-                      alt={topUsers?.[2]?.name}
-                    />
-                    <AvatarFallback>
-                      {topUsers?.[2]?.name.substring(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h3 className="font-medium">{topUsers?.[2]?.name}</h3>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    <div>Projects: {topUsers?.[2]?.projects}</div>
-                    <div>Streak: {topUsers?.[2]?.streak} days</div>
-                    <div>MB: {topUsers?.[2]?.mb}</div>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div>
+              <div className="text-3xl font-bold tabular-nums">
+                #{league.cohortRank}
+              </div>
+              <div className="text-xs text-white/50">your rank</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold tabular-nums">
+                {league.weeklyXp.toLocaleString()}
+              </div>
+              <div className="text-xs text-white/50">XP this week</div>
+            </div>
+            <div className="ml-auto max-w-xs text-sm text-white/70">
+              {zoneCopy}
+            </div>
           </div>
         </div>
       </div>
 
-      <Tabs
-        defaultValue="overall"
-        value={activeTab}
-        onValueChange={setActiveTab}
-      >
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="overall">Overall Ranking</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly Leaders</TabsTrigger>
-          <TabsTrigger value="achievements">Achievements</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overall">
-          <Card>
-            <CardHeader>
-              <CardTitle>Leaderboard Rankings</CardTitle>
-              <CardDescription>
-                Based on projects completed, streaks, and MB earned
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {leaderboards.length <= 0 && (
-                <div className="text-center p-8">
-                  <p className="text-muted-foreground">
-                    Weekly leaderboard resets every day at midnight
-                  </p>
-                  <p className="mt-2">Check back for the overall rankings!</p>
-                </div>
+      {/* Tier ladder strip */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        {league.ladder.map((t) => {
+          const active = t === league.tier;
+          const cfg = TIER_CONFIG[t];
+          return (
+            <div
+              key={t}
+              className={cn(
+                "flex-1 min-w-[110px] rounded-xl border px-3 py-2.5 flex items-center gap-2 transition-colors",
+                active
+                  ? "border-primary/50 bg-primary/5"
+                  : "border-border bg-card",
               )}
-              {leaderboards.length >= 1 && (
-                <div className="space-y-4">
-                  {/* Leaderboard Table */}
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-12 gap-2 p-4 font-medium border-b bg-muted">
-                      <div className="col-span-1">Rank</div>
-                      <div className="col-span-5">User</div>
-                      <div className="col-span-2 text-center">Projects</div>
-                      <div className="col-span-2 text-center">Streak</div>
-                      <div className="col-span-2 text-center">MB</div>
-                    </div>
+            >
+              <LeagueTierEmblem tier={t} size={28} />
+              <span
+                className={cn(
+                  "text-xs font-semibold truncate",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {cfg.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
 
-                    {/* Leaderboard Entries */}
-                    {leaderboards?.map((user) => (
-                      <div
-                        key={user.id}
-                        className="grid grid-cols-12 gap-2 p-4 border-b"
-                      >
-                        <div className="col-span-1 font-medium">
-                          #{user.rank}
-                        </div>
-                        <div className="col-span-5 flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={user.avatar || "/placeholder.svg"}
-                              alt={user.name}
-                            />
-                            <AvatarFallback>
-                              {user.name.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{user.name}</span>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          {user.projects}
-                        </div>
-                        <div className="col-span-2 text-center">
-                          {user.streak} days
-                        </div>
-                        <div className="col-span-2 text-center">{user.mb}</div>
-                      </div>
-                    ))}
-
-                    {!isTop10(currentUser?.id!) && (
-                      <>
-                        {/* Ellipsis to indicate gap */}
-                        <div className="grid grid-cols-12 gap-2 p-4 border-b text-center">
-                          <div className="col-span-12">...</div>
-                        </div>
-
-                        {/* Current User */}
-                        <div className="grid grid-cols-12 gap-2 p-4 bg-muted/50">
-                          <div className="col-span-1 font-medium">
-                            #{currentUser?.rank}
-                          </div>
-                          <div className="col-span-5 flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage
-                                src={currentUser?.avatar || "/placeholder.svg"}
-                                alt={currentUser?.name}
-                              />
-                              <AvatarFallback>
-                                {currentUser?.name.substring(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">
-                              {currentUser?.name}
-                            </span>
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.projects}
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.streak} days
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.mb}
-                          </div>
-                        </div>
-                      </>
+      {/* Cohort board */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <h2 className="font-semibold">This week&apos;s cohort</h2>
+          <span className="text-xs text-muted-foreground">
+            top 7 promote · bottom 5 demote
+          </span>
+        </div>
+        <ul>
+          {league.cohort.map((row, i) => {
+            const prevZone = league.cohort[i - 1]?.zone;
+            const showPromoteHeader = row.zone === "PROMOTE" && i === 0;
+            const showDemoteHeader =
+              row.zone === "DEMOTE" && prevZone !== "DEMOTE";
+            return (
+              <li key={row.userId}>
+                {showPromoteHeader && (
+                  <ZoneHeader kind="PROMOTE" label="Promotion zone" />
+                )}
+                {showDemoteHeader && (
+                  <ZoneHeader kind="DEMOTE" label="Demotion zone" />
+                )}
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-5 py-2.5 border-b border-border last:border-0",
+                    row.isMe && "bg-primary/5 ring-1 ring-inset ring-primary/30",
+                    row.zone === "PROMOTE" && "bg-emerald-500/[.04]",
+                    row.zone === "DEMOTE" && "bg-red-500/[.04]",
+                  )}
+                >
+                  <span className="w-7 text-sm font-semibold tabular-nums text-muted-foreground">
+                    {row.rank}
+                  </span>
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={row.avatar || undefined} alt={row.name} />
+                    <AvatarFallback className="text-xs">
+                      {row.name?.charAt(0) ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    className={cn(
+                      "flex-1 truncate text-sm",
+                      row.isMe ? "font-bold" : "font-medium",
                     )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="weekly">
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Leaders</CardTitle>
-              <CardDescription>Top performers for this week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {weeklyLeaderboards.length >= 1 && (
-                <div className="space-y-4">
-                  {/* Leaderboard Table */}
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-12 gap-2 p-4 font-medium border-b bg-muted">
-                      <div className="col-span-1">Rank</div>
-                      <div className="col-span-5">User</div>
-                      <div className="col-span-2 text-center">Projects</div>
-                      <div className="col-span-2 text-center">Streak</div>
-                      <div className="col-span-2 text-center">MB</div>
-                    </div>
-
-                    {/* Leaderboard Entries */}
-                    {weeklyLeaderboards?.map((user) => (
-                      <div
-                        key={user.id}
-                        className="grid grid-cols-12 gap-2 p-4 border-b"
-                      >
-                        <div className="col-span-1 font-medium">
-                          #{user.rank}
-                        </div>
-                        <div className="col-span-5 flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={user.avatar || "/placeholder.svg"}
-                              alt={user.name}
-                            />
-                            <AvatarFallback>
-                              {user.name.substring(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{user.name}</span>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          {user.projects}
-                        </div>
-                        <div className="col-span-2 text-center">
-                          {user.streak} days
-                        </div>
-                        <div className="col-span-2 text-center">{user.mb}</div>
-                      </div>
-                    ))}
-
-                    {!isWeeklyTop10(weeklycurrentUser?.id!) && (
-                      <>
-                        {/* Ellipsis to indicate gap */}
-                        <div className="grid grid-cols-12 gap-2 p-4 border-b text-center">
-                          <div className="col-span-12">...</div>
-                        </div>
-
-                        {/* Current User */}
-                        <div className="grid grid-cols-12 gap-2 p-4 bg-muted/50">
-                          <div className="col-span-1 font-medium">
-                            #{currentUser?.rank}
-                          </div>
-                          <div className="col-span-5 flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage
-                                src={currentUser?.avatar || "/placeholder.svg"}
-                                alt={currentUser?.name}
-                              />
-                              <AvatarFallback>
-                                {currentUser?.name.substring(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">
-                              {currentUser?.name}
-                            </span>
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.projects}
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.streak} days
-                          </div>
-                          <div className="col-span-2 text-center">
-                            {currentUser?.mb}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-              {weeklyLeaderboards.length <= 0 && (
-                <div className="text-center p-8">
-                  <p className="text-muted-foreground">
-                    Weekly leaderboard resets every Sunday at midnight
-                  </p>
-                  <p className="mt-2">Check back for this week's rankings!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="achievements">
-          <Card>
-            <CardHeader>
-              <CardTitle>Achievement Leaderboard</CardTitle>
-              <CardDescription>
-                Most prestigious achievements in the community
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {achievements.map((achievement) => (
-                  <div
-                    key={achievement.name}
-                    className="flex items-center justify-between p-4 border rounded-lg"
                   >
-                    <div className="flex items-center gap-4">
-                      <Trophy className="h-8 w-8 text-amber-400" />
-                      <div>
-                        <h4 className="font-medium">{achievement.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {achievement.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">{achievement.count}</div>
-                      <div className="text-xs text-muted-foreground">users</div>
-                    </div>
+                    {row.name}
+                    {row.isMe && (
+                      <span className="ml-1.5 text-xs text-primary">you</span>
+                    )}
+                  </span>
+                  <div className="w-28 hidden sm:block">
+                    <Progress
+                      value={
+                        league.cohort[0]?.xp
+                          ? (row.xp / league.cohort[0].xp) * 100
+                          : 0
+                      }
+                      className="h-1.5"
+                    />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  <span className="w-16 text-right text-sm font-semibold tabular-nums">
+                    {row.xp.toLocaleString()}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Season strip */}
+      <div className="rounded-2xl border border-border bg-gradient-to-r from-primary/10 to-[#9B59B6]/10 p-5 flex items-center gap-4">
+        <div className="h-11 w-11 rounded-xl bg-[#F2C94C]/15 flex items-center justify-center text-[#F2C94C] shrink-0">
+          <Trophy className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-sm flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            Season {league.season.key}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Reach{" "}
+            <span className="font-semibold text-foreground">Planet-Scale</span>{" "}
+            and finish top of the apex tier this month to win the grand prize.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ZoneHeader({
+  kind,
+  label,
+}: {
+  kind: "PROMOTE" | "DEMOTE";
+  label: string;
+}) {
+  const promote = kind === "PROMOTE";
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1.5 px-5 py-1.5 text-[11px] font-bold uppercase tracking-wider",
+        promote
+          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          : "bg-red-500/10 text-red-600 dark:text-red-400",
+      )}
+    >
+      {promote ? (
+        <ChevronUp className="h-3.5 w-3.5" />
+      ) : (
+        <ChevronDown className="h-3.5 w-3.5" />
+      )}
+      {label}
     </div>
   );
 }
