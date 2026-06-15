@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { DashboardLayout } from "@/components/dashboard-layout";
 import { DeveloperPortfolioPage } from "@/components/pages/developer-portfolio";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/hooks/use-user";
 import { routes } from "@/lib/routes";
 import type { PortfolioResponse } from "@/lib/portfolio-types";
 
@@ -16,11 +18,29 @@ export function PortfolioRouteClient({
   initialData,
 }: PortfolioRouteClientProps) {
   const router = useRouter();
+  const currentUser = useUser();
   const handleNavigate = (path: string) => router.push(path);
 
+  // Owner = logged in AND viewing their own portfolio → full dashboard chrome.
+  // Everyone else (logged out, or a logged-in user viewing someone else's) gets
+  // the standalone recruiter page.
+  const isOwner = Boolean(currentUser?.id && currentUser.id === userId);
+
+  const portfolio = (
+    <DeveloperPortfolioPage
+      userId={userId}
+      onNavigate={handleNavigate}
+      initialData={initialData}
+    />
+  );
+
+  if (isOwner) {
+    return <DashboardLayout>{portfolio}</DashboardLayout>;
+  }
+
+  // Standalone recruiter view — no dashboard sidebar/nav.
   return (
     <div className="min-h-screen bg-background">
-      {/* Slim standalone header — no dashboard chrome */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <button
@@ -45,13 +65,7 @@ export function PortfolioRouteClient({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <DeveloperPortfolioPage
-          userId={userId}
-          onNavigate={handleNavigate}
-          initialData={initialData}
-        />
-      </main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{portfolio}</main>
 
       <footer className="border-t border-border py-6">
         <p className="text-center text-xs text-muted-foreground">
