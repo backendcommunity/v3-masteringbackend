@@ -256,6 +256,18 @@ export interface PortfolioResponse {
   skills: Array<any>;
 }
 
+// Certificate verification response from GET /certifications/verify/:code
+export interface CertificateVerification {
+  valid: boolean;
+  certificate?: {
+    code: string;
+    holderName: string;
+    courseName: string;
+    finalScore: number;
+    issuedAt: string;
+  };
+}
+
 export interface Subscription {
   id: string;
   name: string;

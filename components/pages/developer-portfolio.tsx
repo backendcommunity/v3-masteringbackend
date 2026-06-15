@@ -20,13 +20,22 @@ import { PortfolioBootcamps } from "@/components/portfolio/portfolio-bootcamps";
 interface DeveloperPortfolioPageProps {
   userId: string;
   onNavigate?: (path: string) => void;
+  /**
+   * Server-fetched public portfolio used to seed first paint (SSR/OG path).
+   * When provided, the page renders immediately and still refreshes client-side.
+   */
+  initialData?: PortfolioResponse;
 }
 
 export function DeveloperPortfolioPage({
   userId,
+  initialData,
 }: DeveloperPortfolioPageProps) {
-  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [portfolio, setPortfolio] = useState<PortfolioData | null>(
+    initialData ? transformPortfolioResponse(initialData) : null,
+  );
+  // With seeded data we render immediately; otherwise show the loader.
+  const [loading, setLoading] = useState(!initialData);
   const store = useAppStore();
   const currentUser = useUser();
   const isOwner = Boolean(currentUser?.id && currentUser.id === userId);
@@ -35,28 +44,35 @@ export function DeveloperPortfolioPage({
     let cancelled = false;
     const load = async () => {
       try {
-        setLoading(true);
-        // Fetch real portfolio data from API
-        const data = await store.getDeveloperPortfolio(userId);
+        // Only block on the loader when we have nothing on screen yet.
+        if (!initialData) setLoading(true);
+        // Prefer the authed endpoint (richer, owner-only fields). If it fails
+        // or the viewer is logged out (401), fall back to the public endpoint
+        // so recruiters / logged-out visitors still see the portfolio.
+        let data = await store.getDeveloperPortfolio(userId);
+        if (!data) {
+          data = await store.getPublicPortfolio(userId);
+        }
         if (!cancelled) {
           if (data) {
             // Transform PortfolioResponse to PortfolioData for component compatibility
             const portfolioData = transformPortfolioResponse(data);
             setPortfolio(portfolioData);
-          } else {
+          } else if (!initialData) {
+            // Keep seeded data on refresh failure; only clear if we never had any.
             setPortfolio(null);
           }
         }
       } catch (error) {
         console.error("Failed to load portfolio:", error);
-        if (!cancelled) setPortfolio(null);
+        if (!cancelled && !initialData) setPortfolio(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [userId, store]);
+  }, [userId, store, initialData]);
 
   if (loading) {
     return <Loader isLoader={false} />;

@@ -63,13 +63,21 @@ export interface PortfolioStats {
   totalUsers: number;
 }
 
+export interface SkillEvidenceItem {
+  slug: string;
+  title: string;
+}
+
 export interface PortfolioSkill {
   name: string;
   domain: SkillDomain;
   projectCount: number;
   maxProjectCount: number;
   coursesCompleted?: number;
+  courseCount?: number;
   quizAvgScore?: number;
+  projects?: SkillEvidenceItem[];
+  courses?: SkillEvidenceItem[];
 }
 
 export interface PortfolioProject {
@@ -315,5 +323,20 @@ export interface PortfolioResponse {
     projectCount: number;
     maxProjectCount: number;
     coursesCompleted: number;
+    courseCount?: number;
+    projects?: SkillEvidenceItem[]; // Evidence: projects using this skill (capped at 6)
+    courses?: SkillEvidenceItem[]; // Evidence: courses teaching this skill (capped at 6)
   }>;
+}
+
+// Certificate verification response from GET /certifications/verify/:code
+export interface CertificateVerification {
+  valid: boolean;
+  certificate?: {
+    code: string;
+    holderName: string;
+    courseName: string;
+    finalScore: number;
+    issuedAt: string;
+  };
 }

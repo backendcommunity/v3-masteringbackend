@@ -86,6 +86,9 @@ export function transformPortfolioResponse(
       projectCount: s.projectCount,
       maxProjectCount: s.maxProjectCount,
       coursesCompleted: s.coursesCompleted || 0,
+      courseCount: s.courseCount ?? s.coursesCompleted ?? 0, // ✅ From API (evidence count)
+      projects: s.projects ?? [], // ✅ From API (evidence: linked projects, capped at 6)
+      courses: s.courses ?? [], // ✅ From API (evidence: linked courses, capped at 6)
     })),
     projects: response.projects.map((p) => ({
       id: p.id,

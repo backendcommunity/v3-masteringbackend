@@ -122,6 +122,9 @@ export const routes = {
   // Portfolio
   portfolio: (userId: string) => `/portfolios/${userId}`,
 
+  // Certifications
+  verifyCertificate: (code: string) => `/certifications/verify/${code}`,
+
   // Onboarding
   onboarding: "/onboarding",
 

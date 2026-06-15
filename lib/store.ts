@@ -15,6 +15,7 @@ import {
   type ContinueLearningItem,
   type SearchResults,
   type PortfolioResponse,
+  type CertificateVerification,
   dataStore,
   updateUser as updateUserInStore,
   updateCourse as updateCourseInStore,
@@ -163,6 +164,8 @@ interface AppState {
     skip?: number;
   }) => any;
   getDeveloperPortfolio: (userId: string) => Promise<PortfolioResponse | null>;
+  getPublicPortfolio: (userId: string) => Promise<PortfolioResponse | null>;
+  verifyCertificate: (code: string) => Promise<CertificateVerification | null>;
   getPlans: () => any;
   getChallenges: () => Challenge[];
   getSavedPlaygrounds: () => Playground[] | any;
@@ -682,6 +685,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       return data?.data as PortfolioResponse;
     } catch (error) {
       console.error("Failed to fetch portfolio:", error);
+      return null;
+    }
+  },
+
+  getPublicPortfolio: async (userId: string) => {
+    try {
+      const { data } = await api.get(`/portfolio/public/${userId}`);
+      return (data?.data as PortfolioResponse) ?? null;
+    } catch (error) {
+      console.error("Failed to fetch public portfolio:", error);
+      return null;
+    }
+  },
+
+  verifyCertificate: async (code: string) => {
+    try {
+      const { data } = await api.get(`/certifications/verify/${code}`);
+      return (data?.data as CertificateVerification) ?? null;
+    } catch (error) {
+      console.error("Failed to verify certificate:", error);
       return null;
     }
   },
