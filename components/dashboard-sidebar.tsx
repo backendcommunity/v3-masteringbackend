@@ -35,6 +35,13 @@ interface DashboardSidebarProps {
 const navigationData = {
   learn: [
     {
+      title: "Paths",
+      url: routes.paths,
+      icon: Target,
+      active: true,
+      beta: false,
+    },
+    {
       title: "Courses",
       url: routes.courses,
       icon: BookOpen,
@@ -48,17 +55,10 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    {
-      title: "Paths",
-      url: routes.paths,
-      icon: Target,
-      active: true,
-      beta: false,
-    },
   ],
   build: [
     {
-      title: "MB Projects",
+      title: "Projects",
       url: routes.projects,
       icon: Code2,
       active: true,
@@ -92,7 +92,8 @@ const navigationData = {
       url: routes.mockInterviews,
       icon: Users,
       active: true,
-      beta: true,
+      beta: false,
+      isNew: true,
     },
     // {
     //   title: "Certifications",
@@ -132,6 +133,7 @@ export function DashboardSidebar({
       title: "My Portfolio",
       url: routes.portfolio(user?.id || ""),
       icon: Briefcase,
+      isNew: true,
     },
   ];
 
@@ -239,6 +241,11 @@ export function DashboardSidebar({
                     className={`${collapsed ? "h-6 w-6" : "h-4 w-4"} transition-all`}
                   />
                   {!collapsed && <span>{item.title}</span>}
+                  {!collapsed && (item as any).isNew && (
+                    <Badge className="ml-auto bg-emerald-500 text-white hover:bg-emerald-600">
+                      New
+                    </Badge>
+                  )}
                 </button>
               );
             })}
@@ -285,6 +292,11 @@ export function DashboardSidebar({
                     )}
                     {!collapsed && item.beta && (
                       <Badge variant="destructive">beta</Badge>
+                    )}
+                    {!collapsed && (item as any).isNew && (
+                      <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+                        New
+                      </Badge>
                     )}
                   </div>
                 </button>
