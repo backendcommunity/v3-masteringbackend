@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { isPublicPath } from "@/lib/public-paths";
 
 const AUTH_PATHS = ["/auth/", "/xpayment", "/ai/payment"];
-
-// Publicly accessible (no login) — recruiters + social crawlers must reach these.
-// NOT in AUTH_PATHS: these aren't login pages, so logged-in owners must still
-// reach them (AUTH_PATHS bounces authenticated users away to "/").
-const PUBLIC_PATHS = ["/portfolios/", "/certifications/verify/"];
 
 async function isTokenValid(token: string): Promise<boolean> {
   const secret = process.env.AUTH_TOKEN_SECRET;
@@ -52,8 +48,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p));
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  const isProtected = !isAuthPage && !isPublic;
+  const isProtected = !isAuthPage && !isPublicPath(pathname);
 
   const accessCookie = request.cookies.get("mb_token");
   const refreshCookie = request.cookies.get("mb_refresh_token");

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { registerActivitySource } from "@/lib/activity";
+import { isPublicPath } from "@/lib/public-paths";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3",
@@ -41,6 +42,9 @@ export const handleAuthFailure = async () => {
   if (isHandlingAuthFailure) return;
   if (typeof window === "undefined") return;
   if (window.location.pathname.includes("/auth/")) return;
+  // Never bounce a logged-out visitor off a public page (portfolio, cert verify)
+  // — a 401 from a stray authed call here must fail silently, not redirect.
+  if (isPublicPath(window.location.pathname)) return;
 
   isHandlingAuthFailure = true;
 

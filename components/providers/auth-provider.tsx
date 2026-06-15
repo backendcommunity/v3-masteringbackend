@@ -10,6 +10,7 @@ import { Loader } from "@/components/ui/loader";
 import { markActivity, isIdle, getLastActivity, IDLE_TIMEOUT_MS } from "@/lib/activity";
 import { refreshSession } from "@/lib/auth-refresh";
 import { IdleLock } from "@/components/providers/idle-lock";
+import { isPublicPath } from "@/lib/public-paths";
 
 const AUTH_PATHS = ["/auth/"];
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000;
@@ -26,30 +27,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const proactiveRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthPath = AUTH_PATHS.some((p) => pathname?.startsWith(p) ?? false);
+  // Public pages (portfolio, cert verify) must render for logged-out visitors:
+  // never block on a session, never bounce to login. We still attempt the user
+  // fetch in the background to light up the owner view if a session exists — a
+  // 401 there is swallowed and the api interceptor skips the redirect on public
+  // paths. Session-management timers (idle/refresh) are pointless here too.
+  const isPublic = isPublicPath(pathname);
+  const skipSession = isAuthPath || isPublic;
 
   // Track user activity — reset idle timer on any interaction
   useEffect(() => {
-    if (isAuthPath) return;
+    if (skipSession) return;
     const onActivity = () => markActivity();
     const events = ["mousemove", "keydown", "click", "touchstart", "scroll"];
     events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, onActivity));
-  }, [isAuthPath]);
+  }, [skipSession]);
 
   // Idle detection: show resume-in-place lock after IDLE_TIMEOUT_MS — no logout
   useEffect(() => {
-    if (isAuthPath) return;
+    if (skipSession) return;
     idleCheckRef.current = setInterval(() => {
       if (isIdle()) setLocked(true);
     }, IDLE_CHECK_INTERVAL_MS);
     return () => {
       if (idleCheckRef.current) clearInterval(idleCheckRef.current);
     };
-  }, [isAuthPath]);
+  }, [skipSession]);
 
   // Proactive token refresh — only fires when user is NOT idle and NOT locked
   useEffect(() => {
-    if (isAuthPath) return;
+    if (skipSession) return;
     proactiveRefreshRef.current = setInterval(() => {
       if (locked || isIdle()) return;
       refreshSession().catch(() => {});
@@ -57,11 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (proactiveRefreshRef.current) clearInterval(proactiveRefreshRef.current);
     };
-  }, [isAuthPath, locked]);
+  }, [skipSession, locked]);
 
   // Refresh on tab focus — but only if tab was hidden long enough to risk token expiry
   useEffect(() => {
-    if (isAuthPath) return;
+    if (skipSession) return;
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
         tabHiddenAt.current = Date.now();
@@ -78,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [isAuthPath]);
+  }, [skipSession]);
 
   useEffect(() => {
     if (isAuthPath) {
@@ -90,6 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
+
+    // Public pages render immediately — never block a recruiter on a session.
+    // We still run fetchUser() below to detect a logged-in owner; a 401 there is
+    // harmless (interceptor skips the login redirect on public paths).
+    if (isPublic) setReady(true);
 
     if (initialized.current) return;
     initialized.current = true;
@@ -119,9 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         setReady(true);
       });
-  }, [isAuthPath]);
+  }, [skipSession]);
 
-  if (!ready && !isAuthPath) return <Loader />;
+  if (!ready && !isAuthPath && !isPublic) return <Loader />;
 
   return (
     <>
