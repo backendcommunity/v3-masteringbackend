@@ -45,10 +45,15 @@ export function DeveloperPortfolioPage({
       try {
         // Only block on the loader when we have nothing on screen yet.
         if (!initialData) setLoading(true);
-        // Prefer the authed endpoint (richer, owner-only fields). If it fails
-        // or the viewer is logged out (401), fall back to the public endpoint
-        // so recruiters / logged-out visitors still see the portfolio.
-        let data = await store.getDeveloperPortfolio(userId);
+        // Logged-out viewers (recruiters/crawlers) MUST use the public endpoint
+        // only. The authed endpoint returns 401, which the global api interceptor
+        // turns into a hard redirect to /auth/login (side effect) — so we must
+        // never call it when there's no session. Logged-in viewers prefer the
+        // authed endpoint (richer owner-only fields) with a public fallback.
+        let data = null;
+        if (currentUser?.id) {
+          data = await store.getDeveloperPortfolio(userId).catch(() => null);
+        }
         if (!data) {
           data = await store.getPublicPortfolio(userId);
         }
@@ -71,7 +76,7 @@ export function DeveloperPortfolioPage({
     };
     load();
     return () => { cancelled = true; };
-  }, [userId, store, initialData]);
+  }, [userId, store, initialData, currentUser?.id]);
 
   if (loading) {
     return <Loader isLoader={false} />;
