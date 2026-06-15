@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -32,15 +34,33 @@ const DOMAIN_ORDER: SkillDomain[] = [
   "AI/ML",
 ];
 
+const INITIAL_VISIBLE = 8;
+
 export function PortfolioTechStack({ skills }: PortfolioTechStackProps) {
-  const grouped = useMemo(() => {
+  const [expanded, setExpanded] = useState(false);
+
+  // Flatten in domain order, cap when collapsed, then re-group only the visible
+  // subset so the load-more toggle works across domains.
+  const ordered = useMemo(() => {
     const map: Partial<Record<SkillDomain, PortfolioSkill[]>> = {};
     for (const skill of skills) {
       if (!map[skill.domain]) map[skill.domain] = [];
       map[skill.domain]!.push(skill);
     }
-    return map;
+    return DOMAIN_ORDER.flatMap((d) => map[d] ?? []);
   }, [skills]);
+
+  const hasMore = ordered.length > INITIAL_VISIBLE;
+  const visible = expanded ? ordered : ordered.slice(0, INITIAL_VISIBLE);
+
+  const grouped = useMemo(() => {
+    const map: Partial<Record<SkillDomain, PortfolioSkill[]>> = {};
+    for (const skill of visible) {
+      if (!map[skill.domain]) map[skill.domain] = [];
+      map[skill.domain]!.push(skill);
+    }
+    return map;
+  }, [visible]);
 
   const totalProjects = useMemo(
     () => Math.max(...skills.map((s) => s.maxProjectCount), 1),
@@ -146,6 +166,27 @@ export function PortfolioTechStack({ skills }: PortfolioTechStackProps) {
             </div>
           );
         })}
+
+        {hasMore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="mr-1 h-4 w-4" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="mr-1 h-4 w-4" />
+                Show {ordered.length - INITIAL_VISIBLE} more
+              </>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
