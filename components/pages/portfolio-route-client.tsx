@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DeveloperPortfolioPage } from "@/components/pages/developer-portfolio";
@@ -45,14 +46,16 @@ export function PortfolioRouteClient({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <button
             onClick={() => router.push(routes.dashboard)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
             aria-label="MasteringBackend"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0E1F33]">
-              <img
-                src="/logo.png"
-                alt="MasteringBackend"
-                className="h-6 w-6 object-contain"
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0E1F33] transition-transform hover:scale-105">
+              <Image
+                src="/main-logo.png"
+                alt="Mastering Backend"
+                width={36}
+                height={36}
+                className="h-full w-full object-cover"
               />
             </span>
             <span className="hidden text-sm font-bold tracking-tight sm:inline">
