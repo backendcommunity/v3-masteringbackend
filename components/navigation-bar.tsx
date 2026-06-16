@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import Image from "next/image";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Search,
@@ -378,24 +379,25 @@ export function NavigationBar({
             <span className="sr-only">Toggle menu</span>
           </Button>
 
-          {/* Logo */}
-          <div
-            className="flex items-center space-x-2 cursor-pointer md:hidden px-2"
+          {/* Logo — matches the path-step top bar brand mark */}
+          <button
+            type="button"
             onClick={() => onNavigate(routes.dashboard)}
+            aria-label="Go to dashboard"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-[#0E1F33] flex items-center justify-center overflow-hidden transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:hidden"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">MB</span>
-            </div>
-            {!isMobile && (
-              <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                MasteringBackend
-              </span>
-            )}
-          </div>
+            <Image
+              src="/main-logo.png"
+              alt="Mastering Backend"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
+          </button>
 
           {/* Global Search Bar */}
           <Popover open={isExploreOpen} onOpenChange={setIsExploreOpen}>
-            <div className="flex-1 max-w-2xl mx-4" ref={exploreSearchRef}>
+            <div className="min-w-0 flex-1 max-w-2xl mx-2 sm:mx-4" ref={exploreSearchRef}>
               <PopoverTrigger asChild>
                 <div className="relative group cursor-text">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
@@ -406,7 +408,7 @@ export function NavigationBar({
                     onChange={(e) => setExploreSearchQuery(e.target.value)}
                     onClick={() => !isExploreOpen && setIsExploreOpen(true)}
                     onFocus={() => !isExploreOpen && setIsExploreOpen(true)}
-                    className="w-full pl-10 pr-16 h-10 bg-muted/50 border border-muted hover:border-primary/50 focus:border-primary focus:bg-background transition-colors rounded-lg font-medium focus:outline-none"
+                    className="w-full min-w-0 pl-10 pr-12 sm:pr-16 h-10 bg-muted/50 border border-muted hover:border-primary/50 focus:border-primary focus:bg-background transition-colors rounded-lg font-medium focus:outline-none"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none hidden sm:block">
                     <kbd className="px-2.5 py-1 rounded bg-muted border border-border text-foreground">
@@ -818,64 +820,49 @@ export function NavigationBar({
             </PopoverContent>
           </Popover>
 
-          {/* Desktop Search Bar */}
-          {!isMobile && (
-            <div className="flex-1 max-w-md mx-4">
-              {/* <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 h-9 bg-muted/50"
-                />
-              </form> */}
-            </div>
-          )}
+          {/* Flexible spacer — pushes the right cluster over on md+; collapses
+              on small so the right cluster hugs the edge. CSS-only (no JS flag)
+              so SSR + every width render identically. */}
+          <div className="hidden md:block flex-1 max-w-md mx-4" />
 
-          {/* Right Section */}
-          <div
-            className={`${
-              isMobile ? "flex-1 justify-end min-w-0" : "ml-auto gap-4"
-            } flex items-center space-x-1`}
-          >
-
+          {/* Right Section — CSS-responsive (never gated on the isMobile JS
+              flag, which caused SSR/hydration overflow on real accounts). */}
+          <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
             {user?.isPremium ? (
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
+                className="shrink-0 bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
                 onClick={() => onNavigate(routes.subscriptionManagement)}
               >
-                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
-                {!isMobile && subscriptionName}
+                <Crown className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline truncate max-w-[120px]">
+                  {subscriptionName}
+                </span>
               </Button>
             ) : (
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
+                className="shrink-0 bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
                 onClick={() => onNavigate(routes.subscriptionManagement)}
               >
-                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
-                {!isMobile && "Upgrade"}
+                <Crown className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Upgrade</span>
               </Button>
             )}
 
-            {/* MB Balance - Compact on mobile */}
-            {!isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary"
-                onClick={() => onNavigate(routes.xpStore)}
-              >
-                <Gift className="h-4 w-4 mr-1" />
-                <span className={isMobile ? "sr-only" : ""}>
-                  {user?.points?.toLocaleString()} MB
-                </span>
-              </Button>
-            )}
+            {/* MB Balance — desktop only, number truncates */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden md:inline-flex text-primary shrink-0"
+              onClick={() => onNavigate(routes.xpStore)}
+            >
+              <Gift className="h-4 w-4 mr-1" />
+              <span className="truncate max-w-[90px]">
+                {user?.points?.toLocaleString()} MB
+              </span>
+            </Button>
 
             {/* Notifications */}
             <Popover
@@ -883,7 +870,7 @@ export function NavigationBar({
               onOpenChange={setIsNotificationsOpen}
             >
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="relative shrink-0">
                   <Bell className="h-5 w-5" />
                   {user?.totalNotifications! > 0 && (
                     <Badge
@@ -1035,7 +1022,7 @@ export function NavigationBar({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
+                  className="relative h-8 w-8 rounded-full shrink-0"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
