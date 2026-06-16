@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { stripHtmlTags } from "@/lib/html-utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -177,7 +178,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
               )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-              {project.summary}
+              {stripHtmlTags(project.summary || "")}
             </p>
           </div>
 

@@ -7,6 +7,7 @@ import { PathGlyph } from "@/components/path-glyph";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import { stripHtmlTags } from "@/lib/html-utils";
 import type { ContinueLearningItem } from "@/lib/data";
 import type { PathSession, PathSessionStep } from "@/lib/path-types";
 import { ArrowRight, BookOpen, Compass, Loader2, Play, Target } from "lucide-react";
@@ -170,7 +171,7 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
           </h2>
           {item.subtitle && (
             <p className="mt-0.5 truncate text-sm text-muted-foreground">
-              {item.subtitle}
+              {stripHtmlTags(item.subtitle)}
             </p>
           )}
           <div className="mt-3 h-2 max-w-md overflow-hidden rounded-full bg-muted">

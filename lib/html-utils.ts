@@ -4,6 +4,21 @@
 export function stripHtmlTags(html: string): string {
   if (!html) return "";
 
+  // SSR / non-DOM environments: no document, so strip tags + decode the common
+  // entities with a regex fallback (keeps the server render from crashing).
+  if (typeof document === "undefined") {
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   // Create a temporary element to parse HTML
   const temp = document.createElement("div");
   temp.innerHTML = html;
