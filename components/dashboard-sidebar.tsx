@@ -71,6 +71,7 @@ const navigationData = {
       icon: Sparkles,
       active: true,
       beta: false,
+      disabled: true,
     },
     // {
     //   title: "MB Lands",
@@ -148,7 +149,8 @@ export function DashboardSidebar({
     Object.values(navigationData)
       .flat()
       .forEach((item) => {
-        if (item?.url && item.active !== false) router.prefetch(item.url);
+        if (item?.url && item.active !== false && !(item as any).disabled)
+          router.prefetch(item.url);
       });
   }, [router]);
   if (!mounted) return null;
@@ -267,14 +269,20 @@ export function DashboardSidebar({
               {items?.map((item) => (
                 <button
                   key={item.title}
-                  onClick={() => onNavigate(item.url)}
+                  onClick={() =>
+                    (item as any).disabled ? undefined : onNavigate(item.url)
+                  }
+                  disabled={(item as any).disabled}
                   title={collapsed ? item.title : ""}
                   className={`flex w-full items-center ${
                     collapsed ? "justify-center" : "justify-between"
                   } px-4 py-2 rounded-md transition-colors ${
-                    currentPath === item.url || currentPath.startsWith(item.url)
-                      ? "bg-primary/15 text-primary"
-                      : "text-white/65 hover:bg-white/10 hover:text-white"
+                    (item as any).disabled
+                      ? "cursor-not-allowed text-white/30"
+                      : currentPath === item.url ||
+                          currentPath.startsWith(item.url)
+                        ? "bg-primary/15 text-primary"
+                        : "text-white/65 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <div
@@ -288,7 +296,12 @@ export function DashboardSidebar({
                       } transition-all`}
                     />
                     {!collapsed && <span>{item.title}</span>}
-                    {!collapsed && !item.active && (
+                    {!collapsed && (item as any).disabled && (
+                      <Badge variant="secondary" className="ml-auto">
+                        Soon
+                      </Badge>
+                    )}
+                    {!collapsed && !item.active && !(item as any).disabled && (
                       <Badge variant="secondary">WIP</Badge>
                     )}
                     {!collapsed && item.beta && (

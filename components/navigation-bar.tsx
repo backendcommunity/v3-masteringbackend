@@ -1058,9 +1058,12 @@ export function NavigationBar({
                   <Code className="mr-2 h-4 w-4" />
                   <span>My Projects</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.project30)}>
+                <DropdownMenuItem disabled>
                   <Sparkles className="mr-2 h-4 w-4" />
                   <span>Ship</span>
+                  <Badge variant="secondary" className="ml-auto">
+                    Soon
+                  </Badge>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
