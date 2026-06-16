@@ -171,6 +171,7 @@ interface AppState {
     filters?: any;
   }) => any;
   getMockInterviewCategories: () => Promise<string[]>;
+  getMockInterviewCompanies: () => Promise<string[]>;
   getUserBookedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
   getUserCompletedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
   getMyTemplates: () => any;
@@ -957,6 +958,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getMockInterviewCategories: async (): Promise<string[]> => {
     const { data } = await api.get("/mock-interviews/categories");
+    return data?.data ?? [];
+  },
+
+  getMockInterviewCompanies: async (): Promise<string[]> => {
+    const { data } = await api.get("/mock-interviews/companies");
     return data?.data ?? [];
   },
 

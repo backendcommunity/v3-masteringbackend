@@ -149,6 +149,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     useState<InterviewAccess | null>(null);
   const [creating, setCreating] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
 
   const [pagination, setPagination] = useState({ size: 10, skip: 0 });
   const [totalTemplates, setTotalTemplates] = useState(0);
@@ -168,6 +169,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     format: "",
     search: "",
     category: "",
+    company: "",
   });
 
   // Sort controls (backend supports createdAt | duration | difficulty)
@@ -231,6 +233,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadCompletedInterviews();
     loadInterviewAccess();
     loadCategories();
+    loadCompanies();
     loadMyTemplates();
     analytics.page("Mock Interviews");
   }, []);
@@ -274,6 +277,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       if (filters.format) filterObj.format = filters.format;
       if (filters.search) filterObj.search = filters.search;
       if (filters.category) filterObj.category = filters.category;
+      if (filters.company) filterObj.company = filters.company;
 
       // Send filters as an object
       params.filters = filterObj;
@@ -345,6 +349,15 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       setCategories(data);
     } catch {
       // silently fail — pills won't show
+    }
+  };
+
+  const loadCompanies = async () => {
+    try {
+      const data = await store.getMockInterviewCompanies();
+      setCompanies(data);
+    } catch {
+      // silently fail — company filter won't show
     }
   };
 
@@ -897,6 +910,28 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <SelectItem value="difficulty:desc">Hardest first</SelectItem>
                 </SelectContent>
               </Select>
+
+              {companies.length > 0 && (
+                <Select
+                  value={filters.company || "all"}
+                  onValueChange={(v) =>
+                    handleFilterChange("company", v === "all" ? "" : v)
+                  }
+                >
+                  <SelectTrigger className="w-44 rounded-xl h-9 text-sm gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Company" className="flex-1 text-left" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All companies</SelectItem>
+                    {companies.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </>
           )}
         </div>

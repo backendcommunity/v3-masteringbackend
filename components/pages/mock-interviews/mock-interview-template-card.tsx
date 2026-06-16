@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Clock, Loader2, Play, Trash2 } from "lucide-react";
+import { Bookmark, Building2, Clock, Loader2, Play, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface MockInterviewTemplateCardData {
@@ -91,9 +91,21 @@ export function MockInterviewTemplateCard({
         isStarting && "opacity-60 cursor-not-allowed",
       )}
     >
-      {/* Top row: category · style (question genre) + bookmark/delete */}
+      {/* Top row: company · category · style (question genre) + bookmark/delete */}
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0">
+          {template.company && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary font-semibold shrink-0",
+                compact ? "text-[10px] px-1.5 py-0.5" : "text-[11px] px-2 py-0.5",
+              )}
+              title={template.company}
+            >
+              <Building2 className={cn(compact ? "w-2.5 h-2.5" : "w-3 h-3")} />
+              <span className="truncate max-w-[110px]">{template.company}</span>
+            </span>
+          )}
           {template.category && (
             <span className={cn("text-muted-foreground font-medium truncate", compact ? "text-[10px]" : "text-[11px]")}>
               {template.category}
@@ -107,7 +119,7 @@ export function MockInterviewTemplateCard({
               {template.style}
             </span>
           )}
-          {!template.category && !template.style && (
+          {!template.company && !template.category && !template.style && (
             <span className={cn("text-muted-foreground font-medium", compact ? "text-[10px]" : "text-[11px]")}>
               Interview
             </span>
