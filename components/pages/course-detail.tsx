@@ -43,7 +43,6 @@ import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { PaymentDialog } from "../payment-dialog";
-import { CoursePreviewDialog } from "../course-preview-dialog";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -64,7 +63,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -145,6 +143,15 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       }
       updateCourse(slug, { ...course, enrolled: true, userCourse: data });
       Object.assign(course!, { enrolled: true });
+
+      // Enrolled + checks passed → drop the learner straight into lesson one.
+      const firstChapter = course?.chapters?.[0];
+      const firstVideo = firstChapter?.videos?.[0];
+      if (firstChapter) {
+        toast.success("Enrolled — taking you to your first lesson…");
+        onNavigate(routes.courseWatch(slug, firstChapter.slug, firstVideo?.slug));
+        return;
+      }
       toast.success("You have successfully enrolled");
     } catch (error: any) {
       const e = error?.response?.message ?? error?.message;
@@ -651,17 +658,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             />
           )}
 
-          <CoursePreviewDialog
-            open={showPreviewDialog}
-            onClose={() => setShowPreviewDialog(false)}
-            onEnroll={() => {
-              setShowPreviewDialog(false);
-              handleEnrollNow();
-            }}
-            course={course}
-            onPreviewChapter={(chapter) => handleFreeChapterClick(chapter)}
-          />
-
           {/* Primary action — buy (cold) or continue (warm) */}
           {course?.enrolled ? (
             <>
@@ -762,20 +758,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   <Play className="w-4 h-4" />
                 )}
                 {enrolling ? "Enrolling…" : "Start Learning"}
-              </button>
-
-              <button
-                onClick={() => {
-                  analytics.track("course_preview_opened", {
-                    courseId: course?.id,
-                    courseTitle: course?.title,
-                  });
-                  setShowPreviewDialog(true);
-                }}
-                className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-sm font-semibold text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-              >
-                <Play className="w-4 h-4" />
-                Preview course
               </button>
 
               <p className="mt-3 text-xs text-center text-muted-foreground">

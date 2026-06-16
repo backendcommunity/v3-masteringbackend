@@ -107,6 +107,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
                   progress: 0,
                 }}
                 onSelect={() => start(item)}
+                onOpenDetail={() => router.push(DETAIL_PATH.project(item.slug))}
               />
             ))
           : items?.map((item) => (

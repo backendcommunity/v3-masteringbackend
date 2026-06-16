@@ -31,7 +31,10 @@ export interface ProjectCardData {
 
 interface ProjectCardProps {
   project: ProjectCardData;
+  /** Start/Continue/Review action — runs the enroll-or-resume start flow. */
   onSelect: () => void;
+  /** Open the project detail page (title click). */
+  onOpenDetail: () => void;
   isSaved?: boolean;
   isSaving?: boolean;
   onToggleSave?: (e: React.MouseEvent) => void;
@@ -73,6 +76,7 @@ function LevelBadge({ level }: { level: string }) {
 export function ProjectCard({
   project,
   onSelect,
+  onOpenDetail,
   isSaved = false,
   isSaving = false,
   onToggleSave,
@@ -86,10 +90,7 @@ export function ProjectCard({
       : { label: "Start", Icon: ArrowRight, outline: false };
 
   return (
-    <div
-      onClick={onSelect}
-      className="group bg-card rounded-2xl border border-border flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all p-5"
-    >
+    <div className="group bg-card rounded-2xl border border-border flex flex-col hover:shadow-md hover:border-primary/30 transition-all p-5">
       {/* Top row: (category ·) tasks + bookmark */}
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
@@ -139,9 +140,15 @@ export function ProjectCard({
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
-        {project.title}
+      {/* Title — opens the project detail page */}
+      <h3 className="mt-1">
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          className="text-left font-bold text-foreground text-[15px] leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
+        >
+          {project.title}
+        </button>
       </h3>
 
       {/* Description */}

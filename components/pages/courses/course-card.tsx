@@ -68,10 +68,7 @@ export function CourseCard({
   };
 
   return (
-    <div
-      onClick={() => onViewDetails(course.slug)}
-      className="group bg-card rounded-2xl border border-border flex flex-col cursor-pointer hover:shadow-md hover:border-primary/30 transition-all p-5"
-    >
+    <div className="group bg-card rounded-2xl border border-border flex flex-col hover:shadow-md hover:border-primary/30 transition-all p-5">
       {/* Top row: type · category + bookmark */}
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
@@ -113,9 +110,15 @@ export function CourseCard({
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
-        {course.title}
+      {/* Title — opens the course detail page */}
+      <h3 className="mt-1">
+        <button
+          type="button"
+          onClick={() => onViewDetails(course.slug)}
+          className="text-left font-bold text-foreground text-[15px] leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
+        >
+          {course.title}
+        </button>
       </h3>
 
       {/* Description */}

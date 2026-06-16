@@ -408,6 +408,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
                   isSaving={savingSlug === p.slug}
                   onToggleSave={() => toggleSave(p)}
                   onSelect={() => goToProject(p)}
+                  onOpenDetail={() => onNavigate(`/projects/${p.slug}`)}
                 />
               ))}
             </div>
