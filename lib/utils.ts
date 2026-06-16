@@ -6,6 +6,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Initials for avatar fallbacks: first letter of the first (and last) name word,
+ * e.g. "Solomon Eseme" → "SE", "Solomon" → "S". Empty/blank → "".
+ */
+export function getInitials(name?: string | null): string {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
+  return (first + last).toUpperCase();
+}
+
 // {
 //     "name": "Python",
 //     "code": "python"

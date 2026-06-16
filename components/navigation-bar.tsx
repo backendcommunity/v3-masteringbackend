@@ -14,7 +14,6 @@ import {
   Code,
   Users,
   Crown,
-  Gift,
   Sparkles,
   Menu,
   CheckSquare,
@@ -47,6 +46,7 @@ import { updateUser, type Activity, type SearchResults } from "@/lib/data";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
+import { getInitials } from "@/lib/utils";
 interface NavigationBarProps {
   onNavigate: (path: string) => void;
   onMenuToggle?: () => void;
@@ -851,15 +851,14 @@ export function NavigationBar({
               </Button>
             )}
 
-            {/* MB Balance — desktop only, number truncates */}
+            {/* MB Balance — desktop only, light field (same elevation as search) */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="hidden md:inline-flex text-primary shrink-0"
+              className="hidden h-9 shrink-0 border border-muted bg-muted/50 font-semibold text-foreground hover:border-primary/50 hover:bg-muted md:inline-flex"
               onClick={() => onNavigate(routes.xpStore)}
             >
-              <Gift className="h-4 w-4 mr-1" />
-              <span className="truncate max-w-[90px]">
+              <span className="truncate max-w-[110px]">
                 {user?.points?.toLocaleString()} MB
               </span>
             </Button>
@@ -870,7 +869,7 @@ export function NavigationBar({
               onOpenChange={setIsNotificationsOpen}
             >
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative shrink-0">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 shrink-0">
                   <Bell className="h-5 w-5" />
                   {user?.totalNotifications! > 0 && (
                     <Badge
@@ -1022,15 +1021,13 @@ export function NavigationBar({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full shrink-0"
+                  size="icon"
+                  className="relative h-9 w-9 rounded-full shrink-0"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={user?.avatar || "/placeholder.svg"}
-                      alt={user?.name}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                      {user?.name?.charAt(0)}
+                    <AvatarImage src={user?.avatar || undefined} alt={user?.name} />
+                    <AvatarFallback className="bg-[#0E1F33] text-xs font-semibold text-white">
+                      {getInitials(user?.name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
