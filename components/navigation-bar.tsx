@@ -1075,6 +1075,9 @@ export function NavigationBar({
                 <DropdownMenuItem onClick={() => onNavigate(routes.hallOfFame)}>
                   <Trophy className="mr-2 h-4 w-4" />
                   <span>Hall of Fame</span>
+                  <Badge className="ml-auto bg-emerald-500 text-white hover:bg-emerald-600">
+                    New
+                  </Badge>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (
