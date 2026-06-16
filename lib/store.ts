@@ -55,6 +55,10 @@ import {
   loadVideoNotes,
 } from "./courses";
 import { api, socketAPI } from "./api";
+
+// Single source for the REST base URL used by the raw-fetch (streaming) actions.
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
@@ -85,6 +89,24 @@ export interface ChatArtifactRef {
   data: string;
   language?: string;
   svg?: string;
+}
+
+// Kap tutor
+export interface KapTutorMessage {
+  role: "user" | "ai";
+  content: string;
+  ts?: string;
+}
+export interface KapInsights {
+  keyTakeaways: string[];
+  realWorldUse: string[];
+}
+export interface KapAskParams {
+  scope: "video" | "project";
+  videoId?: string;
+  projectId?: string;
+  taskId?: string;
+  message: string;
 }
 
 export interface ChatInterviewTemplate {
@@ -370,6 +392,10 @@ interface AppState {
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
   streamChatMessage: (sessionId: string, content: string, artifacts?: ChatArtifactRef[]) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
+  streamKapTutor: (params: KapAskParams, signal?: AbortSignal) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  getKapHistory: (scope: string, refId: string) => Promise<KapTutorMessage[]>;
+  clearKapHistory: (scope: string, refId: string) => Promise<void>;
+  getKapInsights: (videoId: string) => Promise<KapInsights>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
   getChatSessionReport: (sessionId: string) => Promise<any>;
   generateSessionReport: (sessionId: string) => Promise<any>;
@@ -811,8 +837,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     content: string,
     artifacts?: ChatArtifactRef[],
   ) => {
-    const baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const baseURL = API_BASE;
     const response = await fetch(
       `${baseURL}/mock-interviews/chat/sessions/${sessionId}/message`,
       {
@@ -827,6 +852,58 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if (!response.body) throw new Error("No response body");
     return response.body.getReader();
+  },
+
+  streamKapTutor: async (params: KapAskParams, signal?: AbortSignal) => {
+    const baseURL = API_BASE;
+    const response = await fetch(`${baseURL}/kap-tutor/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(params),
+      signal,
+    });
+    if (!response.ok) {
+      let message = `Request failed: ${response.status}`;
+      try {
+        const j = await response.json();
+        if (j?.message) message = j.message;
+      } catch {}
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  getKapHistory: async (scope: string, refId: string) => {
+    const baseURL = API_BASE;
+    const res = await fetch(
+      `${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`,
+      { credentials: "include" },
+    );
+    if (!res.ok) return [];
+    const j = await res.json();
+    return j?.data ?? [];
+  },
+
+  clearKapHistory: async (scope: string, refId: string) => {
+    const baseURL = API_BASE;
+    await fetch(
+      `${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`,
+      { method: "DELETE", credentials: "include" },
+    );
+  },
+
+  getKapInsights: async (videoId: string) => {
+    const baseURL = API_BASE;
+    const res = await fetch(`${baseURL}/kap-tutor/videos/${videoId}/insights`, {
+      credentials: "include",
+    });
+    if (!res.ok) return { keyTakeaways: [], realWorldUse: [] };
+    const j = await res.json();
+    return j?.data ?? { keyTakeaways: [], realWorldUse: [] };
   },
 
   saveChatArtifact: async (
@@ -867,8 +944,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   streamSessionReport: async (sessionId: string) => {
-    const baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const baseURL = API_BASE;
     const response = await fetch(
       `${baseURL}/mock-interviews/chat/sessions/${sessionId}/report/stream`,
       { method: "GET", credentials: "include" },
@@ -1205,8 +1281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   analyzeJD: async (jdText: string, duration: number, style: string) => {
-    const baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const baseURL = API_BASE;
     const response = await fetch(`${baseURL}/mock-interviews/analyze-jd`, {
       method: "POST",
       credentials: "include",
@@ -1222,8 +1297,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   analyzeJDFile: async (file: File, duration: number, style: string) => {
-    const baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+    const baseURL = API_BASE;
     const formData = new FormData();
     formData.append("file", file);
     formData.append("duration", String(duration));

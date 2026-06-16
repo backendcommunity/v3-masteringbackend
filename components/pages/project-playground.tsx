@@ -57,7 +57,7 @@ import {
 } from "../ui/card";
 import { PaymentDialog } from "../payment-dialog";
 import { Terminal } from "../atoms/Terminal";
-import { ChatInput } from "../pages/mock-interviews/chat/chat-input";
+import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
 import { Label } from "../ui/label";
@@ -155,15 +155,6 @@ export function ProjectPlaygroundPage({
   const [activeTab, setActiveTab] = useState("tasks");
   const [railTab, setRailTab] = useState<"tasks" | "explorer" | "kap">("tasks");
   const [rightTab, setRightTab] = useState<"preview" | "tests">("preview");
-  const [kapMessages, setKapMessages] = useState<
-    { role: "ai" | "me"; text: string }[]
-  >([
-    {
-      role: "ai",
-      text: "Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you — that's your build. Ask about the task, an error, or what's failing.",
-    },
-  ]);
-  const [kapThinking, setKapThinking] = useState(false);
   const [code, setCode] = useState(fileTree?.[0]?.children?.[0]?.content || "");
   const [currentLanguage, setCurrentLanguage] = useState("javascript");
   const [showPayment, setShowPayment] = useState(false);
@@ -1233,38 +1224,6 @@ export function ProjectPlaygroundPage({
     }
   };
 
-  const kapReply = (q: string) => {
-    const s = q.toLowerCase();
-    if (s.includes("fail") || s.includes("email"))
-      return "Re-read your failing assertion. The test compares the response to what it sent — are you echoing the value from the request body, or altering it? Fix that and re-run.";
-    if (s.includes("201") || s.includes("status"))
-      return "The test expects a specific status code. Look up how your framework sets a status on a JSON response (it's a method on the response object, before sending the body).";
-    if (s.includes("hint"))
-      return "Break it into steps: read the inputs from the request, build the record, persist it, then return it with the right status. Try one step at a time and run the test.";
-    if (
-      s.includes("write") ||
-      s.includes("code") ||
-      s.includes("solution") ||
-      s.includes("do it")
-    )
-      return "I won't write it for you — that's the whole point of the build. Tell me which part you're stuck on and I'll nudge you.";
-    return "Re-read the task contract: method, URL, request, and expected response. Which step are you on?";
-  };
-
-  const handleKapSend = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setKapMessages((prev) => [...prev, { role: "me", text: trimmed }]);
-    setKapThinking(true);
-    setTimeout(() => {
-      setKapMessages((prev) => [
-        ...prev,
-        { role: "ai", text: kapReply(trimmed) },
-      ]);
-      setKapThinking(false);
-    }, 850);
-  };
-
   const openTaskDrawer = (task: any) => {
     setActiveTask(task);
     setShowTask(true);
@@ -1903,64 +1862,19 @@ export function ProjectPlaygroundPage({
 
           {/* KAP AI rail */}
           {railTab === "kap" && (
-            <div className="railKap">
-              <div className="chat">
-                <div className="kapnote">
-                  {I.bolt}
-                  <span>
-                    Each time you ask Kap, it costs a little{" "}
-                    <b>XP</b>. Kap <b>guides</b> you — it won't write the
-                    solution for you. Try the task first.
-                  </span>
-                </div>
-                <div className="chat-b">
-                  {kapMessages.map((m, i) => (
-                    <div key={i} className={cn("msg", m.role)}>
-                      <div className="av">
-                        {m.role === "ai" ? (
-                          "✦"
-                        ) : user?.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user?.name || "You"}
-                            className="av-img"
-                          />
-                        ) : (
-                          userInitials
-                        )}
-                      </div>
-                      <div className="bub">{m.text}</div>
-                    </div>
-                  ))}
-                  {kapThinking && (
-                    <div className="msg ai">
-                      <div className="av">✦</div>
-                      <div className="bub">
-                        <div className="typing">
-                          <i />
-                          <i />
-                          <i />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="sugg">
-                  {[
-                    "Why is my test failing?",
-                    "How do I return 201?",
-                    "Give me a hint",
-                  ].map((s) => (
-                    <button key={s} onClick={() => handleKapSend(s)}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <ChatInput
-                  onSend={handleKapSend}
-                  placeholder="Ask Kap for a hint…"
-                />
-              </div>
+            <div className="railKap" style={{ height: "100%", minHeight: 0 }}>
+              <KapTutorPanel
+                scope="project"
+                projectId={project?.id}
+                taskId={activeTask?.id}
+                title={project?.title}
+                intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you — that's your build. Ask about the task, an error, or what's failing."
+                starterPrompts={[
+                  "Why is my test failing?",
+                  "How do I return 201?",
+                  "Give me a hint",
+                ]}
+              />
             </div>
           )}
         </div>

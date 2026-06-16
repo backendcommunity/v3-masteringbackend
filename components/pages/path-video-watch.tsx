@@ -5,6 +5,7 @@ import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -1093,10 +1094,12 @@ export function RoadmapVideoWatchPage({
             </TabsContent>
 
             <TabsContent value="ask-kap">
-              <Card>
-                <CardHeader></CardHeader>
-
-                <CardContent> Coming soon!</CardContent>
+              <Card className="h-[480px] overflow-hidden p-0">
+                <KapTutorPanel
+                  scope="video"
+                  videoId={currentVideo?.id ?? videoId}
+                  title={currentVideo?.title}
+                />
               </Card>
             </TabsContent>
           </Tabs>

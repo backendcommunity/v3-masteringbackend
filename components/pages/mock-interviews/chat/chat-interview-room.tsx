@@ -11,6 +11,7 @@ import {
 } from "@/lib/store";
 import { ChatInterviewWelcome } from "./chat-interview-welcome";
 import { analytics } from "@/lib/analytics";
+import { readSSE } from "@/lib/sse";
 import { ChatInterviewHeader, useCountdown } from "./chat-interview-header";
 import { useInterviewTimer } from "@/lib/interview-timer-store";
 import { ChatPanel } from "./chat-panel";
@@ -290,44 +291,20 @@ export function ChatInterviewRoom({
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
         reader = await store.streamChatMessage(sessionId, content, artifacts);
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          // Buffer across chunks — keep the partial trailing line so a `done`
-          // (isComplete) or token event split across read() boundaries isn't
-          // dropped on JSON.parse.
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const jsonStr = line.slice(5).trim();
-            if (!jsonStr) continue;
-
-            try {
-              const parsed = JSON.parse(jsonStr);
-              if (parsed.type === "token" && parsed.content) {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId
-                      ? { ...m, content: m.content + parsed.content }
-                      : m,
-                  ),
-                );
-              } else if (parsed.type === "done") {
-                if (parsed.isComplete) setIsComplete(true);
-              }
-              // note: completion funnel tracked in the isComplete useEffect below
-            } catch {
-              // Skip malformed JSON lines
-            }
+        await readSSE(reader, (parsed) => {
+          if (parsed.type === "token" && parsed.content) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId
+                  ? { ...m, content: m.content + parsed.content }
+                  : m,
+              ),
+            );
+          } else if (parsed.type === "done") {
+            if (parsed.isComplete) setIsComplete(true);
           }
-        }
+          // note: completion funnel tracked in the isComplete useEffect below
+        });
       } catch {
         setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
       } finally {
@@ -469,66 +446,44 @@ export function ChatInterviewRoom({
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     try {
       reader = await store.streamSessionReport(sessionId);
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        // Buffer across chunks: process only COMPLETE lines and keep any partial
-        // trailing line for the next read. The `result` event carries the full
-        // report and routinely spans multiple read() boundaries — without this
-        // it failed JSON.parse, got dropped, and the UI hung on
-        // "Generating your performance report…" forever.
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data:")) continue;
-          const jsonStr = line.slice(5).trim();
-          if (!jsonStr) continue;
-          try {
-            const event = JSON.parse(jsonStr);
-            if (event.type === "token") {
-              // streaming in progress — cycling timer handles UX
-            } else if (event.type === "progress") {
-              setResultsProgress(event.message);
-            } else if (event.type === "result") {
-              const report = event.data;
-              setResultsData(report);
-              if (report?.questionAnalysis) {
-                setQuestionAnalysis(
-                  report.questionAnalysis.map((q: any) => ({
-                    score: q.score,
-                    feedback: q.feedback,
-                  })),
-                );
-                setResultsRevealed(true);
-              }
-              setResultsProgress(null);
-              analytics.track("chat_interview_results_generated", {
-                template_id: sessionRef.current?.template?.id,
-                overall_score: report?.overallScore,
-                result: report?.result,
-                technical_score: report?.technicalScore,
-                communication_score: report?.communicationScore,
-                problem_solving_score: report?.problemSolvingScore,
-                triggered_by: endedManuallyRef.current ? "manual" : "ai",
-              });
-            } else if (event.type === "error") {
-              const errMsg = event.message ?? "Failed to generate report.";
-              setResultsError(errMsg);
-              analytics.track("chat_interview_results_failed", {
-                template_id: sessionRef.current?.template?.id,
-                error_message: errMsg,
-              });
-            }
-          } catch {
-            // skip malformed lines
+      // The `result` event carries the full report and routinely spans multiple
+      // read() boundaries; readSSE buffers across chunks so it isn't dropped.
+      await readSSE(reader, (event) => {
+        if (event.type === "token") {
+          // streaming in progress — cycling timer handles UX
+        } else if (event.type === "progress") {
+          setResultsProgress(event.message);
+        } else if (event.type === "result") {
+          const report = event.data;
+          setResultsData(report);
+          if (report?.questionAnalysis) {
+            setQuestionAnalysis(
+              report.questionAnalysis.map((q: any) => ({
+                score: q.score,
+                feedback: q.feedback,
+              })),
+            );
+            setResultsRevealed(true);
           }
+          setResultsProgress(null);
+          analytics.track("chat_interview_results_generated", {
+            template_id: sessionRef.current?.template?.id,
+            overall_score: report?.overallScore,
+            result: report?.result,
+            technical_score: report?.technicalScore,
+            communication_score: report?.communicationScore,
+            problem_solving_score: report?.problemSolvingScore,
+            triggered_by: endedManuallyRef.current ? "manual" : "ai",
+          });
+        } else if (event.type === "error") {
+          const errMsg = event.message ?? "Failed to generate report.";
+          setResultsError(errMsg);
+          analytics.track("chat_interview_results_failed", {
+            template_id: sessionRef.current?.template?.id,
+            error_message: errMsg,
+          });
         }
-      }
+      });
     } catch (err: any) {
       setResultsError(
         err?.message ?? "Failed to generate report. Please try again.",
