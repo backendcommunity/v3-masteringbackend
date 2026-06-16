@@ -170,6 +170,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     category: "",
   });
 
+  // Sort controls (backend supports createdAt | duration | difficulty)
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   const [templateFormData, setTemplateFormData] = useState<TemplateFormData>({
     name: "",
     summary: "",
@@ -178,7 +182,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     duration: 15,
     topics: [],
     seniority: "junior",
-    style: "technical",
+    style: "Technical",
   });
   const [topicInput, setTopicInput] = useState("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -191,10 +195,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
   const MY_TEMPLATES_PAGE_SIZE = 12;
 
-  // Load templates when pagination or filters change
+  // Load templates when pagination, filters, or sort change
   useEffect(() => {
     loadTemplates();
-  }, [pagination, filters]);
+  }, [pagination, filters, sortBy, sortOrder]);
 
   // Load my templates when switching to that tab
   useEffect(() => {
@@ -260,6 +264,8 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       const params: any = {
         size: pagination.size,
         skip: pagination.skip,
+        sortBy,
+        sortOrder,
       };
 
       const filterObj: any = {};
@@ -484,7 +490,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           duration: 15,
           topics: [],
           seniority: "junior",
-          style: "technical",
+          style: "Technical",
         });
 
         // Reload templates and stats
@@ -852,9 +858,9 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               </Select>
 
               <Select
-                value={filters.format || "all"}
+                value={filters.style || "all"}
                 onValueChange={(v) =>
-                  handleFilterChange("format", v === "all" ? "" : v)
+                  handleFilterChange("style", v === "all" ? "" : v)
                 }
               >
                 <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
@@ -866,6 +872,29 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <SelectItem value="Behavioral">Behavioral</SelectItem>
                   <SelectItem value="Coding">Coding</SelectItem>
                   <SelectItem value="System Design">System Design</SelectItem>
+                  <SelectItem value="Case Study">Case Study</SelectItem>
+                  <SelectItem value="Mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={`${sortBy}:${sortOrder}`}
+                onValueChange={(v) => {
+                  const [by, order] = v.split(":");
+                  setSortBy(by);
+                  setSortOrder(order as "asc" | "desc");
+                }}
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt:desc">Newest</SelectItem>
+                  <SelectItem value="createdAt:asc">Oldest</SelectItem>
+                  <SelectItem value="duration:asc">Shortest</SelectItem>
+                  <SelectItem value="duration:desc">Longest</SelectItem>
+                  <SelectItem value="difficulty:asc">Easiest first</SelectItem>
+                  <SelectItem value="difficulty:desc">Hardest first</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -1475,10 +1504,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     <SelectValue placeholder="Select interview style" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="technical">Technical</SelectItem>
-                    <SelectItem value="behavioral">Behavioral</SelectItem>
-                    <SelectItem value="coding">Coding</SelectItem>
-                    <SelectItem value="system-design">System Design</SelectItem>
+                    <SelectItem value="Technical">Technical</SelectItem>
+                    <SelectItem value="Behavioral">Behavioral</SelectItem>
+                    <SelectItem value="Coding">Coding</SelectItem>
+                    <SelectItem value="System Design">System Design</SelectItem>
+                    <SelectItem value="Case Study">Case Study</SelectItem>
+                    <SelectItem value="Mixed">Mixed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

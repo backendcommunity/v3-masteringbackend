@@ -91,7 +91,7 @@ export function MockInterviewTemplateCard({
         isStarting && "opacity-60 cursor-not-allowed",
       )}
     >
-      {/* Top row: category · style + bookmark/delete */}
+      {/* Top row: category · style (question genre) + bookmark/delete */}
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0">
           {template.category && (
@@ -99,15 +99,15 @@ export function MockInterviewTemplateCard({
               {template.category}
             </span>
           )}
-          {template.category && template.format && (
+          {template.category && template.style && (
             <span className={cn("text-muted-foreground/40 shrink-0", compact ? "text-[10px]" : "text-[11px]")}>·</span>
           )}
-          {template.format && (
+          {template.style && (
             <span className={cn("text-muted-foreground font-medium truncate", compact ? "text-[10px]" : "text-[11px]")}>
-              {template.format}
+              {template.style}
             </span>
           )}
-          {!template.category && !template.format && (
+          {!template.category && !template.style && (
             <span className={cn("text-muted-foreground font-medium", compact ? "text-[10px]" : "text-[11px]")}>
               Interview
             </span>

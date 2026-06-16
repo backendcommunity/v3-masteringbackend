@@ -283,7 +283,7 @@ interface AppState {
     position: string;
     seniority: string;
     difficulty: string;
-    format: string;
+    format?: string;
     description: string;
     style: string;
     duration: number;
@@ -1180,7 +1180,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     position: string;
     seniority: string;
     difficulty: string;
-    format: string;
+    format?: string;
     description: string;
     style: string;
     duration: number;

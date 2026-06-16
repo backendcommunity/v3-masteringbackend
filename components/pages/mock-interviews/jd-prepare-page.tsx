@@ -64,6 +64,7 @@ interface JDAnalysisResult {
     position: string;
     seniority: string;
     domain: string;
+    style: string;
     format: string;
     difficulty: string;
     duration: number;
@@ -551,6 +552,7 @@ export function JDPreparePage({ onNavigate }: JDPreparePageProps) {
                 difficulty: result.template.difficulty,
                 duration: result.template.duration,
                 topics: result.template.topics,
+                style: result.template.style,
                 format: result.template.format,
               } satisfies BookingTemplate)
             : null
@@ -766,7 +768,7 @@ function ResultCard({
           >
             {t.difficulty}
           </Badge>
-          <Badge variant="outline">{t.format}</Badge>
+          <Badge variant="outline">{t.style}</Badge>
           <Badge variant="outline">{t.questions} questions</Badge>
         </div>
 

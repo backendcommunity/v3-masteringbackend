@@ -35,6 +35,7 @@ export interface BookingTemplate {
   difficulty: string;
   duration: number;
   topics?: string[] | null;
+  style?: string | null;
   format?: string | null;
 }
 
