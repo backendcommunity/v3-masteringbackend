@@ -72,12 +72,19 @@ export interface ChatMessage {
     svg?: string;
     code?: string;
   } | null;
+  artifacts?: Array<{
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+    code?: string;
+  }>;
 }
 
 export interface ChatArtifactRef {
   type: "code" | "whiteboard";
   data: string;
   language?: string;
+  svg?: string;
 }
 
 export interface ChatInterviewTemplate {
@@ -361,7 +368,7 @@ interface AppState {
   getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
   startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
-  streamChatMessage: (sessionId: string, content: string, artifactRef?: ChatArtifactRef) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  streamChatMessage: (sessionId: string, content: string, artifacts?: ChatArtifactRef[]) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
   getChatSessionReport: (sessionId: string) => Promise<any>;
@@ -802,7 +809,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   streamChatMessage: async (
     sessionId: string,
     content: string,
-    artifactRef?: ChatArtifactRef,
+    artifacts?: ChatArtifactRef[],
   ) => {
     const baseURL =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
@@ -812,7 +819,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content, artifactRef }),
+        body: JSON.stringify({ content, artifacts: artifacts ?? [] }),
       },
     );
     if (!response.ok) {

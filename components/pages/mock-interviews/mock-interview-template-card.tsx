@@ -82,6 +82,12 @@ export function MockInterviewTemplateCard({
       ? `${template.position} at ${template.company}`
       : template.position ?? template.company ?? "Mock Interview");
 
+  // Style (question genre) is redundant when it duplicates the category — hide it.
+  const showStyle =
+    !!template.style &&
+    template.style.trim().toLowerCase() !==
+      (template.category ?? "").trim().toLowerCase();
+
   return (
     <div
       onClick={isStarting ? undefined : onSelect}
@@ -111,10 +117,10 @@ export function MockInterviewTemplateCard({
               {template.category}
             </span>
           )}
-          {template.category && template.style && (
+          {template.category && showStyle && (
             <span className={cn("text-muted-foreground/40 shrink-0", compact ? "text-[10px]" : "text-[11px]")}>·</span>
           )}
-          {template.style && (
+          {showStyle && (
             <span className={cn("text-muted-foreground font-medium truncate", compact ? "text-[10px]" : "text-[11px]")}>
               {template.style}
             </span>

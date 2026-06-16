@@ -1,25 +1,43 @@
 "use client";
 
 import { useState, useRef, useId, KeyboardEvent } from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Mic, MicOff } from "lucide-react";
+import { ArrowRight, Mic, MicOff, Code2, PenTool, X } from "lucide-react";
+
+interface ChatInputAttachment {
+  type: "code" | "whiteboard";
+  language?: string;
+  svg?: string;
+}
 
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  attachments?: ChatInputAttachment[];
+  onRemoveAttachment?: (type: "code" | "whiteboard") => void;
 }
 
-export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  disabled,
+  placeholder,
+  attachments,
+  onRemoveAttachment,
+}: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useId();
 
+  const hasAttachments = (attachments?.length ?? 0) > 0;
+
   const handleSend = () => {
     const trimmed = value.trim();
-    if (!trimmed || disabled) return;
+    if (disabled) return;
+    if (!trimmed && !hasAttachments) return;
     onSend(trimmed);
     setValue("");
     // Restore height after clear
@@ -71,7 +89,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     setIsRecording(true);
   };
 
-  const canSend = value.trim().length > 0 && !disabled;
+  const canSend = (value.trim().length > 0 || hasAttachments) && !disabled;
 
   return (
     <div className="px-4 pb-4 sm:pb-5 pt-2 bg-background">
@@ -79,6 +97,59 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
       <label htmlFor={inputId} className="sr-only">
         Your response to Kap
       </label>
+
+      {/* Staged attachment chips */}
+      {hasAttachments && (
+        <div className="flex flex-wrap items-center gap-2 pb-2">
+          {attachments!.map((attachment) =>
+            attachment.type === "code" ? (
+              <span
+                key="code"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs text-foreground border border-border"
+              >
+                <Code2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <span>Code{attachment.language ? ` · ${attachment.language}` : ""}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveAttachment?.("code")}
+                  aria-label="Remove code attachment"
+                  className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </span>
+            ) : (
+              <span
+                key="whiteboard"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs text-foreground border border-border"
+              >
+                {attachment.svg ? (
+                  <span
+                    className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-sm bg-white [&_svg]:h-full [&_svg]:w-full"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(attachment.svg, {
+                        USE_PROFILES: { svg: true, svgFilters: true },
+                      }),
+                    }}
+                  />
+                ) : (
+                  <PenTool className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                )}
+                <span>Diagram</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveAttachment?.("whiteboard")}
+                  aria-label="Remove diagram attachment"
+                  className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </span>
+            ),
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         {/* Textarea */}

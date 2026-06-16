@@ -21,6 +21,12 @@ interface ChatPanelProps {
   isComplete: boolean;
   isStreaming: boolean;
   onSend: (content: string) => void;
+  attachments?: Array<{
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+  }>;
+  onRemoveAttachment?: (type: "code" | "whiteboard") => void;
   resultsData: ReportData | null;
   isLoadingResults: boolean;
   resultsProgress: string | null;
@@ -42,6 +48,8 @@ export function ChatPanel({
   isComplete,
   isStreaming,
   onSend,
+  attachments,
+  onRemoveAttachment,
   resultsData,
   isLoadingResults,
   resultsProgress,
@@ -275,6 +283,8 @@ export function ChatPanel({
         <div className="max-w-3xl mx-auto">
           <ChatInput
             onSend={onSend}
+            attachments={attachments}
+            onRemoveAttachment={onRemoveAttachment}
             disabled={isStreaming || isComplete}
             placeholder={
               isComplete

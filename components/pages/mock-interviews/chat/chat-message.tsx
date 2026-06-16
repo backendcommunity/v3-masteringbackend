@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { sanitizeHtml } from "@/lib/sanitize";
 import DOMPurify from "isomorphic-dompurify";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -41,18 +40,32 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+type MessageArtifact = {
+  type: "code" | "whiteboard";
+  language?: string;
+  svg?: string;
+  code?: string;
+};
+
 export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, userName, userAvatar }: ChatMessageProps) {
   const store = useAppStore();
   const isAI = message.role === "ai";
   const [copied, setCopied] = useState(false);
   const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [codeExpanded, setCodeExpanded] = useState(false);
-  const [whiteboardExpanded, setWhiteboardExpanded] = useState(false);
+  // Per-artifact expand state, keyed by artifact index.
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+
+  // Prefer the new multi-artifact array; fall back to the legacy single ref on
+  // old messages so historical diagrams/code still render.
+  const artifacts: MessageArtifact[] =
+    message.artifacts ?? (message.artifactRef ? [message.artifactRef] : []);
+
+  const toggleExpanded = (i: number) =>
+    setExpanded((prev) => ({ ...prev, [i]: !prev[i] }));
 
   const handleCopy = () => {
-    const text = message.artifactRef?.type === "code" && message.artifactRef.code
-      ? message.artifactRef.code
-      : message.content;
+    const firstCode = artifacts.find((a) => a.type === "code" && a.code)?.code;
+    const text = firstCode || message.content;
     navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -92,76 +105,84 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
                 ),
           )}
         >
-          {/* Whiteboard artifact */}
-          {message.artifactRef?.type === "whiteboard" && (
-            <div className="mb-2">
-              {message.artifactRef.svg ? (
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-muted/60 border-b border-border/50">
-                    <span className="text-[10px] text-muted-foreground font-medium">🎨 Diagram</span>
-                    <button
-                      onClick={() => setWhiteboardExpanded((v) => !v)}
-                      className="text-[10px] text-primary hover:underline transition-colors"
-                    >
-                      {whiteboardExpanded ? "Collapse" : "Expand"}
-                    </button>
-                  </div>
-                  <div
-                    className={cn(
-                      "overflow-auto bg-white p-2 transition-all duration-200",
-                      whiteboardExpanded ? "" : "max-h-[200px]",
-                    )}
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(DOMPurify.sanitize(message.artifactRef.svg, {
-                        USE_PROFILES: { svg: true, svgFilters: true },
-                      }),) }}
-                  />
-                </div>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded-full px-2.5 py-1 text-muted-foreground">
-                  🎨 Diagram submitted
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Code artifact */}
-          {message.artifactRef?.type === "code" && (
-            <div className="mb-2">
-              {message.artifactRef.code ? (() => {
-                const lines = message.artifactRef.code.split("\n");
-                const truncated = lines.length > 8;
-                return (
-                  <div className="rounded-lg overflow-hidden border border-border">
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-[#1e1e1e] border-b border-border/50">
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {message.artifactRef.language || "code"}
-                      </span>
-                      {truncated && (
+          {/* Artifacts — one whiteboard and/or code block per message */}
+          {artifacts.map((artifact, i) => {
+            if (artifact.type === "whiteboard") {
+              const isExpanded = !!expanded[i];
+              return (
+                <div className="mb-2" key={`artifact-${i}`}>
+                  {artifact.svg ? (
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/60 border-b border-border/50">
+                        <span className="text-[10px] text-muted-foreground font-medium">🎨 Diagram</span>
                         <button
-                          onClick={() => setCodeExpanded((v) => !v)}
-                          className="text-[10px] text-primary hover:text-blue-300 transition-colors"
+                          onClick={() => toggleExpanded(i)}
+                          className="text-[10px] text-primary hover:underline transition-colors"
                         >
-                          {codeExpanded ? "Collapse" : `Expand (${lines.length} lines)`}
+                          {isExpanded ? "Collapse" : "Expand"}
                         </button>
-                      )}
+                      </div>
+                      <div
+                        className={cn(
+                          "overflow-auto bg-white p-2 transition-all duration-200",
+                          isExpanded ? "" : "max-h-[200px]",
+                        )}
+                        dangerouslySetInnerHTML={{
+                          __html: DOMPurify.sanitize(artifact.svg, {
+                            USE_PROFILES: { svg: true, svgFilters: true },
+                          }),
+                        }}
+                      />
                     </div>
-                    <pre className="bg-[#1e1e1e] text-[11px] font-mono text-gray-200 px-3 py-2 overflow-x-auto leading-relaxed">
-                      {codeExpanded ? message.artifactRef.code : lines.slice(0, 8).join("\n")}
-                      {!codeExpanded && truncated && (
-                        <span className="text-muted-foreground/70">
-                          {"\n"}… {lines.length - 8} more lines
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded-full px-2.5 py-1 text-muted-foreground">
+                      🎨 Diagram submitted
+                    </span>
+                  )}
+                </div>
+              );
+            }
+
+            // code artifact
+            const isExpanded = !!expanded[i];
+            return (
+              <div className="mb-2" key={`artifact-${i}`}>
+                {artifact.code ? (() => {
+                  const lines = artifact.code.split("\n");
+                  const truncated = lines.length > 8;
+                  return (
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-[#1e1e1e] border-b border-border/50">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {artifact.language || "code"}
                         </span>
-                      )}
-                    </pre>
-                  </div>
-                );
-              })() : (
-                <span className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded-full px-2.5 py-1 text-muted-foreground">
-                  💻 Code submitted
-                </span>
-              )}
-            </div>
-          )}
+                        {truncated && (
+                          <button
+                            onClick={() => toggleExpanded(i)}
+                            className="text-[10px] text-primary hover:text-blue-300 transition-colors"
+                          >
+                            {isExpanded ? "Collapse" : `Expand (${lines.length} lines)`}
+                          </button>
+                        )}
+                      </div>
+                      <pre className="bg-[#1e1e1e] text-[11px] font-mono text-gray-200 px-3 py-2 overflow-x-auto leading-relaxed">
+                        {isExpanded ? artifact.code : lines.slice(0, 8).join("\n")}
+                        {!isExpanded && truncated && (
+                          <span className="text-muted-foreground/70">
+                            {"\n"}… {lines.length - 8} more lines
+                          </span>
+                        )}
+                      </pre>
+                    </div>
+                  );
+                })() : (
+                  <span className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded-full px-2.5 py-1 text-muted-foreground">
+                    💻 Code submitted
+                  </span>
+                )}
+              </div>
+            );
+          })}
 
           {/* Message text */}
           <span className="whitespace-pre-wrap">

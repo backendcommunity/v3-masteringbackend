@@ -80,6 +80,12 @@ export function ChatInterviewRoom({
   // on mobile/tablet — never both at once (avoids two Monaco instances).
   const [lgUp, setLgUp] = useState(true);
   const [mobileTab, setMobileTab] = useState<"chat" | "workspace">("chat");
+  // Staged attachments — at most one code + one diagram per outgoing message.
+  // Sending a new one of the same kind replaces the previous.
+  const [pendingCode, setPendingCode] = useState<ChatArtifactRef | null>(null);
+  const [pendingDiagram, setPendingDiagram] = useState<ChatArtifactRef | null>(
+    null,
+  );
 
   const router = useRouter();
 
@@ -109,6 +115,21 @@ export function ChatInterviewRoom({
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  // System-design interviews are whiteboard-first — default the work panel to
+  // the whiteboard once the template loads. Runs once so it never overrides a
+  // user's manual tab switch afterwards.
+  const panelDefaultedRef = useRef(false);
+  useEffect(() => {
+    if (panelDefaultedRef.current) return;
+    const tmpl = session?.template ?? preview?.template;
+    if (!tmpl) return;
+    panelDefaultedRef.current = true;
+    const isSystemDesign = [tmpl.style, tmpl.category].some(
+      (v) => !!v && v.toLowerCase().includes("system design"),
+    );
+    if (isSystemDesign) setActivePanel("whiteboard");
+  }, [session, preview]);
 
   // Notify an embedder once the interview completes (path-step integration).
   const completeFiredRef = useRef(false);
@@ -221,24 +242,29 @@ export function ChatInterviewRoom({
   }, [userInterviewId]);
 
   const handleSend = useCallback(
-    async (
-      content: string,
-      artifactRef?: ChatArtifactRef,
-      displayArtifact?: ChatMessage["artifactRef"],
-    ) => {
+    async (content: string, artifacts: ChatArtifactRef[] = []) => {
       const sessionId = sessionIdRef.current;
       if (!sessionId || isStreaming || isComplete) return;
 
       const userMsgId = `user-${Date.now()}`;
       const aiMsgId = `ai-${Date.now() + 1}`;
 
-      if (!artifactRef) {
+      if (artifacts.length === 0) {
         const questionNum = messagesRef.current.filter((m) => m.role === "user").length + 1;
         analytics.track("chat_interview_message_sent", {
           template_id: sessionRef.current?.template?.id,
           question_number: questionNum,
         });
       }
+
+      // Build the displayed artifacts for the optimistic user message:
+      // whiteboard renders via `svg`, code renders via `code`.
+      const displayArtifacts: NonNullable<ChatMessage["artifacts"]> =
+        artifacts.map((a) =>
+          a.type === "whiteboard"
+            ? { type: "whiteboard", svg: a.svg }
+            : { type: "code", language: a.language, code: a.data },
+        );
 
       const userMsg: ChatMessage = {
         id: userMsgId,
@@ -247,7 +273,7 @@ export function ChatInterviewRoom({
         timestamp: new Date().toISOString(),
         questionIndex: messagesRef.current.filter((m) => m.role === "user")
           .length,
-        artifactRef: displayArtifact ?? null,
+        artifacts: displayArtifacts,
       };
 
       const aiMsg: ChatMessage = {
@@ -263,7 +289,7 @@ export function ChatInterviewRoom({
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
-        reader = await store.streamChatMessage(sessionId, content, artifactRef);
+        reader = await store.streamChatMessage(sessionId, content, artifacts);
         const decoder = new TextDecoder();
         let buffer = "";
 
@@ -513,34 +539,69 @@ export function ChatInterviewRoom({
     }
   }, [store]);
 
+  // Stage a diagram as a pending attachment (replaces any existing one).
+  // The learner then composes a caption and sends from the chat input.
   const handleWhiteboardSend = useCallback(
     (diagramJSON: string, svg?: string) => {
       analytics.track("chat_interview_whiteboard_submitted", {
         template_id: sessionRef.current?.template?.id,
       });
-      handleSend(
-        "Here's my diagram:",
-        { type: "whiteboard", data: diagramJSON },
-        { type: "whiteboard", svg },
-      );
+      setPendingDiagram({ type: "whiteboard", data: diagramJSON, svg });
     },
-    [handleSend],
+    [],
   );
 
+  // Stage code as a pending attachment (replaces any existing one).
   const handleCodeSend = useCallback(
     (code: string, language: string) => {
       analytics.track("chat_interview_code_submitted", {
         template_id: sessionRef.current?.template?.id,
         language,
       });
-      handleSend(
-        "Here's my code solution:",
-        { type: "code", data: code, language },
-        { type: "code", language, code },
-      );
+      setPendingCode({ type: "code", data: code, language });
     },
-    [handleSend],
+    [],
   );
+
+  // Compose-and-send used by the chat input's send button: combines the typed
+  // text with any staged attachments, supplies a default caption when empty,
+  // then clears the staged attachments.
+  const sendComposed = useCallback(
+    (text: string) => {
+      const artifacts = [pendingCode, pendingDiagram].filter(
+        Boolean,
+      ) as ChatArtifactRef[];
+      if (!text.trim() && artifacts.length === 0) return;
+
+      let content = text.trim();
+      if (!content) {
+        if (pendingCode && pendingDiagram)
+          content = "Here's my code solution and diagram:";
+        else if (pendingCode) content = "Here's my code solution:";
+        else content = "Here's my diagram:";
+      }
+
+      handleSend(content, artifacts);
+      setPendingCode(null);
+      setPendingDiagram(null);
+    },
+    [handleSend, pendingCode, pendingDiagram],
+  );
+
+  // Chips shown above the chat input for the currently staged attachments.
+  const inputAttachments = [
+    pendingCode && { type: "code" as const, language: pendingCode.language },
+    pendingDiagram && { type: "whiteboard" as const, svg: pendingDiagram.svg },
+  ].filter(Boolean) as Array<{
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+  }>;
+
+  const handleRemoveAttachment = useCallback((type: "code" | "whiteboard") => {
+    if (type === "code") setPendingCode(null);
+    else setPendingDiagram(null);
+  }, []);
 
   // Load user profile for avatar/initials
   useEffect(() => {
@@ -777,7 +838,9 @@ export function ChatInterviewRoom({
               session={session}
               isComplete={isComplete}
               isStreaming={isStreaming}
-              onSend={handleSend}
+              onSend={sendComposed}
+              attachments={inputAttachments}
+              onRemoveAttachment={handleRemoveAttachment}
               resultsData={resultsData}
               isLoadingResults={isLoadingResults}
               resultsProgress={resultsProgress}
@@ -824,7 +887,9 @@ export function ChatInterviewRoom({
               session={session}
               isComplete={isComplete}
               isStreaming={isStreaming}
-              onSend={handleSend}
+              onSend={sendComposed}
+              attachments={inputAttachments}
+              onRemoveAttachment={handleRemoveAttachment}
               resultsData={resultsData}
               isLoadingResults={isLoadingResults}
               resultsProgress={resultsProgress}
