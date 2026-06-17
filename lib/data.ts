@@ -2491,3 +2491,18 @@ export interface OnboardingInput {
   preferredLanguage?: ProgrammingLanguage;
   skipped: boolean;
 }
+
+// Return-Recap types
+export type RecapItemType = "COURSE" | "PATH" | "PROJECT" | "MOCK_INTERVIEW";
+export type RecapTier = "DAY" | "WEEK" | "MONTH";
+export interface RecapKeyPoint { heading: string; body: string }
+export interface RecapPayload {
+  eventId: string; surface: "ITEM"; itemType: RecapItemType; itemId: string; tier: RecapTier;
+  awayText: string;
+  recap: { courseTitle: string; chapterTitle: string; intro: string; keyPoints: RecapKeyPoint[]; source: "INSIGHT" | "BODY" };
+  bridge: string;
+  nextStep: { title: string; type: string; goal: string };
+  stats: { xpEarned: number; currentStreak: number; isStreakActive: boolean };
+}
+export interface WelcomeBackItem { itemType: RecapItemType; itemId: string; title: string; progressPct: number; nextStepTitle: string; deeplink: string }
+export interface WelcomeBackPayload { eventId: string; surface: "DASHBOARD"; tier: RecapTier; headline: string; items: WelcomeBackItem[] }

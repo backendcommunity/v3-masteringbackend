@@ -377,6 +377,13 @@ interface AppState {
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
 
+  // Return-Recap
+  returnRecap: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null;
+  setReturnRecap: (r: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null) => void;
+  getJourneyRecap: (itemType: import("./data").RecapItemType, itemId: string) => Promise<import("./data").RecapPayload | null>;
+  getWelcomeBack: () => Promise<import("./data").WelcomeBackPayload | null>;
+  sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
+
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
   getContinueLearning: () => Promise<ContinueLearningItem | null>;
@@ -1385,6 +1392,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCoursesFilters: async (): Promise<CourseFiltersData> => {
     const res = await fetchCoursesFilters();
     return res.data as CourseFiltersData;
+  },
+
+  // Return-Recap
+  returnRecap: null,
+  setReturnRecap: (r) => set({ returnRecap: r }),
+  getJourneyRecap: async (itemType, itemId) => {
+    const { data } = await api.get(`/journey/recap`, { params: { itemType, itemId } });
+    return data?.data ?? null;
+  },
+  getWelcomeBack: async () => {
+    const { data } = await api.get(`/journey/welcome-back`);
+    return data?.data ?? null;
+  },
+  sendRecapFeedback: async (eventId, useful) => {
+    await api.post(`/journey/recap/${eventId}/feedback`, { useful });
   },
 
   // Epic 5: Engagement features
