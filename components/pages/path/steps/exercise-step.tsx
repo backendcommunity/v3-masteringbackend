@@ -1,6 +1,7 @@
 "use client";
+
 import { PathSessionStep } from "@/lib/path-types";
-import { PathComingSoon } from "../path-coming-soon";
+import { ExercisePlayground } from "@/components/exercise-playground";
 
 export function ExerciseStep({
   step,
@@ -10,11 +11,18 @@ export function ExerciseStep({
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
   onNavigate: (path: string) => void;
 }) {
-  // Exercise IDE not shipped yet — show coming-soon + let the learner skip ahead.
   return (
-    <PathComingSoon
-      kind="exercise"
-      onSkip={() => onComplete(step.id, { skipped: true })}
-    />
+    <div className="h-[70vh]">
+      <ExercisePlayground
+        exerciseId={step.itemId}
+        onPassed={(result) =>
+          onComplete(step.id, {
+            score: result.score,
+            passed: true,
+            submissionId: result.submissionId,
+          })
+        }
+      />
+    </div>
   );
 }
