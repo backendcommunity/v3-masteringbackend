@@ -16,6 +16,7 @@ import {
   CelebrationEvent,
   PathCertificate as PathCertificateType,
 } from "@/lib/path-types";
+import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import { Loader } from "@/components/ui/loader";
 import { StepStage } from "@/components/pages/path/step-stage";
 import { PathTopBar } from "@/components/pages/path/path-top-bar";
@@ -52,6 +53,8 @@ export interface PathWorkspaceProps {
   // with "Course Outline" + "Chapter".
   outlineTitle?: string;
   groupLabel?: string;
+  // "PATH" (default) or "COURSE" — controls which backend resolver the return-recap trigger calls.
+  recapItemType?: import("@/lib/data").RecapItemType;
   // Whether this workspace issues a certificate. Both paths and courses do; set
   // false to suppress the cert landing + outline button entirely.
   hasCertificate?: boolean;
@@ -76,6 +79,7 @@ export function PathWorkspace({
   stepRoute,
   outlineTitle,
   groupLabel,
+  recapItemType,
   hasCertificate = true,
   certificateFetcher,
   showAlumniLounge = true,
@@ -114,9 +118,13 @@ export function PathWorkspace({
       setCurrentStepId(
         (prev) => prev ?? data?.cursor?.resumeStepId ?? data?.steps?.[0]?.id,
       );
+      setLoading(false);
+      // Return-recap: defer to next tick so the workspace paints first.
+      setTimeout(() => {
+        void triggerItemRecap(recapItemType ?? "PATH", pathId);
+      }, 0);
     } catch {
       toast.error("Failed to load this path.");
-    } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -24,6 +24,7 @@ export default function CourseLearnRoute() {
     <main className="h-screen overflow-hidden bg-background">
       <PathWorkspace
         pathId={params.slug}
+        recapItemType="COURSE"
         initialStepId={stepId}
         onNavigate={(path) => router.push(path)}
         loadSession={store.getCourseSession}
