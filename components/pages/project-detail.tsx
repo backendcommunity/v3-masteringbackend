@@ -10,63 +10,45 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import {
-  Play,
-  CheckCircle2,
-  Clock,
-  BookOpen,
-  Award,
-  Share,
-  Lock,
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  BadgeIcon as Certificate,
-  Trophy,
-  Crown,
-  Download,
-  Database,
-  ChevronRight,
-  Users,
-  Settings,
-} from "lucide-react";
-import { useAppStore } from "@/lib/store";
-import { analytics } from "@/lib/analytics";
-import { routes } from "@/lib/routes";
-import DisqusCommentBlock from "../ui/comment";
-import { PaymentDialog } from "../payment-dialog";
-import { Chapter, Project } from "@/lib/data";
-import { toast } from "sonner";
-import ConfettiCelebration from "@/components/confetti-celebration";
-import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
-import { languages } from "@/lib/languages";
-import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "../ui/accordion";
-import { Label } from "../ui/label";
+} from "@/components/ui/accordion";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import socket from "@/lib/socketIo";
+  Play,
+  CheckCircle2,
+  Clock,
+  Lock,
+  BadgeIcon as Certificate,
+  Trophy,
+  Star,
+  Sparkles,
+  BarChart3,
+  Loader2,
+  RotateCcw,
+  Share2,
+  Link as LinkIcon,
+  Download,
+  ExternalLink,
+  ListChecks,
+  Database,
+} from "lucide-react";
+import { useAppStore } from "@/lib/store";
+import { analytics } from "@/lib/analytics";
+import { routes } from "@/lib/routes";
+import { ContentComingSoon } from "@/components/content-coming-soon";
+import { stripHtmlTags } from "@/lib/html-utils";
+import { sanitizeHtml } from "@/lib/sanitize";
+import { isCredibleLearnerCount } from "@/lib/social-proof";
+import { PaymentDialog } from "../payment-dialog";
+import { Project } from "@/lib/data";
+import { toast } from "sonner";
+import ConfettiCelebration from "@/components/confetti-celebration";
+import { useUser } from "@/hooks/use-user";
+import { Loader } from "../ui/loader";
+import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface ProjectDetailPageProps {
   slug: string;
@@ -79,18 +61,14 @@ export function ProjectDetailPage({
 }: ProjectDetailPageProps) {
   const store = useAppStore();
   const user = useUser();
+  const { updateProject } = store;
   const [project, setProject] = useState<Project>();
   const [userProject, setUserProject] = useState<any>();
-  const { updateProject } = store;
   const [loading, setLoading] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [celebration, setCelebration] = useState(false);
-  const [language, setLanguage] = useState("");
-  const [showProgress, setShowProgress] = useState(false);
-  const [progressText, setProgressText] = useState("");
-  const [progressValue, setProgressValue] = useState(0);
-  let count = 1;
 
   useEffect(() => {
     setLoading(true);
@@ -110,72 +88,31 @@ export function ProjectDetailPage({
     findProject(slug);
   }, [slug]);
 
-  const isChapterCompleted = (chapterId: string) => {
-    return userProject?.userChapters?.find(
-      (ch: any) => ch.chapterId === chapterId,
-    )?.isCompleted;
-  };
-
-  const handleChapterComplete = (chapterId: string) => {
-    const projectTasks = project?.projectTasks.map((projectTask: any) =>
-      projectTask.id === chapterId
-        ? { ...projectTask, completed: true }
-        : projectTask,
-    );
-    const completedCount = projectTasks?.filter(
-      (c: any) => c.isCompleted,
-    ).length;
-    const newProgress = Math.round(
-      (completedCount! / projectTasks?.length!) * 100,
-    );
-
-    updateProject(project?.id!, {
-      projectTasks: projectTasks,
-      progress: newProgress,
-    });
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "Beginner":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Advanced":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "Expert":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
   const handlePurchase = (
     projectId: string,
     method: "subscription" | "individual" | "mb",
     success: boolean,
   ) => {
     if (!project || !success) return;
-
     switch (method) {
       case "subscription":
         onNavigate(routes.subscriptionPlans);
         break;
       case "individual":
-        // onNavigate(routes.checkout("project", projectId));
         break;
       case "mb":
         Object.assign(project!, { enrolled: true });
-        // onNavigate(routes.xpRedeem("project", projectId));
         break;
     }
-
     setCelebration(true);
     toast.success("You have successfully enrolled");
   };
 
-  const handleBackToProjects = () => {
-    onNavigate(routes.projects);
+  const handleEnrollment = async (slug: string) =>
+    store.handleProjectEnrollment(slug);
+
+  const handleContinueLearning = (s: string) => {
+    onNavigate(`/projects/${s}/tasks`);
   };
 
   const handleEnrollNow = async () => {
@@ -185,6 +122,7 @@ export function ProjectDetailPage({
         projectTitle: project?.title,
         isPremium: !user?.isPremium,
       });
+      // Free user on a premium project → payment dialog (the gate).
       if (!user?.isPremium && project?.isPremium) {
         setShowPaymentDialog(!showPaymentDialog);
         return;
@@ -197,423 +135,621 @@ export function ProjectDetailPage({
       }
       updateProject(project?.id!, { enrolled: true });
       Object.assign(project!, { enrolled: true });
-
-      // await handleProjectSetup(userProject); //TODO: Activate this to handle clone
+      // Pro/enterprise enroll → straight into the first task (mirrors the cards).
+      toast.success("Enrolled — taking you to your first task…");
+      handleContinueLearning(project!.slug);
     } catch (error: any) {
       const e = error?.response?.message ?? error?.message;
       toast.error(e ?? "An error occurred");
+    } finally {
+      setEnrolling(false);
     }
   };
-
-  const handleProjectSetup = async (userproject: any = null) => {
-    // socket.emit("project:start", {
-    //   userId: user.id,
-    //   template: language,
-    //   projectName: slug,
-    //   installationId: user?.githubInstallationId,
-    //   github: user?.github,
-    // });
-
-    // socket.on("clone:progress", (data) => {
-    //   setShowProgress(true);
-    //   setProgressText(data.message);
-    //   setProgressValue(Math.min(Math.max(data.percent, 0), 100));
-    // });
-
-    // socket.on("project:error", (data) => {
-    //   console.log(data);
-    // });
-
-    // socket.on("clone:done", (data) => {
-    // Update userproject if cloned successfully
-    await store.updateUserProject(userproject?.id! ?? userProject?.id, {
-      cloned: true,
-    });
-    // setShowProgress(true);
-    // setProgressText(data.message);
-    // setProgressValue(100);
-
-    setProject((prev) => ({
-      ...prev!,
-      userProject: {
-        ...(prev?.userProject || {}),
-        cloned: true,
-      },
-    }));
-
-    setCelebration(true);
-    toast.success("You have successfully enrolled");
-    // });
-  };
-
-  const handleEnrollment = async (slug: string) => {
-    return await store.handleProjectEnrollment(slug);
-  };
-
-  const handleContinueLearning = (slug: string) => {
-    // const watchPath = routes.projectPlayground(slug);
-    const watchPath = `/projects/${slug}/tasks`;
-    onNavigate(watchPath);
-  };
-
-  const handleWatchPage = (video: string) => {
-    return onNavigate(`/project30/${slug}/day/${video}`);
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-      case "in-progress":
-        return <Play className="h-4 w-4 text-primary" />;
-      default:
-        return <Lock className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const isCompleted = (id: string) =>
-    []?.find((c: any) => c?.videoId === id && c?.completed);
-
-  const completed = project?.progress! >= 100;
-  const canEarnCertificate = project?.enrolled && completed;
 
   if (loading) return <Loader isLoader={false} />;
-  return (
-    <div className="flex-1 space-y-6">
-      {/* Project Header */}
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <Button variant="outline" onClick={handleBackToProjects}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
-        </Button>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onNavigate(`/projects/${slug}/leaderboard`)}
-            className="w-full sm:w-auto"
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Leaderboard
-          </Button>
+  if ((project as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={project?.title}
+        summary={(project?.summary || "").replace(/<[^>]+>/g, "")}
+        waitingLink={(project as any)?.waitingLink}
+        kindLabel="project"
+        backLabel="Browse Projects"
+        onBack={() => onNavigate(routes.projects)}
+        onWaitlistTrack={() =>
+          analytics.track("project_waitlist_clicked", { title: project?.title })
+        }
+      />
+    );
+  }
+
+  const groups: any[] = project?.projectTasks ?? [];
+  const totalTasks = groups.reduce(
+    (sum, g) => sum + (g?.tasks?.length ?? 0),
+    0,
+  );
+  const totalMb = groups.reduce(
+    (sum, g) =>
+      sum + (g?.tasks?.reduce((s: number, t: any) => s + (t?.mb ?? 0), 0) ?? 0),
+    0,
+  );
+  const projectLevel = project?.level || "Beginner";
+  const projectProgress = Math.floor(project?.progress ?? 0);
+  const isComplete = projectProgress >= 100;
+  const canEarnCertificate = !!project?.enrolled && isComplete;
+  const accessible = !!project?.enrolled || !project?.isPremium;
+
+  const groupBadgeCls =
+    "inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted-foreground/20";
+
+  // ── Share helpers ──
+  const shareUrl = `https://projects.masteringbackend.com/projects/${slug}?ref=app`;
+  const shareText = `Check out the ${project?.title} project on MasteringBackend`;
+  const openShare = (network: string, url: string) => {
+    analytics.track("project_share_clicked", { projectId: project?.id, network });
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const shareLinkedIn = () =>
+    openShare(
+      "linkedin",
+      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${project?.title} project`)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`,
+    );
+  const shareX = () =>
+    openShare(
+      "x",
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
+    );
+  const shareFacebook = () =>
+    openShare(
+      "facebook",
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+    );
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">project</div>
+            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">
+              {project?.title}
+            </h1>
+
+            <div className="mt-4">
+              {project?.enrolled ? (
+                <button
+                  onClick={() => handleContinueLearning(project!.slug)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" /> Continue Building
+                </button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <button
+                    disabled={enrolling}
+                    onClick={handleEnrollNow}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    {enrolling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    {enrolling ? "Starting…" : "Start Building"}
+                  </button>
+                  <span className="text-sm text-white/[.65]">
+                    {!project?.isPremium || user?.isPremium ? (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-white">Pro</span>
+                      </>
+                    ) : (
+                      <span className="font-semibold text-white">
+                        Premium membership required
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="inline-flex items-center gap-1.5 capitalize">
+                <BarChart3 className="w-4 h-4 opacity-70" />
+                {projectLevel}
+              </span>
+              {project?.duration ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 opacity-70" />
+                  {project.duration} hours
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-1.5">
+                <ListChecks className="w-4 h-4 opacity-70" />
+                {totalTasks || totalTasks === 0 ? totalTasks : 0} tasks
+              </span>
+              {totalMb > 0 && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+                  {totalMb} MB to earn
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — enrolled only */}
+        {project?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              project completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${projectProgress}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">{projectProgress}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge
-              className="capitalize"
-              variant={
-                project?.level === "Advanced"
-                  ? "destructive"
-                  : project?.level === "Intermediate"
-                    ? "default"
-                    : "secondary"
-              }
-            >
-              {project?.level}
-            </Badge>
-          </div>
-
-          <h1 className="text-3xl font-bold tracking-tight">
-            {project?.title}
-          </h1>
-
-          {/* Short Description */}
-
-          <article
-            className="text-lg text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: project?.summary!,
-            }}
-          ></article>
-
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {project?.duration} hours
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              {project?.projectTasks?.length} Project Tasks
-            </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-4 w-4" />
-              Certificate included
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {project?.technologies?.map((tech) => (
-              <Badge key={tech} variant="outline">
-                {tech}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Project Features Section */}
-          <Card>
-            <CardHeader></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 md:grid-cols-3 gap-4">
-                <div className="space-y-2 col-span-2 w-full">
-                  <CardTitle>Prerequisites</CardTitle>
-                  {project?.prerequisites?.map((p, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>{p}</span>
-                    </div>
-                  ))}
+          {/* Project description (rich HTML — collapsible) */}
+          {(() => {
+            const html = project?.description || project?.summary || "";
+            if (!html) return null;
+            const isLong = stripHtmlTags(html).length > 280;
+            return (
+              <div>
+                <h3 className="font-semibold text-[15px] mb-2">
+                  Project overview
+                </h3>
+                <div className="relative">
+                  <article
+                    className={`prose-sm max-w-3xl text-sm leading-relaxed text-muted-foreground [&_a]:text-amber-600 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-3 [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:mt-1 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mt-2 [&_pre]:mt-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-zinc-900 [&_pre]:p-3 [&_pre]:text-zinc-100 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 ${
+                      isLong && !descExpanded
+                        ? "max-h-[15rem] overflow-hidden"
+                        : ""
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+                  />
+                  {isLong && !descExpanded && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
+                  )}
                 </div>
-
-                <div className="space-y-2 w-full">
-                  <CardTitle>Skills</CardTitle>
-                  {project?.skills?.map((s, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>{s}</span>
-                    </div>
-                  ))}
-                </div>
+                {isLong && (
+                  <button
+                    onClick={() => setDescExpanded((v) => !v)}
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    {descExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            );
+          })()}
 
-          {/* Expandable Long Description */}
+          {/* Technologies */}
+          {project?.technologies?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {project.technologies.map((tech) => (
+                <Badge key={tech} variant="outline">
+                  {tech}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Prerequisites & Skills */}
+          {(project?.prerequisites?.length || project?.skills?.length) ? (
+            <Card>
+              <CardContent className="grid gap-6 pt-6 sm:grid-cols-2">
+                {project?.prerequisites?.length ? (
+                  <div className="space-y-2">
+                    <CardTitle className="text-base">Prerequisites</CardTitle>
+                    {project.prerequisites.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 text-sm text-muted-foreground"
+                      >
+                        <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                        <span>{p}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {project?.skills?.length ? (
+                  <div className="space-y-2">
+                    <CardTitle className="text-base">Skills you'll build</CardTitle>
+                    {project.skills.map((s, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 text-sm text-muted-foreground"
+                      >
+                        <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {/* Tasks timeline (groups → accordion items) */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Project Overview
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setIsDescriptionExpanded(!isDescriptionExpanded)
-                  }
-                >
-                  {isDescriptionExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-              </CardTitle>
+              <CardTitle>Project Tasks</CardTitle>
+              <CardDescription>
+                {totalTasks} tasks
+                {totalMb > 0 ? ` · ${totalMb} MB to earn` : ""}
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div
-                className={`space-y-4 ${
-                  isDescriptionExpanded ? "" : "line-clamp-3"
-                }`}
-              >
-                {project?.description
-                  ?.split("\n\n")
-                  .map((paragraph: string, index: number) => (
-                    <article
-                      dangerouslySetInnerHTML={{ __html: paragraph }}
-                      key={index}
-                      className="text-muted-foreground leading-relaxed [&>*>span]:!text-muted-foreground [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6"
-                    >
-                      {/* {paragraph} */}
-                    </article>
-                  ))}
+            <CardContent className="px-0 pt-0">
+              <div className="relative px-4 py-3">
+                <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+                <Accordion type="single" collapsible className="space-y-3">
+                  {groups.map((group: any, index: number) => {
+                    const completed = !!group?.isCompleted;
+                    const num = index + 1;
+                    const numBgCls = completed
+                      ? "bg-emerald-600"
+                      : "bg-foreground";
+                    const groupMb =
+                      group?.tasks?.reduce(
+                        (s: number, t: any) => s + (t?.mb ?? 0),
+                        0,
+                      ) ?? 0;
+                    return (
+                      <AccordionItem
+                        key={group.id ?? index}
+                        value={group.id ?? `group-${index}`}
+                        className="border-0 scroll-mt-6"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${
+                              completed ? "bg-emerald-600" : "bg-foreground/20"
+                            }`}
+                          />
+                          <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                            <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                              <div className="space-y-1.5 text-left flex-1 pr-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={groupBadgeCls}>Tasks</span>
+                                  {completed && (
+                                    <Badge className="bg-emerald-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-emerald-700">
+                                      ✓ Done
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] py-0 px-1.5 h-auto ${
+                                      !project?.isPremium
+                                        ? "border-emerald-600 text-emerald-600"
+                                        : project?.enrolled
+                                          ? "border-primary text-primary"
+                                          : "border-amber-600 text-amber-600"
+                                    }`}
+                                  >
+                                    {!project?.isPremium
+                                      ? "FREE"
+                                      : project?.enrolled
+                                        ? "ENROLLED"
+                                        : "PREMIUM"}
+                                  </Badge>
+                                  {group?.tasks?.length ? (
+                                    <span className={groupBadgeCls}>
+                                      {group.tasks.length} task
+                                      {group.tasks.length > 1 ? "s" : ""}
+                                    </span>
+                                  ) : null}
+                                  {groupMb > 0 && (
+                                    <span className="text-[10px] font-semibold text-amber-600">
+                                      +{groupMb} MB
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                  >
+                                    {String(num).padStart(2, "0")}
+                                  </span>
+                                  <span className="font-bold text-sm leading-snug">
+                                    {group?.title}
+                                  </span>
+                                  {!accessible && (
+                                    <Lock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                </div>
+                                {group?.summary && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {stripHtmlTags(group.summary)}
+                                  </p>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4 pt-0">
+                              <div className="border-t pt-3 space-y-3">
+                                {group?.tasks?.length ? (
+                                  <ul className="space-y-2.5">
+                                    {group.tasks.map((task: any, ti: number) => (
+                                      <li
+                                        key={task.id ?? ti}
+                                        className="flex items-start gap-2 text-sm"
+                                      >
+                                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="flex-1 min-w-0">
+                                          <span className="block text-foreground/90 font-medium">
+                                            {task?.title}
+                                          </span>
+                                          {task?.technologies?.length ? (
+                                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                              <Database className="h-3 w-3" />
+                                              {task.technologies.join(", ")}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                        {task?.mb ? (
+                                          <span className="flex-shrink-0 text-[11px] font-semibold text-amber-600">
+                                            +{task.mb} MB
+                                          </span>
+                                        ) : null}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+
+                                {completed ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      handleContinueLearning(project!.slug)
+                                    }
+                                  >
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                    Review Tasks
+                                  </Button>
+                                ) : accessible ? (
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      project?.enrolled
+                                        ? handleContinueLearning(project.slug)
+                                        : handleEnrollNow()
+                                    }
+                                    disabled={enrolling}
+                                  >
+                                    {enrolling ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Play className="h-3 w-3 mr-1" />
+                                    )}
+                                    {project?.enrolled
+                                      ? "Continue"
+                                      : "Start Building"}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    disabled={enrolling}
+                                    onClick={handleEnrollNow}
+                                  >
+                                    {enrolling ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Lock className="h-3 w-3 mr-1" />
+                                    )}
+                                    {enrolling ? "Starting…" : "Enroll to Unlock"}
+                                  </Button>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </div>
+                        </div>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
               </div>
-              {!isDescriptionExpanded && (
-                <Button
-                  variant="link"
-                  className="p-0 h-auto mt-2"
-                  onClick={() => setIsDescriptionExpanded(true)}
-                >
-                  Read more
-                </Button>
-              )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-6">
-          {/* Project Enrollment Card */}
-          <Card>
-            <CardHeader>
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                <img
-                  src={project?.banner ?? "/placeholder.svg"}
-                  alt={project?.title}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {project?.enrolled ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Your Progress</span>
-                    <span>{Math.floor(project?.progress ?? 0)}%</span>
-                  </div>
-                  <Progress value={project?.progress ?? 0} className="h-2" />
+        <div className="space-y-4 lg:sticky lg:top-6 self-start">
+          {showPaymentDialog && (
+            <PaymentDialog
+              disableMB={true}
+              disableOnetime={true}
+              onClose={() => setShowPaymentDialog(false)}
+              open={showPaymentDialog}
+              data={{ ...project, type: "project" }}
+              onHandlePreview={() => {}}
+              onHandlePurchase={(id: string, type: any, success: boolean) =>
+                handlePurchase(id, type, success)
+              }
+            />
+          )}
 
-                  {/* {!userProject?.cloned && (
-                    <div className="pt-3">
-                      <Label>Choose your preferred language</Label>
-                      <Select value={language} onValueChange={setLanguage}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {languages
-                            .filter((l) => l.supported)
-                            .map((l) => (
-                              <SelectItem key={l.code} value={l.code}>
-                                {l.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                      {!language && (
-                        <p className="text-red-700 italic text-xs">
-                          This field is required
-                        </p>
-                      )}
-                    </div>
-                  )} */}
-                  <Button
-                    // disabled={!language && !userProject?.cloned}
-                    className="w-full"
-                    onClick={() => {
-                      if (project?.enrolled)
-                        // userProject.cloned
-                        return handleContinueLearning(project.slug);
-                      return handleProjectSetup();
-                    }}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Continue Building
-                  </Button>
+          {/* Primary action — start (cold) or continue (warm) */}
+          {project?.enrolled ? (
+            <>
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="font-semibold text-[15px]">
+                    Your progress
+                  </span>
+                  <span className="font-bold text-primary">
+                    {projectProgress}%
+                  </span>
                 </div>
-              ) : user?.isPremium ? (
-                <div className="space-y-3">
-                  {/* <div className="pt-3">
-                    <Label>Choose your preferred language</Label>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages
-                          .filter((l) => l.supported)
-                          .map((l) => (
-                            <SelectItem key={l.code} value={l.code}>
-                              {l.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    {!language && (
-                      <p className="text-red-700 italic text-xs">
-                        This field is required
-                      </p>
+                <div className="h-2 rounded-full overflow-hidden bg-muted mb-4">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${projectProgress}%` }}
+                  />
+                </div>
+                <button
+                  onClick={() => handleContinueLearning(project.slug)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" />
+                  Continue Building
+                </button>
+
+                {(project?.PRDLink || project?.frontendURL) && (
+                  <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
+                    {project?.PRDLink && (
+                      <a
+                        href={project.PRDLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
+                      >
+                        <Download className="h-4 w-4" /> Download PRD
+                      </a>
                     )}
-                  </div> */}
-                  <Button
-                    // disabled={!language}
-                    className="w-full"
-                    onClick={handleEnrollNow}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Building
-                  </Button>
-                  {/* <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handlePreviewProject}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Preview Project
-                  </Button> */}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {project?.isPremium && (
-                    <Badge
-                      variant="outline"
-                      className="bg-green-100 text-green-800 border-green-200 text-xs"
-                    >
-                      <Crown className="mr-1 h-3 w-3" />
-                      Included in Pro
-                    </Badge>
-                  )}
-                  <Button className="w-full" onClick={handleEnrollNow}>
-                    Start Building
-                  </Button>
-                  {/*  */}
-                </div>
-              )}
-              {showPaymentDialog && (
-                <PaymentDialog
-                  disableMB={true}
-                  disableOnetime={true}
-                  onClose={() => setShowPaymentDialog(false)}
-                  open={showPaymentDialog}
-                  data={{ ...project, type: "project" }}
-                  onHandlePreview={() => {}}
-                  onHandlePurchase={(id: string, type: any, success: boolean) =>
-                    handlePurchase(id, type, success)
-                  }
-                />
-              )}
-
-              <Separator />
-
-              <div className="flex gap-2">
-                {project?.PRDLink && (
-                  <a href={project?.PRDLink} target="_blank">
-                    <Button variant="link" size="sm" className="flex-1">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download PRD
-                    </Button>
-                  </a>
-                )}
-                {project?.frontendURL && (
-                  <a href={project?.frontendURL} target="_blank">
-                    <Button variant="link" size="sm" className="flex-1">
-                      <Share className="mr-2 h-4 w-4" />
-                      Preview Frontend
-                    </Button>
-                  </a>
+                    {project?.frontendURL && (
+                      <a
+                        href={project.frontendURL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
+                      >
+                        <ExternalLink className="h-4 w-4" /> Preview frontend
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
 
-          {project?.enrolled && userProject?.id && (
-            <ScheduleWidget projectId={userProject.id} />
+              {userProject?.id && <ScheduleWidget projectId={userProject.id} />}
+            </>
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="text-2xl font-bold mb-1">
+                {!project?.isPremium || user?.isPremium ? (
+                  <span className="flex items-baseline gap-2">
+                    Free
+                    <span className="text-sm font-medium text-muted-foreground">
+                      with Pro
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-lg">Premium membership</span>
+                )}
+              </div>
+
+              {(() => {
+                const builders = project?.students || 0;
+                if (isCredibleLearnerCount(builders)) {
+                  return (
+                    <div className="text-sm text-muted-foreground mb-4">
+                      {builders.toLocaleString()} builders enrolled
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2 text-sm mb-4">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                      <Sparkles className="w-3 h-3" />
+                      Newly launched
+                    </span>
+                    <span className="text-muted-foreground">
+                      Be among the first to ship it
+                    </span>
+                  </div>
+                );
+              })()}
+
+              <button
+                disabled={enrolling}
+                onClick={handleEnrollNow}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-3 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+              >
+                {enrolling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {enrolling ? "Starting…" : "Start Building"}
+              </button>
+
+              <p className="mt-3 text-xs text-center text-muted-foreground">
+                {!project?.isPremium || user?.isPremium
+                  ? "Build at your own pace · Earn a verified certificate"
+                  : "30-day money-back guarantee"}
+              </p>
+
+              {(project?.PRDLink || project?.frontendURL) && (
+                <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
+                  {project?.PRDLink && (
+                    <a
+                      href={project.PRDLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
+                    >
+                      <Download className="h-4 w-4" /> Download PRD
+                    </a>
+                  )}
+                  {project?.frontendURL && (
+                    <a
+                      href={project.frontendURL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Preview frontend
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Certification Card */}
           <Card
-            className={`${
+            className={`rounded-2xl ${
               canEarnCertificate
-                ? "border-green-200 bg-green-50/50"
-                : "border-orange-200 bg-orange-50/50"
+                ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                : ""
             }`}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    canEarnCertificate ? "bg-green-100" : "bg-orange-100"
+                    canEarnCertificate
+                      ? "bg-emerald-100 dark:bg-emerald-950/40"
+                      : "bg-primary/10"
                   }`}
                 >
                   {canEarnCertificate ? (
-                    <Trophy className="h-6 w-6 text-green-600" />
+                    <Trophy className="h-6 w-6 text-emerald-600" />
                   ) : (
-                    <Certificate className="h-6 w-6 text-orange-600" />
+                    <Certificate className="h-6 w-6 text-primary" />
                   )}
                 </div>
                 <div>
@@ -630,17 +766,19 @@ export function ProjectDetailPage({
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
                   {canEarnCertificate
-                    ? "Congratulations! You've completed the project and earned your certificate."
-                    : "Complete all chapters and pass the final assessment to earn your verified certificate."}
+                    ? "Congratulations! You've shipped the project and earned your certificate."
+                    : "Complete every task to earn your verified, shareable certificate."}
                 </p>
 
-                {project?.enrolled && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress to Certificate</span>
-                      <span>{Math.floor(project?.progress)}%</span>
-                    </div>
-                    <Progress value={project?.progress} className="h-2" />
+                {totalMb > 0 && (
+                  <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 dark:bg-amber-950/20">
+                    <span className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                      <Trophy className="h-4 w-4" />
+                      {canEarnCertificate ? "MB earned" : "MB to earn"}
+                    </span>
+                    <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                      {totalMb} MB
+                    </span>
                   </div>
                 )}
               </div>
@@ -662,8 +800,8 @@ export function ProjectDetailPage({
 
               {canEarnCertificate ? (
                 <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  onClick={() => onNavigate("/projects")}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => handleContinueLearning(project!.slug)}
                 >
                   <Certificate className="mr-2 h-4 w-4" />
                   View Certificate
@@ -678,233 +816,84 @@ export function ProjectDetailPage({
                   variant="outline"
                   className="w-full"
                   onClick={handleEnrollNow}
+                  disabled={enrolling}
                 >
-                  <Certificate className="mr-2 h-4 w-4" />
-                  Enroll to Earn Certificate
+                  {enrolling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Certificate className="mr-2 h-4 w-4" />
+                  )}
+                  {enrolling ? "Starting…" : "Start to Earn Certificate"}
                 </Button>
               )}
             </CardContent>
           </Card>
+
+          {/* Share */}
+          {(() => {
+            const tileCls =
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border py-3 text-xs font-semibold text-muted-foreground transition-colors";
+            return (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="flex items-center gap-2 font-semibold text-[15px] mb-1">
+                  <Share2 className="w-4 h-4" />
+                  Share this project
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Help a friend build their backend portfolio.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={shareLinkedIn}
+                    aria-label="Share on LinkedIn"
+                    className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+                    </svg>
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={shareX}
+                    aria-label="Share on X"
+                    className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    X
+                  </button>
+                  <button
+                    onClick={shareFacebook}
+                    aria-label="Share on Facebook"
+                    className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+                    </svg>
+                    Facebook
+                  </button>
+                </div>
+                <button
+                  onClick={copyShareLink}
+                  aria-label="Copy link"
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Copy link
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
-      {/* Project Content */}
-      <Tabs defaultValue="tasks" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="tasks">Project Tasks</TabsTrigger>
-          <TabsTrigger value="instructor">Instructor</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="tasks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="">Project Tasks</CardTitle>
-              <CardDescription className="text-sm">
-                Here's the complete project and task break down for this
-                project.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                {project?.projectTasks?.map((projectTask: any, i: number) => (
-                  <AccordionItem key={projectTask.id} value={`week-${i + 1}`}>
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center justify-between w-full mr-4">
-                        <div className="text-left">
-                          <h3 className="font-semibold">
-                            {projectTask?.title}
-                          </h3>
-
-                          <article
-                            dangerouslySetInnerHTML={{
-                              __html: projectTask?.summary,
-                            }}
-                            className="text-xs text-muted-foreground [&>*>span]:!text-muted-foreground"
-                          ></article>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {projectTask.tasks?.length} Task{""}
-                            {projectTask.tasks?.length > 1 ? "s" : ""}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {projectTask.tasks.reduce(
-                              (a: number, c: any) => (c?.mb ?? 0) + a,
-                              0,
-                            )}{" "}
-                            MB
-                          </Badge>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-
-                    <AccordionContent>
-                      <div className="space-y-3 pt-4">
-                        {projectTask?.tasks?.map((task: any) => {
-                          const current = count++;
-                          return (
-                            <div
-                              key={task.id}
-                              className={`flex items-center space-x-4 rounded-lg border p-4 transition-colors ${
-                                project?.enrolled
-                                  ? isCompleted(task.id)
-                                    ? "hover:bg-muted/50"
-                                    : "hover:bg-muted/50" //border-primary/40
-                                  : "opacity-60"
-                              }`}
-                              onClick={() => {
-                                if (!user?.isPremium && !project?.enrolled) {
-                                  setShowPaymentDialog(true);
-                                }
-                              }}
-                            >
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                {getStatusIcon(
-                                  isCompleted(task.id)
-                                    ? "completed"
-                                    : task.id
-                                      ? "in-progress"
-                                      : "locked",
-                                )}
-                              </div>
-                              <div className="flex-1 space-y-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs md:text-sm font-medium text-muted-foreground">
-                                    Task {current}
-                                  </span>
-
-                                  <Badge variant="outline" className="text-xs">
-                                    {task?.mb ?? 0} MB
-                                  </Badge>
-                                </div>
-                                <h4 className="font-medium text-sm md:text-base">
-                                  {task.title}
-                                </h4>
-                                <article
-                                  dangerouslySetInnerHTML={{
-                                    __html: task?.summary,
-                                  }}
-                                  className="text-xs text-muted-foreground"
-                                ></article>
-                                <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-muted-foreground">
-                                  {task?.technologies?.length && (
-                                    <div className="flex items-center gap-1">
-                                      <Database className="h-4 w-4" />
-                                      <span>
-                                        {task?.technologies?.join(", ")}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {project?.enrolled && isCompleted(task.id) ? (
-                                <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                              ) : project.enrolled ? (
-                                <Play className="h-4 w-4 flex-shrink-0 text-primary" />
-                              ) : (
-                                <Lock className="h-4 w-4 text-gray-400" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="instructor">
-          <Card>
-            <CardHeader>
-              <CardTitle>About the Instructor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  {project?.instructor
-                    ?.split(" ")
-                    .map((n: string) => n.charAt(0))
-                    .join("") ?? "MB"}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    {project?.instructor ?? "Mastering Backend"}
-                  </h3>
-                  {/* <p className="text-muted-foreground">
-                    Senior Backend Engineer with 8+ years of experience building
-                    scalable systems. Previously worked at Google and Netflix.
-                  </p> */}
-                  {/* <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span>15 projects</span>
-                    <span>50k+ students</span>
-                    <span>4.9 rating</span>
-                  </div> */}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reviews">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Reviews</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <DisqusCommentBlock
-                  config={{
-                    url: "/projects/" + slug,
-                    identifier: slug,
-                    title: project?.title,
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Confetti Celebration */}
       <ConfettiCelebration
-        onComplete={() => setCelebration(false)}
         isVisible={celebration}
         celebrationType="enrollment"
-        courseName={project?.title!}
+        courseName={project?.title ?? "Project"}
+        onComplete={() => setCelebration(false)}
       />
-
-      <Dialog open={showProgress} onOpenChange={setShowProgress}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-[#F2C94C]" />
-              Setting up Project...
-            </DialogTitle>
-            <DialogDescription>
-              Relax while Kap set up your project playground
-            </DialogDescription>
-          </DialogHeader>
-          <div className="pt-6">
-            <p className="capitalize pb-1 italic text-sm">{progressText}...</p>
-            <Progress value={progressValue} />
-          </div>
-
-          {progressValue >= 100 && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => handleContinueLearning(slug)}
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Goto Playground
-            </Button>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

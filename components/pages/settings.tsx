@@ -197,7 +197,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   };
 
   return (
-    <div className="px-4 py-6 md:py-8 lg:py-10 max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>

@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Mic, Clock, Target } from "lucide-react";
 import type { PortfolioMockInterviews } from "@/lib/portfolio-types";
 
@@ -58,27 +57,6 @@ export function PortfolioInterviews({
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
               Practice
             </p>
-          </div>
-        </div>
-
-        {/* Topic breakdown */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Topic Performance</h4>
-          <div className="space-y-3">
-            {mockInterviews.topicBreakdown.map((topic) => (
-              <div key={topic.topic} className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{topic.topic}</span>
-                  <span
-                    className="font-semibold tabular-nums text-xs"
-                    style={{ color: getScoreColor(topic.score) }}
-                  >
-                    {topic.score}%
-                  </span>
-                </div>
-                <Progress value={topic.score} className="h-1.5" />
-              </div>
-            ))}
           </div>
         </div>
 

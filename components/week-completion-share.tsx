@@ -140,12 +140,14 @@ export function CompletionShare({
   }, [open, confettiColors]);
 
   const handleTwitterShare = () => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    // shareText is platform-agnostic; append the X handle here so LinkedIn
+    // doesn't inherit the Twitter mention (and vice versa).
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${shareText} @master_backend`)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=400");
   };
 
   const handleLinkedInShare = () => {
-    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(shareText)}`;
+    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
@@ -188,14 +190,14 @@ export function CompletionShare({
           {/* ── Top Section: Dark celebration card ── */}
           <div className="relative bg-[#0c1222] overflow-hidden">
             {/* Decorative gradient orbs */}
-            <div className="absolute -top-20 -left-20 w-48 h-48 bg-[#13AECE]/20 rounded-full blur-3xl" />
+            <div className="absolute -top-20 -left-20 w-48 h-48 bg-primary/20 rounded-full blur-3xl" />
             <div className="absolute -bottom-16 -right-16 w-40 h-40 bg-[#9B59B6]/15 rounded-full blur-3xl" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#13AECE]/5 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
 
             {/* Animated sparkle dots */}
             <div className="absolute top-6 right-12 w-1.5 h-1.5 bg-[#F2C94C] rounded-full animate-pulse" />
             <div
-              className="absolute top-16 right-6 w-1 h-1 bg-[#13AECE] rounded-full animate-pulse"
+              className="absolute top-16 right-6 w-1 h-1 bg-primary rounded-full animate-pulse"
               style={{ animationDelay: "0.5s" }}
             />
             <div
@@ -228,7 +230,7 @@ export function CompletionShare({
                 <h2 className="text-xl font-bold text-white mb-1 tracking-tight">
                   {heading}
                 </h2>
-                <p className="text-[#13AECE] font-semibold text-base">
+                <p className="text-primary font-semibold text-base">
                   {title}
                 </p>
                 {subtitle && (
@@ -266,7 +268,7 @@ export function CompletionShare({
 
               {/* User badge */}
               <div className="flex items-center justify-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-full py-1.5 px-4 w-fit mx-auto">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#13AECE] to-[#0F8BA8] flex items-center justify-center text-[9px] font-bold text-white">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-[#0F8BA8] flex items-center justify-center text-[9px] font-bold text-white">
                   {userName
                     ?.split(" ")
                     .map((n) => n[0])
@@ -286,9 +288,9 @@ export function CompletionShare({
             {cta && (
               <button
                 onClick={cta.onClick}
-                className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-[#13AECE] to-[#0F8BA8] p-[1px] transition-all hover:shadow-lg hover:shadow-[#13AECE]/25"
+                className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-primary to-[#0F8BA8] p-[1px] transition-all hover:shadow-lg hover:shadow-primary/25"
               >
-                <div className="relative flex items-center justify-center gap-2 rounded-[11px] bg-gradient-to-r from-[#13AECE] to-[#0F8BA8] px-6 py-3 text-white font-semibold text-sm transition-all group-hover:from-[#15BFE0] group-hover:to-[#11A0C0]">
+                <div className="relative flex items-center justify-center gap-2 rounded-[11px] bg-gradient-to-r from-primary to-[#0F8BA8] px-6 py-3 text-white font-semibold text-sm transition-all group-hover:from-[#15BFE0] group-hover:to-[#11A0C0]">
                   <span>{cta.label}</span>
                   {cta.sublabel && (
                     <span className="text-white/70 font-normal">
@@ -402,7 +404,7 @@ export function WeekCompletionShare({
         { icon: Star, value: points, label: "MB Points", color: "#F2C94C" },
         { icon: Zap, value: "100%", label: "Progress", color: "#27AE60" },
       ]}
-      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on @Master_Backend!\n\n${lessonsCount} lessons done, ${points} MB points earned.\n\nJoin me and level up your backend engineering skills!`}
+      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on Mastering Backend!\n\n${lessonsCount} lessons done, ${points} MB points earned.\n\nJoin me and level up your backend engineering skills!`}
       cta={
         onStartNextWeek
           ? {

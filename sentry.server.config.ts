@@ -5,7 +5,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 // Only initialize Sentry in production to keep development clean
-if (process.env.NODE_ENV === "production") {
+if ((process.env.NEXT_PUBLIC_NODE_ENV ?? process.env.NODE_ENV) === "production") {
   Sentry.init({
     dsn: "https://b488564494f60a7e04e8cf95ea7b07e9@o4510933825159168.ingest.us.sentry.io/4510933826928640",
 

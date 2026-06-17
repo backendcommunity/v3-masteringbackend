@@ -44,6 +44,7 @@ export interface PortfolioUser {
   isPremium: boolean;
   isTrial: boolean;
   isOpenToWork: boolean;
+  leagueTier?: string | null; // MB League tier (LOCALHOST..PLANET_SCALE)
   joinedAt: string;
   resume?: string; // Resume URL
   socialLinks: {
@@ -61,6 +62,13 @@ export interface PortfolioStats {
   certificates: number;
   globalRank: number;
   totalUsers: number;
+  interviewAvgScore?: number;
+  isInterviewReady?: boolean;
+}
+
+export interface SkillEvidenceItem {
+  slug: string;
+  title: string;
 }
 
 export interface PortfolioSkill {
@@ -69,7 +77,10 @@ export interface PortfolioSkill {
   projectCount: number;
   maxProjectCount: number;
   coursesCompleted?: number;
+  courseCount?: number;
   quizAvgScore?: number;
+  projects?: SkillEvidenceItem[];
+  courses?: SkillEvidenceItem[];
 }
 
 export interface PortfolioProject {
@@ -207,6 +218,7 @@ export interface PortfolioResponse {
     joinedAt: string;
     location: string; // From user.address
     openToWork?: boolean; // From user.openToWork
+    leagueTier?: string | null; // From UserLeague.currentTier
     resume?: string; // From user.resume (URL)
     socialLinks: {
       github?: string;
@@ -222,6 +234,8 @@ export interface PortfolioResponse {
     certificates: number;
     globalRank: number;
     totalUsers: number;
+    interviewAvgScore?: number;
+    isInterviewReady?: boolean;
   };
   projects: Array<{
     id: string;
@@ -315,5 +329,20 @@ export interface PortfolioResponse {
     projectCount: number;
     maxProjectCount: number;
     coursesCompleted: number;
+    courseCount?: number;
+    projects?: SkillEvidenceItem[]; // Evidence: projects using this skill (capped at 6)
+    courses?: SkillEvidenceItem[]; // Evidence: courses teaching this skill (capped at 6)
   }>;
+}
+
+// Certificate verification response from GET /certifications/verify/:code
+export interface CertificateVerification {
+  valid: boolean;
+  certificate?: {
+    code: string;
+    holderName: string;
+    courseName: string;
+    finalScore: number;
+    issuedAt: string;
+  };
 }

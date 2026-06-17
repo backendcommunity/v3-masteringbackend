@@ -15,6 +15,7 @@ import {
   type ContinueLearningItem,
   type SearchResults,
   type PortfolioResponse,
+  type CertificateVerification,
   dataStore,
   updateUser as updateUserInStore,
   updateCourse as updateCourseInStore,
@@ -54,8 +55,90 @@ import {
   loadVideoNotes,
 } from "./courses";
 import { api, socketAPI } from "./api";
+
+// Single source for the REST base URL used by the raw-fetch (streaming) actions.
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
+
+// Chat interview types
+export interface ChatMessage {
+  id: string;
+  role: "ai" | "user";
+  content: string;
+  timestamp: string;
+  questionIndex: number;
+  isQuestion?: boolean;
+  artifactRef?: {
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+    code?: string;
+  } | null;
+  artifacts?: Array<{
+    type: "code" | "whiteboard";
+    language?: string;
+    svg?: string;
+    code?: string;
+  }>;
+}
+
+export interface ChatArtifactRef {
+  type: "code" | "whiteboard";
+  data: string;
+  language?: string;
+  svg?: string;
+}
+
+// Kap tutor
+export interface KapTutorMessage {
+  role: "user" | "ai";
+  content: string;
+  ts?: string;
+}
+export interface KapInsights {
+  keyTakeaways: string[];
+  realWorldUse: string[];
+}
+export interface KapAskParams {
+  scope: "video" | "project";
+  videoId?: string;
+  projectId?: string;
+  taskId?: string;
+  message: string;
+}
+
+export interface ChatInterviewTemplate {
+  id: string;
+  name: string | null;
+  position: string | null;
+  company: string | null;
+  category: string | null;
+  seniority: string | null;
+  difficulty: string;
+  duration: number;
+  questions: number | null;
+  topics: string[] | null;
+  format: string | null;
+  style: string | null;
+  description: string | null;
+}
+
+export interface ChatInterviewSession {
+  sessionId: string;
+  sessionMode: string;
+  interviewType: string | null;
+  chatMessages: ChatMessage[];
+  currentQuestionIndex: number;
+  codeArtifact: string | null;
+  codeLanguage: string | null;
+  whiteboardArtifact: unknown;
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  template: ChatInterviewTemplate;
+}
 
 const ROADMAP_RESOLVE_PAGE_SIZE = 200;
 const roadmapSlugCache = new Map<string, string>();
@@ -104,12 +187,9 @@ interface AppState {
   getCourseExercises: (courseId: string) => Quiz[] | any;
   getProjects: (queries?: Project30Query) => Project[] | any;
   getProject: (slug: string) => Project | any;
-  getProjectLeaderboard: (projectSlug: string, filters?: any) => any;
-  getGlobalProjectLeaderboard: (params?: {
-    size?: number;
-    skip?: number;
-  }) => any;
   getDeveloperPortfolio: (userId: string) => Promise<PortfolioResponse | null>;
+  getPublicPortfolio: (userId: string) => Promise<PortfolioResponse | null>;
+  verifyCertificate: (code: string) => Promise<CertificateVerification | null>;
   getPlans: () => any;
   getChallenges: () => Challenge[];
   getSavedPlaygrounds: () => Playground[] | any;
@@ -119,10 +199,13 @@ interface AppState {
     skip?: number;
     filters?: any;
   }) => any;
-  getUserBookedInterviews: () => any;
-  getUserCompletedInterviews: () => any;
+  getMockInterviewCategories: () => Promise<string[]>;
+  getMockInterviewCompanies: () => Promise<string[]>;
+  getUserBookedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getUserCompletedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getMyTemplates: () => any;
+  deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
-  getUserInterviewStats: () => any;
   getInterviewAccess: () => any;
   getInterviewSession: (id: string) => any;
   createInterviewRoom: (sessionId: string, withAgent?: boolean) => any;
@@ -144,13 +227,12 @@ interface AppState {
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
-  getBootcampLeaderboard: (
-    bootcampId: string,
-    cohortId: string,
-  ) => Promise<any>;
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
+  getMyActivity: () => Promise<any>;
+  getLeague: () => Promise<any>;
+  getHallOfFame: () => Promise<any>;
   getQuiz: (id: string) => Quiz | any;
   getRoadmapBySlug: (slug: string) => any;
   getRoadmapMilestones: (slug: string) => any;
@@ -158,12 +240,12 @@ interface AppState {
   getRoadmapItems: (slug: string, topicId: string) => any;
   getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
+  getSubmissionStatus: (exerciseId: string, submissionId: string) => Promise<any>;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
   getBadges: () => any;
   getActivities: (queries: { size?: number; skip?: number }) => any;
   getVideo: (slug: string) => any;
-  getProject30Leaderboard: (slug: string, filter?: any) => any;
   getProject30Achievements: (slug: string) => any;
   getProjectAchievements: (slug: string) => any;
   getMockInterviewSessionToken: (id: string) => any;
@@ -183,11 +265,6 @@ interface AppState {
   getProjectSubmissions: (params?: {
     status?: string;
     mine?: boolean;
-    page?: number;
-    pageSize?: number;
-  }) => any;
-  getProjectsLeaderboard: (params?: {
-    timeframe?: string;
     page?: number;
     pageSize?: number;
   }) => any;
@@ -218,6 +295,16 @@ interface AppState {
     id: string,
     data: { scheduledTime?: Date | string; interviewConfig?: any },
   ) => any;
+  getBookmarks: (size?: number, skip?: number) => Promise<{ bookmarks: any[]; meta: { total: number } }>;
+  createBookmark: (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
+  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -227,13 +314,15 @@ interface AppState {
     position: string;
     seniority: string;
     difficulty: string;
-    format: string;
+    format?: string;
     description: string;
     style: string;
     duration: number;
     scheduledTime: string;
     interviewConfig?: string;
   }) => any;
+  analyzeJD: (jdText: string, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  analyzeJDFile: (file: File, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   handleProjectEnrollment: (slug: string) => Project | any;
   updateUserProject: (slug: string, payload: any) => Project | any;
   updateChallenge: (id: string, updates: Partial<Challenge>) => void;
@@ -285,6 +374,7 @@ interface AppState {
   ) => any;
   executeCode: (payload: { language: string; code: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
+  ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
 
@@ -296,6 +386,22 @@ interface AppState {
 
   // Epic 6: Global Search
   search: (query: string) => Promise<SearchResults>;
+
+  // Chat-based Mock Interview
+  getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
+  startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
+  getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
+  streamChatMessage: (sessionId: string, content: string, artifacts?: ChatArtifactRef[]) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
+  streamKapTutor: (params: KapAskParams, signal?: AbortSignal) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  getKapHistory: (scope: string, refId: string) => Promise<KapTutorMessage[]>;
+  clearKapHistory: (scope: string, refId: string) => Promise<void>;
+  getKapInsights: (videoId: string) => Promise<KapInsights>;
+  endChatInterviewSession: (sessionId: string) => Promise<void>;
+  getChatSessionReport: (sessionId: string) => Promise<any>;
+  generateSessionReport: (sessionId: string) => Promise<any>;
+  streamSessionReport: (sessionId: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  submitMessageFeedback: (sessionId: string, messageId: string, vote: "up" | "down", content: string) => Promise<void>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -316,6 +422,75 @@ interface AppState {
 
   // Sync user points/level from a mutation response without an extra API call
   syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
+
+  // Path (Learning Path) actions
+  getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
+  getPathCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
+  getCourseCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
+  getProjectCertificate: (
+    slug: string,
+  ) => Promise<import("./path-types").PathCertificate>;
+  // Project ↔ GitHub
+  getProjectGithub: (
+    slug: string,
+  ) => Promise<{
+    connected: boolean;
+    installUrl: string;
+    repo: { fullName: string; htmlUrl: string } | null;
+  }>;
+  listGithubOwners: () => Promise<
+    { login: string; type: "user" | "org"; avatarUrl?: string }[]
+  >;
+  listGithubRepos: (
+    owner: string,
+    q?: string,
+  ) => Promise<
+    { name: string; fullName: string; htmlUrl: string; private: boolean }[]
+  >;
+  createGithubRepo: (
+    owner: string,
+    name: string,
+    isPrivate?: boolean,
+  ) => Promise<{ name: string; fullName: string; htmlUrl: string; cloneUrl: string }>;
+  connectProjectRepo: (
+    slug: string,
+    repository: string,
+    owner: string,
+  ) => Promise<{ fullName: string; htmlUrl: string }>;
+  getPathItem: (endpoint: string) => Promise<any>;
+  getArticleById: (id: string) => Promise<any>;
+  createArticle: (payload: any) => Promise<any>;
+  updateArticle: (id: string, payload: any) => Promise<any>;
+  completePathStep: (
+    slug: string,
+    stepId: string,
+    payload?: Record<string, any>,
+  ) => Promise<import("./path-types").PathSessionDelta>;
+  updatePathStepProgress: (
+    slug: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<{ stepId: string; currentDuration?: number }>;
+
+  // Course session actions (course watch reuses the path workspace, driven by
+  // course data instead of a path session). Mirrors the path session methods.
+  getCourseSession: (
+    slug: string,
+  ) => Promise<import("./path-types").PathSession>;
+  completeCourseStep: (
+    slug: string,
+    stepId: string,
+    payload?: Record<string, any>,
+  ) => Promise<import("./path-types").PathSessionDelta>;
+  updateCourseStepProgress: (
+    slug: string,
+    stepId: string,
+    payload: { duration: number },
+  ) => Promise<{ stepId: string; currentDuration?: number }>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -335,13 +510,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     return res.data;
   },
-  getProject30Leaderboard: async (slug: string, filters?: any) => {
-    const { data } = await api.get(
-      `/project30s/${slug}/leaderboard?filters=${JSON.stringify(filters)}`,
-    );
-    return data?.data;
-  },
-
   getSavedPlaygrounds: async () => {
     const { data } = await api.get(`/playgrounds/saved`);
     return data?.data;
@@ -488,6 +656,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get("/exercises/" + id);
     return data?.data;
   },
+  getSubmissionStatus: async (exerciseId: string, submissionId: string) => {
+    const { data } = await api.get(`/exercises/${exerciseId}/submissions/${submissionId}`);
+    return data?.data;
+  },
   getMilestone: async (slug: string, topicId: string) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
     const { data } = await api.get(`/roadmaps/${resolvedSlug}/topics/${topicId}`);
@@ -509,29 +681,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getProjectLeaderboard: async (slug: string, filters?: any) => {
-    const { data } = await api.get(`/projects/${slug}/leaderboard`, {
-      params: {
-        filters,
-      },
-    });
-    return data?.data;
-  },
-
-  getGlobalProjectLeaderboard: async (params?: {
-    size?: number;
-    skip?: number;
-  }) => {
-    // Using dummy data in component - API will be added later
-    return { leaderboard: [] };
-  },
-
   getDeveloperPortfolio: async (userId: string) => {
     try {
       const { data } = await api.get(`/portfolio/${userId}`);
       return data?.data as PortfolioResponse;
     } catch (error) {
       console.error("Failed to fetch portfolio:", error);
+      return null;
+    }
+  },
+
+  getPublicPortfolio: async (userId: string) => {
+    try {
+      const { data } = await api.get(`/portfolio/public/${userId}`);
+      return (data?.data as PortfolioResponse) ?? null;
+    } catch (error) {
+      console.error("Failed to fetch public portfolio:", error);
+      return null;
+    }
+  },
+
+  verifyCertificate: async (code: string) => {
+    try {
+      const { data } = await api.get(`/certifications/verify/${code}`);
+      return (data?.data as CertificateVerification) ?? null;
+    } catch (error) {
+      console.error("Failed to verify certificate:", error);
       return null;
     }
   },
@@ -639,6 +814,151 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  // Chat-based Mock Interview implementations
+  getChatInterviewPreview: async (userInterviewId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/${userInterviewId}/preview`,
+    );
+    return data?.data;
+  },
+
+  startChatInterview: async (userInterviewId: string, interviewType?: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/chat/${userInterviewId}/start`,
+      { interviewType },
+    );
+    return data?.data;
+  },
+
+  getChatInterviewSession: async (sessionId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/sessions/${sessionId}`,
+    );
+    return data?.data;
+  },
+
+  streamChatMessage: async (
+    sessionId: string,
+    content: string,
+    artifacts?: ChatArtifactRef[],
+  ) => {
+    const baseURL = API_BASE;
+    const response = await fetch(
+      `${baseURL}/mock-interviews/chat/sessions/${sessionId}/message`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content, artifacts: artifacts ?? [] }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Stream request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  streamKapTutor: async (params: KapAskParams, signal?: AbortSignal) => {
+    const baseURL = API_BASE;
+    const response = await fetch(`${baseURL}/kap-tutor/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(params),
+      signal,
+    });
+    if (!response.ok) {
+      let message = `Request failed: ${response.status}`;
+      try {
+        const j = await response.json();
+        if (j?.message) message = j.message;
+      } catch {}
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  getKapHistory: async (scope: string, refId: string) => {
+    const baseURL = API_BASE;
+    const res = await fetch(
+      `${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`,
+      { credentials: "include" },
+    );
+    if (!res.ok) return [];
+    const j = await res.json();
+    return j?.data ?? [];
+  },
+
+  clearKapHistory: async (scope: string, refId: string) => {
+    const baseURL = API_BASE;
+    await fetch(
+      `${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`,
+      { method: "DELETE", credentials: "include" },
+    );
+  },
+
+  getKapInsights: async (videoId: string) => {
+    const baseURL = API_BASE;
+    const res = await fetch(`${baseURL}/kap-tutor/videos/${videoId}/insights`, {
+      credentials: "include",
+    });
+    if (!res.ok) return { keyTakeaways: [], realWorldUse: [] };
+    const j = await res.json();
+    return j?.data ?? { keyTakeaways: [], realWorldUse: [] };
+  },
+
+  saveChatArtifact: async (
+    sessionId: string,
+    type: "code" | "whiteboard",
+    data: string,
+    language?: string,
+  ) => {
+    await api.post(`/mock-interviews/chat/sessions/${sessionId}/artifact`, {
+      type,
+      data,
+      language,
+    });
+  },
+
+  endChatInterviewSession: async (sessionId: string) => {
+    await api.delete(`/mock-interviews/chat/sessions/${sessionId}`);
+  },
+
+  getChatSessionReport: async (sessionId: string) => {
+    const { data } = await api.get(
+      `/mock-interviews/chat/sessions/${sessionId}/report`,
+    );
+    return data?.data;
+  },
+
+  generateSessionReport: async (sessionId: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/chat/sessions/${sessionId}/report`,
+    );
+    return data?.data;
+  },
+
+  submitMessageFeedback: async (sessionId: string, messageId: string, vote: "up" | "down", content: string) => {
+    await api.post(`/mock-interviews/chat/sessions/${sessionId}/feedback`, {
+      messageId, vote, content,
+    });
+  },
+
+  streamSessionReport: async (sessionId: string) => {
+    const baseURL = API_BASE;
+    const response = await fetch(
+      `${baseURL}/mock-interviews/chat/sessions/${sessionId}/report/stream`,
+      { method: "GET", credentials: "include" },
+    );
+    if (!response.ok) throw new Error(`Stream request failed: ${response.status}`);
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
   // Project Solutions/Submissions
   getProjectSubmissions: async (params?: {
     status?: string;
@@ -647,15 +967,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     pageSize?: number;
   }) => {
     const { data } = await api.get("/solutions", { params });
-    return data?.data;
-  },
-
-  getProjectsLeaderboard: async (params?: {
-    timeframe?: string;
-    page?: number;
-    pageSize?: number;
-  }) => {
-    const { data } = await api.get("/projects/leaderboard", { params });
     return data?.data;
   },
 
@@ -682,13 +993,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getBootcampLeaderboard: async (bootcampId: string, cohortId: string) => {
-    const { data } = await api.get(
-      `/bootcamps/${bootcampId}/cohorts/${cohortId}/leaderboard`,
-    );
-    return data?.data;
-  },
-
   getLearningPaths: () => dataStore.learningPaths,
   getRoadmaps: async (filters?) => {
     const { data } = await api.get(
@@ -700,6 +1004,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(
       `/users/roadmaps?skip=${skip}&size=${size}&filters=${filters}`,
     );
+    return data?.data;
+  },
+  getMyActivity: async () => {
+    const { data } = await api.get("/users/activity");
+    return data?.data;
+  },
+  getLeague: async () => {
+    const { data } = await api.get("/leaderboard");
+    return data?.data;
+  },
+  getHallOfFame: async () => {
+    const { data } = await api.get("/users/leaderboard");
     return data?.data;
   },
   getUserAchievement: async (type?: string) => {
@@ -728,14 +1044,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getUserBookedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/booked");
-    return data?.data;
+  getMockInterviewCategories: async (): Promise<string[]> => {
+    const { data } = await api.get("/mock-interviews/categories");
+    return data?.data ?? [];
   },
 
-  getUserCompletedInterviews: async () => {
-    const { data } = await api.get("/mock-interviews/user/completed");
-    return data?.data;
+  getMockInterviewCompanies: async (): Promise<string[]> => {
+    const { data } = await api.get("/mock-interviews/companies");
+    return data?.data ?? [];
+  },
+
+  getUserBookedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/booked?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
+  },
+
+  getUserCompletedInterviews: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/mock-interviews/user/completed?size=${size}&skip=${skip}`);
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
   },
 
   getMockInterviewTemplate: async (id: string) => {
@@ -743,9 +1069,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getUserInterviewStats: async () => {
-    const { data } = await api.get("/mock-interviews/user/stats");
+
+  getMyTemplates: async () => {
+    const { data } = await api.get("/mock-interviews/my-templates");
     return data?.data;
+  },
+
+  deleteMyTemplate: async (id: string) => {
+    await api.delete(`/mock-interviews/my-templates/${id}`);
   },
 
   getInterviewAccess: async () => {
@@ -890,6 +1221,43 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
+  // Idempotent ensure-or-create: returns the user's in-progress UserMockInterview
+  // for this template (or creates one), with the template (incl. format) embedded.
+  // Used by the path MOCK_INTERVIEW step. Path-granted templates skip the paywall.
+  ensurePathMockInterview: async (templateId: string) => {
+    const { data } = await api.post(
+      `/mock-interviews/schedules/${templateId}`,
+      {},
+    );
+    return data?.data; // { interview: {...template}, session }
+  },
+
+  getBookmarks: async (size = 12, skip = 0) => {
+    const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
+    return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
+  },
+
+  createBookmark: async (input: {
+    type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
+    bookmarkType: "BOOKMARK" | "WISHLIST";
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+    mockInterviewTemplateId?: string;
+  }) => {
+    const { data } = await api.post("/bookmarks", input);
+    return data?.data;
+  },
+
+  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => {
+    const params = new URLSearchParams();
+    if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
+    if (opts.courseId) params.set("courseId", opts.courseId);
+    if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
+    if (opts.projectId) params.set("projectId", opts.projectId);
+    await api.delete(`/bookmarks?${params.toString()}`);
+  },
+
   scheduleInterviewFromTemplate: async (
     id: string,
     payload: { scheduledTime?: string; interviewConfig?: any },
@@ -906,7 +1274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     position: string;
     seniority: string;
     difficulty: string;
-    format: string;
+    format?: string;
     description: string;
     style: string;
     duration: number;
@@ -915,6 +1283,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   }) => {
     const { data } = await api.post("/mock-interviews/schedules/jd", payload);
     return data?.data;
+  },
+
+  analyzeJD: async (jdText: string, duration: number, style: string) => {
+    const baseURL = API_BASE;
+    const response = await fetch(`${baseURL}/mock-interviews/analyze-jd`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jdText, duration, style }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(err.message || `Request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
+  },
+
+  analyzeJDFile: async (file: File, duration: number, style: string) => {
+    const baseURL = API_BASE;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("duration", String(duration));
+    formData.append("style", style);
+    const response = await fetch(`${baseURL}/mock-interviews/analyze-jd/upload`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      throw new Error(err.message || `Request failed: ${response.status}`);
+    }
+    if (!response.body) throw new Error("No response body");
+    return response.body.getReader();
   },
 
   markDayComplete: async (slug: string, videoId: string, payload: any) => {
@@ -1196,5 +1599,118 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
     Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+  },
+
+  getPathSession: async (slug) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/session`);
+    return data?.data;
+  },
+
+  getPathCertificate: async (slug: string) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.get(`/paths/${resolvedSlug}/certificate`);
+    return data?.data;
+  },
+
+  // Course certificate — same PathCertificate shape, course endpoint (no roadmap
+  // slug resolution; course slugs are used directly).
+  getCourseCertificate: async (slug: string) => {
+    const { data } = await api.get(`/courses/${slug}/certificate`);
+    return data?.data;
+  },
+
+  // Project certificate — same PathCertificate shape, project endpoint. Used by
+  // the standalone /projects/[slug]/tasks page (not the in-path project step).
+  getProjectCertificate: async (slug: string) => {
+    const { data } = await api.get(`/projects/${slug}/certificate`);
+    return data?.data;
+  },
+
+  // Project ↔ GitHub
+  getProjectGithub: async (slug: string) => {
+    const { data } = await api.get(`/projects/${slug}/github`);
+    return data?.data;
+  },
+  listGithubOwners: async () => {
+    const { data } = await api.get(`/github/owners`);
+    return data?.data?.owners ?? [];
+  },
+  listGithubRepos: async (owner: string, q = "") => {
+    const { data } = await api.get(`/github/repos`, { params: { owner, q } });
+    return data?.data?.repos ?? [];
+  },
+  createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
+    const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });
+    return data?.data?.repo;
+  },
+  connectProjectRepo: async (slug: string, repository: string, owner: string) => {
+    const { data } = await api.post(`/projects/${slug}/github`, {
+      repository,
+      owner,
+    });
+    return data?.data?.repo;
+  },
+
+  getPathItem: async (endpoint: string) => {
+    const path = endpoint.replace(/^\/api\/v3/, "");
+    const { data } = await api.get(path);
+    return data?.data;
+  },
+
+  getArticleById: async (id: string) => {
+    const { data } = await api.get(`/courses/articles/${id}`);
+    return data?.data;
+  },
+
+  createArticle: async (payload: any) => {
+    const { data } = await api.post(`/courses/articles`, payload);
+    return data?.data;
+  },
+
+  updateArticle: async (id: string, payload: any) => {
+    const { data } = await api.put(`/courses/articles/${id}`, payload);
+    return data?.data;
+  },
+
+  completePathStep: async (slug, stepId, payload = {}) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.post(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/complete`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  updatePathStepProgress: async (slug, stepId, payload) => {
+    const resolvedSlug = await resolveRoadmapSlug(slug);
+    const { data } = await api.patch(
+      `/paths/${resolvedSlug}/steps/${encodeURIComponent(stepId)}/progress`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  // Course session — mirrors the path session methods but hits the course
+  // endpoints. Course slugs are used directly (no roadmap slug resolution).
+  getCourseSession: async (slug) => {
+    const { data } = await api.get(`/courses/${slug}/session`);
+    return data?.data;
+  },
+
+  completeCourseStep: async (slug, stepId, payload = {}) => {
+    const { data } = await api.post(
+      `/courses/${slug}/steps/${encodeURIComponent(stepId)}/complete`,
+      payload,
+    );
+    return data?.data;
+  },
+
+  updateCourseStepProgress: async (slug, stepId, payload) => {
+    const { data } = await api.post(
+      `/courses/${slug}/steps/${encodeURIComponent(stepId)}/progress`,
+      payload,
+    );
+    return data?.data;
   },
 }));

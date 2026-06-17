@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Code2,
@@ -9,26 +10,18 @@ import {
   Briefcase,
   Zap,
   Target,
-  TrendingUp,
   Sparkles,
-  Crown,
-  Gift,
-  Award,
   ChevronLeft,
   ChevronRight,
-  Star,
-  Flame,
+  LayoutDashboard,
+  Activity,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/lib/routes";
 import { useUser } from "@/hooks/use-user";
-import { useLevel } from "@/hooks/use-level";
-import { useAuth } from "@/store/auth";
-import { BrandLogo } from "./brand-logo";
 import { useTheme } from "next-themes";
 
 interface DashboardSidebarProps {
@@ -41,6 +34,14 @@ interface DashboardSidebarProps {
 
 const navigationData = {
   learn: [
+    {
+      title: "Paths",
+      url: routes.paths,
+      icon: Target,
+      active: true,
+      beta: false,
+      isNew: true,
+    },
     {
       title: "Courses",
       url: routes.courses,
@@ -55,35 +56,22 @@ const navigationData = {
       active: true,
       beta: false,
     },
-    {
-      title: "Paths",
-      url: routes.paths,
-      icon: Target,
-      active: true,
-      beta: false,
-    },
-    // {
-    //   title: "Roadmaps",
-    //   url: routes.roadmaps,
-    //   icon: TrendingUp,
-    //   active: true,
-    //   beta: false,
-    // },
   ],
   build: [
     {
-      title: "MB Projects",
+      title: "Projects",
       url: routes.projects,
       icon: Code2,
       active: true,
       beta: false,
     },
     {
-      title: "Project30",
+      title: "Ship",
       url: routes.project30,
       icon: Sparkles,
       active: true,
       beta: false,
+      disabled: true,
     },
     // {
     //   title: "MB Lands",
@@ -106,7 +94,8 @@ const navigationData = {
       url: routes.mockInterviews,
       icon: Users,
       active: true,
-      beta: true,
+      beta: false,
+      isNew: true,
     },
     // {
     //   title: "Certifications",
@@ -136,22 +125,46 @@ export function DashboardSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const user = useUser();
   const { theme } = useTheme();
-  const { level, mbToNextLevel, progressPct } = useLevel();
+  const router = useRouter();
+
+  const mainNav = [
+    { title: "Dashboard", url: routes.dashboard, icon: LayoutDashboard },
+    { title: "My Activity", url: routes.activity, icon: Activity },
+    { title: "Leaderboard", url: routes.leaderboard, icon: Trophy, isNew: true },
+    {
+      title: "My Portfolio",
+      url: routes.portfolio(user?.id || ""),
+      icon: Briefcase,
+      isNew: true,
+    },
+  ];
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setCollapsed(isCollapsed), [isCollapsed]);
+
+  // Warm the RSC payload for every sidebar destination so first navigation
+  // doesn't wait on a server round trip (the slow "fetch-server" rows).
+  // No-op in dev; prefetches in production builds.
+  useEffect(() => {
+    Object.values(navigationData)
+      .flat()
+      .forEach((item) => {
+        if (item?.url && item.active !== false && !(item as any).disabled)
+          router.prefetch(item.url);
+      });
+  }, [router]);
   if (!mounted) return null;
 
   return (
     <div
-      className={`flex fixed flex-col h-full bg-sidebar border-r border-border overflow-hidden transition-all duration-300 ${
+      className={`flex fixed flex-col h-full bg-[#0E1F33] border-r border-white/10 overflow-hidden transition-all duration-300 ${
         collapsed ? "w-20" : "w-72"
       }`}
     >
-      {/* Header */}
+      {/* Header — exact h-16 to align with the top navbar */}
       <div
-        className={`border-b border-border flex items-center min-h-16 transition-all duration-300 ${
-          collapsed ? "px-2 py-2 justify-center gap-1" : "px-4 py-3 gap-3"
+        className={`relative z-10 h-16 shrink-0 border-b border-white/10 flex items-center transition-all duration-300 ${
+          collapsed ? "px-2 justify-center gap-1" : "px-4 gap-3"
         }`}
       >
         <button
@@ -160,22 +173,29 @@ export function DashboardSidebar({
         >
           {collapsed && (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0">
-              <BrandLogo size="md" showText={true} variant="default" />
+              {/* Navy rail in both themes — always the light mark, never the
+                  theme-switched blue icon (which renders dark-on-navy in light mode) */}
+              <img
+                src="/logo.png"
+                alt="logo"
+                className="h-7 w-7 object-contain"
+              />
             </div>
           )}
           {!collapsed && (
             <div className="grid text-left text-sm leading-tight flex-1 min-w-0">
-              {theme === "light" ? (
-                <img src="/blue-logo-trimed.png" alt="logo" />
-              ) : (
-                <img src="/logo-trimed.png" alt="logo" />
-              )}
+              {/* Navy rail — always the white logo, both themes */}
+              <img
+                src="/logo-trimed.png"
+                alt="logo"
+                className="max-h-9 w-auto object-contain"
+              />
             </div>
           )}
         </button>
 
         {/* Divider — only show when expanded */}
-        {!collapsed && <div className="w-px h-5 bg-border/50" />}
+        {!collapsed && <div className="w-px h-5 bg-white/15" />}
 
         {/* Collapse/Expand Button */}
         <Button
@@ -185,98 +205,63 @@ export function DashboardSidebar({
             onCollapsed(!collapsed);
             setCollapsed(!collapsed);
           }}
-          className="h-6 w-6 rounded-md flex-shrink-0 border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 group"
+          className="hidden md:flex h-6 w-6 rounded-md flex-shrink-0 bg-transparent border-white/20 hover:border-primary/60 hover:bg-white/5 transition-all duration-200 group"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronRight className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
+            <ChevronLeft className="h-3.5 w-3.5 text-white/60 group-hover:text-primary transition-colors duration-200" />
           )}
         </Button>
       </div>
 
-      {/* User Progress (hidden when collapsed) */}
-      {!collapsed && (
-        <div className="p-4 border-b border-border">
-          <div className="rounded-lg border border-border bg-card p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="h-4 w-4 text-yellow-500" />
-              <button
-                onClick={() => onNavigate(routes.levels)}
-                className="text-sm font-medium hover:text-primary transition-colors"
-              >
-                Level {user?.level} Engineer
-              </button>
-              {user?.isPremium ? (
-                <Badge
-                  variant="outline"
-                  className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 dark:text-yellow-400"
-                >
-                  <Crown className="h-3 w-3 mr-1" />
-                  {user?.subscription?.name}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 dark:text-yellow-400"
-                >
-                  Free
-                </Badge>
-              )}
-            </div>
-            <Progress value={progressPct} className="h-2 mb-1" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{user?.points?.toLocaleString()} MB</span>
-              <span>
-                {mbToNextLevel?.toLocaleString()} MB to Level{" "}
-                {(user?.level ?? 0) + 1}
-              </span>
-            </div>
-
-            {/* Streak display */}
-            {(user?.currentStreak ?? user?.streak ?? 0) > 0 && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs font-medium text-orange-500">
-                  {user?.currentStreak ?? user?.streak ?? 0}-day streak
-                </span>
-                {(user?.currentStreak ?? user?.streak ?? 0) >= 7 && (
-                  <span className="ml-auto text-xs font-bold text-orange-500 bg-orange-500/10 rounded px-1.5 py-0.5">
-                    {(user?.currentStreak ?? user?.streak ?? 0) >= 30
-                      ? "1.5×"
-                      : "1.25×"}{" "}
-                    MB
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <Button
-              variant="outline"
-              className="w-full justify-between border-border hover:bg-primary/10 hover:border-primary/50 transition-colors"
-              onClick={() => onNavigate(routes.xpStore)}
-            >
-              <div className="flex items-center gap-2">
-                <Gift className="h-4 w-4 text-primary" />
-                <span className="text-primary">
-                  {user?.points?.toLocaleString()} MB
-                </span>
-              </div>
-              <span className="text-xs text-primary">Redeem</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-2 ">
+        {/* Main — primary destinations above the learn/build/grow catalog */}
+        <div className="px-3 py-2">
+          <div className="space-y-1">
+            {mainNav.map((item) => {
+              const active =
+                item.url === "/"
+                  ? currentPath === "/"
+                  : currentPath === item.url ||
+                    currentPath.startsWith(item.url);
+              return (
+                <button
+                  key={item.title}
+                  onClick={() => onNavigate(item.url)}
+                  title={collapsed ? item.title : ""}
+                  className={`flex w-full items-center ${
+                    collapsed ? "justify-center" : "justify-start"
+                  } gap-2 px-4 py-2 rounded-md transition-colors ${
+                    active
+                      ? "bg-primary/15 text-primary"
+                      : "text-white/65 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <item.icon
+                    className={`${collapsed ? "h-6 w-6" : "h-4 w-4"} transition-all`}
+                  />
+                  {!collapsed && <span>{item.title}</span>}
+                  {!collapsed && (item as any).isNew && (
+                    <Badge className="ml-auto bg-emerald-500 text-white hover:bg-emerald-600">
+                      New
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Divider between primary destinations and the catalog */}
+        <div className="mx-4 my-2 border-t border-white/10" />
+
         {Object.entries(navigationData).map(([section, items]) => (
           <div key={section} className="px-3 py-2">
             {!collapsed && (
-              <h3 className="px-4 text-xs font-medium text-muted-foreground mb-1 capitalize">
+              <h3 className="px-4 text-xs font-medium text-white/40 mb-1 capitalize">
                 {section}
               </h3>
             )}
@@ -284,14 +269,20 @@ export function DashboardSidebar({
               {items?.map((item) => (
                 <button
                   key={item.title}
-                  onClick={() => onNavigate(item.url)}
+                  onClick={() =>
+                    (item as any).disabled ? undefined : onNavigate(item.url)
+                  }
+                  disabled={(item as any).disabled}
                   title={collapsed ? item.title : ""}
                   className={`flex w-full items-center ${
                     collapsed ? "justify-center" : "justify-between"
-                  } px-4 py-2 rounded-md hover:bg-primary/10 transition-colors ${
-                    currentPath === item.url || currentPath.startsWith(item.url)
-                      ? "bg-primary/15 text-primary"
-                      : ""
+                  } px-4 py-2 rounded-md transition-colors ${
+                    (item as any).disabled
+                      ? "cursor-not-allowed text-white/30"
+                      : currentPath === item.url ||
+                          currentPath.startsWith(item.url)
+                        ? "bg-primary/15 text-primary"
+                        : "text-white/65 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <div
@@ -305,11 +296,21 @@ export function DashboardSidebar({
                       } transition-all`}
                     />
                     {!collapsed && <span>{item.title}</span>}
-                    {!collapsed && !item.active && (
+                    {!collapsed && (item as any).disabled && (
+                      <Badge variant="secondary" className="ml-auto">
+                        Soon
+                      </Badge>
+                    )}
+                    {!collapsed && !item.active && !(item as any).disabled && (
                       <Badge variant="secondary">WIP</Badge>
                     )}
                     {!collapsed && item.beta && (
                       <Badge variant="destructive">beta</Badge>
+                    )}
+                    {!collapsed && (item as any).isNew && (
+                      <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+                        New
+                      </Badge>
                     )}
                   </div>
                 </button>
@@ -320,14 +321,23 @@ export function DashboardSidebar({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border p-4">
-        <div
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 border border-border">
+      <div className="border-t border-white/10 p-4">
+        {!collapsed &&
+        (user as any)?.hasFinishedOnboarding &&
+        !(user as any)?.experienceLevel ? (
+          <button
+            onClick={() => onNavigate(routes.onboarding)}
+            className="w-full rounded-md bg-primary px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+          >
+            Getting Started
+          </button>
+        ) : (
+          <div
+            className={`flex items-center ${
+              collapsed ? "justify-center" : "justify-start gap-2"
+            }`}
+          >
+            <Avatar className="h-8 w-8 border border-white/20 flex-shrink-0">
               <AvatarImage
                 src={user?.avatar || "/placeholder.svg"}
                 alt={user?.name}
@@ -337,15 +347,17 @@ export function DashboardSidebar({
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
-              <div className="grid text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user?.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
+              <div className="grid min-w-0 text-left text-sm leading-tight">
+                <span className="truncate font-medium text-white/90">
+                  {user?.name}
+                </span>
+                <span className="truncate text-xs text-white/50">
                   {user?.email}
                 </span>
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

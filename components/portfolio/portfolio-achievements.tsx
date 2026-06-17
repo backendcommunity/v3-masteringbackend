@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   Crown,
@@ -46,22 +46,22 @@ function getIcon(icon: string) {
 export function PortfolioAchievements({
   achievements,
 }: PortfolioAchievementsProps) {
-  const completedCount = useMemo(
-    () => achievements.filter((a) => a.completed).length,
+  const earned = useMemo(
+    () => achievements.filter((a) => a.completed),
     [achievements],
   );
+  const [visibleCount, setVisibleCount] = useState(4);
+  const visible = earned.slice(0, visibleCount);
+  const hasMore = earned.length > visibleCount;
 
   return (
     <Card>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg">Achievements</CardTitle>
-        <CardDescription>
-          {completedCount} of {achievements.length} earned
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
-          {achievements.filter((a) => a.completed).map((ach) => {
+          {visible.map((ach) => {
             const color = RARITY_COLORS[ach.rarity];
             return (
               <div
@@ -120,6 +120,16 @@ export function PortfolioAchievements({
             );
           })}
         </div>
+        {hasMore && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-3"
+            onClick={() => setVisibleCount((v) => v + 4)}
+          >
+            Show More ({earned.length - visibleCount} more)
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

@@ -98,13 +98,13 @@ export function Certificate({
 
   const handleLinkedInShare = () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`I completed ${courseName}`)}&summary=${encodeURIComponent(`I just earned a certificate for completing ${courseName} on Mastering Backend!`)}`;
+    const url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`I completed ${courseName}`)}&summary=${encodeURIComponent(`I just earned a certificate for completing ${courseName} on Mastering Backend! @masteringbackend`)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
   };
 
   const handleTwitterShare = () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-    const text = `I just earned a certificate for completing ${courseName} on @Master_Backend! 🎓\n\nJoin me and level up your backend engineering skills!`;
+    const text = `I just earned a certificate for completing ${courseName} on @master_backend! 🎓\n\nJoin me and level up your backend engineering skills!`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer,width=600,height=400");
   };
@@ -197,8 +197,8 @@ export function Certificate({
         ref={certificateRef}
         className={
           isGeneratingPDF
-            ? "w-[1100px] mx-auto relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200"
-            : "relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200"
+            ? "w-[1100px] mx-auto relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
+            : "relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
         }
       >
         {/* Decorative Elements */}
@@ -389,7 +389,7 @@ export function Certificate({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Verification:</span>
-                <span className="font-medium text-blue-600">
+                <span className="font-medium text-primary">
                   GloballyCheck Verified
                 </span>
               </div>
@@ -412,7 +412,7 @@ export function Certificate({
               variant="outline"
               className="justify-start"
             >
-              <Linkedin className="mr-2 h-4 w-4 text-blue-700" />
+              <Linkedin className="mr-2 h-4 w-4 text-primary" />
               Share on LinkedIn
             </Button>
             <Button
@@ -420,7 +420,7 @@ export function Certificate({
               variant="outline"
               className="justify-start"
             >
-              <Twitter className="mr-2 h-4 w-4 text-blue-400" />
+              <Twitter className="mr-2 h-4 w-4 text-primary" />
               Share on Twitter
             </Button>
             <Button

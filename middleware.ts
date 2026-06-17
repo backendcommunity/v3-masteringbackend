@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { isPublicPath } from "@/lib/public-paths";
 
 const AUTH_PATHS = ["/auth/", "/xpayment", "/ai/payment"];
 
 async function isTokenValid(token: string): Promise<boolean> {
   const secret = process.env.AUTH_TOKEN_SECRET;
   if (!secret) {
-    // Secret not configured in this environment — fall back to cookie-existence check.
-    // Log once so it's visible in deployment logs without spamming.
-    console.warn("[middleware] AUTH_TOKEN_SECRET not set — skipping JWT verification");
+    // Local/dev convenience only. In any deployed context, a missing secret must
+    // NOT silently authenticate everyone — fail closed.
+    const isLocal =
+      process.env.NEXT_PUBLIC_APP_ENV === "local" ||
+      process.env.NODE_ENV === "development";
+    if (!isLocal) {
+      console.error(
+        "[middleware] AUTH_TOKEN_SECRET missing in deployed env — failing closed",
+      );
+      return false;
+    }
+    console.warn(
+      "[middleware] AUTH_TOKEN_SECRET not set — dev fallback, skipping JWT verification",
+    );
     return true;
   }
   try {
@@ -36,7 +48,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p));
-  const isProtected = !isAuthPage;
+  const isProtected = !isAuthPage && !isPublicPath(pathname);
 
   const accessCookie = request.cookies.get("mb_token");
   const refreshCookie = request.cookies.get("mb_refresh_token");
@@ -45,21 +57,25 @@ export async function middleware(request: NextRequest) {
   const hasRefreshToken = !!refreshCookie?.value;
 
   // Verify access token validity at the edge
-  const accessValid = hasAccessToken ? await isTokenValid(accessCookie!.value) : false;
+  const accessValid = hasAccessToken
+    ? await isTokenValid(accessCookie!.value)
+    : false;
 
   // If access token is expired but refresh token exists and is valid,
   // let the request through — the client-side interceptor will silently refresh.
-  const refreshValid = !accessValid && hasRefreshToken
-    ? await isTokenValid(refreshCookie!.value)
-    : false;
+  const refreshValid =
+    !accessValid && hasRefreshToken
+      ? await isTokenValid(refreshCookie!.value)
+      : false;
 
   const isAuthenticated = accessValid || refreshValid;
 
   // Not authenticated + protected route → redirect to login
   if (!isAuthenticated && isProtected) {
     const loginUrl = new URL("/auth/login", request.url);
+    const here = pathname + (request.nextUrl.search || "");
     if (pathname !== "/") {
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirect", here);
     }
     return NextResponse.redirect(loginUrl);
   }

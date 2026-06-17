@@ -38,7 +38,6 @@ export default function XPayment({
       environment: PADDLE_ENVIRONMENT,
       eventCallback: function (data: any) {
         if (data.name === "checkout.completed") {
-          console.log("Payment success");
         }
       },
     }).then((instance) => instance && setPaddle(instance));

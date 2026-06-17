@@ -19,7 +19,7 @@ export function OnboardingOptionCard({
   selected,
   onClick,
   badge,
-  badgeColor = "bg-blue-500",
+  badgeColor = "bg-primary",
 }: OnboardingOptionCardProps) {
   const isReactNode = typeof icon !== "string";
 
@@ -28,9 +28,9 @@ export function OnboardingOptionCard({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className="w-full text-left rounded-xl p-4 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#13AECE]"
+      className="w-full text-left rounded-xl p-4 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       style={{
-        border: `2px solid ${selected ? "#13AECE" : "#1e293b"}`,
+        border: `2px solid ${selected ? "hsl(var(--primary))" : "#1e293b"}`,
         background: selected ? "rgba(19, 174, 206, 0.08)" : "transparent",
         boxShadow: selected
           ? "0 0 0 1px rgba(19, 174, 206, 0.3)"
@@ -54,7 +54,7 @@ export function OnboardingOptionCard({
             className="text-xs font-semibold rounded-full px-3 py-1"
             style={{
               background: "rgba(19, 174, 206, 0.2)",
-              color: "#13AECE",
+              color: "hsl(var(--primary))",
             }}
           >
             {badge}

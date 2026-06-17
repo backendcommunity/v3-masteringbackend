@@ -33,13 +33,10 @@ function XPaymentContent() {
       eventCallback: function (data: any) {
         switch (data.name) {
           case "checkout.loaded":
-            console.log("Checkout loaded", data);
             break;
           case "checkout.closed":
-            console.log("Checkout closed");
             break;
           case "checkout.completed":
-            console.log("Checkout completed", data?.custom_data);
             break;
         }
       },

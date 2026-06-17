@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Pager } from "@/components/ui/pager";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,7 +23,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Calendar,
@@ -33,29 +32,28 @@ import {
   Star,
   Trophy,
   BookOpen,
-  Plus,
   Building2,
   Briefcase,
   FileText,
   Sparkles,
-  Timer,
   Layout,
   Play,
-  CalendarClock,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
   Search,
   Loader2,
   Crown,
   AlertTriangle,
   Lock,
-  Wrench,
-  X,
+  CheckCircle2,
+  Trash2,
 } from "lucide-react";
+import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
+import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
+import { cn } from "@/lib/utils";
+import { JourneyGlyph } from "@/components/journey-glyph";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
+import { analytics } from "@/lib/analytics";
 
 interface MockInterviewsPageProps {
   onNavigate: (path: string) => void;
@@ -137,7 +135,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [completedInterviews, setCompletedInterviews] = useState<
     UserInterview[]
   >([]);
-  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("templates");
 
@@ -146,40 +143,38 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] =
     useState(false);
-  const [isCreateInterviewDialogOpen, setIsCreateInterviewDialogOpen] =
-    useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const [interviewAccess, setInterviewAccess] =
     useState<InterviewAccess | null>(null);
-
-  const [showDevBanner, setShowDevBanner] = useState(true);
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
   const [creating, setCreating] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
 
   const [pagination, setPagination] = useState({ size: 10, skip: 0 });
   const [totalTemplates, setTotalTemplates] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+
+  const PAGE_SIZE = 12;
+  const [bookedPage, setBookedPage] = useState(0);
+  const [bookedTotal, setBookedTotal] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [savedPage, setSavedPage] = useState(0);
+  const [savedTotal, setSavedTotal] = useState(0);
 
   const [filters, setFilters] = useState({
     difficulty: "",
     style: "",
     format: "",
     search: "",
+    category: "",
+    company: "",
   });
 
-  const [customInterviewData, setCustomInterviewData] =
-    useState<CustomInterviewFormData>({
-      company: "",
-      position: "",
-      seniority: "",
-      description: "",
-      style: "",
-      difficulty: "",
-      duration: 15,
-      format: "audio",
-    });
+  // Sort controls (backend supports createdAt | duration | difficulty)
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [templateFormData, setTemplateFormData] = useState<TemplateFormData>({
     name: "",
@@ -189,22 +184,58 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     duration: 15,
     topics: [],
     seniority: "junior",
-    style: "technical",
+    style: "Technical",
   });
   const [topicInput, setTopicInput] = useState("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load templates when pagination or filters change
+  const [myTemplates, setMyTemplates] = useState<InterviewTemplate[]>([]);
+  const [myTemplatesLoading, setMyTemplatesLoading] = useState(false);
+  const [myTemplatesPage, setMyTemplatesPage] = useState(0);
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
+
+  const MY_TEMPLATES_PAGE_SIZE = 12;
+
+  // Load templates when pagination, filters, or sort change
   useEffect(() => {
     loadTemplates();
-  }, [pagination, filters]);
+  }, [pagination, filters, sortBy, sortOrder]);
+
+  // Load my templates when switching to that tab
+  useEffect(() => {
+    if (activeTab === "my-templates") {
+      loadMyTemplates();
+      setMyTemplatesPage(0);
+    }
+    if (activeTab === "completed") {
+      setCompletedPage(0);
+      loadCompletedInterviews(0);
+    }
+    if (activeTab === "booked") {
+      setBookedPage(0);
+      loadBookedInterviews(0);
+    }
+    if (activeTab === "saved") {
+      setSavedPage(0);
+      loadBookmarks(0);
+    }
+  }, [activeTab]);
+
+  // Re-fetch when page changes
+  useEffect(() => { loadBookedInterviews(bookedPage); }, [bookedPage]);
+  useEffect(() => { loadCompletedInterviews(completedPage); }, [completedPage]);
+  useEffect(() => { loadBookmarks(savedPage); }, [savedPage]);
 
   // Load stats, booked, completed interviews, and access on initial mount
   useEffect(() => {
-    loadStats();
     loadBookedInterviews();
     loadCompletedInterviews();
     loadInterviewAccess();
+    loadCategories();
+    loadCompanies();
+    loadMyTemplates();
+    analytics.page("Mock Interviews");
   }, []);
 
   // Cleanup debounce timeout on unmount
@@ -236,6 +267,8 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       const params: any = {
         size: pagination.size,
         skip: pagination.skip,
+        sortBy,
+        sortOrder,
       };
 
       const filterObj: any = {};
@@ -243,13 +276,13 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
       if (filters.style) filterObj.style = filters.style;
       if (filters.format) filterObj.format = filters.format;
       if (filters.search) filterObj.search = filters.search;
+      if (filters.category) filterObj.category = filters.category;
+      if (filters.company) filterObj.company = filters.company;
 
       // Send filters as an object
       params.filters = filterObj;
 
-      console.log("Fetching templates with params:", params);
       const data = await store.getMockInterviewTemplates(params);
-      console.log("Templates API Response:", data);
 
       // Handle both response structures
       if (data?.interviews) {
@@ -275,11 +308,12 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadBookedInterviews = async () => {
+  const loadBookedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserBookedInterviews();
-      setBookedInterviews(data || []);
+      const res = await store.getUserBookedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setBookedInterviews(res.data || []);
+      setBookedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load booked interviews");
     } finally {
@@ -287,26 +321,16 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
-  const loadCompletedInterviews = async () => {
+  const loadCompletedInterviews = async (page = 0) => {
     try {
       setLoading(true);
-      const data = await store.getUserCompletedInterviews();
-      setCompletedInterviews(data || []);
-
-      console.log("Completed Interviews:", data);
+      const res = await store.getUserCompletedInterviews(PAGE_SIZE, page * PAGE_SIZE);
+      setCompletedInterviews(res.data || []);
+      setCompletedTotal(res.meta?.total ?? 0);
     } catch (error) {
       toast.error("Failed to load completed interviews");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const data = await store.getUserInterviewStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load stats");
     }
   };
 
@@ -319,99 +343,107 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
+  const loadCategories = async () => {
+    try {
+      const data = await store.getMockInterviewCategories();
+      setCategories(data);
+    } catch {
+      // silently fail — pills won't show
+    }
+  };
+
+  const loadCompanies = async () => {
+    try {
+      const data = await store.getMockInterviewCompanies();
+      setCompanies(data);
+    } catch {
+      // silently fail — company filter won't show
+    }
+  };
+
+  const loadMyTemplates = async () => {
+    try {
+      setMyTemplatesLoading(true);
+      const data = await store.getMyTemplates();
+      setMyTemplates(data || []);
+    } catch {
+      toast.error("Failed to load your templates");
+    } finally {
+      setMyTemplatesLoading(false);
+    }
+  };
+
+  const handleDeleteMyTemplate = async () => {
+    if (!deleteTemplateId) return;
+    try {
+      setDeletingTemplate(true);
+      await store.deleteMyTemplate(deleteTemplateId);
+      analytics.track("my_template_deleted", { template_id: deleteTemplateId });
+      setMyTemplates((prev) => prev.filter((t) => t.id !== deleteTemplateId));
+      toast.success("Template deleted");
+    } catch {
+      toast.error("Failed to delete template");
+    } finally {
+      setDeletingTemplate(false);
+      setDeleteTemplateId(null);
+    }
+  };
+
   const handleBookInterview = (template: InterviewTemplate) => {
     if (
       interviewAccess?.remainingSessions! >= 1 &&
       !interviewAccess?.hasAccess
     ) {
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "template_click",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
+    analytics.track("mock_interview_booking_started", {
+      template_id: template.id,
+      template_name: template.name,
+      company: template.company,
+      position: template.position,
+      category: template.category,
+      difficulty: template.difficulty,
+      duration: template.duration,
+      is_custom: !!template.addedBy,
+    });
     setSelectedTemplate(template);
     setIsBookingDialogOpen(true);
   };
 
-  const handleStartNow = async (templateId: string) => {
-    if (!templateId) return;
-
-    try {
-      setCreating(true);
-      const result = await store.scheduleInterviewFromTemplate(templateId, {});
-
-      if (!result || !result.session?.id) {
-        toast.error("Failed to start interview");
-        return;
-      }
-
-      toast.success("Interview started successfully!");
-      setIsBookingDialogOpen(false);
-
-      onNavigate(`/mock-interviews/${result.session.id}`);
-    } catch (error: any) {
-      if (error?.response?.status === 402) {
-        setIsBookingDialogOpen(false);
-        setShowUpgradeDialog(true);
-      } else {
-        toast.error("Failed to start interview");
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleScheduleInterview = async (templateId: string) => {
-    try {
-      if (!scheduledDate || !scheduledTime) {
-        toast.error("Please select date and time");
-        return;
-      }
-
-      setCreating(true);
-      const isoDate = new Date(
-        `${scheduledDate}T${scheduledTime}:00`,
-      ).toISOString();
-
-      const result = await store.scheduleInterviewFromTemplate(templateId, {
-        scheduledTime: isoDate,
-      });
-
-      if (result) {
-        toast.success("Interview scheduled successfully!");
-        setIsBookingDialogOpen(false);
-        setScheduledDate("");
-        setScheduledTime("");
-        setSelectedTemplate(null);
-        setActiveTab("booked");
-        loadBookedInterviews();
-      }
-    } catch (error) {
-      toast.error("Failed to schedule interview");
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const handleJoinInterview = async (interview: UserInterview) => {
     if (!interviewAccess?.hasAccess) {
+      analytics.track("mock_interview_upgrade_dialog_shown", {
+        trigger: "join_attempt",
+        tier: interviewAccess?.tier,
+      });
       setShowUpgradeDialog(true);
       return;
     }
 
+    const isChatInterview =
+      !interview.template.format ||
+      interview.template.format.toLowerCase() === "chat" ||
+      interview.template.format.toLowerCase() === "text";
+
     try {
       setCreating(true);
 
-      // Start the interview by scheduling it with immediate time
-      // This should create and return a session
-      const result = await store.createMockInterviewRoom(interview.id);
-
-      console.log("Join Interview - Room Creation Result:", result);
-
-      if (result?.session?.id) {
-        // Navigate to the session page
-        onNavigate(`/mock-interviews/${result.session.id}`);
+      if (isChatInterview) {
+        // Chat interview — navigate directly to chat room
+        onNavigate(`/mock-interviews/${interview.id}/chat`);
       } else {
-        toast.error("Failed to start interview session. Please try again.");
-        console.error("No session returned from API:", result);
+        // Video/audio interview — create a LiveKit room then navigate to session
+        const result = await store.createMockInterviewRoom(interview.id);
+        if (result?.session?.id) {
+          onNavigate(`/mock-interviews/${result.session.id}`);
+        } else {
+          toast.error("Failed to start interview session. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Failed to join interview:", error);
@@ -425,12 +457,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     onNavigate(`/mock-interviews/${sessionId}/results`);
   };
 
-  const handleCustomInterviewChange = (
-    field: keyof CustomInterviewFormData,
-    value: string | number,
-  ) => {
-    setCustomInterviewData((prev) => ({ ...prev, [field]: value }));
-  };
 
   const handleTemplateFormChange = (
     field: keyof TemplateFormData,
@@ -456,63 +482,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }));
   };
 
-  const handleCreateCustomInterview = async () => {
-    if (!interviewAccess?.hasAccess) {
-      setShowUpgradeDialog(true);
-      return;
-    }
-
-    try {
-      if (
-        !customInterviewData.company ||
-        !customInterviewData.position ||
-        !customInterviewData.description
-      ) {
-        toast.error("Please fill in all required fields");
-        return;
-      }
-
-      setCreating(true);
-      const result = await store.scheduleInterviewFromJD({
-        ...customInterviewData,
-        scheduledTime: new Date().toISOString(),
-      });
-
-      if (!result) {
-        toast.error("Failed to create interview");
-        return;
-      }
-      toast.success("Interview created and scheduled!");
-      setIsCreateInterviewDialogOpen(false);
-      setCustomInterviewData({
-        company: "",
-        position: "",
-        seniority: "",
-        description: "",
-        style: "",
-        difficulty: "",
-        duration: 15,
-        format: "",
-      });
-
-      // Reload data
-      await loadTemplates();
-      await loadBookedInterviews();
-      await loadStats();
-
-      // Switch to booked tab to show the new interview
-      setActiveTab("booked");
-
-      // onNavigate(`/mock-interviews/${result.interview.id}`);
-      setSelectedTemplate(result.template);
-      setIsBookingDialogOpen(true);
-    } catch (error) {
-      toast.error("Failed to create interview");
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const handleCreateTemplate = async () => {
     try {
       if (!templateFormData.name || !templateFormData.summary) {
@@ -534,12 +503,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           duration: 15,
           topics: [],
           seniority: "junior",
-          style: "technical",
+          style: "Technical",
         });
 
         // Reload templates and stats
         await loadTemplates();
-        await loadStats();
 
         // Stay on templates tab to show the new template
         setActiveTab("templates");
@@ -563,10 +531,20 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
       // Debounce the API call
       searchDebounceRef.current = setTimeout(() => {
+        if (value)
+          analytics.track("mock_interview_filter_applied", {
+            filter_type: "search",
+            query_length: value.length,
+          });
         setPagination({ size: 10, skip: 0 });
       }, 300);
     } else {
       // For other filters, update immediately
+      if (value)
+        analytics.track("mock_interview_filter_applied", {
+          filter_type: key,
+          value,
+        });
       setFilters((prev) => ({ ...prev, [key]: value }));
       setPagination({ size: 10, skip: 0 });
     }
@@ -585,899 +563,559 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }));
   };
 
+  // ─── Saved interviews (bookmark) state — API-backed ─────────────────────
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [savedTemplates, setSavedTemplates] = useState<InterviewTemplate[]>([]);
+  // templateId → bookmarkId (needed for delete)
+  const bookmarkIdMapRef = useRef<Map<string, string>>(new Map());
+
+  const loadBookmarks = (page = 0) => {
+    store
+      .getBookmarks(PAGE_SIZE, page * PAGE_SIZE)
+      .then(({ bookmarks, meta }) => {
+        const ids = new Set<string>();
+        const tpls: InterviewTemplate[] = [];
+        bookmarks.forEach((b: any) => {
+          if (b.mockInterviewTemplateId && b.mockInterviewTemplate) {
+            ids.add(b.mockInterviewTemplateId);
+            bookmarkIdMapRef.current.set(b.mockInterviewTemplateId, b.id);
+            tpls.push(b.mockInterviewTemplate as InterviewTemplate);
+          }
+        });
+        setSavedIds(ids);
+        setSavedTemplates(tpls);
+        setSavedTotal(meta?.total ?? 0);
+      })
+      .catch(() => {});
+  };
+
+  // Load existing bookmarks once on mount
+  useEffect(() => {
+    loadBookmarks(0);
+  }, []);
+
+  const handleToggleSave = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (savingIds.has(id)) return;
+      setSavingIds((prev) => new Set(prev).add(id));
+
+      const alreadySaved = savedIds.has(id);
+      try {
+        if (alreadySaved) {
+          await store.deleteBookmark({ mockInterviewTemplateId: id });
+          setSavedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setSavedTemplates((prev) => prev.filter((t) => t.id !== id));
+          bookmarkIdMapRef.current.delete(id);
+        } else {
+          const created = await store.createBookmark({
+            type: "MOCK_INTERVIEW",
+            bookmarkType: "BOOKMARK",
+            mockInterviewTemplateId: id,
+          });
+          setSavedIds((prev) => new Set(prev).add(id));
+          if (created?.id) bookmarkIdMapRef.current.set(id, created.id);
+          // Add the template to savedTemplates from the current paginated list
+          const tpl = templates.find((t) => t.id === id);
+          if (tpl) setSavedTemplates((prev) => [tpl, ...prev]);
+        }
+      } catch {
+        toast.error(
+          alreadySaved
+            ? "Failed to remove bookmark."
+            : "Failed to save bookmark.",
+        );
+      } finally {
+        setSavingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [savedIds, savingIds, store],
+  );
+
+  // Derived lists (savedTemplates is API-backed state, not derived from paginated templates)
+
+  // ─── Difficulty badge helper ──────────────────────────────────────────────
+  const difficultyBadge = (difficulty: string) => {
+    const map: Record<string, { pill: string; dot: string }> = {
+      Easy: {
+        pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        dot: "bg-emerald-500",
+      },
+      Medium: {
+        pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        dot: "bg-amber-500",
+      },
+      Hard: {
+        pill: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        dot: "bg-red-500",
+      },
+    };
+    const style = map[difficulty] ?? {
+      pill: "bg-muted text-muted-foreground",
+      dot: "bg-muted-foreground",
+    };
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full",
+          style.pill,
+        )}
+      >
+        <span
+          className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", style.dot)}
+        />
+        {difficulty}
+      </span>
+    );
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex md:item-center md:flex-row flex-col gap-3 justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Mock Interviews</h1>
-          <p className="text-muted-foreground">
-            Practice with AI-powered interviews to ace your next job interview
-          </p>
-          {interviewAccess &&
-            (interviewAccess.tier === "free" ||
-              interviewAccess.tier === "pro") && (
-              <div className="flex items-center gap-2 mt-1">
-                <Badge
-                  variant={
-                    interviewAccess.remainingSessions === 0
-                      ? "destructive"
-                      : "secondary"
-                  }
-                  className="text-xs"
-                >
-                  {interviewAccess.tier === "free"
-                    ? interviewAccess.remainingSessions === 0
-                      ? "Free trial used"
-                      : "1 free trial interview available"
-                    : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
-                </Badge>
-              </div>
-            )}
-          {interviewAccess?.tier === "enterprise" && (
-            <Badge variant="secondary" className="mt-1 text-xs">
-              <Crown className="h-3 w-3 mr-1" />
-              Enterprise — Unlimited sessions
-            </Badge>
-          )}
-        </div>
-        <div className="flex md:items-center md:flex-row flex-col gap-3">
-          <Dialog
-            open={isCreateInterviewDialogOpen}
-            onOpenChange={setIsCreateInterviewDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button disabled={true}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create from Job Description
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[75vw] max-w-[80vw] h-[90vh] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Custom Mock Interview</DialogTitle>
-                <DialogDescription>
-                  Customize your mock interview experience by providing details
-                  about the role you're preparing for.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="company" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    Company *
-                  </Label>
-                  <Input
-                    id="company"
-                    placeholder="e.g., Google, Amazon, Stripe"
-                    value={customInterviewData.company}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("company", e.target.value)
-                    }
-                  />
-                </div>
+    <div className="min-h-screen">
+      {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
+      <div>
+        <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+          <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+            <div className="hero-grid absolute inset-0" aria-hidden="true" />
+            <div className="relative px-5 py-6 sm:px-8 sm:py-7 md:min-h-[174px] flex flex-col justify-center">
+              <JourneyGlyph
+                stage="grow"
+                className="absolute right-4 top-4 w-20 opacity-40 md:right-10 md:top-1/2 md:w-60 md:-translate-y-1/2 md:opacity-100"
+              />
+              <div className="max-w-2xl">
+                <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
+                <h1 className="text-2xl font-bold mt-1.5">Mock Interviews</h1>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+                  {(
+                    {
+                      Backend: "Land your next backend engineering role",
+                      DevOps: "Nail your next DevOps interview",
+                      Cybersecurity: "Sharpen your security engineering edge",
+                      Fullstack: "Stand out as a fullstack engineer",
+                    } as Record<string, string>
+                  )[filters.category] ??
+                    "Rehearse real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
+                </p>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="position" className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    Position *
-                  </Label>
-                  <Input
-                    id="position"
-                    placeholder="e.g., Senior Backend Engineer"
-                    value={customInterviewData.position}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("position", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="seniority"
-                    className="flex items-center gap-2"
-                  >
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    Seniority Level
-                  </Label>
-                  <Select
-                    value={customInterviewData.seniority}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("seniority", value)
-                    }
-                  >
-                    <SelectTrigger id="seniority">
-                      <SelectValue placeholder="Select seniority level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="junior">Junior</SelectItem>
-                      <SelectItem value="mid">Mid-Level</SelectItem>
-                      <SelectItem value="senior">Senior</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="style" className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    Interview Style
-                  </Label>
-                  <Select
-                    value={customInterviewData.style}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("style", value)
-                    }
-                  >
-                    <SelectTrigger id="style">
-                      <SelectValue placeholder="Select interview style" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="coding">Coding</SelectItem>
-                      <SelectItem value="system-design">
-                        System Design
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="difficulty"
-                    className="flex items-center gap-2"
-                  >
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                    Difficulty
-                  </Label>
-                  <Select
-                    value={customInterviewData.difficulty}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("difficulty", value)
-                    }
-                  >
-                    <SelectTrigger id="difficulty">
-                      <SelectValue placeholder="Select difficulty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* <div className="grid gap-2">
-                  <Label htmlFor="format" className="flex items-center gap-2">
-                    <Layout className="h-4 w-4 text-muted-foreground" />
-                    Format
-                  </Label>
-                  <Select
-                    value={customInterviewData.format}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("format", value)
-                    }
-                  >
-                    <SelectTrigger id="format">
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="audio">Audio</SelectItem>
-                      <SelectItem value="text">Text</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div> */}
-
-                <div className="grid gap-2">
-                  <Label htmlFor="duration" className="flex items-center gap-2">
-                    <Layout className="h-4 w-4 text-muted-foreground" />
-                    Duration
-                  </Label>
-                  <Select
-                    value={customInterviewData.duration + ""}
-                    onValueChange={(value) =>
-                      handleCustomInterviewChange("duration", value)
-                    }
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[15, 30, 45, 60].map((d) => (
-                        <SelectItem
-                          key={d}
-                          value={d + ""}
-                          disabled={
-                            interviewAccess?.hasAccess === true &&
-                            !interviewAccess.allowedDurations.includes(d)
-                          }
-                        >
-                          {d} min
-                          {interviewAccess?.hasAccess &&
-                            !interviewAccess.allowedDurations.includes(d) &&
-                            " (Enterprise)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2 md:col-span-2">
-                  <Label
-                    htmlFor="description"
-                    className="flex items-center gap-2"
-                  >
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    Job Description *
-                  </Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Paste the job description here..."
-                    rows={8}
-                    value={customInterviewData.description}
-                    onChange={(e) =>
-                      handleCustomInterviewChange("description", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateInterviewDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateCustomInterview}
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
+                <div className="mt-4">
+                  {interviewAccess?.tier === "free" ? (
+                    <button
+                      onClick={() => {
+                        analytics.track("mock_interview_upgrade_cta_clicked", {
+                          from: "practice_cta_header",
+                          tier: "free",
+                        });
+                        onNavigate("/subscription/plans");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
                   ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Create & Start
-                    </>
+                    <button
+                      onClick={() => {
+                        analytics.track(
+                          "mock_interview_practice_for_job_clicked",
+                          { tier: interviewAccess?.tier ?? "pro" },
+                        );
+                        onNavigate("/mock-interviews/prepare");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Practice for a real job
+                    </button>
                   )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog
-            open={isCreateTemplateDialogOpen}
-            onOpenChange={setIsCreateTemplateDialogOpen}
-          >
-            {user?.role === "ADMIN" && (
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
-              </DialogTrigger>
-            )}
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create Interview Template</DialogTitle>
-                <DialogDescription>
-                  Create a reusable interview template
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Template Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Backend Developer Interview"
-                    value={templateFormData.name}
-                    onChange={(e) =>
-                      handleTemplateFormChange("name", e.target.value)
-                    }
-                  />
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="summary">Summary *</Label>
-                  <Textarea
-                    id="summary"
-                    placeholder="Brief description of the template"
-                    rows={3}
-                    value={templateFormData.summary}
-                    onChange={(e) =>
-                      handleTemplateFormChange("summary", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      placeholder="e.g., Backend Development"
-                      value={templateFormData.category}
-                      onChange={(e) =>
-                        handleTemplateFormChange("category", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="template-difficulty">Difficulty</Label>
-                    <Select
-                      value={templateFormData.difficulty}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("difficulty", value)
-                      }
+                {/* Session access */}
+                {interviewAccess &&
+                  (interviewAccess.tier === "free" ||
+                    interviewAccess.tier === "pro") && (
+                    <p
+                      className={cn(
+                        "text-xs mt-2",
+                        interviewAccess.remainingSessions === 0
+                          ? "text-red-300"
+                          : "text-white/[.55]",
+                      )}
                     >
-                      <SelectTrigger id="template-difficulty">
-                        <SelectValue placeholder="Select difficulty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Easy">Easy</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="Hard">Hard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label
-                      htmlFor="seniority"
-                      className="flex items-center gap-2"
-                    >
-                      Seniority Level
-                    </Label>
-                    <Select
-                      value={templateFormData.seniority}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("seniority", value)
-                      }
-                    >
-                      <SelectTrigger id="seniority">
-                        <SelectValue placeholder="Select seniority level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="junior">Junior</SelectItem>
-                        <SelectItem value="mid">Mid-Level</SelectItem>
-                        <SelectItem value="senior">Senior</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="style" className="flex items-center gap-2">
-                      Interview Style
-                    </Label>
-                    <Select
-                      value={templateFormData.style}
-                      onValueChange={(value) =>
-                        handleTemplateFormChange("style", value)
-                      }
-                    >
-                      <SelectTrigger id="style">
-                        <SelectValue placeholder="Select interview style" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="technical">Technical</SelectItem>
-                        <SelectItem value="behavioral">Behavioral</SelectItem>
-                        <SelectItem value="coding">Coding</SelectItem>
-                        <SelectItem value="system-design">
-                          System Design
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="duration" className="flex items-center gap-2">
-                    Duration
-                  </Label>
-                  <Select
-                    value={templateFormData.duration + ""}
-                    onValueChange={(value) =>
-                      handleTemplateFormChange("duration", value)
-                    }
-                  >
-                    <SelectTrigger id="duration">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[15, 30, 45, 60].map((d) => (
-                        <SelectItem
-                          key={d}
-                          value={d + ""}
-                          disabled={
-                            interviewAccess?.hasAccess === true &&
-                            !interviewAccess.allowedDurations.includes(d)
-                          }
-                        >
-                          {d} min
-                          {interviewAccess?.hasAccess &&
-                            !interviewAccess.allowedDurations.includes(d) &&
-                            " (Enterprise)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="topics">Topics</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="topics"
-                      placeholder="Add a topic"
-                      value={topicInput}
-                      onChange={(e) => setTopicInput(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleAddTopic()}
-                    />
-                    <Button type="button" onClick={handleAddTopic}>
-                      Add
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {templateFormData.topics.map((topic, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => handleRemoveTopic(index)}
-                      >
-                        {topic} ×
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                      {interviewAccess.tier === "free"
+                        ? interviewAccess.remainingSessions === 0
+                          ? "Free trial used"
+                          : "1 free trial interview available"
+                        : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
+                    </p>
+                  )}
               </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateTemplateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateTemplate} disabled={creating}>
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Template"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <div className="flex items-center gap-2">
-            <Video className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">Powered by Kap AI</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Under Development Banner */}
-      {showDevBanner && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/8 px-4 py-3">
-          <Wrench className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              Mock Interview is actively being improved
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Some features are still in development. You can browse templates
-              and schedule interviews — full session support is coming very
-              soon.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowDevBanner(false)}
-            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
-            aria-label="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Session Limit Reached Banner */}
-      {interviewAccess && !interviewAccess.hasAccess && (
-        <Card className="border-orange-500/50 bg-orange-500/5">
-          <CardContent className="flex flex-col sm:flex-row items-center gap-4 p-4">
-            <AlertTriangle className="h-8 w-8 text-orange-500 shrink-0" />
+      {/* ── Content ──────────────────────────────────────────────────────────── */}
+      <div className="pt-6">
+        {/* Session limit banner */}
+        {interviewAccess && !interviewAccess.hasAccess && (
+          <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 mb-4">
+            <AlertTriangle className="h-6 w-6 text-orange-500 shrink-0" />
             <div className="flex-1 text-center sm:text-left">
-              <h3 className="font-semibold">
+              <p className="font-semibold text-sm">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
                     ? "Free Trial Used"
                     : "Access 1 Free Trial Interview"
                   : "Monthly Limit Reached"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
                     ? "You've used your free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
-                    : "You've 1 free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
+                    : "You have 1 free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
                   : "You've used all your mock interviews this month. Upgrade to Enterprise for unlimited sessions."}
               </p>
             </div>
-            <Button onClick={() => onNavigate("/subscription/plans")}>
+            <Button size="sm" onClick={() => onNavigate("/subscription/plans")}>
               <Crown className="h-4 w-4 mr-2" />
               Upgrade
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Interviews
-            </CardTitle>
-            <Video className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.totalInterviews || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {bookedInterviews.length} booked
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.upcomingInterviews || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Scheduled interviews
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.averageScore || 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Based on {completedInterviews.length} completed
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Practice Hours
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.practicedHours || 0}h
-            </div>
-            <p className="text-xs text-muted-foreground">Total practice time</p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* ── Filter row ───────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap mb-6">
+          {/* Search input */}
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              className="pl-9 pr-4 py-2 w-full sm:w-72 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Search templates…"
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+            />
+          </div>
 
-      <Tabs
-        onValueChange={setActiveTab}
-        value={activeTab}
-        defaultValue="templates"
-        className="space-y-4"
-      >
-        <TabsList>
-          <TabsTrigger value="templates">
-            Templates ({totalTemplates})
-          </TabsTrigger>
-          <TabsTrigger value="booked">
-            Booked ({bookedInterviews.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({completedInterviews.length})
-          </TabsTrigger>
-        </TabsList>
+          {/* Tab chips */}
+          {(
+            [
+              {
+                value: "templates",
+                label: "All templates",
+                count: totalTemplates,
+              },
+              { value: "saved", label: "Saved", count: savedIds.size },
+              {
+                value: "my-templates",
+                label: "My Templates",
+                count: myTemplates.length,
+              },
+              {
+                value: "booked",
+                label: "Booked",
+                count: bookedInterviews.length,
+              },
+              {
+                value: "completed",
+                label: "Completed",
+                count: completedTotal,
+              },
+            ] as { value: string; label: string; count: number }[]
+          ).map((chip) => (
+            <button
+              key={chip.value}
+              onClick={() => {
+                analytics.track("mock_interview_tab_changed", {
+                  tab: chip.value,
+                  from: activeTab,
+                });
+                setActiveTab(chip.value);
+              }}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm transition-colors",
+                activeTab === chip.value
+                  ? "bg-foreground text-background font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              {chip.label} <span className="opacity-50">{chip.count}</span>
+            </button>
+          ))}
 
-        <TabsContent value="templates" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="filter-difficulty">
-                    <Filter className="h-4 w-4 inline mr-2" />
-                    Difficulty
-                  </Label>
-                  <Select
-                    value={filters.difficulty || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange(
-                        "difficulty",
-                        value === "all" ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger id="filter-difficulty">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-style">Style</Label>
-                  <Select
-                    value={filters.style || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("style", value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="filter-style">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="coding">Coding</SelectItem>
-                      <SelectItem value="system-design">
-                        System Design
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-format">Format</Label>
-                  <Select
-                    value={filters.format || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("format", value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="filter-format">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="audio">Audio</SelectItem>
-                      <SelectItem value="text">Text</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="search">Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Search templates..."
-                      className="pl-8"
-                      value={filters.search}
-                      onChange={(e) =>
-                        handleFilterChange("search", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : templates.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Templates Found</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  Try adjusting your filters or create a new template
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
+          {/* Difficulty + Style dropdowns — only for templates/saved */}
+          {(activeTab === "templates" || activeTab === "saved") && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2  gap-6">
-                {templates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className="hover:shadow-lg transition-shadow cursor-pointer"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg line-clamp-2">
-                            {template.name ||
-                              `${template.position} at ${template.company}`}
-                          </CardTitle>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline">
-                              {template.difficulty}
-                            </Badge>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {template.duration} min
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {template.company && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                          <Building2 className="h-3 w-3" />
-                          {template.company}
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="text-sm text-muted-foreground">
-                          <p>{template?.summary?.substring(0, 180) + "..."}</p>
-                        </div>
-                        {template.topics && template.topics.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">
-                              Topics:
-                            </h4>
-                            <div className="flex flex-wrap gap-1">
-                              {template.topics.slice(0, 3).map((topic, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {topic}
-                                </Badge>
-                              ))}
-                              {template.topics.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{template.topics.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        )}
+              <Select
+                value={filters.difficulty || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("difficulty", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-36 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All difficulties</SelectItem>
+                  <SelectItem value="Easy">Easy</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
 
-                        <Button
-                          className="w-full"
-                          onClick={() => handleBookInterview(template)}
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Book Interview
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <Select
+                value={filters.style || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("style", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Style" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All styles</SelectItem>
+                  <SelectItem value="Technical">Technical</SelectItem>
+                  <SelectItem value="Behavioral">Behavioral</SelectItem>
+                  <SelectItem value="Coding">Coding</SelectItem>
+                  <SelectItem value="System Design">System Design</SelectItem>
+                  <SelectItem value="Case Study">Case Study</SelectItem>
+                  <SelectItem value="Mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Showing {pagination.skip + 1} to{" "}
-                  {Math.min(pagination.skip + pagination.size, totalTemplates)}{" "}
-                  of {totalTemplates} templates
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrevPage}
-                    disabled={pagination.skip === 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextPage}
-                    disabled={!hasMore}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              <Select
+                value={`${sortBy}:${sortOrder}`}
+                onValueChange={(v) => {
+                  const [by, order] = v.split(":");
+                  setSortBy(by);
+                  setSortOrder(order as "asc" | "desc");
+                }}
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt:desc">Newest</SelectItem>
+                  <SelectItem value="createdAt:asc">Oldest</SelectItem>
+                  <SelectItem value="duration:asc">Shortest</SelectItem>
+                  <SelectItem value="duration:desc">Longest</SelectItem>
+                  <SelectItem value="difficulty:asc">Easiest first</SelectItem>
+                  <SelectItem value="difficulty:desc">Hardest first</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {companies.length > 0 && (
+                <Select
+                  value={filters.company || "all"}
+                  onValueChange={(v) =>
+                    handleFilterChange("company", v === "all" ? "" : v)
+                  }
+                >
+                  <SelectTrigger className="w-44 rounded-xl h-9 text-sm gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Company" className="flex-1 text-left" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All companies</SelectItem>
+                    {companies.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </>
           )}
-        </TabsContent>
+        </div>
 
-        <TabsContent value="booked" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {/* ── Category pills ──────────────────────────────────────────────── */}
+        {(activeTab === "templates" || activeTab === "saved") &&
+          categories.length > 0 && (
+            <div className="flex flex-wrap gap-2 py-2 mb-4">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() =>
+                    handleFilterChange(
+                      "category",
+                      filters.category === cat ? "" : cat,
+                    )
+                  }
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-full border text-sm transition-all whitespace-nowrap",
+                    filters.category === cat
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+
+              <Select
+                value={filters.category || "all"}
+                onValueChange={(v) =>
+                  handleFilterChange("category", v === "all" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-40 rounded-xl h-9 text-sm">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : bookedInterviews.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+          )}
+
+        {/* ── Templates / Saved tab ─────────────────────────────────────────── */}
+        {(activeTab === "templates" || activeTab === "saved") &&
+          (() => {
+            const list = activeTab === "saved" ? savedTemplates : templates;
+            return (
+              <>
+                {loading ? (
+                  <div className="flex items-center justify-center py-24">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : list.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-center">
+                    <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-1">
+                      {activeTab === "saved"
+                        ? "No saved interviews yet"
+                        : "No Templates Found"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                      {activeTab === "saved"
+                        ? "Bookmark templates by clicking the bookmark icon on any card."
+                        : "Try adjusting your filters or check back later."}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Card grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {list.map((template) => (
+                        <MockInterviewTemplateCard
+                          key={template.id}
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          isSaved={savedIds.has(template.id)}
+                          isSaving={savingIds.has(template.id)}
+                          onToggleSave={(e) => handleToggleSave(template.id, e)}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Pagination — templates tab */}
+                    {activeTab === "templates" && (
+                      <Pager
+                        hasPrev={pagination.skip > 0}
+                        hasNext={hasMore}
+                        onPrev={handlePrevPage}
+                        onNext={handleNextPage}
+                      />
+                    )}
+
+                    {/* Pagination — saved tab */}
+                    {activeTab === "saved" && savedTotal > PAGE_SIZE && (
+                      <Pager
+                        hasPrev={savedPage > 0}
+                        hasNext={(savedPage + 1) * PAGE_SIZE < savedTotal}
+                        onPrev={() => setSavedPage((p) => p - 1)}
+                        onNext={() => setSavedPage((p) => p + 1)}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            );
+          })()}
+
+        {/* ── Booked tab ───────────────────────────────────────────────────── */}
+        {activeTab === "booked" && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : bookedInterviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <h3 className="text-lg font-semibold mb-1">
                   No Booked Interviews
                 </h3>
-                <p className="text-muted-foreground text-center mb-4">
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
                   Book your first mock interview to start practicing
                 </p>
                 <Button onClick={() => setActiveTab("templates")}>
                   Browse Templates
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {bookedInterviews.map((interview) => (
-                <Card
-                  key={interview.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {interview.template.name ||
-                            `${interview.template.position} at ${interview.template.company}`}
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                          {interview.scheduledTime && (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(
-                                  interview.scheduledTime,
-                                ).toLocaleDateString()}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(
-                                  interview.scheduledTime,
-                                ).toLocaleTimeString()}
-                              </div>
-                            </>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Timer className="h-3 w-3" />
-                            {interview.template.duration} min
-                          </div>
-                          <Badge className="hidden lg:block" variant="outline">
-                            {interview.status}
-                          </Badge>
-                        </div>
-                      </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {bookedInterviews.map((interview) => (
+                  <div
+                    key={interview.id}
+                    className="bg-card rounded-2xl border border-border p-5 flex flex-col"
+                  >
+                    {/* Top row */}
+                    <div className="flex items-start justify-between">
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        Booked
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {interview.status}
+                      </Badge>
+                    </div>
 
+                    {/* Title */}
+                    <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                      {interview.template.name ||
+                        `${interview.template.position} at ${interview.template.company}`}
+                    </h3>
+
+                    {/* Meta */}
+                    <div className="flex-1 mt-2 space-y-1">
+                      {interview.scheduledTime && (
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(
+                            interview.scheduledTime,
+                          ).toLocaleDateString()}{" "}
+                          {new Date(interview.scheduledTime).toLocaleTimeString(
+                            [],
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
+                        </p>
+                      )}
+                      <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {interview.template.duration} min
+                      </p>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-border/50 pt-3 mt-3">
                       {!interview.scheduledTime ? (
                         <Button
+                          size="sm"
                           variant="secondary"
+                          className="w-full"
                           onClick={() => {
                             setSelectedTemplate(interview.template);
                             setIsBookingDialogOpen(true);
@@ -1487,248 +1125,204 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                           Schedule Interview
                         </Button>
                       ) : new Date(interview.scheduledTime) > new Date() ? (
-                        <Badge variant={"destructive"}>Upcoming</Badge>
+                        <div className="flex justify-center">
+                          <Badge variant="destructive">Upcoming</Badge>
+                        </div>
                       ) : (
-                        <Button onClick={() => handleJoinInterview(interview)}>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleJoinInterview(interview)}
+                        >
                           <Video className="h-4 w-4 mr-2" />
                           Join Interview
                         </Button>
                       )}
                     </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                  </div>
+                ))}
+              </div>
+            )}
+            {bookedTotal > PAGE_SIZE && bookedInterviews.length > 0 && (
+              <Pager
+                hasPrev={bookedPage > 0}
+                hasNext={(bookedPage + 1) * PAGE_SIZE < bookedTotal}
+                onPrev={() => setBookedPage((p) => p - 1)}
+                onNext={() => setBookedPage((p) => p + 1)}
+              />
+            )}
+          </>
+        )}
 
-        <TabsContent value="completed" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : completedInterviews.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+        {/* ── Completed tab ─────────────────────────────────────────────────── */}
+        {activeTab === "completed" && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : completedInterviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <h3 className="text-lg font-semibold mb-1">
                   No Completed Interviews
                 </h3>
-                <p className="text-muted-foreground text-center mb-4">
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
                   Complete your first interview to see results here
                 </p>
                 <Button onClick={() => setActiveTab("templates")}>
                   Browse Templates
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {completedInterviews.map((interview) => (
-                <Card
-                  key={interview.id}
-                  className="hover:shadow-md transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-center flex-col lg:flex-row gap-3 justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {interview.template.name ||
-                            `${interview.template.position} at ${interview.template.company}`}
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(interview.createdAt).toLocaleDateString()}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Timer className="h-3 w-3" />
-                            {interview.template.duration} min
-                          </div>
-                          <Badge variant="outline">
-                            {interview.template.difficulty}
-                          </Badge>
-                        </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {completedInterviews.map((interview) => (
+                    <div
+                      key={interview.id}
+                      className="bg-card rounded-2xl border border-border p-5 flex flex-col"
+                    >
+                      {/* Top row */}
+                      <div className="flex items-start justify-between">
+                        <span className="text-[11px] text-muted-foreground font-medium">
+                          {interview.template.category ||
+                            interview.template.style ||
+                            "Interview"}
+                        </span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                       </div>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          handleViewResults(interview.completedSessionId!)
-                        }
-                      >
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        View Results
-                      </Button>
+
+                      {/* Title */}
+                      <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                        {interview.template.name ||
+                          `${interview.template.position} at ${interview.template.company}`}
+                      </h3>
+
+                      {/* Meta */}
+                      <div className="flex-1 mt-2 space-y-1">
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(interview.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {interview.template.duration} min
+                        </p>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="border-t border-border/50 pt-3 mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() =>
+                            handleViewResults(interview.completedSessionId!)
+                          }
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          View Results
+                        </Button>
+                      </div>
                     </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                  ))}
+              </div>
+            )}
+            {completedTotal > PAGE_SIZE && completedInterviews.length > 0 && (
+              <Pager
+                hasPrev={completedPage > 0}
+                hasNext={(completedPage + 1) * PAGE_SIZE < completedTotal}
+                onPrev={() => setCompletedPage((p) => p - 1)}
+                onNext={() => setCompletedPage((p) => p + 1)}
+              />
+            )}
+          </>
+        )}
+        {/* ── My Templates tab ─────────────────────────────────────────────── */}
+        {activeTab === "my-templates" && (
+          <>
+            {myTemplatesLoading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : myTemplates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-1">
+                  No custom templates yet
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-4">
+                  Analyze a job description to generate a personalized interview
+                  template tailored to the role.
+                </p>
+                <Button
+                  onClick={() => onNavigate("/mock-interviews/prepare")}
+                  className="gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Practice for a real job
+                </Button>
+              </div>
+            ) : (
+              (() => {
+                const totalPages = Math.ceil(
+                  myTemplates.length / MY_TEMPLATES_PAGE_SIZE,
+                );
+                const paged = myTemplates.slice(
+                  myTemplatesPage * MY_TEMPLATES_PAGE_SIZE,
+                  (myTemplatesPage + 1) * MY_TEMPLATES_PAGE_SIZE,
+                );
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {paged.map((template) => (
+                        <MockInterviewTemplateCard
+                          key={template.id}
+                          template={template}
+                          onSelect={() => handleBookInterview(template)}
+                          onDelete={(e) => {
+                            e.stopPropagation();
+                            analytics.track("my_template_delete_initiated", {
+                              template_id: template.id,
+                            });
+                            setDeleteTemplateId(template.id);
+                          }}
+                          actionLabel="Practice"
+                        />
+                      ))}
+                    </div>
+
+                    {myTemplates.length > MY_TEMPLATES_PAGE_SIZE && (
+                      <Pager
+                        hasPrev={myTemplatesPage > 0}
+                        hasNext={myTemplatesPage < totalPages - 1}
+                        onPrev={() => setMyTemplatesPage((p) => p - 1)}
+                        onNext={() => setMyTemplatesPage((p) => p + 1)}
+                      />
+                    )}
+                  </>
+                );
+              })()
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Dialogs ──────────────────────────────────────────────────────────── */}
 
       {/* Booking Dialog */}
-
-      <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Book{" "}
-              {selectedTemplate?.name ||
-                `${selectedTemplate?.position} Interview`}
-            </DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-              <Wrench className="h-3.5 w-3.5 flex-shrink-0" />
-              {/* Choose to start your interview immediately or schedule it for a later time. */}
-              Session booking is temporarily disabled while we finalize the
-              platform.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-6 py-4">
-            {/* Start Now Option */}
-            <Card className="opacity-50 cursor-not-allowed">
-              <CardContent className="flex items-center gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Play className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">Start Now</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Begin your mock interview immediately with our AI
-                    interviewer
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  disabled={true}
-                  // onClick={() =>
-                  //   selectedTemplate && handleStartNow(selectedTemplate.id)
-                  // }
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Start
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or
-                </span>
-              </div>
-            </div>
-
-            {/* Schedule Option */}
-            <Card className="border-dashed opacity-50">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <CalendarClock className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Schedule for Later</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Pick a date and time that works best for you
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-date">Date</Label>
-                    <Input
-                      id="schedule-date"
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      min={new Date().toISOString().split("T")[0]}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-time">Time</Label>
-                    <Input
-                      id="schedule-time"
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  disabled={true}
-                  // onClick={() =>
-                  //   selectedTemplate &&
-                  //   handleScheduleInterview(selectedTemplate.id)
-                  // }
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Scheduling...
-                    </>
-                  ) : (
-                    <>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Schedule Interview
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Interview Details */}
-          {selectedTemplate && (
-            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-              <h4 className="text-sm font-medium">Interview Details</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Duration: {selectedTemplate.duration} min</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Star className="h-4 w-4" />
-                  <span>Difficulty: {selectedTemplate.difficulty}</span>
-                </div>
-              </div>
-              {selectedTemplate.topics &&
-                selectedTemplate.topics.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {selectedTemplate.topics.slice(0, 4).map((topic, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {topic}
-                      </Badge>
-                    ))}
-                    {selectedTemplate.topics.length > 4 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{selectedTemplate.topics.length - 4} more
-                      </Badge>
-                    )}
-                  </div>
-                )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <InterviewBookingDialog
+        open={isBookingDialogOpen}
+        onOpenChange={(open) => {
+          setIsBookingDialogOpen(open);
+          if (!open) setSelectedTemplate(null);
+        }}
+        template={selectedTemplate}
+        onNavigate={onNavigate}
+        onBooked={() => {
+          setActiveTab("booked");
+          loadBookedInterviews();
+        }}
+      />
 
       {/* Upgrade Dialog */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
@@ -1779,9 +1373,260 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             >
               Cancel
             </Button>
-            <Button onClick={() => onNavigate("/subscription/plans")}>
+            <Button
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "upgrade_dialog",
+                  tier: interviewAccess?.tier,
+                });
+                onNavigate("/subscription/plans");
+              }}
+            >
               <Crown className="h-4 w-4 mr-2" />
               View Plans
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete My Template Confirmation */}
+      <Dialog
+        open={!!deleteTemplateId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTemplateId(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Template
+            </DialogTitle>
+            <DialogDescription>
+              This template will be permanently deleted. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTemplateId(null)}
+              disabled={deletingTemplate}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMyTemplate}
+              disabled={deletingTemplate}
+            >
+              {deletingTemplate ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Template Dialog */}
+      <Dialog
+        open={isCreateTemplateDialogOpen}
+        onOpenChange={setIsCreateTemplateDialogOpen}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Interview Template</DialogTitle>
+            <DialogDescription>
+              Create a reusable interview template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Template Name *</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Backend Developer Interview"
+                value={templateFormData.name}
+                onChange={(e) =>
+                  handleTemplateFormChange("name", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="summary">Summary *</Label>
+              <Textarea
+                id="summary"
+                placeholder="Brief description of the template"
+                rows={3}
+                value={templateFormData.summary}
+                onChange={(e) =>
+                  handleTemplateFormChange("summary", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  placeholder="e.g., Backend Development"
+                  value={templateFormData.category}
+                  onChange={(e) =>
+                    handleTemplateFormChange("category", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="template-difficulty">Difficulty</Label>
+                <Select
+                  value={templateFormData.difficulty}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("difficulty", value)
+                  }
+                >
+                  <SelectTrigger id="template-difficulty">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">Easy</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="seniority" className="flex items-center gap-2">
+                  Seniority Level
+                </Label>
+                <Select
+                  value={templateFormData.seniority}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("seniority", value)
+                  }
+                >
+                  <SelectTrigger id="seniority">
+                    <SelectValue placeholder="Select seniority level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="junior">Junior</SelectItem>
+                    <SelectItem value="mid">Mid-Level</SelectItem>
+                    <SelectItem value="senior">Senior</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="style" className="flex items-center gap-2">
+                  Interview Style
+                </Label>
+                <Select
+                  value={templateFormData.style}
+                  onValueChange={(value) =>
+                    handleTemplateFormChange("style", value)
+                  }
+                >
+                  <SelectTrigger id="style">
+                    <SelectValue placeholder="Select interview style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Technical">Technical</SelectItem>
+                    <SelectItem value="Behavioral">Behavioral</SelectItem>
+                    <SelectItem value="Coding">Coding</SelectItem>
+                    <SelectItem value="System Design">System Design</SelectItem>
+                    <SelectItem value="Case Study">Case Study</SelectItem>
+                    <SelectItem value="Mixed">Mixed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="duration" className="flex items-center gap-2">
+                Duration
+              </Label>
+              <Select
+                value={templateFormData.duration + ""}
+                onValueChange={(value) =>
+                  handleTemplateFormChange("duration", value)
+                }
+              >
+                <SelectTrigger id="duration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[15, 30, 45, 60].map((d) => (
+                    <SelectItem
+                      key={d}
+                      value={d + ""}
+                      disabled={
+                        interviewAccess?.hasAccess === true &&
+                        !interviewAccess.allowedDurations.includes(d)
+                      }
+                    >
+                      {d} min
+                      {interviewAccess?.hasAccess &&
+                        !interviewAccess.allowedDurations.includes(d) &&
+                        " (Enterprise)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="topics">Topics</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="topics"
+                  placeholder="Add a topic"
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleAddTopic()}
+                />
+                <Button type="button" onClick={handleAddTopic}>
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {templateFormData.topics.map((topic, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => handleRemoveTopic(index)}
+                  >
+                    {topic} ×
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateTemplateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTemplate} disabled={creating}>
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Template"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

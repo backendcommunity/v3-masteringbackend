@@ -10,6 +10,7 @@ import {
   useTracks,
   useParticipants,
   useLocalParticipant,
+  useRoomContext,
   VideoTrack,
   AudioTrack,
 } from "@livekit/components-react";
@@ -17,20 +18,20 @@ import "@livekit/components-styles";
 import { ConnectionState, Track } from "livekit-client";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
+import { useInterviewTimer } from "@/lib/interview-timer-store";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // UI Components
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useMobile } from "@/hooks/use-mobile";
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { CodeEditorPanel } from "./mock-interviews/chat/code-editor-panel";
+import { WhiteboardPanel } from "./mock-interviews/chat/whiteboard-panel";
 import {
   Tooltip,
   TooltipContent,
@@ -40,8 +41,6 @@ import {
 import {
   AlertCircle,
   Loader2,
-  MessageSquare,
-  HelpCircle,
   Bot,
   User,
   Wifi,
@@ -53,6 +52,8 @@ import {
   PhoneOff,
   Volume2,
   VolumeX,
+  Code2,
+  PenTool,
 } from "lucide-react";
 
 // Custom Components
@@ -61,7 +62,6 @@ import {
   TranscriptEntry,
 } from "./mock-interviews/interview-transcript-panel";
 import { InterviewHeader } from "./mock-interviews/interview-header";
-import { InterviewQuestionCard } from "./mock-interviews/interview-question-card";
 
 // Types
 interface InterviewSession {
@@ -97,6 +97,9 @@ interface InterviewQuestion {
 interface MockInterviewSessionProps {
   sessionId: string;
   onNavigate: (path: string) => void;
+  // When embedded (e.g. inside a learning-path step) the room fills its parent
+  // (h-full) instead of the viewport (h-screen). Default false = standalone.
+  embedded?: boolean;
 }
 
 // =============================================================================
@@ -151,7 +154,7 @@ function VoiceAssistantStage() {
             state === "speaking"
               ? "bg-green-500"
               : state === "listening"
-                ? "bg-blue-500"
+                ? "bg-primary"
                 : state === "connecting"
                   ? "bg-yellow-500"
                   : "bg-gray-500",
@@ -192,7 +195,7 @@ function VoiceAssistantStage() {
               state === "speaking"
                 ? "bg-green-500 animate-[audioWave_0.5s_ease-in-out_infinite]"
                 : state === "listening"
-                  ? "bg-blue-500 animate-pulse"
+                  ? "bg-primary animate-pulse"
                   : "bg-primary/30",
             )}
             style={{
@@ -210,6 +213,8 @@ function VoiceAssistantStage() {
 // INTERVIEW STAGE - Main Video/Audio Stage
 // =============================================================================
 function InterviewStage({ className }: { className?: string }) {
+  // Subscribe to the participant list so the stage re-renders when the AI agent
+  // joins/leaves the room (and its camera track becomes available below).
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
   const connectionState = useConnectionState();
@@ -228,7 +233,7 @@ function InterviewStage({ className }: { className?: string }) {
       t.source === Track.Source.Camera,
   );
 
-  // Find remote participant (AI agent)
+  // The remote participant (AI agent) — present once it has joined the room.
   const remoteParticipant = participants.find(
     (p) => p.identity !== localParticipant?.identity,
   );
@@ -264,17 +269,6 @@ function InterviewStage({ className }: { className?: string }) {
         ) : (
           <VoiceAssistantStage />
         )}
-
-        {/* AI Label */}
-        <div className="absolute top-4 left-4 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm font-medium text-white">
-              {remoteParticipant?.identity || "Kap AI"}
-            </span>
-            <Bot className="w-4 h-4 text-primary" />
-          </div>
-        </div>
 
         {/* Connection Status */}
         <div className="absolute top-4 right-4 z-10 hidden md:block">
@@ -338,9 +332,11 @@ function InterviewStage({ className }: { className?: string }) {
 function MediaControls({
   onEndInterview,
   isEnding,
+  compact = false,
 }: {
   onEndInterview: () => void;
   isEnding?: boolean;
+  compact?: boolean;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
@@ -365,9 +361,17 @@ function MediaControls({
     });
   }, [isSpeakerMuted]);
 
+  const btn = compact ? "w-9 h-9 rounded-lg" : "w-12 h-12 rounded-xl";
+  const ic = compact ? "w-[17px] h-[17px]" : "w-5 h-5";
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex items-center justify-center  gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl">
+      <div
+        className={cn(
+          "flex items-center justify-center gap-2 p-3 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl",
+          compact && "gap-1 p-1.5 rounded-xl shadow-lg",
+        )}
+      >
         {/* Microphone */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -376,16 +380,17 @@ function MediaControls({
               size="icon"
               onClick={toggleMicrophone}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isMicrophoneEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isMicrophoneEnabled ? (
-                <Mic className="w-5 h-5" />
+                <Mic className={ic} />
               ) : (
-                <MicOff className="w-5 h-5" />
+                <MicOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -402,16 +407,17 @@ function MediaControls({
               size="icon"
               onClick={toggleCamera}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 isCameraEnabled
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {isCameraEnabled ? (
-                <Video className="w-5 h-5" />
+                <Video className={ic} />
               ) : (
-                <VideoOff className="w-5 h-5" />
+                <VideoOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -428,16 +434,17 @@ function MediaControls({
               size="icon"
               onClick={toggleSpeaker}
               className={cn(
-                "w-12 h-12 rounded-xl transition-all",
+                btn,
+                "transition-all",
                 !isSpeakerMuted
                   ? "bg-secondary hover:bg-secondary/80"
                   : "bg-destructive/20 hover:bg-destructive/30 text-destructive",
               )}
             >
               {!isSpeakerMuted ? (
-                <Volume2 className="w-5 h-5" />
+                <Volume2 className={ic} />
               ) : (
-                <VolumeX className="w-5 h-5" />
+                <VolumeX className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -446,7 +453,7 @@ function MediaControls({
           </TooltipContent>
         </Tooltip>
 
-        <div className="w-px h-8 bg-border/50 mx-1" />
+        <div className={cn("w-px bg-border/50 mx-1", compact ? "h-6" : "h-8")} />
 
         {/* End Interview */}
         <Tooltip>
@@ -456,12 +463,12 @@ function MediaControls({
               size="icon"
               onClick={onEndInterview}
               disabled={isEnding}
-              className="w-12 h-12 rounded-xl shadow-lg shadow-destructive/20"
+              className={cn(btn, "shadow-lg shadow-destructive/20")}
             >
               {isEnding ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className={ic} />
               )}
             </Button>
           </TooltipTrigger>
@@ -471,56 +478,6 @@ function MediaControls({
         </Tooltip>
       </div>
     </TooltipProvider>
-  );
-}
-
-// =============================================================================
-// INTERVIEW SIDEBAR CONTENT - Reusable content for desktop and mobile sidebar
-// =============================================================================
-function InterviewSidebarContent({
-  transcriptRef,
-  currentQuestion,
-}: {
-  transcriptRef: React.RefObject<TranscriptEntry[]>;
-  currentQuestion?: InterviewQuestion;
-}) {
-  return (
-    <Tabs defaultValue="transcript" className="flex-1 flex flex-col min-h-0">
-      <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent px-4 pt-2">
-        <TabsTrigger
-          value="transcript"
-          className="data-[state=active]:bg-secondary rounded-lg gap-2"
-        >
-          <MessageSquare className="w-4 h-4" />
-          Transcript
-        </TabsTrigger>
-        <TabsTrigger
-          value="tips"
-          className="data-[state=active]:bg-secondary rounded-lg gap-2"
-        >
-          <HelpCircle className="w-4 h-4" />
-          Tips
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent
-        value="transcript"
-        className="flex-1 m-0 p-0 min-h-0 overflow-hidden"
-      >
-        <InterviewTranscriptPanel
-          className="h-full border-0 rounded-none"
-          transcriptRef={transcriptRef}
-        />
-      </TabsContent>
-
-      <TabsContent value="tips" className="flex-1 m-0 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-4 space-y-4">
-            <InterviewTips questionType={currentQuestion?.type} />
-          </div>
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
   );
 }
 
@@ -536,6 +493,7 @@ function InterviewRoom({
   initialTimeRemaining,
   onNavigate,
   onTimeUpdate,
+  embedded = false,
 }: {
   sessionId: string;
   session: InterviewSession;
@@ -545,26 +503,114 @@ function InterviewRoom({
   initialTimeRemaining: number;
   onNavigate: (path: string) => void;
   onTimeUpdate?: (time: number) => void;
+  embedded?: boolean;
 }) {
   const store = useAppStore();
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
+  const connectionStatus: "connected" | "connecting" | "failed" =
+    connectionState === ConnectionState.Connected
+      ? "connected"
+      : connectionState === ConnectionState.Disconnected
+        ? "failed"
+        : "connecting";
   const currentQuestion = questions[currentQuestionIndex];
 
   // Ref that the transcript panel will update directly
   const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const room = useRoomContext();
   const [isEnding, setIsEnding] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(initialTimeRemaining);
   const hasEndedRef = useRef(false);
-  const isMobile = useMobile();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<"code" | "whiteboard">("code");
+  // Locally-injected transcript bubbles for shared code / diagrams.
+  const [sharedEntries, setSharedEntries] = useState<TranscriptEntry[]>([]);
+  // Viewport ≥1024px → side-by-side desktop layout; below → stacked mobile
+  // layout with a bottom tab switcher between the interview and the work tools.
+  // Gating on lgUp means the heavy panels mount in exactly one layout.
+  const [lgUp, setLgUp] = useState(true);
+  const [mobileTab, setMobileTab] = useState<"interview" | "workspace">(
+    "interview",
+  );
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-    } else {
-      handleEndInterview();
-    }
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLgUp(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (lgUp) setMobileTab("interview");
+  }, [lgUp]);
+
+  // Best-effort: deliver a chat message to the live Kap agent over LiveKit's
+  // text stream (the `lk.chat` topic agents listen on). Falls back to a raw
+  // data packet for older clients. Never throws.
+  const sendToAgent = useCallback(
+    async (text: string) => {
+      try {
+        const lp: any = room?.localParticipant;
+        if (!lp) return;
+        if (typeof lp.sendText === "function") {
+          await lp.sendText(text, { topic: "lk.chat" });
+        } else if (typeof lp.publishData === "function") {
+          const payload = new TextEncoder().encode(text);
+          await lp.publishData(payload, { reliable: true, topic: "lk.chat" });
+        }
+      } catch {
+        // agent may not consume chat data — artifact is still saved for grading
+      }
+    },
+    [room],
+  );
+
+  // "Send to Kap" from the code / whiteboard panels: persist for grading AND
+  // hand it to the live agent so Kap can react to it during the interview.
+  const saveCode = (code: string, language: string) => {
+    store.saveChatArtifact(sessionId, "code", code, language).catch(() => {});
+    sendToAgent(
+      `I'm sharing my code (${language || "plaintext"}):\n\n\`\`\`${
+        language || ""
+      }\n${code}\n\`\`\``,
+    );
+    const ts = Date.now();
+    setSharedEntries((prev) => [
+      ...prev,
+      {
+        id: `code-${ts}`,
+        speaker: "candidate",
+        speakerName: "You",
+        text: code,
+        kind: "code",
+        language,
+        timestamp: ts,
+        isFinal: true,
+      },
+    ]);
+    toast.success("Code shared with Kap");
+  };
+  const saveWhiteboard = (diagramJSON: string) => {
+    store.saveChatArtifact(sessionId, "whiteboard", diagramJSON).catch(() => {});
+    sendToAgent(
+      "I've drawn a diagram on the whiteboard to explain my approach. Please take a look and ask me about it.",
+    );
+    const ts = Date.now();
+    setSharedEntries((prev) => [
+      ...prev,
+      {
+        id: `wb-${ts}`,
+        speaker: "candidate",
+        speakerName: "You",
+        text: "Shared a whiteboard diagram",
+        kind: "whiteboard",
+        timestamp: ts,
+        isFinal: true,
+      },
+    ]);
+    toast.success("Whiteboard shared with Kap");
   };
 
   const handleEndInterview = useCallback(async () => {
@@ -577,10 +623,6 @@ function InterviewRoom({
     const allTranscript = transcriptRef.current || [];
     const finalTranscript = allTranscript.filter((t) => t.isFinal);
 
-    console.log("=== END INTERVIEW ===");
-    console.log("Total transcript entries:", allTranscript.length);
-    console.log("Final transcript entries:", allTranscript);
-    console.log("Transcript data:", JSON.stringify(allTranscript, null, 2));
 
     try {
       // End session and submit transcript
@@ -635,86 +677,238 @@ function InterviewRoom({
     session?.interviewConfig?.difficulty ||
     "Technical Interview";
 
-  return (
-    <div className="h-screen flex flex-col bg-background overflow-auto">
-      {/* Header */}
-      <InterviewHeader
-        interviewTitle={interviewTitle}
-        interviewType={interviewType}
-        currentQuestion={currentQuestionIndex + 1}
-        totalQuestions={questions.length}
-        timeRemaining={timeRemaining}
-        isConnected={isConnected}
-        onBack={handleBack}
-      />
+  const sessionAny = session as unknown as {
+    codeArtifact?: string | null;
+    codeLanguage?: string | null;
+    whiteboardArtifact?: unknown;
+  };
+  const savedDiagram =
+    sessionAny.whiteboardArtifact &&
+    typeof sessionAny.whiteboardArtifact === "object"
+      ? (sessionAny.whiteboardArtifact as object)
+      : undefined;
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Panel - Video Stage */}
-        <div className="flex-1 flex flex-col p-4 gap-4 min-w-0">
-          <div className="flex-1 relative min-h-0  overflow-hidden">
-            <InterviewStage className="w-full h-full" />
+  const tabBtn = (active: boolean) =>
+    cn(
+      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+      active
+        ? "bg-background text-foreground shadow-sm border border-border"
+        : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+    );
 
-            {/* Media Controls */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-              <MediaControls
-                onEndInterview={handleEndInterview}
-                isEnding={isEnding}
-              />
-            </div>
-          </div>
+  const fmtTime = (s: number) => {
+    const safe = Math.max(0, s);
+    const m = Math.floor(safe / 60);
+    const sec = safe % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
 
-          {/* Question Card */}
-          {currentQuestion && (
-            <div className="flex-shrink-0">
-              <InterviewQuestionCard
-                question={currentQuestion}
-                questionNumber={currentQuestionIndex + 1}
-                totalQuestions={questions.length}
-                onNextQuestion={handleNextQuestion}
-                isLastQuestion={currentQuestionIndex === questions.length - 1}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Sidebar - Hidden on mobile/tablet */}
-        <div className="hidden lg:flex w-[380px] flex-shrink-0 border-l border-border bg-card/50 flex-col">
-          <InterviewSidebarContent
-            transcriptRef={transcriptRef}
-            currentQuestion={currentQuestion}
-          />
-        </div>
-      </div>
-
-      {/* Mobile/Tablet Sidebar Trigger Button */}
-      <Button
-        variant="secondary"
-        size="icon"
-        className="fixed bottom-24 right-4 z-30 h-12 w-12 rounded-full shadow-lg lg:hidden"
-        onClick={() => setIsSidebarOpen(true)}
+  // Tab switcher for the work tools — shared by desktop panel + mobile overlay.
+  const workToolsTabs = (
+    <>
+      <button
+        onClick={() => setActivePanel("code")}
+        className={tabBtn(activePanel === "code")}
       >
-        <MessageSquare className="h-5 w-5" />
-        <span className="sr-only">Open Transcript</span>
-      </Button>
+        <Code2 className="w-3.5 h-3.5" />
+        Code Editor
+      </button>
+      <button
+        onClick={() => setActivePanel("whiteboard")}
+        className={tabBtn(activePanel === "whiteboard")}
+      >
+        <PenTool className="w-3.5 h-3.5" />
+        Whiteboard
+      </button>
+    </>
+  );
 
-      {/* Mobile/Tablet Sidebar Sheet */}
-      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-        <SheetContent
-          side="right"
-          className="w-[85vw] sm:w-[380px] p-0 flex flex-col"
+  // The active work-tool panel — mounted in EXACTLY ONE place at a time
+  // (desktop side panel OR mobile overlay) so we never run two Monaco editors.
+  const activeWorkPanel =
+    activePanel === "code" ? (
+      <CodeEditorPanel
+        onSendToKap={saveCode}
+        disabled={isEnding}
+        savedCode={sessionAny.codeArtifact}
+        savedLanguage={sessionAny.codeLanguage}
+      />
+    ) : (
+      <WhiteboardPanel
+        onSendToKap={saveWhiteboard}
+        disabled={isEnding}
+        savedDiagram={savedDiagram}
+      />
+    );
+
+  return (
+    <div
+      className={`${embedded ? "h-full" : "h-screen"} flex flex-col bg-background`}
+    >
+      {/* Header — standalone only. In the Path embed the path top bar owns
+          the timer/points and the path help slide-in owns the tips. */}
+      {!embedded && (
+        <InterviewHeader
+          interviewTitle={interviewTitle}
+          interviewType={interviewType}
+          timeRemaining={timeRemaining}
+          onBack={handleBack}
+          onEndInterview={handleEndInterview}
+          help={<InterviewTips questionType={currentQuestion?.type} />}
+        />
+      )}
+
+      {lgUp ? (
+        /* Desktop: chat-style split — video + transcript left, tools right. */
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
         >
-          <SheetHeader className="px-4 py-3 border-b">
-            <SheetTitle>Interview Panel</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 min-h-0">
-            <InterviewSidebarContent
-              transcriptRef={transcriptRef}
-              currentQuestion={currentQuestion}
-            />
+          {/* Left: focused video (top) + live transcript chat (below) */}
+          <ResizablePanel
+            defaultSize="55"
+            minSize="30"
+            maxSize="75"
+            className="flex flex-col min-h-0"
+          >
+            <ResizablePanelGroup
+              orientation="vertical"
+              className="mx-auto h-full min-h-0 w-full max-w-[900px]"
+            >
+              {/* Video stage */}
+              <ResizablePanel defaultSize="58" minSize="30" className="min-h-0">
+                <div className="relative h-full min-h-0 p-3 sm:p-4">
+                  <InterviewStage className="h-full w-full" />
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+                    <MediaControls
+                      onEndInterview={handleEndInterview}
+                      isEnding={isEnding}
+                    />
+                  </div>
+                </div>
+              </ResizablePanel>
+
+              {/* Same look as the video ↔ code/whiteboard divider */}
+              <ResizableHandle orientation="vertical" withHandle />
+
+              {/* Live transcript — scrollable, auto-scrolls, captures for grading */}
+              <ResizablePanel
+                defaultSize="42"
+                minSize="18"
+                className="min-h-0 p-3 pt-0 sm:p-4 sm:pt-0"
+              >
+                <InterviewTranscriptPanel
+                  className="h-full"
+                  transcriptRef={transcriptRef}
+                  injected={sharedEntries}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Right: code editor / whiteboard */}
+          <ResizablePanel
+            defaultSize="45"
+            minSize="25"
+            maxSize="70"
+            className="flex flex-col min-h-0"
+          >
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/20 flex-shrink-0">
+              {workToolsTabs}
+            </div>
+            <div className="flex-1 min-h-0">{activeWorkPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        /* Mobile: a bottom tab switcher flips between the interview and the
+           work tools. Both sections stay mounted (toggled with `hidden`) so the
+           editor/whiteboard keep their state across switches; only this mobile
+           branch renders (desktop is gated off), so panels mount exactly once. */
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* INTERVIEW section */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "interview" ? "flex" : "hidden",
+            )}
+          >
+            {/* Video stage + compact controls below it */}
+            <div className="flex-shrink-0 p-3 pb-1.5">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black/40">
+                <InterviewStage className="h-full w-full" />
+                <span
+                  className="absolute left-3 top-3 z-20 rounded-lg bg-black/55 px-2 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur"
+                  aria-label="Time remaining"
+                >
+                  {fmtTime(timeRemaining)}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-shrink-0 justify-center">
+                <MediaControls
+                  compact
+                  onEndInterview={handleEndInterview}
+                  isEnding={isEnding}
+                />
+              </div>
+            </div>
+            {/* Transcript fills the remaining space */}
+            <div className="min-h-0 flex-1 px-3 pb-2">
+              <InterviewTranscriptPanel
+                className="h-full"
+                transcriptRef={transcriptRef}
+                injected={sharedEntries}
+              />
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+
+          {/* WORKSPACE section (code editor / whiteboard) */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              mobileTab === "workspace" ? "flex" : "hidden",
+            )}
+          >
+            <div className="flex flex-shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-3 py-2">
+              {workToolsTabs}
+            </div>
+            <div className="min-h-0 flex-1">{activeWorkPanel}</div>
+          </div>
+
+          {/* Bottom tab switcher */}
+          <div className="flex flex-shrink-0 gap-1 border-t border-border bg-card p-1.5">
+            <button
+              type="button"
+              aria-selected={mobileTab === "interview"}
+              onClick={() => setMobileTab("interview")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "interview"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Video className="h-[18px] w-[18px]" />
+              Interview
+            </button>
+            <button
+              type="button"
+              aria-selected={mobileTab === "workspace"}
+              onClick={() => setMobileTab("workspace")}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition-colors",
+                mobileTab === "workspace"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              <Code2 className="h-[18px] w-[18px]" />
+              Workspace
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CRITICAL: RoomAudioRenderer handles all remote audio playback */}
       <RoomAudioRenderer />
@@ -728,8 +922,10 @@ function InterviewRoom({
 export function MockInterviewSessionPage({
   sessionId,
   onNavigate,
+  embedded = false,
 }: MockInterviewSessionProps) {
   const user = useUser();
+  const fill = embedded ? "h-full" : "h-screen";
   const store = useAppStore();
 
   // Session state
@@ -813,10 +1009,21 @@ export function MockInterviewSessionPage({
     setTimeRemaining(newTime);
   }, []);
 
+  // When embedded in a Path step, publish the countdown to the shared store so
+  // the Path top bar can show it next to the points. Clear it on unmount.
+  const setInterviewSeconds = useInterviewTimer((s) => s.setSeconds);
+  useEffect(() => {
+    if (!embedded) return;
+    setInterviewSeconds(session ? timeRemaining : null);
+    return () => setInterviewSeconds(null);
+  }, [embedded, session, timeRemaining, setInterviewSeconds]);
+
   // Loading state
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background">
+      <div
+        className={`${fill} flex flex-col items-center justify-center bg-background`}
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
@@ -838,7 +1045,9 @@ export function MockInterviewSessionPage({
   // Error state
   if (error) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div
+        className={`${fill} flex flex-col items-center justify-center bg-background p-4`}
+      >
         <Card className="max-w-md w-full">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center gap-4">
@@ -868,7 +1077,9 @@ export function MockInterviewSessionPage({
   // Session not found
   if (!session) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div
+        className={`${fill} flex flex-col items-center justify-center bg-background p-4`}
+      >
         <Card className="max-w-md w-full">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center gap-4">
@@ -908,10 +1119,14 @@ export function MockInterviewSessionPage({
         },
       }}
       data-lk-theme="default"
-      className="h-screen"
+      className={fill}
       onConnected={() => console.log("✅ Connected to LiveKit room")}
       onDisconnected={() => console.log("❌ Disconnected from LiveKit room")}
-      onError={(error) => console.error("LiveKit error:", error)}
+      onError={(err) => {
+        // Surfaced in the header connection pill via useConnectionState — don't
+        // escalate to a full-screen error here.
+        console.error("LiveKit error:", err?.message ?? err);
+      }}
     >
       <InterviewRoom
         sessionId={sessionId}
@@ -922,6 +1137,7 @@ export function MockInterviewSessionPage({
         initialTimeRemaining={timeRemaining}
         onNavigate={onNavigate}
         onTimeUpdate={handleTimeUpdate}
+        embedded={embedded}
       />
     </LiveKitRoom>
   );

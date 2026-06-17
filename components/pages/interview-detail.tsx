@@ -75,7 +75,7 @@ export function InterviewDetailPage({ interviewId, onNavigate }: InterviewDetail
             </Button>
             <div className="flex items-center gap-2">
               {project.type === "full-project" ? (
-                <Briefcase className="h-4 w-4 text-blue-600" />
+                <Briefcase className="h-4 w-4 text-primary" />
               ) : (
                 <Code className="h-4 w-4 text-green-600" />
               )}
@@ -127,7 +127,7 @@ export function InterviewDetailPage({ interviewId, onNavigate }: InterviewDetail
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   {project.type === "full-project" ? (
-                    <Briefcase className="h-5 w-5 text-blue-600" />
+                    <Briefcase className="h-5 w-5 text-primary" />
                   ) : (
                     <Code className="h-5 w-5 text-green-600" />
                   )}

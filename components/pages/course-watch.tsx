@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface CaptionCue {
   start: number;
@@ -39,6 +40,7 @@ function vttTimeToSec(t: string): number {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { Progress } from "@/components/ui/progress";
 import { VimeoPlayer } from "@/components/ui/vimeo-player";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -538,6 +540,11 @@ export function CourseWatchPage({
                     onEnded={() => setShowNextOverlay(true)}
                     onComplete={handleMarkComplete}
                     onTimeUpdate={handleTimeUpdate}
+                    onError={() =>
+                      toast.error(
+                        "This video failed to load. It may be unavailable or restricted.",
+                      )
+                    }
                   />
                   )}
 
@@ -644,6 +651,12 @@ export function CourseWatchPage({
                       toast.info("You need to pass this quiz. Try again");
                     if (passed) handleMarkComplete();
                   }}
+                  onClose={() => {
+                    // "Close Quiz" only renders after passing — advance to the
+                    // next video/chapter, then ensure the overlay is dismissed.
+                    handleContinueNext();
+                    setShowNextOverlay(false);
+                  }}
                 />
               </Card>
             )}
@@ -695,9 +708,7 @@ export function CourseWatchPage({
                     <div className="space-y-4">
                       <article
                         className="text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                        dangerouslySetInnerHTML={{
-                          __html: currentVideo?.summary!,
-                        }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentVideo?.summary!) }}
                       ></article>
                     </div>
                   </CardContent>
@@ -712,9 +723,7 @@ export function CourseWatchPage({
                           </div>
                           <p
                             className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                            dangerouslySetInnerHTML={{
-                              __html: currentVideo?.description!,
-                            }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentVideo?.description!) }}
                           ></p>
                         </div>
                       </CardContent>
@@ -759,7 +768,7 @@ export function CourseWatchPage({
                               key={note.id}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                                <div className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                                   {user?.name
                                     .split(" ")
                                     .map((n: any) => n[0])
@@ -836,7 +845,7 @@ export function CourseWatchPage({
                             className="flex items-center justify-between p-3 border rounded-lg"
                           >
                             <div className="flex items-center gap-3">
-                              <BookOpen className="h-4 w-4 text-blue-600" />
+                              <BookOpen className="h-4 w-4 text-primary" />
                               <div>
                                 <h4 className="font-medium">
                                   {resource.title}
@@ -966,7 +975,7 @@ export function CourseWatchPage({
                       key={video.id}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         video.id === currentVideo?.id
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleVideoClick(video)}
@@ -1098,7 +1107,7 @@ export function CourseWatchPage({
                       key={ch.slug}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                         ch.slug === chapter?.slug
-                          ? "border border-blue-200"
+                          ? "border border-primary/30"
                           : ""
                       }`}
                       onClick={() => handleChapterClick(ch)}
@@ -1188,10 +1197,12 @@ export function CourseWatchPage({
             </TabsContent>
 
             <TabsContent value="ask-kap">
-              <Card>
-                <CardHeader></CardHeader>
-
-                <CardContent> Coming soon!</CardContent>
+              <Card className="h-[480px] overflow-hidden p-0">
+                <KapTutorPanel
+                  scope="video"
+                  videoId={currentVideo?.id}
+                  title={currentVideo?.title}
+                />
               </Card>
             </TabsContent>
           </Tabs>

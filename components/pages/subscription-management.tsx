@@ -68,17 +68,23 @@ export function SubscriptionManagementPage({
   const [months, setMonths] = useState<string>("");
   const [enterprisePlan, setEnterprisePlan] = useState<any>();
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [subscription, setSubscription] = useState<any>(
-    user?.isPremium
-      ? user?.subscription
-      : {
-          plan: { name: "Free", monthlyPrice: 0 },
-          expiry: "Free forever",
-          status: "active",
-          paymentMethod: "No card added",
-          startDate: user?.createdAt,
-        },
-  );
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      setSubscription(
+        user.isPremium
+          ? user.subscription
+          : {
+              plan: { name: "Free", monthlyPrice: 0 },
+              expiry: "Free forever",
+              status: "active",
+              paymentMethod: "No card added",
+              startDate: user.createdAt,
+            },
+      );
+    }
+  }, [user]);
 
   const [stats, setStats] = useState<{
     amount: number;
@@ -170,7 +176,6 @@ export function SubscriptionManagementPage({
   };
 
   const handleDownloadInvoice = (invoiceId: string) => {
-    console.log("Downloading invoice:", invoiceId);
     // In a real app, this would download the invoice PDF
     // TODO: Add Download PDF
   };
@@ -223,6 +228,12 @@ export function SubscriptionManagementPage({
 
         {/* Subscription Tab */}
         <TabsContent value="subscription" className="space-y-6">
+          {!subscription ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              Loading subscription…
+            </div>
+          ) : <>
           {/* Current Plan */}
           <Card>
             <CardHeader className="pb-3">
@@ -652,6 +663,7 @@ export function SubscriptionManagementPage({
               </div>
             </CardContent>
           </Card>
+          </>}
         </TabsContent>
 
         {/* Billing History Tab */}
@@ -659,7 +671,7 @@ export function SubscriptionManagementPage({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#13AECE]" />
+                <Calendar className="h-5 w-5 text-primary" />
                 Billing History
               </CardTitle>
               <CardDescription>
@@ -736,7 +748,7 @@ export function SubscriptionManagementPage({
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-[#13AECE]">
+                  <div className="text-2xl font-bold text-primary">
                     ${stats?.amount?.toFixed(2) ?? 0.0}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -769,7 +781,7 @@ export function SubscriptionManagementPage({
 
       {/* Upgrade Suggestion */}
       {subscription?.name?.trim()?.toLowerCase() === "pro" && (
-        <Card className="bg-gradient-to-r from-[#EB5757]/10 to-[#EB5757]/5 border-[#EB5757]/20 mt-6">
+        <Card className="bg-[#EB5757]/10 border-[#EB5757]/20 mt-6">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex flex-col md:flex-row md:items-center gap-4">

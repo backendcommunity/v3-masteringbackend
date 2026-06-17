@@ -5,6 +5,7 @@
 
 # next.js
 /.next/
+/.next-verify/
 /out/
 
 # production
@@ -28,3 +29,8 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+.superpowers
+/app/preview/
+.gstack/
+/docs

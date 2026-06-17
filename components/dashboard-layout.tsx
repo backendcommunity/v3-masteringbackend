@@ -10,9 +10,14 @@ import { useUserStore } from "@/lib/user-store";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  /**
+   * Full-bleed mode: skip the centered `max-w-7xl` content container.
+   * Use for immersive pages (course/path watch, playground) that need full width.
+   */
+  fluid?: boolean;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
   const isMobile = useMobile();
   const pathname = usePathname();
   const router = useRouter();
@@ -39,6 +44,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [isMobile]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // Lock background scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isMobile, sidebarOpen]);
 
   // Handle ?redirect= for OAuth existing users and post-onboarding navigation
   useEffect(() => {
@@ -71,53 +86,51 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         isMobile={isMobile}
       />
 
-      <div className="flex min-h-screen bg-background  overflow-hidden relative">
-        {/* Sidebar */}
-        <div
-          className={`fixed inset-y-0 top-0 left-0 z-50 md:translate-x-0 h-full transition-transform duration-300 ease-in-out
+      <div className="flex min-h-screen bg-background overflow-hidden relative">
+        {/* Sidebar — fixed drawer on mobile, persistent rail on desktop.
+            Mobile is ALWAYS the full-width drawer (w-72); the collapsed rail is
+            a desktop-only concept, so width/margin switch at the md breakpoint
+            via CSS, not the JS isMobile flag (avoids hydration flash). */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 h-full bg-[#0E1F33] transition-transform duration-300 ease-in-out
+          md:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          ${
-            isMobile && !isCollapsed
-              ? "w-72 z-40"
-              : isCollapsed
-                ? "w-20"
-                : "w-72"
-          }
-          bg-backgroun border-r border-border`}
+          w-72 ${isCollapsed ? "md:w-20" : "md:w-72"}`}
         >
           <DashboardSidebar
             onCollapsed={setIsCollapsed}
             currentPath={pathname ?? "/"}
             onNavigate={handleNavigate}
             isMobile={isMobile}
-            isCollapsed={isCollapsed}
+            // Never render the narrow collapsed UI inside the mobile drawer.
+            isCollapsed={isMobile ? false : isCollapsed}
           />
-        </div>
+        </aside>
 
-        {/* Mobile overlay */}
-        {isMobile && sidebarOpen && (
+        {/* Mobile overlay — below the drawer (z-40), above content. */}
+        {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-30"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Main content area */}
+        {/* Main content area — drawer overlays on mobile (no margin), rail
+            offsets on desktop via CSS breakpoints. */}
         <div
-          className={`flex-1 flex w-full flex-col transition-all duration-300
-          ${
-            !isMobile
-              ? sidebarOpen
-                ? isCollapsed
-                  ? "md:ml-20"
-                  : "md:ml-72"
-                : "ml-0"
-              : "ml-0"
-          }
-          `}
+          className={`flex-1 flex w-full min-w-0 flex-col transition-all duration-300 ${
+            isCollapsed ? "md:ml-20" : "md:ml-72"
+          }`}
         >
-          <main className="flex-1 overflow-y-auto w-full p-4 md:p-6">
-            {children}
+          {/* Centralized content container — every page aligns to the same
+              `max-w-7xl` width + `px-6 py-6` padding (matches mock-interviews).
+              Full-bleed pages opt out via `fluid`. */}
+          <main className="flex-1 overflow-y-auto w-full">
+            {fluid ? (
+              <div className="p-4 md:p-6">{children}</div>
+            ) : (
+              <div className="mx-auto w-full max-w-7xl px-6 py-6">{children}</div>
+            )}
           </main>
           {/* <KapAIAssistant /> */}
         </div>

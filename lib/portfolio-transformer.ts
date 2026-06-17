@@ -63,6 +63,7 @@ export function transformPortfolioResponse(
       isPremium: response.user.isPremium ?? false, // ✅ From API (User.isPremium)
       isTrial: response.user.isTrial ?? false, // ✅ From API (User.isTrial)
       isOpenToWork: response.user.openToWork || false, // ✅ From API (user.openToWork)
+      leagueTier: response.user.leagueTier ?? null,
       joinedAt: response.user.joinedAt,
       resume: response.user.resume, // ✅ From API (user.resume)
       socialLinks: {
@@ -79,6 +80,8 @@ export function transformPortfolioResponse(
       certificates: response.stats.certificates,
       globalRank: response.stats.globalRank,
       totalUsers: response.stats.totalUsers,
+      interviewAvgScore: response.stats.interviewAvgScore,
+      isInterviewReady: response.stats.isInterviewReady,
     },
     skills: (response.skills ?? []).map((s) => ({
       name: s.name,
@@ -86,6 +89,9 @@ export function transformPortfolioResponse(
       projectCount: s.projectCount,
       maxProjectCount: s.maxProjectCount,
       coursesCompleted: s.coursesCompleted || 0,
+      courseCount: s.courseCount ?? s.coursesCompleted ?? 0, // ✅ From API (evidence count)
+      projects: s.projects ?? [], // ✅ From API (evidence: linked projects, capped at 6)
+      courses: s.courses ?? [], // ✅ From API (evidence: linked courses, capped at 6)
     })),
     projects: response.projects.map((p) => ({
       id: p.id,

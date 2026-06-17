@@ -21,7 +21,7 @@ export default function CoursePlaygroundPageRoute({
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <CoursePlaygroundPage
         playgroundId={params.playgroundId}
         courseId={params.courseId}

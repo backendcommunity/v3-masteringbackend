@@ -1,9 +1,26 @@
 import axios from "axios";
+import { registerActivitySource } from "@/lib/activity";
+import { isPublicPath } from "@/lib/public-paths";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3",
   withCredentials: true,
 });
+
+// An in-flight request is a short-lived activity SOURCE, not a clock reset.
+// Holding a source keeps the user "active" only while a request is pending, so a
+// genuine long-running operation prevents idle — but routine background polling
+// (e.g. the notification bell every 10s) releases in ~50ms and does NOT keep the
+// session alive forever. Using markActivity() here would defeat idle detection
+// entirely for any tab with background polling.
+api.interceptors.request.use((config) => {
+  (config as { __activityRelease?: () => void }).__activityRelease =
+    registerActivitySource();
+  return config;
+});
+const releaseActivity = (config: unknown) => {
+  (config as { __activityRelease?: () => void } | undefined)?.__activityRelease?.();
+};
 
 let isRefreshing = false;
 let isHandlingAuthFailure = false;
@@ -25,6 +42,9 @@ export const handleAuthFailure = async () => {
   if (isHandlingAuthFailure) return;
   if (typeof window === "undefined") return;
   if (window.location.pathname.includes("/auth/")) return;
+  // Never bounce a logged-out visitor off a public page (portfolio, cert verify)
+  // — a 401 from a stray authed call here must fail silently, not redirect.
+  if (isPublicPath(window.location.pathname)) return;
 
   isHandlingAuthFailure = true;
 
@@ -44,13 +64,21 @@ export const handleAuthFailure = async () => {
   // (page reload resets the module anyway, but this prevents silent failure in edge cases)
   setTimeout(() => { isHandlingAuthFailure = false; }, 5000);
 
-  window.location.href = "/auth/login";
+  const { pathname, search } = window.location;
+  const here = pathname + search;
+  const redirect =
+    here && here !== "/" ? `?redirect=${encodeURIComponent(here)}` : "";
+  window.location.href = `/auth/login${redirect}`;
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    releaseActivity(response.config);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    releaseActivity(originalRequest);
 
     const is401 = error?.response?.status === 401;
     const isRefreshEndpoint = originalRequest?.url?.includes("/auth/refresh");
@@ -77,7 +105,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post("/auth/refresh");
+        const { refreshSession } = await import("@/lib/auth-refresh");
+        await refreshSession();
         processQueue(null);
         isRefreshing = false;
         return api(originalRequest);

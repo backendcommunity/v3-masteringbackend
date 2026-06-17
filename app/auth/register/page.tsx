@@ -131,8 +131,6 @@ function RegisterContent() {
         error?.message ??
         "Registration failed. Please try again.";
 
-      console.log(error, message);
-
       if (
         message.toLowerCase().includes("verify") ||
         message.toLowerCase().includes("verification")
@@ -155,7 +153,7 @@ function RegisterContent() {
     <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-white to-[#97C3CC]/20 dark:from-[#0A0F1C] dark:via-[#1E293B] dark:to-[#0F172A] flex items-center justify-center p-4">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-[#13AECE]/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 dark:bg-[#0EA5E9]/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-[10%] right-[5%] w-80 h-80 bg-[#97C3CC]/10 dark:bg-[#475569]/20 rounded-full blur-3xl"></div>
       </div>
 
@@ -273,7 +271,7 @@ function RegisterContent() {
                   onChange={(e) =>
                     setFormData({ ...formData, firstName: e.target.value })
                   }
-                  className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                  className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                   placeholder="John"
                   required
                 />
@@ -292,7 +290,7 @@ function RegisterContent() {
                   onChange={(e) =>
                     setFormData({ ...formData, lastName: e.target.value })
                   }
-                  className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                  className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                   placeholder="Doe"
                   required
                 />
@@ -314,7 +312,7 @@ function RegisterContent() {
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                className="w-full px-4 py-3 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                 placeholder="john@example.com"
                 required
               />
@@ -336,7 +334,7 @@ function RegisterContent() {
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="w-full px-4 py-3 pr-12 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
+                  className="w-full px-4 py-3 pr-12 bg-white dark:bg-[#0F172A] border border-[#97C3CC]/20 dark:border-[#475569]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-[#0EA5E9] focus:border-transparent text-[#0E1F33] dark:text-[#F1F5F9] placeholder-[#0E1F33]/50 dark:placeholder-[#94A3B8]"
                   placeholder="Create a strong password"
                   required
                 />
@@ -466,7 +464,7 @@ function RegisterContent() {
                     formData.confirmPassword &&
                     formData.password !== formData.confirmPassword
                       ? "border-red-300 focus:ring-red-500"
-                      : "border-[#97C3CC]/20 dark:border-[#475569]/20 focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9]"
+                      : "border-[#97C3CC]/20 dark:border-[#475569]/20 focus:ring-primary dark:focus:ring-[#0EA5E9]"
                   }`}
                   placeholder="Confirm your password"
                   required
@@ -498,21 +496,21 @@ function RegisterContent() {
                   type="checkbox"
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 text-[#13AECE] dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:ring-2"
+                  className="w-4 h-4 mt-0.5 text-primary dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-primary dark:focus:ring-[#0EA5E9] focus:ring-2"
                   required
                 />
                 <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9]">
                   I agree to the{" "}
                   <a
                     href="#"
-                    className="text-[#13AECE] dark:text-[#0EA5E9] hover:underline"
+                    className="text-primary dark:text-[#0EA5E9] hover:underline"
                   >
                     Terms of Service
                   </a>{" "}
                   and{" "}
                   <a
                     href="#"
-                    className="text-[#13AECE] dark:text-[#0EA5E9] hover:underline"
+                    className="text-primary dark:text-[#0EA5E9] hover:underline"
                   >
                     Privacy Policy
                   </a>
@@ -524,7 +522,7 @@ function RegisterContent() {
                   type="checkbox"
                   checked={subscribeNewsletter}
                   onChange={(e) => setSubscribeNewsletter(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 text-[#13AECE] dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-[#13AECE] dark:focus:ring-[#0EA5E9] focus:ring-2"
+                  className="w-4 h-4 mt-0.5 text-primary dark:text-[#0EA5E9] bg-white dark:bg-[#0F172A] border-[#97C3CC]/20 dark:border-[#475569]/20 rounded focus:ring-primary dark:focus:ring-[#0EA5E9] focus:ring-2"
                 />
                 <span className="text-sm text-[#0E1F33] dark:text-[#F1F5F9]">
                   Subscribe to our newsletter for backend tips and career advice
@@ -559,7 +557,7 @@ function RegisterContent() {
                     ? `/auth/login?redirect=${encodeURIComponent(redirect)}`
                     : "/auth/login"
                 }
-                className="text-[#13AECE] dark:text-[#0EA5E9] hover:text-[#13AECE]/80 dark:hover:text-[#0284C7] transition-colors font-medium"
+                className="text-primary dark:text-[#0EA5E9] hover:text-primary/80 dark:hover:text-[#0284C7] transition-colors font-medium"
               >
                 Sign in
               </a>

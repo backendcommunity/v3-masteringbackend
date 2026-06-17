@@ -15,6 +15,7 @@ import {
 import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { Quiz } from "@/lib/data";
+import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { Loader } from "../ui/loader";
@@ -26,6 +27,9 @@ interface CourseQuizPageProps {
   onNavigate: (path: string) => void;
   showNav?: boolean;
   handleQuizSubmit: (passed: boolean) => void;
+  // Called when the learner closes the quiz after passing — lets the parent
+  // advance to the next video/chapter automatically.
+  onClose?: () => void;
 }
 
 export function CourseQuizPage({
@@ -34,6 +38,7 @@ export function CourseQuizPage({
   onNavigate,
   showNav = true,
   handleQuizSubmit,
+  onClose,
 }: CourseQuizPageProps) {
   const store = useAppStore();
 
@@ -115,7 +120,7 @@ export function CourseQuizPage({
 
     const finalScore =
       totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-    const passed = finalScore >= (quiz?.passingScore ?? 50);
+    const passed = finalScore >= (quiz?.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE);
 
     setScore(finalScore);
     setQuizStatus("completed");
@@ -177,7 +182,11 @@ export function CourseQuizPage({
     setTimeLeft((quiz?.timeLimit ?? 20) * 60);
   };
 
-  const handleClose = () => setQuizStatus("not_started");
+  const handleClose = () => {
+    setQuizStatus("not_started");
+    // After a pass, closing should auto-advance to the next video/chapter.
+    onClose?.();
+  };
 
   // ===============================
   // Render Logic
@@ -242,9 +251,9 @@ export function CourseQuizPage({
             </CardHeader>
             <CardContent className="space-y-6 dark:text-white">
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-center p-4 bg-primary/5 rounded-lg">
                   <p className="text-sm text-gray-600">Questions</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-primary">
                     {quiz?.questions?.length}
                   </p>
                 </div>
@@ -388,7 +397,7 @@ export function CourseQuizPage({
           ? quiz.userQuiz.bestScore
           : quiz.userQuiz?.score;
 
-    const passed = _score >= (quiz.passingScore ?? 50);
+    const passed = _score >= (quiz.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE);
     const questions = quiz.userQuiz?.items ?? quiz?.questions;
 
     return (

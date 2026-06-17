@@ -187,7 +187,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         avatar: publicUrl + "?t=" + Date.now(),
       }); // Cache-busting query param
       if (updated) {
-        console.log(updated, publicUrl);
         updateUser(updated);
         // Update formData to show the new avatar immediately
         setFormData((prev) => ({ ...prev, avatar: publicUrl }));
@@ -232,7 +231,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   ];
 
   return (
-    <div className="px-4 py-6 md:py-8 lg:py-10 max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

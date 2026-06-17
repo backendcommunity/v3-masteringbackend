@@ -19,7 +19,7 @@ const OPTIONS: {
     title: "1–3 hours",
     description: "Steady exploration. No rush.",
     multiplier: 1,
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   {
     value: "steady",
@@ -99,7 +99,7 @@ export function OnboardingTime({
           disabled={!value}
           className="flex-1 font-bold rounded-lg py-3 transition-all"
           style={{
-            background: value ? "#13AECE" : "rgba(19, 174, 206, 0.3)",
+            background: value ? "hsl(var(--primary))" : "rgba(19, 174, 206, 0.3)",
             color: "#FFFFFF",
             fontSize: 16,
             cursor: value ? "pointer" : "not-allowed",

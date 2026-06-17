@@ -97,7 +97,7 @@ export function CommunityPage() {
   ];
 
   return (
-    <div className="flex- relative space-y-6 w-full">
+    <div className="relative space-y-6 w-full">
       <WIP />
 
       {/* Header */}

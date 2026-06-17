@@ -1,241 +1,300 @@
 "use client";
 
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import socket from "@/lib/socketIo";
 import { useUser } from "@/hooks/use-user";
-import { X, RefreshCw } from "lucide-react";
+import { TerminalSquare, Trash2, HelpCircle, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 import "xterm/css/xterm.css";
-
-let XTerm: any, FitAddon: any;
-if (typeof window !== "undefined") {
-  XTerm = require("xterm").Terminal;
-  FitAddon = require("xterm-addon-fit").FitAddon;
-}
 
 interface TerminalProps {
   slug: string;
   output?: string[];
   onClose: (open: boolean) => void;
+  collapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export function Terminal({ slug, onClose, output }: TerminalProps) {
+// Mock-matched dark theme (navy/cyan/teal palette).
+const XTERM_DARK = {
+  background: "#171b26",
+  foreground: "#cbd5e1",
+  cursor: "#13aece",
+  cursorAccent: "#171b26",
+  selectionBackground: "rgba(19,174,206,0.30)",
+  black: "#0c0f16",
+  red: "#ef5d6b",
+  green: "#5fb0b0",
+  yellow: "#f2c94c",
+  blue: "#13aece",
+  magenta: "#2bb8d8",
+  cyan: "#5fb0b0",
+  white: "#cbd5e1",
+  brightBlack: "#5e6678",
+  brightRed: "#ef5d6b",
+  brightGreen: "#5fb0b0",
+  brightYellow: "#f2c94c",
+  brightBlue: "#2bb8d8",
+  brightMagenta: "#2bb8d8",
+  brightCyan: "#5fb0b0",
+  brightWhite: "#e7ebf3",
+};
+
+// Light theme — white surface, dark ink, same brand accents.
+const XTERM_LIGHT = {
+  background: "#ffffff",
+  foreground: "#0f172a",
+  cursor: "#0f8ba8",
+  cursorAccent: "#ffffff",
+  selectionBackground: "rgba(19,174,206,0.18)",
+  black: "#0f172a",
+  red: "#dc2626",
+  green: "#347474",
+  yellow: "#b45309",
+  blue: "#0f8ba8",
+  magenta: "#13aece",
+  cyan: "#347474",
+  white: "#475569",
+  brightBlack: "#94a3b8",
+  brightRed: "#dc2626",
+  brightGreen: "#347474",
+  brightYellow: "#b45309",
+  brightBlue: "#13aece",
+  brightMagenta: "#13aece",
+  brightCyan: "#347474",
+  brightWhite: "#0f172a",
+};
+
+// Colour the playground's run-log lines (project:run output) as they stream in.
+const ansi = (line: string) => {
+  const l = line ?? "";
+  if (l.startsWith("$")) return `\x1b[36m${l}\x1b[0m`; // command → cyan
+  if (l.startsWith("✓") || l.startsWith("✔")) return `\x1b[32m${l}\x1b[0m`; // ok → green
+  if (l.startsWith("✗") || l.startsWith("✖")) return `\x1b[31m${l}\x1b[0m`; // fail → red
+  if (l.startsWith(">")) return `\x1b[38;5;244m${l}\x1b[0m`; // npm subline → dim
+  return l;
+};
+
+export function Terminal({
+  slug,
+  onClose,
+  output,
+  collapsed,
+  onToggle,
+}: TerminalProps) {
   const user = useUser();
-  const [terminalSession, setTerminalSession] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [terminalInput, setTerminalInput] = useState<string>("");
-  const [terminalOutput, setTerminalOutput] = useState<string[]>(
-    Array.isArray(output) && output.length
-      ? output
-      : ["Welcome to MB Projects Terminal"]
-  );
+  const { theme } = useTheme();
+  const isDark = !theme || theme.includes("dark");
+  const hostRef = useRef<HTMLDivElement>(null);
+  const xtRef = useRef<any>(null);
+  const fitRef = useRef<any>(null);
+  const sessionRef = useRef<string | null>(null);
+  const writtenRef = useRef(0); // run-log lines already written
 
-  const terminalInputRef = useRef<string | undefined>("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-
+  // ── boot a real xterm + wire the PTY socket ──
   useEffect(() => {
-    if (Array.isArray(output) && output.length) {
-      setTerminalOutput(output);
-    }
-  }, [output]);
+    if (!hostRef.current || xtRef.current) return;
+    // client-only deps
+    const XTerm = require("xterm").Terminal;
+    const FitAddon = require("xterm-addon-fit").FitAddon;
 
-  // keep ref synced
-  useEffect(() => {
-    terminalInputRef.current = terminalInput;
-  }, [terminalInput]);
+    const xt = new XTerm({
+      theme: isDark ? XTERM_DARK : XTERM_LIGHT,
+      fontFamily: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
+      fontSize: 12.5,
+      lineHeight: 1.35,
+      cursorBlink: true,
+      convertEol: true,
+      scrollback: 2000,
+      letterSpacing: 0,
+    });
+    const fit = new FitAddon();
+    xt.loadAddon(fit);
+    xtRef.current = xt;
+    fitRef.current = fit;
 
-  // initialize terminal session
-  useEffect(() => {
-    socket.emit("term:start", { userId: user?.id, projectName: slug });
+    const host = hostRef.current;
+    let opened = false;
+    const safeFit = () => {
+      if (!host || !host.offsetWidth || !host.offsetHeight) return;
+      try {
+        fit.fit();
+      } catch {}
+    };
+    // Defer open()/fit() until the host actually has a size. Opening xterm on a
+    // zero-size element (collapsed terminal panel, or before layout settles)
+    // leaves the renderer without dimensions, and the next refresh throws
+    // "Cannot read properties of undefined (reading 'dimensions')". The
+    // ResizeObserver below opens it the moment the host gets a real size.
+    const openTerminal = () => {
+      if (opened || !host || !host.offsetWidth || !host.offsetHeight) return;
+      opened = true;
+      xt.open(host);
+      safeFit();
+      // seed any run-log lines collected before the terminal opened
+      const out = output ?? [];
+      for (let i = writtenRef.current; i < out.length; i++)
+        xt.writeln(ansi(out[i]));
+      writtenRef.current = out.length;
+      // start the interactive PTY (cols/rows now reflect the fitted size)
+      socket.emit("term:start", {
+        userId: user?.id,
+        projectName: slug,
+        cols: xt.cols,
+        rows: xt.rows,
+      });
+    };
+    requestAnimationFrame(openTerminal);
+
+    // forward every keystroke to the PTY (raw — the shell echoes back)
+    const dataDisp = xt.onData((d: string) => {
+      if (sessionRef.current)
+        socket.emit("term:stdin", {
+          sessionId: sessionRef.current,
+          userId: user?.id,
+          projectName: slug,
+          data: d,
+        });
+    });
+
+    const onTermData = ({ sessionId, data }: any) => {
+      if (opened && (!sessionRef.current || sessionId === sessionRef.current))
+        xt.write(data);
+    };
+    const onStarted = ({ sessionId }: { sessionId: string }) => {
+      sessionRef.current = sessionId;
+    };
+    const onExit = () => {
+      xt.writeln("\r\n\x1b[38;5;244m[session ended — restart to reconnect]\x1b[0m");
+      sessionRef.current = null;
+    };
+    const onError = ({ message }: any) => {
+      if (message) xt.writeln(`\x1b[31m${message}\x1b[0m`);
+    };
+
+    socket.on("term:data", onTermData);
+    socket.on("term:started", onStarted);
+    socket.on("term:restarted", onStarted);
+    socket.on("term:exit", onExit);
+    socket.on("term:error", onError);
+
+    const ro = new ResizeObserver(() => {
+      if (!opened) openTerminal();
+      else safeFit();
+    });
+    ro.observe(hostRef.current);
 
     return () => {
-      if (terminalSession)
-        socket.emit("term:stop", { sessionId: terminalSession });
-      socket.off("term:data");
-      socket.off("term:error");
-      socket.off("term:started");
-      socket.off("term:restarted");
-      socket.off("term:exit");
+      dataDisp.dispose();
+      ro.disconnect();
+      socket.off("term:data", onTermData);
+      socket.off("term:started", onStarted);
+      socket.off("term:restarted", onStarted);
+      socket.off("term:exit", onExit);
+      socket.off("term:error", onError);
+      if (sessionRef.current)
+        socket.emit("term:stop", { sessionId: sessionRef.current });
+      xt.dispose();
+      xtRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // socket event listeners
+  // stream new run-log lines into xterm as the playground appends them
   useEffect(() => {
-    const onData = ({
-      data,
-      sessionId,
-    }: {
-      data: string;
-      sessionId: string;
-    }) => {
-      if (sessionId !== terminalSession) return;
-      const command = terminalInputRef.current;
-      const lines = data.split(/\r?\n/).filter((line, idx) => {
-        if (idx === 0 && command && line.trim() === command.trim())
-          return false;
-        return line !== "";
-      });
-      if (lines.length) setTerminalOutput((prev) => [...prev, ...lines]);
-    };
+    const xt = xtRef.current;
+    if (!xt || !output) return;
+    for (let i = writtenRef.current; i < output.length; i++)
+      xt.writeln(ansi(output[i]));
+    writtenRef.current = output.length;
+  }, [output]);
 
-    const onError = ({ data }: any) =>
-      setTerminalOutput((prev) =>
-        prev.includes(data?.message) ? prev : [...prev, data?.message]
-      );
+  // live-switch the xterm palette when the app theme flips
+  useEffect(() => {
+    if (xtRef.current) xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
+  }, [isDark]);
 
-    const onStarted = ({ sessionId }: { sessionId: string }) => {
-      setTerminalSession(sessionId);
-      setError("");
-    };
-
-    const onRestarted = ({ sessionId }: { sessionId: string }) => {
-      setTerminalSession(sessionId);
-      setError("");
-    };
-
-    const onExit = () => {
-      setTerminalOutput((prev) => [...prev, "Session ended."]);
-      setError("Session ended.");
-    };
-
-    socket.on("term:data", onData);
-    socket.on("term:error", onError);
-    socket.on("term:started", onStarted);
-    socket.on("term:restarted", onRestarted);
-    socket.on("term:exit", onExit);
-
-    return () => {
-      socket.off("term:data", onData);
-      socket.off("term:error", onError);
-      socket.off("term:started", onStarted);
-      socket.off("term:restarted", onRestarted);
-      socket.off("term:exit", onExit);
-    };
-  }, [terminalSession]);
-
-  // auto scroll on output change
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      el.scrollTo({
-        top: el.scrollHeight,
-        behavior: "smooth",
-      });
-    });
-  }, [terminalOutput]);
-
-  const handleData = (data: string) => {
-    if (!terminalSession) return;
-    socket.emit("term:stdin", {
-      sessionId: terminalSession,
-      userId: user?.id,
-      projectName: slug,
-      data: data + "\n",
-    });
-  };
-
-  const clearTerminal = () => {
-    setTerminalOutput(["Welcome to MB Projects Terminal"]);
-  };
-
-  const restartTerminal = () => {
+  const clearTerm = () => xtRef.current?.clear();
+  const restartTerm = () =>
     socket.emit("term:start", { userId: user?.id, projectName: slug });
-  };
-
-  const handleTerminalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const command = terminalInput.trim();
-    if (!command) return;
-
-    if (command.toLowerCase().includes("clear")) {
-      clearTerminal();
-      setTerminalInput("");
-      return;
-    }
-
-    setTerminalOutput((prev) => [...prev, `$ ${command}`]);
-    handleData(command);
-    setTerminalInput("");
+  const showHelp = () => {
+    const xt = xtRef.current;
+    if (!xt) return;
+    [
+      "\x1b[1;36mAvailable commands\x1b[0m",
+      "  \x1b[36mnpm start\x1b[0m   run your server",
+      "  \x1b[36mls\x1b[0m          list project files",
+      "  \x1b[36mnode -v\x1b[0m     print the Node version",
+      "  \x1b[36mclear\x1b[0m       clear the terminal",
+    ].forEach((l) => xt.writeln(l));
   };
 
   return (
-    <div className="h-full flex flex-col bg-black text-green-400 rounded-lg overflow-hidden relative">
-      {/* Header */}
-      <div className="flex items-center justify-between p-2 bg-gray-800 border-b border-gray-700">
-        <span className="text-xs font-medium text-gray-200">Terminal</span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 text-gray-400 hover:text-white"
-            onClick={() => onClose(false)}
+    <div className="h-full flex flex-col bg-background overflow-hidden">
+      {/* Header — 32px, matches mock */}
+      <div className="flex items-center gap-2.5 h-8 flex-none pr-2 pl-3 border-b border-border bg-secondary">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] uppercase text-foreground">
+          <TerminalSquare className="h-3.5 w-3.5 text-[#5fb0b0]" />
+          Terminal
+        </span>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Show terminal commands"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+          onClick={showHelp}
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Clear terminal"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+          onClick={clearTerm}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Restart terminal"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+          onClick={restartTerm}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
+          title={collapsed ? "Expand" : "Collapse"}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+          onClick={() => (onToggle ? onToggle() : onClose(false))}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              collapsed && "rotate-180",
+            )}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            <X className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 text-gray-400 hover:text-white"
-            onClick={restartTerminal}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </Button>
       </div>
 
-      {/* Scrollable Output */}
-      <div
-        ref={scrollRef}
-        className="flex-1 p-3 overflow-y-auto space-y-1 font-mono text-xs scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
-      >
-        {terminalOutput.map((line, index) => (
-          <div
-            key={index}
-            className={
-              line?.startsWith("$")
-                ? "text-yellow-400"
-                : line?.startsWith("✓")
-                ? "text-green-400"
-                : "text-gray-300"
-            }
-          >
-            {line}
-          </div>
-        ))}
-      </div>
-
-      {/* Input */}
-      <form
-        onSubmit={handleTerminalSubmit}
-        className="p-3 border-t border-gray-700"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-yellow-400 font-mono text-xs">$</span>
-          <input
-            type="text"
-            value={terminalInput}
-            onChange={(e) => setTerminalInput(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none text-green-400 font-mono text-xs"
-            placeholder="Enter command..."
-            autoComplete="off"
-          />
-        </div>
-      </form>
-
-      {/* Error Overlay */}
-      {error && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 text-white p-4">
-          <p className="mb-4 text-center">{error}</p>
-          <Button
-            variant="default"
-            onClick={restartTerminal}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-500"
-          >
-            <RefreshCw className="h-4 w-4" /> Restart Terminal
-          </Button>
-        </div>
-      )}
+      {/* real xterm.js host */}
+      <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden px-2 pt-1.5" />
     </div>
   );
 }

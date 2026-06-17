@@ -10,37 +10,40 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Play,
   CheckCircle2,
   Clock,
-  Star,
   BookOpen,
-  Award,
-  Share,
-  Heart,
   Lock,
-  ArrowLeft,
   Brain,
   Code,
-  Gamepad2,
-  FolderOpen,
-  ChevronDown,
-  ChevronUp,
   BadgeIcon as Certificate,
   Trophy,
-  Crown,
+  Star,
+  Sparkles,
+  BarChart3,
   Loader2,
+  RotateCcw,
+  Share2,
+  Link as LinkIcon,
+  Wrench,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
-import DisqusCommentBlock from "../ui/comment";
+import { ContentComingSoon } from "@/components/content-coming-soon";
+import { stripHtmlTags } from "@/lib/html-utils";
+import { sanitizeHtml } from "@/lib/sanitize";
+import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { PaymentDialog } from "../payment-dialog";
-import { Chapter, Course, UserChapter, Video } from "@/lib/data";
+import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
 import { Loader } from "../ui/loader";
@@ -56,10 +59,9 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const user = useUser();
   const [course, setCourse] = useState<Course>();
   const { updateCourse } = store;
-  const [currentChapter] = useState(course?.chapters[0]);
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   useEffect(() => {
@@ -83,22 +85,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     return course?.userCourse?.userChapters?.find(
       (ch: any) => ch.chapterId === chapterId,
     )?.isCompleted;
-  };
-
-  const handleChapterComplete = (chapterId: string) => {
-    const updatedChapters = course?.chapters.map((chapter) =>
-      chapter.id === chapterId ? { ...chapter, completed: true } : chapter,
-    );
-    const completedCount = updatedChapters?.filter((c) => c.isCompleted).length;
-    const newProgress = Math.round(
-      (completedCount! / updatedChapters?.length!) * 100,
-    );
-
-    updateCourse(slug, {
-      ...course,
-      chapters: updatedChapters,
-      progress: newProgress,
-    });
   };
 
   const handlePurchase = async (
@@ -138,10 +124,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
     toast.success("You have successfully enrolled");
   };
 
-  const handleBackToCourses = () => {
-    onNavigate(routes.courses);
-  };
-
   const handleEnrollNow = async () => {
     try {
       analytics.track("course_enroll_clicked", {
@@ -161,6 +143,15 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
       }
       updateCourse(slug, { ...course, enrolled: true, userCourse: data });
       Object.assign(course!, { enrolled: true });
+
+      // Enrolled + checks passed → drop the learner straight into lesson one.
+      const firstChapter = course?.chapters?.[0];
+      const firstVideo = firstChapter?.videos?.[0];
+      if (firstChapter) {
+        toast.success("Enrolled — taking you to your first lesson…");
+        onNavigate(routes.courseWatch(slug, firstChapter.slug, firstVideo?.slug));
+        return;
+      }
       toast.success("You have successfully enrolled");
     } catch (error: any) {
       const e = error?.response?.message ?? error?.message;
@@ -233,281 +224,571 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
   if (loading) return <Loader isLoader={false} />;
 
-  return (
-    <div className="flex-1 space-y-6">
-      {/* Course Header */}
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <Button variant="outline" onClick={handleBackToCourses}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Courses
-        </Button>
+  if ((course as any)?.isWaiting) {
+    return (
+      <ContentComingSoon
+        title={course?.title}
+        summary={(course?.summary || "").replace(/<[^>]+>/g, "")}
+        waitingLink={(course as any)?.waitingLink}
+        kindLabel="course"
+        backLabel="Browse Courses"
+        onBack={() => onNavigate(routes.courses)}
+        onWaitlistTrack={() =>
+          analytics.track("course_waitlist_clicked", { title: course?.title })
+        }
+      />
+    );
+  }
 
-        <div className="flex items-center gap-2">
-          {course?.category && (
-            <Badge variant="outline">{course?.category?.name}</Badge>
-          )}
-          <Badge variant="outline">{course?.totalDuration ?? 0} hours</Badge>
+  const courseLevel = course?.level || "Beginner";
+  const totalVideos =
+    course?.chapters?.reduce(
+      (sum: number, ch: any) => sum + (ch.videos?.length || 0),
+      0,
+    ) ?? 0;
+  const courseProgress = course?.progress ?? 0;
+  const totalMb =
+    course?.chapters?.reduce(
+      (sum: number, ch: any) =>
+        sum +
+        (ch.videos?.reduce(
+          (s: number, v: any) => s + (v.mb || 0),
+          0,
+        ) || 0) +
+        (ch.exercise?.points || 0),
+      0,
+    ) ?? 0;
+
+  // ── Share helpers ──
+  const shareUrl = `https://courses.masteringbackend.com/courses/${slug}?ref=app`;
+  const shareText = `Check out the ${course?.title} course on MasteringBackend`;
+  const openShare = (network: string, url: string) => {
+    analytics.track("course_share_clicked", { courseId: course?.id, network });
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const shareLinkedIn = () =>
+    openShare(
+      "linkedin",
+      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${course?.title} course`)}&summary=${encodeURIComponent(`${shareText} @masteringbackend`)}`,
+    );
+  const shareX = () =>
+    openShare(
+      "x",
+      `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`${shareText} @master_backend`)}`,
+    );
+  const shareFacebook = () =>
+    openShare(
+      "facebook",
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+    );
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
+  };
+
+  const chapterBadgeCls =
+    "inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted-foreground/20";
+
+  return (
+    <div className="max-w-7xl mx-auto w-full space-y-6">
+      {/* Blueprint hero — navy anchor; the grid lives here only */}
+      <div className="overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative">
+          <div className="hero-grid absolute inset-0" aria-hidden="true" />
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+            <div className="eyebrow-mono text-white/[.55]">course</div>
+            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">{course?.title}</h1>
+
+            <div className="mt-4">
+              {course?.enrolled ? (
+                <button
+                  onClick={handleContinueLearning}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" /> Continue Course
+                </button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <button
+                    disabled={enrolling}
+                    onClick={handleEnrollNow}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+                  >
+                    {enrolling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    {enrolling ? "Enrolling…" : "Start Learning"}
+                  </button>
+                  <span className="text-sm text-white/[.65]">
+                    {!course?.isPremium || user?.isPremium ? (
+                      <>
+                        Free with{" "}
+                        <span className="font-semibold text-white">Pro</span>
+                      </>
+                    ) : (
+                      <span className="font-semibold text-white">
+                        {course?.amount
+                          ? `$${course.amount}`
+                          : "Premium membership required"}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-5 text-sm text-white/[.78]">
+              <span className="inline-flex items-center gap-1.5">
+                <BarChart3 className="w-4 h-4 opacity-70" />
+                {courseLevel}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="w-4 h-4 opacity-70" />
+                {course?.totalDuration ?? 0} hours
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 opacity-70" />
+                {course?.chapters?.length ?? 0} chapters
+              </span>
+              {totalVideos > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Play className="w-4 h-4 opacity-70" />
+                  {totalVideos} videos
+                </span>
+              )}
+              {totalMb > 0 && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-400/90 text-amber-950">
+                  {totalMb} MB to earn
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Completion strip — the hero earns its keep (enrolled only) */}
+        {course?.enrolled && (
+          <div className="text-white px-5 sm:px-8 py-4 bg-[#0A1726] dark:bg-[#05080F]">
+            <div className="eyebrow-mono text-white/[.5] mb-2">
+              course completion
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full overflow-hidden bg-white/[.12]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${courseProgress}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold">{courseProgress}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={
-                course?.level === "Advanced"
-                  ? "destructive"
-                  : course?.level === "Intermediate"
-                    ? "default"
-                    : "secondary"
-              }
-            >
-              {course?.level}
-            </Badge>
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm">{course?.rating ?? 4.5}</span>
-            </div>
-          </div>
-
-          <h1 className="text-3xl font-bold tracking-tight">{course?.title}</h1>
-
-          {/* Short Description */}
-
-          <article
-            className="text-lg text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: course?.summary!,
-            }}
-          ></article>
-
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {course?.totalDuration} hours
-            </div>
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-4 w-4" />
-              {course?.chapters.length} chapters
-            </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-4 w-4" />
-              Certificate included
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {course?.tags?.map((tag) => (
-              <Badge key={tag} variant="outline">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Expandable Long Description */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Course Overview
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setIsDescriptionExpanded(!isDescriptionExpanded)
-                  }
-                >
-                  {isDescriptionExpanded ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
+          {/* Course description (rich HTML — collapsible, can be large) */}
+          {(() => {
+            const html = course?.description || course?.summary || "";
+            if (!html) return null;
+            const isLong = stripHtmlTags(html).length > 280;
+            return (
+              <div>
+                <h3 className="font-semibold text-[15px] mb-2">
+                  Course description
+                </h3>
+                <div className="relative">
+                  <article
+                    className={`prose-sm max-w-3xl text-sm leading-relaxed text-muted-foreground [&_a]:text-amber-600 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mt-3 [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:mt-1 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mt-2 [&_pre]:mt-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-zinc-900 [&_pre]:p-3 [&_pre]:text-zinc-100 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 ${
+                      isLong && !descExpanded
+                        ? "max-h-[15rem] overflow-hidden"
+                        : ""
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+                  />
+                  {isLong && !descExpanded && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
                   )}
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`space-y-4 ${
-                  isDescriptionExpanded ? "" : "line-clamp-3"
-                }`}
-              >
-                {course?.description
-                  ?.split("\n\n")
-                  .map((paragraph: string, index: number) => (
-                    <article
-                      dangerouslySetInnerHTML={{ __html: paragraph }}
-                      key={index}
-                      className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                    >
-                      {/* {paragraph} */}
-                    </article>
-                  ))}
+                </div>
+                {isLong && (
+                  <button
+                    onClick={() => setDescExpanded((v) => !v)}
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    {descExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
               </div>
-              {!isDescriptionExpanded && (
-                <Button
-                  variant="link"
-                  className="p-0 h-auto mt-2"
-                  onClick={() => setIsDescriptionExpanded(true)}
-                >
-                  Read more
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+            );
+          })()}
 
-          {/* Course Features Section */}
-          {/* {course?.enrolled && ( */}
+          {/* Tags */}
+          {course?.tags?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {course?.tags?.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Curriculum timeline (chapters → accordion items) */}
           <Card>
             <CardHeader>
-              <CardTitle>Course Features</CardTitle>
+              <CardTitle>Course Curriculum</CardTitle>
               <CardDescription>
-                Interactive learning tools and resources
+                {course?.chapters?.length ?? 0} chapters ·{" "}
+                {course?.totalDuration ?? 0} total hours
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {course?.hasQuizzes && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseQuizzes(slug))}
-                  >
-                    <Brain className="h-6 w-6" />
-                    <span className="text-sm">Quizzes</span>
-                  </Button>
-                )}
-                {course?.hasExercises && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseExercises(slug))}
-                  >
-                    <Code className="h-6 w-6" />
-                    <span className="text-sm">Exercises</span>
-                  </Button>
-                )}
-                {course?.hasPlaygrounds && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.coursePlaygrounds(slug))}
-                  >
-                    <Gamepad2 className="h-6 w-6" />
-                    <span className="text-sm">Playgrounds</span>
-                  </Button>
-                )}
-                {course?.hasProjects && (
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2"
-                    onClick={() => onNavigate(routes.courseProjects(slug))}
-                  >
-                    <FolderOpen className="h-6 w-6" />
-                    <span className="text-sm">Projects</span>
-                  </Button>
-                )}
+            <CardContent className="px-0 pt-0">
+              <div className="relative px-4 py-3">
+                <div className="absolute left-[1.625rem] top-5 bottom-5 w-px bg-border" />
+                <Accordion type="single" collapsible className="space-y-3">
+                  {course?.chapters?.map((chapter: Chapter, index) => {
+                    const completed = isChapterCompleted(chapter.id);
+                    const accessible = course?.enrolled || !chapter.isPremium;
+                    const num = index + 1;
+                    const numBgCls = completed ? "bg-emerald-600" : "bg-foreground";
+                    return (
+                      <AccordionItem
+                        key={chapter.id}
+                        value={chapter.id}
+                        id={`chapter-${chapter.id}`}
+                        className="border-0 scroll-mt-6"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`relative z-10 mt-4 w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-background ${
+                              completed ? "bg-emerald-600" : "bg-foreground/20"
+                            }`}
+                          />
+                          <div className="flex-1 rounded-xl border bg-card shadow-sm overflow-hidden">
+                            <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
+                              <div className="space-y-1.5 text-left flex-1 pr-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={chapterBadgeCls}>Chapter</span>
+                                  {completed && (
+                                    <Badge className="bg-emerald-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-emerald-700">
+                                      ✓ Done
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] py-0 px-1.5 h-auto ${
+                                      !chapter.isPremium
+                                        ? "border-emerald-600 text-emerald-600"
+                                        : course?.enrolled
+                                          ? "border-primary text-primary"
+                                          : "border-amber-600 text-amber-600"
+                                    }`}
+                                  >
+                                    {!chapter.isPremium
+                                      ? "FREE"
+                                      : course?.enrolled
+                                        ? "ENROLLED"
+                                        : "PREMIUM"}
+                                  </Badge>
+                                  {(chapter.quizzes?.length ?? 0) > 0 && (
+                                    <span className={chapterBadgeCls}>Quiz</span>
+                                  )}
+                                  {chapter.exercise && (
+                                    <span className={chapterBadgeCls}>
+                                      Exercise
+                                    </span>
+                                  )}
+                                  {chapter.playground && (
+                                    <span className={chapterBadgeCls}>
+                                      Playground
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-white ${numBgCls}`}
+                                  >
+                                    {String(num).padStart(2, "0")}
+                                  </span>
+                                  <span className="font-bold text-sm leading-snug">
+                                    {chapter.title}
+                                  </span>
+                                  {!accessible && (
+                                    <Lock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                </div>
+                                {chapter.duration && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {chapter.duration}
+                                  </p>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-4 pt-0">
+                              <div className="border-t pt-3 space-y-3">
+                                {(chapter.summary || chapter.description) && (
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {stripHtmlTags(
+                                      chapter.summary || chapter.description,
+                                    )}
+                                  </p>
+                                )}
+                                {(() => {
+                                  const items: {
+                                    icon: any;
+                                    label: string;
+                                    mb?: number;
+                                  }[] = [];
+                                  (chapter.videos || []).forEach((v) =>
+                                    items.push({
+                                      icon: Play,
+                                      label: v.title,
+                                      mb: v.mb,
+                                    }),
+                                  );
+                                  (chapter.quizzes || []).forEach((q) =>
+                                    items.push({ icon: Brain, label: q.title }),
+                                  );
+                                  if (chapter.exercise)
+                                    items.push({
+                                      icon: Code,
+                                      label: chapter.exercise.title,
+                                      mb: chapter.exercise.points,
+                                    });
+                                  if (chapter.playground)
+                                    items.push({
+                                      icon: Wrench,
+                                      label:
+                                        chapter.playground.title || "Playground",
+                                    });
+                                  if (!items.length) return null;
+                                  return (
+                                    <ul className="space-y-1.5">
+                                      {items.map((it, i) => {
+                                        const Icon = it.icon;
+                                        return (
+                                          <li
+                                            key={i}
+                                            className="flex items-center gap-2 text-sm"
+                                          >
+                                            <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                            <span className="flex-1 truncate text-foreground/80">
+                                              {it.label}
+                                            </span>
+                                            {it.mb ? (
+                                              <span className="flex-shrink-0 text-[11px] font-semibold text-amber-600">
+                                                +{it.mb} MB
+                                              </span>
+                                            ) : null}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  );
+                                })()}
+                                {completed ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      handleChapterClick(chapter, index)
+                                    }
+                                  >
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                    Review Chapter
+                                  </Button>
+                                ) : accessible ? (
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs w-full"
+                                    onClick={() =>
+                                      handleChapterClick(chapter, index)
+                                    }
+                                  >
+                                    <Play className="h-3 w-3 mr-1" />
+                                    {course?.enrolled ? "Continue" : "Start"}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs w-full"
+                                    disabled={enrolling}
+                                    onClick={handleEnrollNow}
+                                  >
+                                    {enrolling ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Lock className="h-3 w-3 mr-1" />
+                                    )}
+                                    {enrolling
+                                      ? "Enrolling…"
+                                      : "Enroll to Unlock"}
+                                  </Button>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </div>
+                        </div>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
               </div>
             </CardContent>
           </Card>
-          {/* )} */}
         </div>
 
-        <div className="space-y-6">
-          {/* Course Enrollment Card */}
-          <Card>
-            <CardHeader>
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                <img
-                  src={course?.banner ?? "/placeholder.svg"}
-                  alt={course?.title}
-                  className="h-full w-full object-cover"
-                />
+        <div className="space-y-4 lg:sticky lg:top-6 self-start">
+          {showPaymentDialog && (
+            <PaymentDialog
+              onClose={() => setShowPaymentDialog(false)}
+              open={showPaymentDialog}
+              data={{ ...course, type: "course" }}
+              onHandlePreview={() => {}}
+              onHandlePurchase={(id: string, type: any, success: boolean) =>
+                handlePurchase(id, type, success)
+              }
+            />
+          )}
+
+          {/* Primary action — buy (cold) or continue (warm) */}
+          {course?.enrolled ? (
+            <>
+              {/* Continue card */}
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="font-semibold text-[15px]">
+                    Your progress
+                  </span>
+                  <span className="font-bold text-primary">
+                    {courseProgress}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden bg-muted mb-4">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${courseProgress}%` }}
+                  />
+                </div>
+                <button
+                  onClick={handleContinueLearning}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                >
+                  <Play className="w-4 h-4" />
+                  {courseProgress > 0 ? "Continue Learning" : "Start Learning"}
+                </button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {course?.enrolled ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Your Progress</span>
-                    <span>{course?.progress}%</span>
+
+              {course?.userCourse?.id && (
+                <ScheduleWidget courseId={course.userCourse.id} />
+              )}
+            </>
+          ) : (
+            /* Buy card */
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="text-2xl font-bold mb-1">
+                {!course?.isPremium || user?.isPremium ? (
+                  <span className="flex items-baseline gap-2">
+                    Free
+                    <span className="text-sm font-medium text-muted-foreground">
+                      with Pro
+                    </span>
+                  </span>
+                ) : course?.amount ? (
+                  `$${course.amount}`
+                ) : (
+                  <span className="text-lg">Premium membership</span>
+                )}
+              </div>
+
+              {(() => {
+                // Social proof for a young catalog: never expose tiny absolute
+                // counts (2–3 learners reads as "nobody's here" — negative
+                // proof). Only surface a learner count once it's credible;
+                // below that, lead with novelty + risk reversal. Threshold is
+                // shared across course / path / project — see lib/social-proof.
+                const learners = course?.totalStudents || course?.students || 0;
+                const rating = course?.rating || 0;
+                const showLearners = isCredibleLearnerCount(learners);
+                const showRating = rating > 0;
+                if (showLearners || showRating) {
+                  return (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
+                      {showRating && (
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          {rating.toFixed(1)}
+                        </span>
+                      )}
+                      {showLearners && (
+                        <span>{learners.toLocaleString()} learners</span>
+                      )}
+                    </div>
+                  );
+                }
+                // No credible numbers yet → freshness framing, not fake counts.
+                return (
+                  <div className="flex items-center gap-2 text-sm mb-4">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                      <Sparkles className="w-3 h-3" />
+                      Newly launched
+                    </span>
+                    <span className="text-muted-foreground">
+                      Be among the first to complete it
+                    </span>
                   </div>
-                  <Progress value={course?.progress ?? 0} className="h-2" />
-                  <Button className="w-full" onClick={handleContinueLearning}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Continue Learning
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {course?.isPremium && !user?.isPremium && (
-                    <Badge
-                      variant="outline"
-                      className="bg-green-100 text-green-800 border-green-200 text-xs"
-                    >
-                      <Crown className="mr-1 h-3 w-3" />
-                      Included in Pro
-                    </Badge>
-                  )}
-                  <Button className="w-full" onClick={handleEnrollNow} disabled={enrolling}>
-                    {enrolling ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="mr-2 h-4 w-4" />
-                    )}
-                    {enrolling ? "Enrolling..." : "Start Learning"}
-                  </Button>
-                </div>
-              )}
+                );
+              })()}
 
-              {showPaymentDialog && (
-                <PaymentDialog
-                  onClose={() => setShowPaymentDialog(false)}
-                  open={showPaymentDialog}
-                  data={{ ...course, type: "course" }}
-                  onHandlePreview={() => {}}
-                  onHandlePurchase={(id: string, type: any, success: boolean) =>
-                    handlePurchase(id, type, success)
-                  }
-                />
-              )}
+              <button
+                disabled={enrolling}
+                onClick={handleEnrollNow}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-3 text-sm hover:bg-primary/90 transition disabled:opacity-60"
+              >
+                {enrolling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {enrolling ? "Enrolling…" : "Start Learning"}
+              </button>
 
-              {/* <Separator /> */}
-
-              {/* <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Heart className="mr-2 h-4 w-4" />
-                  Wishlist
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Share className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-              </div> */}
-            </CardContent>
-          </Card>
-
-          {course?.enrolled && course?.userCourse?.id && (
-            <ScheduleWidget courseId={course.userCourse.id} />
+              <p className="mt-3 text-xs text-center text-muted-foreground">
+                {!course?.isPremium || user?.isPremium
+                  ? "Cancel anytime · Full lifetime access"
+                  : "30-day money-back guarantee"}
+              </p>
+            </div>
           )}
 
           {/* Certification Card */}
           <Card
-            className={`${
+            className={`rounded-2xl ${
               canEarnCertificate
-                ? "border-green-200 bg-green-50/50"
-                : "border-orange-200 bg-orange-50/50"
+                ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                : ""
             }`}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    canEarnCertificate ? "bg-green-100" : "bg-orange-100"
+                    canEarnCertificate
+                      ? "bg-emerald-100 dark:bg-emerald-950/40"
+                      : "bg-primary/10"
                   }`}
                 >
                   {canEarnCertificate ? (
-                    <Trophy className="h-6 w-6 text-green-600" />
+                    <Trophy className="h-6 w-6 text-emerald-600" />
                   ) : (
-                    <Certificate className="h-6 w-6 text-orange-600" />
+                    <Certificate className="h-6 w-6 text-primary" />
                   )}
                 </div>
                 <div>
@@ -528,13 +809,15 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     : "Complete all chapters and pass the final assessment to earn your verified certificate."}
                 </p>
 
-                {course?.enrolled && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress to Certificate</span>
-                      <span>{Math.floor(course?.progress)}%</span>
-                    </div>
-                    <Progress value={course?.progress} className="h-2" />
+                {totalMb > 0 && (
+                  <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 dark:bg-amber-950/20">
+                    <span className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                      <Trophy className="h-4 w-4" />
+                      {canEarnCertificate ? "MB earned" : "MB to earn"}
+                    </span>
+                    <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                      {totalMb} MB
+                    </span>
                   </div>
                 )}
               </div>
@@ -556,7 +839,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
               {canEarnCertificate ? (
                 <Button
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => onNavigate(routes.courseCertificate(slug))}
                 >
                   <Certificate className="mr-2 h-4 w-4" />
@@ -584,180 +867,65 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Share — demoted below the primary action + certificate */}
+          {(() => {
+            const tileCls =
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border py-3 text-xs font-semibold text-muted-foreground transition-colors";
+            return (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="flex items-center gap-2 font-semibold text-[15px] mb-1">
+                  <Share2 className="w-4 h-4" />
+                  Share this course
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Help a friend level up their backend skills.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={shareLinkedIn}
+                    aria-label="Share on LinkedIn"
+                    className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
+                    </svg>
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={shareX}
+                    aria-label="Share on X"
+                    className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    X
+                  </button>
+                  <button
+                    onClick={shareFacebook}
+                    aria-label="Share on Facebook"
+                    className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
+                    </svg>
+                    Facebook
+                  </button>
+                </div>
+                <button
+                  onClick={copyShareLink}
+                  aria-label="Copy link"
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Copy link
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
-
-      {/* Course Content */}
-      <Tabs defaultValue="curriculum" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-          <TabsTrigger value="instructor">Instructor</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="curriculum" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Course Curriculum</CardTitle>
-              <CardDescription>
-                {course?.chapters.length} chapters •{" "}
-                {course?.totalDuration ?? 0} total hours
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {course?.chapters.map((chapter: Chapter, index) => {
-                  return (
-                    <div
-                      key={chapter.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50 ${
-                        currentChapter?.id === chapter.id ? "bg-muted" : ""
-                      }`}
-                      onClick={() => handleChapterClick(chapter, index)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          {isChapterCompleted(chapter.id) ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          ) : course?.enrolled || !chapter.isPremium ? (
-                            <span className="text-sm font-medium">
-                              {index + 1}
-                            </span>
-                          ) : (
-                            <Lock className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium">{chapter.title}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                !chapter.isPremium
-                                  ? "border-green-600 text-green-600"
-                                  : course?.enrolled
-                                    ? "border-blue-600 text-blue-600"
-                                    : "border-orange-600 text-orange-600"
-                              }`}
-                            >
-                              {!chapter.isPremium
-                                ? "FREE"
-                                : course?.enrolled
-                                  ? "ENROLLED"
-                                  : "PREMIUM"}
-                            </Badge>
-                            <span>{chapter.duration}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {chapter?.type?.toUpperCase()}
-                            </Badge>
-                            {/* Feature indicators */}
-                            {chapter?.quizzes?.length! > 0 && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-purple-600 text-purple-600"
-                              >
-                                QUIZ
-                              </Badge>
-                            )}
-                            {chapter.exercise && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-blue-600 text-blue-600"
-                              >
-                                EXERCISE
-                              </Badge>
-                            )}
-                            {chapter.playground && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs border-green-600 text-green-600"
-                              >
-                                PLAYGROUND
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (
-                            course?.enrolled &&
-                            isChapterCompleted(chapter.id)
-                          ) {
-                            handleChapterComplete(chapter.id);
-                          }
-                        }}
-                      >
-                        {isChapterCompleted(chapter.id) ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        ) : course?.enrolled || !chapter.isPremium ? (
-                          <Play className="h-4 w-4" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="instructor">
-          <Card>
-            <CardHeader>
-              <CardTitle>About the Instructor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  {course?.instructor
-                    ?.split(" ")
-                    .map((n: string) => n.charAt(0))
-                    .join("") ?? "MB"}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    {course?.instructor ?? "Mastering Backend"}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Senior Backend Engineer with 8+ years of experience building
-                    scalable systems. Previously worked at Google and Netflix.
-                  </p>
-                  <div className="flex gap-4 text-sm text-muted-foreground">
-                    <span>15 courses</span>
-
-                    <span>4.9 rating</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reviews">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Reviews</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <DisqusCommentBlock
-                  config={{
-                    url: "/courses/" + slug,
-                    identifier: slug,
-                    title: course?.title,
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
     </div>
   );

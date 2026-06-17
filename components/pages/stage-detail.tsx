@@ -42,7 +42,6 @@ export function StageDetailPage({
   const land = getLandById(landId);
   const stage = getStageById(landId, stageId);
 
-  console.log(land, stage, stageId);
 
   if (!land || !stage) {
     return (
@@ -109,7 +108,7 @@ export function StageDetailPage({
             </Badge>
             <Badge
               variant="outline"
-              className="bg-[#13AECE]/10 text-[#13AECE] border-[#13AECE]/20"
+              className="bg-primary/10 text-primary border-primary/20"
             >
               Stage {stage.order}
             </Badge>
@@ -136,10 +135,10 @@ export function StageDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#13AECE]">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-[#13AECE]" />
+              <Lightbulb className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Challenges</span>
             </div>
             <p className="text-2xl font-bold mt-1">{stage.challenges.length}</p>
@@ -168,7 +167,7 @@ export function StageDetailPage({
       </div>
 
       {/* Progress */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+      <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />

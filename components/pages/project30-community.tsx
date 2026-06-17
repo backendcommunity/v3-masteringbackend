@@ -220,7 +220,7 @@ export function Project30CommunityPage({
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Project30 Community</h1>
+          <h1 className="text-3xl font-bold">Ship Community</h1>
           <p className="text-muted-foreground">
             Connect, share, and learn with fellow participants
           </p>
@@ -231,7 +231,7 @@ export function Project30CommunityPage({
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Project30
+          Back to Ship
         </Button>
       </div>
 
@@ -441,7 +441,7 @@ export function Project30CommunityPage({
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">
-                    Connect with the Project30 community in real-time, join
+                    Connect with the Ship community in real-time, join
                     coding sessions, and get instant help.
                   </p>
                   <Button className="w-full mt-4">Join Discord</Button>
@@ -563,7 +563,7 @@ export function Project30CommunityPage({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Project Requirements</h4>
                       <p className="text-sm text-muted-foreground">
@@ -573,7 +573,7 @@ export function Project30CommunityPage({
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Submission Issues</h4>
                       <p className="text-sm text-muted-foreground">
@@ -583,7 +583,7 @@ export function Project30CommunityPage({
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <HelpCircle className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <HelpCircle className="h-5 w-5 mt-0.5 text-primary" />
                     <div>
                       <h4 className="font-medium">Technical Problems</h4>
                       <p className="text-sm text-muted-foreground">
@@ -602,7 +602,7 @@ export function Project30CommunityPage({
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button variant="link" className="p-0 h-auto">
-                    Project30 Documentation
+                    Ship Documentation
                   </Button>
                   <Button variant="link" className="p-0 h-auto">
                     Frequently Asked Questions

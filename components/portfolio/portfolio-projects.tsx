@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { stripHtmlTags } from "@/lib/html-utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -63,7 +64,7 @@ function getLevelColor(level: string) {
     case "Advanced":
       return "border-[#9B59B6]/40 text-[#9B59B6] bg-[#9B59B6]/10";
     case "Intermediate":
-      return "border-[#13AECE]/40 text-[#13AECE] bg-[#13AECE]/10";
+      return "border-primary/40 text-primary bg-primary/10";
     default:
       return "border-[#27AE60]/40 text-[#27AE60] bg-[#27AE60]/10";
   }
@@ -145,6 +146,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
   return (
     <Card
       className={cn(
+        "min-w-0",
         isInProgress
           ? "border-dashed border-muted-foreground/30"
           : "hover:border-primary/20 transition-colors",
@@ -159,13 +161,14 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
                 href={`/projects/${project.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="min-w-0 max-w-full"
               >
                 <h4 className="font-semibold text-sm truncate">
                   {project.title}
                 </h4>
               </a>
               {project.isVerified && (
-                <CheckCircle2 className="h-3.5 w-3.5 text-[#13AECE] shrink-0" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
               )}
               {project.featured && (
                 <Badge className="bg-[#F2C94C]/15 text-[#F2C94C] border-[#F2C94C]/30 hover:bg-[#F2C94C]/20 text-[9px] px-1.5 py-0 gap-0.5">
@@ -175,7 +178,7 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
               )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-              {project.summary}
+              {stripHtmlTags(project.summary || "")}
             </p>
           </div>
 

@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Users,
   Target,
-  Trophy,
   Calendar,
   VideoIcon,
   AudioWaveform,
@@ -21,7 +20,6 @@ import { Bootcamp, Lesson, UserCohort, Week } from "@/lib/data";
 import { Loader } from "../ui/loader";
 import Countdown from "../ui/count-down";
 import { formatRelativeDate } from "@/lib/utils";
-import { routes } from "@/lib/routes";
 
 interface BootcampDashboardPageProps {
   bootcampId: string;
@@ -245,7 +243,7 @@ export function BootcampDashboardPage({
       </div>
 
       {/* Progress Overview */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+      <Card className="bg-[#0E1F33] text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
@@ -386,7 +384,7 @@ export function BootcampDashboardPage({
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <h4 className="font-medium">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">
@@ -487,7 +485,7 @@ export function BootcampDashboardPage({
                     key={week.id || i}
                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                       week?.id?.toString() === currentWeek?.id
-                        ? "border border-blue-200"
+                        ? "border border-primary/30"
                         : ""
                     }`}
                     onClick={() =>
@@ -560,21 +558,6 @@ export function BootcampDashboardPage({
                   <Users className="mr-2 h-4 w-4" />
                   Join Study Group
                 </a>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() =>
-                  onNavigate?.(
-                    routes.bootcampLeaderboard(
-                      bootcampId,
-                      userCohort?.cohortId + "",
-                    ),
-                  )
-                }
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                View Leaderboard
               </Button>
             </CardContent>
           </Card>

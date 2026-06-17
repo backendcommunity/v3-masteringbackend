@@ -4,6 +4,11 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 const nextConfig = {
+  // Output dir is overridable so a production `next build` can target a separate
+  // folder and never collide with a running `next dev` (which uses `.next`).
+  // Sharing `.next` between build + dev causes the
+  // "ENOENT … _buildManifest.js.tmp.*" rename race. Deploy stays on `.next`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -44,15 +49,8 @@ module.exports = withSentryConfig(module.exports, {
   tunnelRoute: "/monitoring",
 
   webpack: {
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
-
     // Tree-shaking options for reducing bundle size
     treeshake: {
-      // Automatically tree-shake Sentry logger statements to reduce bundle size
       removeDebugLogging: true,
     },
   },

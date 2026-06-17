@@ -73,7 +73,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
       case "Completed":
         return "bg-green-500";
       case "In Progress":
-        return "bg-blue-500";
+        return "bg-primary";
       case "Graded":
         return "bg-purple-500";
       default:
@@ -101,7 +101,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               {project.type === "full-project" ? (
-                <Briefcase className="h-4 w-4 text-blue-600" />
+                <Briefcase className="h-4 w-4 text-primary" />
               ) : (
                 <Code className="h-4 w-4 text-green-600" />
               )}
@@ -270,7 +270,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
             <CardTitle className="text-xs md:text-sm font-medium">
               In Progress
             </CardTitle>
-            <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
+            <Clock className="h-3 w-3 md:h-4 md:w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold">
@@ -310,7 +310,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
       </div>
 
       {/* Interview Readiness Progress */}
-      <Card className="bg-gradient-to-r from-[#0E1F33] to-[#13AECE] text-white">
+      <Card className="bg-gradient-to-r from-[#0E1F33] to-primary text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />

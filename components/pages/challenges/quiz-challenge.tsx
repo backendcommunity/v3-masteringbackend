@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { CheckCircle2, XCircle, FileQuestion, Clock } from "lucide-react"
 import type { QuizChallenge, QuizQuestion } from "@/lib/lands-data"
+import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants"
 
 interface QuizChallengeComponentProps {
   challenge: QuizChallenge
@@ -110,7 +111,7 @@ export function QuizChallengeComponent({ challenge, onComplete }: QuizChallengeC
 
     const percentage = (correctAnswers / questions.length) * 100
 
-    if (percentage >= (challenge.passingScore || 70)) {
+    if (percentage >= (challenge.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE)) {
       onComplete()
     }
   }
@@ -142,7 +143,7 @@ export function QuizChallengeComponent({ challenge, onComplete }: QuizChallengeC
               <div className="text-sm text-muted-foreground">Time Limit</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{challenge.passingScore || 70}%</div>
+              <div className="text-2xl font-bold">{challenge.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE}%</div>
               <div className="text-sm text-muted-foreground">Passing Score</div>
             </div>
           </div>
@@ -151,7 +152,7 @@ export function QuizChallengeComponent({ challenge, onComplete }: QuizChallengeC
             <h4 className="font-medium">Quiz Rules:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• You have {formatTime(timeLeft)} to complete all questions</li>
-              <li>• You need {challenge.passingScore || 70}% to pass</li>
+              <li>• You need {challenge.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE}% to pass</li>
               <li>• You can navigate between questions</li>
               <li>• Your progress is saved automatically</li>
             </ul>
@@ -168,7 +169,7 @@ export function QuizChallengeComponent({ challenge, onComplete }: QuizChallengeC
   if (showResults) {
     const correctAnswers = questions.filter((q) => answers[q.id] === q.correctAnswer).length
     const percentage = (correctAnswers / questions.length) * 100
-    const passed = percentage >= (challenge.passingScore || 70)
+    const passed = percentage >= (challenge.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE)
 
     return (
       <Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,7 +116,6 @@ export function BootcampVideoWatchPage({
 
   useEffect(() => {
     const loadEvents = async () => {
-      console.log(currentLesson?.id, slug);
       try {
         const events = await store.getCurrentWeekEvents(id, weekId);
 
@@ -366,19 +366,19 @@ export function BootcampVideoWatchPage({
       </div>
 
       {currentLiveSession && currentLiveSession?.meetingUrl && (
-        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+        <Card className="border-primary bg-primary/5 dark:bg-primary/10">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100">
                   🔴 Live Session in Progress
                 </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
+                <p className="text-sm text-primary dark:text-blue-200 mt-1">
                   {currentLiveSession?.title ||
                     "Join your instructor and classmates now"}
                 </p>
                 {currentLiveSession?.startTime && (
-                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                  <p className="text-xs text-primary dark:text-primary mt-2">
                     Started:{" "}
                     {new Date(
                       currentLiveSession?.startTime,
@@ -392,7 +392,7 @@ export function BootcampVideoWatchPage({
                     window.open(currentLiveSession?.meetingUrl, "_blank");
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                className="bg-primary hover:bg-primary/90 flex-shrink-0"
               >
                 Join Now
               </Button>
@@ -456,9 +456,7 @@ export function BootcampVideoWatchPage({
                       <div className="space-y-4">
                         <article
                           className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                          dangerouslySetInnerHTML={{
-                            __html: currentLesson?.description,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentLesson?.description) }}
                         ></article>
                       </div>
                     </div>
@@ -510,9 +508,7 @@ export function BootcampVideoWatchPage({
                       <div className="space-y-4  pt-4">
                         <article
                           className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                          dangerouslySetInnerHTML={{
-                            __html: currentLesson?.description,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentLesson?.description) }}
                         ></article>
                       </div>
                     </CardContent>
@@ -650,9 +646,7 @@ export function BootcampVideoWatchPage({
                   <div className="space-y-4">
                     <article
                       className="text-muted-foreground [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                      dangerouslySetInnerHTML={{
-                        __html: currentLesson?.summary!,
-                      }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentLesson?.summary!) }}
                     ></article>
                   </div>
                 </CardContent>
@@ -667,9 +661,7 @@ export function BootcampVideoWatchPage({
                         </div>
                         <p
                           className="text-muted-foreground leading-relaxed [&>*>table]:p-3 [&>*>table]:border [&>*>code]:rounded-xl [&>*>code]:bg-zinc-800 [&>*>code]:p-1 [&>*>code]:text-sm [&>*>code]:font-medium [&>*>code]:text-zinc-100 [&>*>code]:overflow-x-auto w-full [&>*>li>pre]:mt-5 [&>*>li>pre]:rounded-xl [&>*>li>pre]:bg-zinc-800 [&>*>li>pre]:p-4 [&>*>li>pre]:text-sm [&>*>li>pre]:font-medium [&>*>li>pre]:text-zinc-100 [&>*>li>pre]:overflow-x-auto [&>*>li>a]:text-amber-300 [&>p>a]:text-amber-300 mx-auto w-full text-zinc-700 dark:text-zinc-300 [&>pre]:overflow-x-auto [&>h2]:text-2xl [&>h2]:font-bold [&>h3]:text-xl [&>h3]:font-bold [&>p]:mt-2 [&>p]:leading-relaxed [&>pre]:mt-5 [&>pre]:rounded-xl [&>pre]:bg-zinc-800 [&>pre]:p-4 [&>pre]:text-sm [&>pre]:font-medium [&>pre]:text-zinc-100 [&>ul]:mt-5 [&>ul]:flex [&>ul]:list-disc [&>ul]:flex-col [&>ul]:gap-2 [&>ul]:pl-6 [&>ol]:mt-5 [&>ol]:flex [&>ol]:list-decimal [&>ol]:flex-col [&>ol]:gap-2 [&>ol]:pl-6 [&>*>span]:!text-black [&>p]:text-black dark:[&>*>span]:!text-muted-foreground dark:[&>p]:text-muted-foreground"
-                          dangerouslySetInnerHTML={{
-                            __html: currentLesson?.video?.description,
-                          }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentLesson?.video?.description) }}
                         ></p>
                       </div>
                     </CardContent>
@@ -739,7 +731,7 @@ export function BootcampVideoWatchPage({
                       {notes?.map((note: Note) => (
                         <div className="border rounded-lg p-3" key={note.id}>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                            <div className="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center">
                               {user?.name
                                 ?.split(" ")
                                 ?.map((n: any) => n[0])
@@ -776,7 +768,7 @@ export function BootcampVideoWatchPage({
                           className="flex items-center justify-between p-3 border rounded-lg"
                         >
                           <div className="flex items-center gap-3">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-primary" />
                             <div>
                               <h4 className="font-medium">{resource.title}</h4>
                               <p className="text-sm text-muted-foreground">
@@ -854,7 +846,7 @@ export function BootcampVideoWatchPage({
                           )
                         }
                       >
-                        <span className="text-sm font-mono text-blue-600 min-w-[50px]">
+                        <span className="text-sm font-mono text-primary min-w-[50px]">
                           {item.time}
                         </span>
                         <span className="text-sm">{item.text}</span>
@@ -905,7 +897,7 @@ export function BootcampVideoWatchPage({
                   key={lesson.id}
                   className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-muted ${
                     lesson.id === currentLesson?.id
-                      ? "border border-blue-200"
+                      ? "border border-primary/30"
                       : ""
                   }`}
                   onClick={() => handleVideoClick(lesson)}

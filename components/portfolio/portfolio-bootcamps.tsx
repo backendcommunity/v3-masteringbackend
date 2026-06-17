@@ -1,14 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { GraduationCap, Users, Calendar } from "lucide-react";
+import {
+  GraduationCap,
+  Users,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import type { PortfolioBootcamp } from "@/lib/portfolio-types";
 
 interface PortfolioBootcampsProps {
   bootcamps: PortfolioBootcamp[];
 }
+
+const INITIAL_VISIBLE = 3;
 
 const STATUS_STYLES: Record<
   PortfolioBootcamp["status"],
@@ -20,7 +30,7 @@ const STATUS_STYLES: Record<
   },
   in_progress: {
     label: "In Progress",
-    className: "bg-[#13AECE]/10 text-[#13AECE] border-[#13AECE]/20",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   upcoming: {
     label: "Upcoming",
@@ -29,7 +39,11 @@ const STATUS_STYLES: Record<
 };
 
 export function PortfolioBootcamps({ bootcamps }: PortfolioBootcampsProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (!bootcamps.length) return null;
+
+  const visible = expanded ? bootcamps : bootcamps.slice(0, INITIAL_VISIBLE);
 
   return (
     <Card>
@@ -37,7 +51,7 @@ export function PortfolioBootcamps({ bootcamps }: PortfolioBootcampsProps) {
         <CardTitle className="text-lg">Bootcamps</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {bootcamps.map((bc) => {
+        {visible.map((bc) => {
           const style = STATUS_STYLES[bc.status];
           return (
             <div
@@ -103,6 +117,27 @@ export function PortfolioBootcamps({ bootcamps }: PortfolioBootcampsProps) {
             </div>
           );
         })}
+
+        {bootcamps.length > INITIAL_VISIBLE && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="mr-1 h-4 w-4" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="mr-1 h-4 w-4" />
+                Show {bootcamps.length - INITIAL_VISIBLE} more
+              </>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

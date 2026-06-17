@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -181,7 +182,6 @@ export function Project30DayPage({
       setCelebration(true);
       onNavigate(routes.project30Detail(`/${slug}`));
     } catch (error) {
-      console.log(error);
       toast.error("An error occurred. Please try again");
     }
   };
@@ -245,9 +245,7 @@ export function Project30DayPage({
 
             <article
               className="text-muted-foreground w-1/2"
-              dangerouslySetInnerHTML={{
-                __html: video?.summary!,
-              }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(video?.summary!) }}
             ></article>
           </div>
         </div>

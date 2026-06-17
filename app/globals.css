@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Light theme with #13AECE as primary accent */
-    --background: 0 0% 100%; /* #ffffff - pure white background */
+    --background: 216 25% 97%; /* #F5F7FA - soft gray canvas; white cards lift off it */
     --foreground: 222.2 84% 4.9%; /* #0f172a - dark text */
 
     /* Card and surface colors */
@@ -63,41 +63,44 @@
   }
 
   .dark {
-    /* Gaming-inspired dark theme with #13AECE as primary accent */
-    --background: 222 30% 12%; /* #171B26 - deep navy background */
-    --foreground: 210 40% 98%; /* #f8fafc - light text */
+    /* Blueprint-at-night: the dark palette lives in the SAME navy family as
+       the brand surfaces (rail/heroes are #0E1F33, hsl 213 57% 13%), so
+       chrome, heroes and canvas read as one material instead of two blues.
+       Elevation: canvas 6% → card 10% → hero/rail 13% → secondary 15%. */
+    --background: 214 54% 3%; /* #03060A - near-black navy canvas (comparison) */
+    --foreground: 210 40% 96%; /* #f1f5f9 - light text */
 
-    /* Card and surface colors - slightly lighter navy */
-    --card: 222 25% 16%; /* #1E2330 - card background */
-    --card-foreground: 210 40% 98%; /* #f8fafc - card text */
+    /* Very dark: near-black surfaces, faint elevation steps off the 3% canvas */
+    --card: 213 44% 6%; /* a hair above canvas */
+    --card-foreground: 210 40% 96%; /* light text on cards */
 
     /* Popover colors */
-    --popover: 222 25% 16%; /* #1E2330 - popover background */
-    --popover-foreground: 210 40% 98%; /* #f8fafc - popover text */
+    --popover: 213 44% 6%; /* match cards */
+    --popover-foreground: 210 40% 96%;
 
     /* Primary colors - #13AECE brand blue */
     --primary: 190 83% 44%; /* #13AECE - brand blue */
-    --primary-foreground: 210 40% 98%; /* #f8fafc - white text on blue */
+    --primary-foreground: 210 40% 98%; /* white text on blue */
 
-    /* Secondary colors - slightly lighter than background */
-    --secondary: 222 20% 20%; /* #252A37 - secondary background */
-    --secondary-foreground: 210 40% 98%; /* #f8fafc - secondary text */
+    /* Secondary colors - one step above cards */
+    --secondary: 213 38% 10%; /* secondary surfaces */
+    --secondary-foreground: 210 40% 96%;
 
     /* Muted colors */
-    --muted: 222 20% 20%; /* #252A37 - muted background */
-    --muted-foreground: 215 20.2% 75%; /* #b4bcd0 - muted text */
+    --muted: 213 38% 10%; /* match secondary */
+    --muted-foreground: 214 20% 62%; /* readable, not shouting */
 
     /* Accent colors - variations of #13AECE */
     --accent: 190 83% 54%; /* #2BB8D8 - lighter brand blue */
-    --accent-foreground: 210 40% 98%; /* #f8fafc - white text on accent */
+    --accent-foreground: 210 40% 98%;
 
     /* Destructive colors - complementary red */
     --destructive: 0 84% 60%; /* #EF4444 - vibrant red */
-    --destructive-foreground: 210 40% 98%; /* #f8fafc - white text on red */
+    --destructive-foreground: 210 40% 98%;
 
     /* Border and input colors */
-    --border: 222 30% 22%; /* #2A3042 - subtle borders */
-    --input: 222 30% 22%; /* #2A3042 - input borders */
+    --border: 213 32% 14%; /* subtle near-black borders */
+    --input: 213 32% 14%;
     --ring: 190 83% 54%; /* #2BB8D8 - focus ring (lighter brand blue) */
 
     /* Chart colors - #13AECE-based palette */
@@ -126,7 +129,9 @@
   body {
     @apply bg-background text-foreground;
     font-family: "Satoshi", system-ui, sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
 }
 
@@ -150,6 +155,25 @@
 
 /* Theme utilities with #13AECE consistency for both light and dark */
 @layer utilities {
+  /* Blueprint dot grid — lives INSIDE navy heroes only (brand identity),
+     never on the working canvas. See docs/DESIGN_SYSTEM.md */
+  .hero-grid {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(255, 255, 255, 0.14) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+
+  /* Eyebrow label — small tracked-caps section markers on heroes (Satoshi) */
+  .eyebrow-mono {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
   .bg-sidebar {
     background-color: hsl(var(--mb-sidebar));
   }
@@ -211,26 +235,33 @@
 
   /* Card styling for both themes */
   .card-glow {
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    transition:
+      box-shadow 0.3s ease,
+      transform 0.3s ease;
   }
 
   .light .card-glow {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
   .light .card-glow:hover {
-    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1),
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.1),
       0 0 8px 0 rgba(19, 174, 206, 0.15);
     transform: translateY(-1px);
   }
 
   .dark .card-glow {
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2),
+    box-shadow:
+      0 4px 20px -2px rgba(0, 0, 0, 0.2),
       0 0 8px 0 rgba(19, 174, 206, 0.1);
   }
 
   .dark .card-glow:hover {
-    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3),
+    box-shadow:
+      0 8px 25px -5px rgba(0, 0, 0, 0.3),
       0 0 10px 2px rgba(19, 174, 206, 0.2);
     transform: translateY(-2px);
   }
@@ -370,8 +401,12 @@
 
 /* Smooth transitions for theme changes */
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease,
-    color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
 }
 
 /* Light theme interaction states */
@@ -547,11 +582,8 @@
   border: 2px solid transparent;
   background-clip: padding-box, border-box;
   background-origin: padding-box, border-box;
-  background-image: linear-gradient(
-      to right,
-      hsl(var(--card)),
-      hsl(var(--card))
-    ),
+  background-image:
+    linear-gradient(to right, hsl(var(--card)), hsl(var(--card))),
     linear-gradient(90deg, hsl(var(--mb-blue)), hsl(var(--mb-light-blue)));
 }
 
@@ -653,7 +685,8 @@ article ul li {
 
 /* AI Avatar pulse animation */
 @keyframes ai-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
@@ -669,7 +702,8 @@ article ul li {
 
 /* Voice activity indicator */
 @keyframes voice-bar {
-  0%, 100% {
+  0%,
+  100% {
     height: 8px;
   }
   50% {
@@ -699,7 +733,9 @@ article ul li {
     hsl(190 83% 54% / 0.1),
     transparent
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -749,11 +785,7 @@ article ul li {
 
 .interview-progress-fill {
   @apply h-full rounded-full transition-all duration-500;
-  background: linear-gradient(
-    90deg,
-    hsl(190 83% 44%),
-    hsl(190 83% 54%)
-  );
+  background: linear-gradient(90deg, hsl(190 83% 44%), hsl(190 83% 54%));
 }
 
 /* Question card hover effect */
@@ -827,7 +859,9 @@ article ul li {
 
 /* Typing indicator animation */
 @keyframes typing-dot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -846,4 +880,12 @@ article ul li {
 
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+.excal .excalidraw {
+  --color-primary: #13AECE;
+  --color-primary-darker: #0e8faa;
+  --color-primary-darkest: #0a6e84;
+  --color-primary-light: rgba(19, 174, 206, 0.12);
+  --color-primary-contrast-offset: rgba(19, 174, 206, 0.08);
 }

@@ -256,6 +256,18 @@ export interface PortfolioResponse {
   skills: Array<any>;
 }
 
+// Certificate verification response from GET /certifications/verify/:code
+export interface CertificateVerification {
+  valid: boolean;
+  certificate?: {
+    code: string;
+    holderName: string;
+    courseName: string;
+    finalScore: number;
+    issuedAt: string;
+  };
+}
+
 export interface Subscription {
   id: string;
   name: string;
@@ -673,15 +685,37 @@ export interface Exercise {
   description: string;
   difficulty: "Easy" | "Medium" | "Hard";
   language: string;
+  languages?: string[];            // allowed language codes; empty/undefined = all
+  graderType?: "OUTPUT_MATCH" | "TEST_CASES" | "CUSTOM";
   starterCode: string;
   solution: string;
   testCases: TestCase[];
   hints: string[];
   hint?: string;
   points?: number;
+  passMark?: number;
   completed: boolean;
   attempts: number;
   instructions?: string;
+}
+
+export interface CaseResult {
+  name: string;
+  passed: boolean;
+  timedOut: boolean;
+  gotPreview?: string;
+}
+
+export interface SubmissionResult {
+  submissionId: string;
+  status: "PASSED" | "FAILED" | "ERROR";
+  score: number;
+  passedCount: number;
+  totalCount: number;
+  caseResults: CaseResult[];
+  stderr?: string;
+  timeMs?: number;
+  error?: string;
 }
 
 export interface TestCase {

@@ -20,7 +20,7 @@ export function LevelsPage({ onNavigate }: LevelsPageProps) {
   const userPoints: number = user?.points ?? 0;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Level Progression</h1>

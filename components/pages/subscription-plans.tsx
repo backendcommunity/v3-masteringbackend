@@ -137,13 +137,13 @@ export function SubscriptionPlansPage({
             key={plan?.id}
             className={`relative ${
               plan?.popular
-                ? "border-[#13AECE] shadow-lg shadow-[#13AECE]/10"
+                ? "border-primary shadow-lg shadow-primary/10"
                 : ""
             } flex flex-col`}
           >
             {plan?.popular && (
               <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                <Badge className="bg-[#13AECE]">Most Popular</Badge>
+                <Badge className="bg-primary">Most Popular</Badge>
               </div>
             )}
             <CardHeader className="pb-3">
@@ -219,7 +219,7 @@ export function SubscriptionPlansPage({
             <CardFooter className="pt-2 mt-auto">
               <Button
                 className={`w-full ${
-                  plan?.popular ? "bg-[#13AECE] hover:bg-[#13AECE]/90" : ""
+                  plan?.popular ? "bg-primary hover:bg-primary/90" : ""
                 }`}
                 disabled={plan?.disabled}
                 onClick={() => handleSelectPlan(plan?.id, billingCycle)}

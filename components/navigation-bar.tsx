@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import Image from "next/image";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Search,
@@ -13,11 +14,10 @@ import {
   Code,
   Users,
   Crown,
-  Gift,
-  TrendingUp,
   Sparkles,
   Menu,
   CheckSquare,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { routes } from "@/lib/routes";
 import { useAuth } from "@/store/auth";
 import { useUser } from "@/hooks/use-user";
@@ -47,6 +46,7 @@ import { updateUser, type Activity, type SearchResults } from "@/lib/data";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
+import { getInitials } from "@/lib/utils";
 interface NavigationBarProps {
   onNavigate: (path: string) => void;
   onMenuToggle?: () => void;
@@ -74,12 +74,9 @@ export function NavigationBar({
   const [seenNotificationIds] = useState(() => new Set<string>());
   const user = useUser();
 
-  // Mock subscription data
-  const subscription = user?.isPremium
-    ? user?.subscription
-    : {
-        name: "Free",
-      };
+  const subscriptionName = user?.isPremium
+    ? user?.subscription?.plan?.name ?? "Pro"
+    : "Free";
   async function load() {
     try {
       setIsActivitiesLoading(true);
@@ -246,7 +243,7 @@ export function NavigationBar({
     {
       name: "Python",
       icon: "🐍",
-      color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+      color: "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary",
     },
     {
       name: "Ruby",
@@ -369,50 +366,49 @@ export function NavigationBar({
 
   return (
     <>
-      <nav className="sticky p-1 md:pl-72 top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky md:pl-72 top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border">
         <div className="flex gap-2 h-16 items-center px-4">
-          {/* Mobile Menu Button */}
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mr-2"
-              onClick={onMenuToggle}
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          )}
-
-          {/* Logo */}
-          <div
-            className="flex items-center space-x-2 cursor-pointer md:hidden px-2"
-            onClick={() => onNavigate(routes.dashboard)}
+          {/* Mobile Menu Button — CSS-gated so it's correct before hydration */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2 md:hidden"
+            onClick={onMenuToggle}
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">MB</span>
-            </div>
-            {!isMobile && (
-              <span className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                MasteringBackend
-              </span>
-            )}
-          </div>
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+
+          {/* Logo — matches the path-step top bar brand mark */}
+          <button
+            type="button"
+            onClick={() => onNavigate(routes.dashboard)}
+            aria-label="Go to dashboard"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-[#0E1F33] flex items-center justify-center overflow-hidden transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:hidden"
+          >
+            <Image
+              src="/main-logo.png"
+              alt="Mastering Backend"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
+          </button>
 
           {/* Global Search Bar */}
           <Popover open={isExploreOpen} onOpenChange={setIsExploreOpen}>
-            <div className="flex-1 max-w-2xl mx-4" ref={exploreSearchRef}>
+            <div className="min-w-0 flex-1 max-w-2xl mx-2 sm:mx-4" ref={exploreSearchRef}>
               <PopoverTrigger asChild>
                 <div className="relative group cursor-text">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
                   <Input
                     type="search"
-                    placeholder="Search courses, roadmaps, projects, bootcamps..."
+                    placeholder="Search courses, projects, bootcamps..."
                     value={exploreSearchQuery}
                     onChange={(e) => setExploreSearchQuery(e.target.value)}
                     onClick={() => !isExploreOpen && setIsExploreOpen(true)}
                     onFocus={() => !isExploreOpen && setIsExploreOpen(true)}
-                    className="w-full pl-10 pr-16 h-10 bg-muted/50 border border-muted hover:border-primary/50 focus:border-primary focus:bg-background transition-colors rounded-lg font-medium focus:outline-none"
+                    className="w-full min-w-0 pl-10 pr-12 sm:pr-16 h-10 bg-muted/50 border border-muted hover:border-primary/50 focus:border-primary focus:bg-background transition-colors rounded-lg font-medium focus:outline-none"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium pointer-events-none hidden sm:block">
                     <kbd className="px-2.5 py-1 rounded bg-muted border border-border text-foreground">
@@ -494,42 +490,6 @@ export function NavigationBar({
                                         ✓ Enrolled
                                       </Badge>
                                     )}
-                                  </button>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Roadmaps Results */}
-                        {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                          <div className="space-y-3">
-                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                              🛣️ Roadmaps{" "}
-                              <span className="font-normal">
-                                ({exploreSearchResults!.roadmaps.length})
-                              </span>
-                            </h3>
-                            <div className="space-y-2">
-                              {exploreSearchResults!.roadmaps
-                                .slice(0, 3)
-                                .map((roadmap) => (
-                                  <button
-                                    key={roadmap.id}
-                                    className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                    onClick={() => {
-                                      setIsExploreOpen(false);
-                                      setExploreSearchQuery("");
-                                      onNavigate(
-                                        routes.roadmapDetail(roadmap.slug),
-                                      );
-                                    }}
-                                  >
-                                    <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate text-foreground">
-                                        {roadmap.title}
-                                      </p>
-                                    </div>
                                   </button>
                                 ))}
                             </div>
@@ -669,45 +629,6 @@ export function NavigationBar({
                                     ✓ Enrolled
                                   </Badge>
                                 )}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Popular Roadmaps */}
-                    {(exploreSearchResults?.roadmaps?.length ?? 0) > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                          🛣️ Popular Roadmaps
-                        </h3>
-                        <div className="space-y-2">
-                          {exploreSearchResults!.roadmaps
-                            .slice(0, 4)
-                            .map((roadmap) => (
-                              <button
-                                key={roadmap.id}
-                                className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 text-left transition-all duration-150 hover:translate-x-1 hover:shadow-sm"
-                                onClick={() => {
-                                  analytics.track("search_result_clicked", {
-                                    resultType: "roadmap",
-                                    resultId: roadmap.id,
-                                    resultTitle: roadmap.title,
-                                    query: exploreSearchQuery,
-                                  });
-                                  setIsExploreOpen(false);
-                                  setExploreSearchQuery("");
-                                  onNavigate(
-                                    routes.roadmapDetail(roadmap.slug),
-                                  );
-                                }}
-                              >
-                                <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate text-foreground">
-                                    {roadmap.title}
-                                  </p>
-                                </div>
                               </button>
                             ))}
                         </div>
@@ -899,56 +820,48 @@ export function NavigationBar({
             </PopoverContent>
           </Popover>
 
-          {/* Desktop Search Bar */}
-          {!isMobile && (
-            <div className="flex-1 max-w-md mx-4">
-              {/* <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 h-9 bg-muted/50"
-                />
-              </form> */}
-            </div>
-          )}
+          {/* Flexible spacer — pushes the right cluster over on md+; collapses
+              on small so the right cluster hugs the edge. CSS-only (no JS flag)
+              so SSR + every width render identically. */}
+          <div className="hidden md:block flex-1 max-w-md mx-4" />
 
-          {/* Right Section */}
-          <div
-            className={`${
-              isMobile ? "justify-end w-full" : "ml-auto gap-4"
-            } flex items-center space-x-1`}
-          >
-            {!isMobile && <ThemeToggle />}
+          {/* Right Section — CSS-responsive (never gated on the isMobile JS
+              flag, which caused SSR/hydration overflow on real accounts). */}
+          <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
+            {user?.isPremium ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
+                onClick={() => onNavigate(routes.subscriptionManagement)}
+              >
+                <Crown className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline truncate max-w-[120px]">
+                  {subscriptionName}
+                </span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="shrink-0 bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
+                onClick={() => onNavigate(routes.subscriptionManagement)}
+              >
+                <Crown className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Upgrade</span>
+              </Button>
+            )}
 
+            {/* MB Balance — desktop only, light field (same elevation as search) */}
             <Button
               variant="outline"
               size="sm"
-              className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 text-yellow-600 border-yellow-400/30 hover:bg-gradient-to- hover:from-yellow-400/20 hover:to-yellow-400/20 dark:text-yellow-400"
-              onClick={() => onNavigate(routes.subscriptionManagement)}
+              className="hidden h-9 shrink-0 border border-muted bg-muted/50 font-semibold text-foreground hover:border-primary/50 hover:bg-muted md:inline-flex"
+              onClick={() => onNavigate(routes.xpStore)}
             >
-              {!subscription?.name?.includes("Free") && (
-                <Crown className={`h-4 w-4 ${!isMobile ? "mr-1" : ""}`} />
-              )}
-              {!isMobile && subscription?.name}
+              <span className="truncate max-w-[110px]">
+                {user?.points?.toLocaleString()} MB
+              </span>
             </Button>
-
-            {/* MB Balance - Compact on mobile */}
-            {!isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary"
-                onClick={() => onNavigate(routes.xpStore)}
-              >
-                <Gift className="h-4 w-4 mr-1" />
-                <span className={isMobile ? "sr-only" : ""}>
-                  {user?.points?.toLocaleString()} MB
-                </span>
-              </Button>
-            )}
 
             {/* Notifications */}
             <Popover
@@ -956,7 +869,7 @@ export function NavigationBar({
               onOpenChange={setIsNotificationsOpen}
             >
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 shrink-0">
                   <Bell className="h-5 w-5" />
                   {user?.totalNotifications! > 0 && (
                     <Badge
@@ -986,8 +899,8 @@ export function NavigationBar({
                     {notifications.filter((n: Activity) => !n.isRead).length >
                       0 && (
                       <div>
-                        <div className="sticky top-0 px-4 py-2 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800">
-                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
+                        <div className="sticky top-0 px-4 py-2 bg-primary/5 dark:bg-primary/10 border-b border-primary/30 dark:border-primary/30">
+                          <p className="text-xs font-semibold text-primary dark:text-primary uppercase">
                             🆕 New (
                             {
                               notifications.filter((n: Activity) => !n.isRead)
@@ -1022,7 +935,7 @@ export function NavigationBar({
                                                 "MILESTONE",
                                               )
                                             ? "bg-orange-500 animate-pulse"
-                                            : "bg-blue-500"
+                                            : "bg-primary"
                                   }`}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -1036,7 +949,7 @@ export function NavigationBar({
                                     {format(notification.createdAt)}
                                   </p>
                                 </div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                                <div className="w-3 h-3 bg-primary rounded-full flex-shrink-0 mt-1" />
                               </div>
                             </div>
                           ))}
@@ -1108,15 +1021,13 @@ export function NavigationBar({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
+                  size="icon"
+                  className="relative h-9 w-9 rounded-full shrink-0"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={user?.avatar || "/placeholder.svg"}
-                      alt={user?.name}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                      {user?.name?.charAt(0)}
+                    <AvatarImage src={user?.avatar || undefined} alt={user?.name} />
+                    <AvatarFallback className="bg-[#0E1F33] text-xs font-semibold text-white">
+                      {getInitials(user?.name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -1147,13 +1058,12 @@ export function NavigationBar({
                   <Code className="mr-2 h-4 w-4" />
                   <span>My Projects</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.roadmaps)}>
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  <span>Roadmaps</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.project30)}>
+                <DropdownMenuItem disabled>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  <span>Project30</span>
+                  <span>Ship</span>
+                  <Badge variant="secondary" className="ml-auto">
+                    Soon
+                  </Badge>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -1162,9 +1072,12 @@ export function NavigationBar({
                   <User className="mr-2 h-4 w-4" />
                   <span>My Portfolio</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onNavigate(routes.community)}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Leaderboard</span>
+                <DropdownMenuItem onClick={() => onNavigate(routes.hallOfFame)}>
+                  <Trophy className="mr-2 h-4 w-4" />
+                  <span>Hall of Fame</span>
+                  <Badge className="ml-auto bg-emerald-500 text-white hover:bg-emerald-600">
+                    New
+                  </Badge>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {(user?.role === "ADMIN" || user?.role === "INSTRUCTOR") && (

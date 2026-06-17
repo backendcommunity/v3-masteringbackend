@@ -469,7 +469,7 @@ ${challenge.testCases
               </Badge>
               <Badge
                 variant="outline"
-                className="border-blue-600 text-blue-600"
+                className="border-primary text-primary"
               >
                 <Trophy className="w-3 h-3 mr-1" />
                 {challenge.points} pts

@@ -20,7 +20,7 @@ export default function InterviewAlgorithmEditorRoute({
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fluid>
       <InterviewAlgorithmPage
         interviewId={params.interviewId}
         onNavigate={handleNavigate}
