@@ -127,9 +127,9 @@ export function ProjectDetailPage({
         setShowPaymentDialog(!showPaymentDialog);
         return;
       }
-      setEnrolling(true);
-      const enrolled = await handleEnrollment(slug);
-      if (!enrolled) {
+      // add from here inside dialog
+      const userProject = await handleEnrollment(slug);
+      if (!userProject) {
         toast.error("An error occurred. Please try again");
         return;
       }
