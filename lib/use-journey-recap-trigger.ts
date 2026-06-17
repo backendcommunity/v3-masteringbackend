@@ -22,7 +22,8 @@ export async function triggerWelcomeBack(): Promise<void> {
   if (sessionStorage.getItem(sk) === today) return;
   try {
     const payload = await useAppStore.getState().getWelcomeBack();
+    if (!payload) return;
     sessionStorage.setItem(sk, today);
-    if (payload) useAppStore.getState().setReturnRecap(payload);
+    useAppStore.getState().setReturnRecap(payload);
   } catch { /* no-op */ }
 }
