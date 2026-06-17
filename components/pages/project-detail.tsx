@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +78,9 @@ export function ProjectDetailPage({
       setProject(project);
       setUserProject(project?.userProject);
       setLoading(false);
+      if (project?.id) {
+        setTimeout(() => { void triggerItemRecap("PROJECT", project.id); }, 0);
+      }
       if (project) {
         analytics.track("project_viewed", {
           projectId: project.id,
