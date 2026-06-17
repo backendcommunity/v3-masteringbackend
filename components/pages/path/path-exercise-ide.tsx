@@ -172,7 +172,12 @@ export function PathExerciseIde({
 
     const onQueued = (p: { submissionId: string }) => {
       pendingId.current = p.submissionId;
-      pollTimer.current = setTimeout(() => pollOnce(p.submissionId), 8000);
+      // Practice runs use an ephemeral id with no DB row — nothing to poll, so
+      // skip the fallback (it would 404 "submission not found"). Only persisted
+      // submissions get the poll safety net.
+      if (!p.submissionId.startsWith("run_")) {
+        pollTimer.current = setTimeout(() => pollOnce(p.submissionId), 8000);
+      }
     };
     const onResult = (r: SubmissionResult) => {
       if (r.submissionId !== pendingId.current) return;
