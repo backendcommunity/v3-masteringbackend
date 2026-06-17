@@ -197,7 +197,7 @@ export function ExercisePlayground({ exerciseId, onPassed }: Props) {
           {result.error && <p className="text-sm text-red-600">{result.error}</p>}
 
           <div className="space-y-1">
-            {result.caseResults.map((c, i) => (
+            {(result.caseResults ?? []).map((c, i) => (
               <div key={`${c.name}-${i}`} className="flex items-center gap-2 text-sm">
                 {c.passed ? (
                   <CheckCircle className="h-3.5 w-3.5 text-green-600" />
