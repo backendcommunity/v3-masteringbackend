@@ -253,7 +253,7 @@ export function PathExerciseIde({
     setTests([]);
     setOutTab("Output");
     analytics.track("exercise_run", { exerciseId, language: langCode });
-    getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code });
+    getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "run" });
   };
 
   const submit = () => {
@@ -265,7 +265,7 @@ export function PathExerciseIde({
     setTests([]);
     setOutTab("Tests");
     analytics.track("exercise_submitted", { exerciseId, language: langCode });
-    getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code });
+    getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "submit" });
   };
 
   const reset = () => {
