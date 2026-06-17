@@ -1,6 +1,10 @@
 "use client";
+import { useEffect, useState } from "react";
+import { Exercise } from "@/lib/data";
 import { PathSessionStep } from "@/lib/path-types";
-import { PathComingSoon } from "../path-coming-soon";
+import { useAppStore } from "@/lib/store";
+import { Loader } from "@/components/ui/loader";
+import { PathExerciseIde } from "../path-exercise-ide";
 
 export function ExerciseStep({
   step,
@@ -10,11 +14,33 @@ export function ExerciseStep({
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
   onNavigate: (path: string) => void;
 }) {
-  // Exercise IDE not shipped yet — show coming-soon + let the learner skip ahead.
+  const store = useAppStore();
+  const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await store.getPathItem(step.payloadRef.endpoint);
+        setExercise(data as Exercise);
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.id]);
+
+  if (loading) return <Loader />;
+  if (!exercise)
+    return (
+      <div className="p-6 text-muted-foreground">Exercise unavailable.</div>
+    );
+
   return (
-    <PathComingSoon
-      kind="exercise"
-      onSkip={() => onComplete(step.id, { skipped: true })}
+    <PathExerciseIde
+      step={step}
+      exercise={exercise}
+      onComplete={(id) => onComplete(id)}
     />
   );
 }
