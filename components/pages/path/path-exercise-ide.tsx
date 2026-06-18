@@ -60,8 +60,6 @@ const LANG_BY_CODE = (c: string) => LANGS.find((l) => l.code === String(c).toLow
 // Falls back to LANGS (then the code itself) for anything not listed here.
 const MONACO_BY_CODE: Record<string, string> = {
   node: "javascript",
-  typescript: "typescript",
-  swift: "swift",
   kotlin: "kotlin",
 };
 const monacoForCode = (c: string) =>

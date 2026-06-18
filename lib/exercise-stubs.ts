@@ -1,17 +1,17 @@
 export const ALL_LANGUAGES = [
   { value: "node", label: "JavaScript (Node.js)" },
   { value: "python", label: "Python" },
+  { value: "php", label: "PHP" },
+  { value: "ruby", label: "Ruby" },
   { value: "java", label: "Java" },
+  { value: "c", label: "C" },
+  { value: "cpp", label: "C++" },
   { value: "go", label: "Go" },
   { value: "rust", label: "Rust" },
-  { value: "cpp", label: "C++" },
   { value: "csharp", label: "C#" },
-  { value: "ruby", label: "Ruby" },
-  { value: "php", label: "PHP" },
-  { value: "perl", label: "Perl" },
-  { value: "swift", label: "Swift" },
   { value: "kotlin", label: "Kotlin" },
-  { value: "typescript", label: "TypeScript" },
+  { value: "scala", label: "Scala" },
+  { value: "perl", label: "Perl" },
 ];
 
 export const DYNAMIC_LANGUAGES = ["node", "python", "php", "ruby", "perl"];
@@ -130,22 +130,27 @@ while (my $line = <STDIN>) {
     # process line
 }
 print "your answer\n";`,
-  swift: `import Foundation
-while let line = readLine() {
-    // process line
-}
-print("your answer")`,
+  c: `#include <stdio.h>
+#include <string.h>
+int main() {
+    char line[1024];
+    while (fgets(line, sizeof(line), stdin) != NULL) {
+        // process line (trim newline with strtok or manual check)
+    }
+    printf("your answer\\n");
+    return 0;
+}`,
   kotlin: `fun main() {
     val lines = generateSequence(::readLine).toList()
     // process lines and println your answer
 }`,
-  typescript: `import * as readline from 'readline';
-const rl = readline.createInterface({ input: process.stdin });
-const lines: string[] = [];
-rl.on('line', (line: string) => lines.push(line));
-rl.on('close', () => {
-  // process lines and console.log your answer
-});`,
+  scala: `import scala.io.StdIn
+object Solution {
+  def main(args: Array[String]): Unit = {
+    val lines = Iterator.continually(scala.io.StdIn.readLine()).takeWhile(_ != null).toList
+    // process lines and println your answer
+  }
+}`,
 };
 
 // ── Per-language FUNCTION_CALL dynamic stubs ─────────────────────────────────
@@ -196,17 +201,17 @@ function staticFcStub(
       const csParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
       return `public static ${returns} ${entry}(${csParams}) {\n    // implement\n}`;
     }
-    case "swift": {
-      const swParams = params.map((p) => `_ ${p.name}: ${p.type}`).join(", ");
-      return `func ${entry}(${swParams}) -> ${returns} {\n    // implement\n}`;
+    case "c": {
+      const cParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
+      return `${returns} ${entry}(${cParams}) {\n    /* implement */\n}`;
     }
     case "kotlin": {
       const ktParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
       return `fun ${entry}(${ktParams}): ${returns} {\n    // implement\n}`;
     }
-    case "typescript": {
-      const tsParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
-      return `function ${entry}(${tsParams}): ${returns} {\n  \n}`;
+    case "scala": {
+      const scParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
+      return `def ${entry}(${scParams}): ${returns} = {\n  // implement\n}`;
     }
     default:
       return dynamicFcStub(lang, entry);

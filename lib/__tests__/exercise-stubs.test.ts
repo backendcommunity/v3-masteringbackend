@@ -95,6 +95,20 @@ describe("languageOptions", () => {
     expect(opts).toHaveLength(13);
   });
 
+  test("OUTPUT_MATCH includes c and scala", () => {
+    const opts = languageOptions("OUTPUT_MATCH", exerciseWithSig);
+    const codes = opts.map((o) => o.value);
+    expect(codes).toContain("c");
+    expect(codes).toContain("scala");
+  });
+
+  test("OUTPUT_MATCH does NOT include swift or typescript", () => {
+    const opts = languageOptions("OUTPUT_MATCH", exerciseWithSig);
+    const codes = opts.map((o) => o.value);
+    expect(codes).not.toContain("swift");
+    expect(codes).not.toContain("typescript");
+  });
+
   test("FUNCTION_CALL with signature returns all 13 languages", () => {
     const opts = languageOptions("FUNCTION_CALL", exerciseWithSig);
     expect(opts).toHaveLength(13);
