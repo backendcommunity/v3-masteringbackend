@@ -17,6 +17,8 @@ export function StepStage({
   onReachComplete,
   onNavigate,
   updateProgress,
+  onPassed,
+  onContinue,
 }: {
   pathId: string;
   step?: PathSessionStep;
@@ -32,6 +34,10 @@ export function StepStage({
     stepId: string,
     payload: { duration: number },
   ) => Promise<unknown>;
+  // Exercise-specific: record pass without advancing (Task 3), then advance on
+  // explicit Continue click (Task 4). Non-exercise steps keep onComplete.
+  onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
+  onContinue?: () => void;
 }) {
   if (!step)
     return (
@@ -64,7 +70,15 @@ export function StepStage({
       case "QUIZ":
         return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
       case "EXERCISE":
-        return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+        return (
+          <ExerciseStep
+            step={step}
+            onComplete={onComplete}
+            onNavigate={onNavigate}
+            onPassed={onPassed}
+            onContinue={onContinue}
+          />
+        );
       case "PROJECT":
         return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
       case "MOCK_INTERVIEW":

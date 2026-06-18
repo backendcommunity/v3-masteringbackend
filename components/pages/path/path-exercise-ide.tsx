@@ -80,10 +80,16 @@ export function PathExerciseIde({
   step,
   exercise,
   onComplete,
+  onPassed: _onPassed,
+  onContinue: _onContinue,
 }: {
   step: PathSessionStep;
   exercise: Exercise;
   onComplete: (stepId: string) => void;
+  // Threaded through from ExerciseStep; Task 4 will wire these to replace
+  // the onComplete call once the Continue button is added.
+  onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
+  onContinue?: () => void;
 }) {
   const store = useAppStore();
   const editorRef = useRef<unknown>(null);
