@@ -105,6 +105,11 @@ export function PathWorkspace({
   );
   // Path-branded certificate landing takes over the stage when true.
   const [showCertificate, setShowCertificate] = useState(false);
+  // Exercise steps defer navigation: completion is recorded immediately but the
+  // advance waits for an explicit Continue click (Task 4 adds the button).
+  const [pendingNextStepId, setPendingNextStepId] = useState<string | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     try {
@@ -214,6 +219,45 @@ export function PathWorkspace({
     },
     [pathId, completeStepFn, loadSessionFn, applyDelta],
   );
+
+  // Exercise-specific: records completion (applies delta + celebrations) but
+  // does NOT navigate. The learner clicks Continue (Task 4) to call advance().
+  const recordStepComplete = useCallback(
+    async (stepId: string, payload?: Record<string, unknown>) => {
+      try {
+        const delta = await completeStepFn(pathId, stepId, payload);
+        applyDelta(delta);
+        const fresh = await loadSessionFn(pathId);
+        setSession(fresh);
+
+        const cel = delta.celebrations ?? [];
+        // Surface all meaningful celebrations (same filter as completeStep).
+        setCelebrationQueue(
+          cel.filter(
+            (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
+          ),
+        );
+        // Stash the next step so advance() can navigate when the user clicks Continue.
+        setPendingNextStepId(delta.cursor?.nextStepId ?? null);
+        return delta;
+      } catch {
+        toast.error("Could not mark this step complete.");
+      }
+    },
+    [pathId, completeStepFn, loadSessionFn, applyDelta],
+  );
+
+  // Navigate to the pending next step (set by recordStepComplete). Falls back to
+  // the cursor's nextStepId if pendingNextStepId was cleared between calls.
+  const advance = useCallback(() => {
+    const nextId = pendingNextStepId ?? session?.cursor?.nextStepId ?? null;
+    if (nextId) {
+      setCurrentStepId(nextId);
+    } else {
+      toast.success("You've completed this course! 🎉");
+    }
+    setPendingNextStepId(null);
+  }, [pendingNextStepId, session?.cursor?.nextStepId]);
 
   const ordered = useMemo(
     () => (session ? [...session.steps].sort((a, b) => a.order - b.order) : []),
@@ -398,6 +442,8 @@ export function PathWorkspace({
             onSelectStep={selectStep}
             onNavigate={onNavigate}
             updateProgress={updateProgressFn}
+            onPassed={recordStepComplete}
+            onContinue={advance}
           />
         </div>
         {outlineDrawer}
@@ -475,6 +521,8 @@ export function PathWorkspace({
               onSelectStep={selectStep}
               onNavigate={onNavigate}
               updateProgress={updateProgressFn}
+              onPassed={recordStepComplete}
+              onContinue={advance}
             />
           </PathStage>
 
