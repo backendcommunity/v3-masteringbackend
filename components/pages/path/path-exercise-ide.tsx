@@ -34,38 +34,24 @@ import type { SubmissionResult } from "@/lib/data";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Exercise = any;
 
-const LANGUAGES = [
-  "JavaScript",
-  "TypeScript",
-  "Python",
-  "Java",
-  "Go",
-  "Rust",
-  "C++",
-  "SQL",
-  "HTML",
-  "CSS",
+// The 13 runnable languages. `code` is what the gateway/executor expect,
+// `label` is what the learner sees, `monaco` is the editor syntax id.
+const LANGS: { code: string; label: string; monaco: string }[] = [
+  { code: "node", label: "JavaScript", monaco: "javascript" },
+  { code: "python", label: "Python", monaco: "python" },
+  { code: "php", label: "PHP", monaco: "php" },
+  { code: "ruby", label: "Ruby", monaco: "ruby" },
+  { code: "java", label: "Java", monaco: "java" },
+  { code: "c", label: "C", monaco: "c" },
+  { code: "cpp", label: "C++", monaco: "cpp" },
+  { code: "go", label: "Go", monaco: "go" },
+  { code: "rust", label: "Rust", monaco: "rust" },
+  { code: "csharp", label: "C#", monaco: "csharp" },
+  { code: "kotlin", label: "Kotlin", monaco: "kotlin" },
+  { code: "scala", label: "Scala", monaco: "scala" },
+  { code: "perl", label: "Perl", monaco: "perl" },
 ];
-
-// The editor shows display names; the gateway/executor speak lowercase codes.
-const DISPLAY_TO_CODE: Record<string, string> = {
-  JavaScript: "node",
-  TypeScript: "node",
-  Python: "python",
-  Java: "java",
-  Go: "go",
-  Rust: "rust",
-  "C++": "cpp",
-};
-const CODE_TO_DISPLAY: Record<string, string> = {
-  node: "JavaScript",
-  nodejs: "JavaScript",
-  python: "Python",
-  java: "Java",
-  go: "Go",
-  rust: "Rust",
-  cpp: "C++",
-};
+const LANG_BY_CODE = (c: string) => LANGS.find((l) => l.code === String(c).toLowerCase());
 
 // Editor surface matches the chrome (#171B26) so the panel reads as one piece.
 const EDITOR_BG = "#171B26";
@@ -111,19 +97,19 @@ export function PathExerciseIde({
   const [editorTheme, setEditorTheme] = useState<"mb-dark" | "mb-light">(
     "mb-dark",
   );
-  const [language, setLanguage] = useState<string>(() => {
-    // Prefer the exercise's first declared language (languages[]), then the
-    // legacy singular field, mapped to a display name.
-    const init = String(
-      exercise?.languages?.[0] ?? exercise?.language ?? "",
-    ).toLowerCase();
-    return (
-      CODE_TO_DISPLAY[init] ??
-      LANGUAGES.find((l) => l.toLowerCase().replace("c++", "cpp") === init) ??
-      LANGUAGES.find((l) => l.toLowerCase() === init) ??
-      "Python"
-    );
-  });
+  // Languages the learner may pick:
+  // - TEST_CASES is single-language (the author wrote the test) -> lock it.
+  // - else: the exercise's declared languages, or all 13 if unrestricted.
+  const exerciseLangs: string[] = Array.isArray(exercise?.languages)
+    ? (exercise.languages as string[]).map((c) => String(c).toLowerCase())
+    : [];
+  const isTestCases = exercise?.graderType === "TEST_CASES";
+  const baseOptions = exerciseLangs.length ? exerciseLangs : LANGS.map((l) => l.code);
+  const langOptions = isTestCases ? baseOptions.slice(0, 1) : baseOptions;
+  const lockLanguage = isTestCases || langOptions.length <= 1;
+
+  // `language` is a lowercase code (e.g. "node", "cpp").
+  const [language, setLanguage] = useState<string>(() => langOptions[0] ?? "python");
   const [showHint, setShowHint] = useState(false);
   // Below lg the three-pane horizontal split is too cramped — stack vertically.
   const [narrow, setNarrow] = useState(false);
@@ -146,10 +132,9 @@ export function PathExerciseIde({
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
 
-  const monacoLanguage =
-    language.toLowerCase() === "c++" ? "cpp" : language.toLowerCase();
-  // The lowercase code the gateway/executor expect for this display language.
-  const langCode = DISPLAY_TO_CODE[language] ?? language.toLowerCase();
+  const monacoLanguage = LANG_BY_CODE(language)?.monaco ?? language;
+  // `language` is already the lowercase code the gateway/executor expect.
+  const langCode = language;
   const exerciseId: string =
     exercise?.id ?? exercise?.exerciseId ?? step.itemId;
   const points: number | undefined = exercise?.points;
@@ -230,11 +215,22 @@ export function PathExerciseIde({
     setTests(
       (r.caseResults ?? []).map((c) => ({ description: c.name, passed: c.passed })),
     );
+    // Output tab = the program's real stdout per case (+ stderr + a summary),
+    // so learners see their logs/output, not just the score.
+    const stdoutBlocks = (r.caseResults ?? [])
+      .filter((c) => c.gotPreview != null && c.gotPreview !== "")
+      .map((c) => `▸ ${c.name}\n${c.gotPreview}`)
+      .join("\n\n");
     setOutput(
       r.status === "ERROR"
         ? r.error || r.stderr || "Execution error."
-        : `${r.status} — ${r.score}% (${r.passedCount}/${r.totalCount})` +
-            (r.stderr ? `\n\n${r.stderr}` : ""),
+        : [
+            stdoutBlocks,
+            r.stderr ? `stderr:\n${r.stderr}` : "",
+            `— ${r.status} ${r.score}% (${r.passedCount}/${r.totalCount})`,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
     );
 
     if (modeRef.current === "submit") {
@@ -304,12 +300,13 @@ export function PathExerciseIde({
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
-            title="Language"
+            disabled={lockLanguage}
+            className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
+            title={lockLanguage ? "This exercise uses a fixed language" : "Language"}
           >
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {l}
+            {langOptions.map((c) => (
+              <option key={c} value={c}>
+                {LANG_BY_CODE(c)?.label ?? c}
               </option>
             ))}
           </select>
