@@ -31,6 +31,7 @@ import { useUserStore } from "@/lib/user-store";
 import { PathSessionStep } from "@/lib/path-types";
 import { getExerciseSocket } from "@/lib/exercise-socket";
 import { analytics } from "@/lib/analytics";
+import { languageOptions, stubFor, ALL_LANGUAGES } from "@/lib/exercise-stubs";
 import type { SubmissionResult } from "@/lib/data";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +55,23 @@ const LANGS: { code: string; label: string; monaco: string }[] = [
   { code: "perl", label: "Perl", monaco: "perl" },
 ];
 const LANG_BY_CODE = (c: string) => LANGS.find((l) => l.code === String(c).toLowerCase());
+
+// Monaco syntax ids for every code the any-language selector may offer.
+// Falls back to LANGS (then the code itself) for anything not listed here.
+const MONACO_BY_CODE: Record<string, string> = {
+  node: "javascript",
+  typescript: "typescript",
+  swift: "swift",
+  kotlin: "kotlin",
+};
+const monacoForCode = (c: string) =>
+  MONACO_BY_CODE[c] ?? LANG_BY_CODE(c)?.monaco ?? c;
+// Display label for a code: prefer the IDE's LANGS label, then the
+// any-language list, then the raw code.
+const labelForCode = (c: string) =>
+  LANG_BY_CODE(c)?.label ??
+  ALL_LANGUAGES.find((l) => l.value === c)?.label ??
+  c;
 
 // Editor surface matches the chrome (#171B26) so the panel reads as one piece.
 const EDITOR_BG = "#171B26";
@@ -106,19 +124,28 @@ export function PathExerciseIde({
   const [editorTheme, setEditorTheme] = useState<"mb-dark" | "mb-light">(
     "mb-dark",
   );
-  // Languages the learner may pick:
-  // - TEST_CASES is single-language (the author wrote the test) -> lock it.
-  // - else: the exercise's declared languages, or all 13 if unrestricted.
-  const exerciseLangs: string[] = Array.isArray(exercise?.languages)
-    ? (exercise.languages as string[]).map((c) => String(c).toLowerCase())
-    : [];
-  const isTestCases = exercise?.graderType === "TEST_CASES";
-  const baseOptions = exerciseLangs.length ? exerciseLangs : LANGS.map((l) => l.code);
-  const langOptions = isTestCases ? baseOptions.slice(0, 1) : baseOptions;
+  // Languages the learner may pick (f3 — any-language selector):
+  // - TEST_CASES -> locked to the single authored language.
+  // - OUTPUT_MATCH -> all 13.
+  // - FUNCTION_CALL -> all 13 if graderConfig.signature present, else the 5
+  //   dynamic langs (static langs can't be graded without a signature).
+  const graderType: string = exercise?.graderType ?? "OUTPUT_MATCH";
+  const isTestCases = graderType === "TEST_CASES";
+  const langOptions = languageOptions(graderType, exercise ?? {}).map(
+    (o) => o.value,
+  );
   const lockLanguage = isTestCases || langOptions.length <= 1;
 
-  // `language` is a lowercase code (e.g. "node", "cpp").
-  const [language, setLanguage] = useState<string>(() => langOptions[0] ?? "python");
+  // `language` is a lowercase code (e.g. "node", "cpp"). Default to the
+  // authored native language (so its starterCode shows) when it's offered,
+  // else the first available option.
+  const [language, setLanguage] = useState<string>(() => {
+    const native = Array.isArray(exercise?.languages)
+      ? String(exercise.languages[0] ?? "").toLowerCase()
+      : "";
+    if (native && langOptions.includes(native)) return native;
+    return langOptions[0] ?? "python";
+  });
   const [showHint, setShowHint] = useState(false);
   // Below lg the three-pane horizontal split is too cramped — stack vertically.
   const [narrow, setNarrow] = useState(false);
@@ -150,7 +177,14 @@ export function PathExerciseIde({
     () => exercise?.userSubmission?.bestScore,
   );
 
-  const monacoLanguage = LANG_BY_CODE(language)?.monaco ?? language;
+  const monacoLanguage = monacoForCode(language);
+  // `dirty` tracks whether the learner has edited the editor beyond the
+  // current stub/starter. Switching language clobbers content only when the
+  // editor is at a stub (not dirty); otherwise we confirm first.
+  const dirtyRef = useRef(false);
+  // The stub/starter currently seeded into the editor — used to decide
+  // whether an onChange counts as a learner edit.
+  const currentStubRef = useRef<string>("");
   // `language` is already the lowercase code the gateway/executor expect.
   const langCode = language;
   const exerciseId: string =
@@ -173,16 +207,22 @@ export function PathExerciseIde({
   useEffect(() => {
     const sub = exercise?.userSubmission;
     if (sub?.code) {
-      // Returning learner: seed editor with their saved solution.
+      // Returning learner: seed editor with their saved solution (f1).
       setCode(sub.code);
       if (sub.language) setLanguage(String(sub.language).toLowerCase());
       setPassed(sub.passed === true);
       setBestScore(sub.bestScore);
+      // Saved code is the learner's own — treat as untouched baseline so
+      // switching away then back doesn't prompt a needless confirm.
+      currentStubRef.current = sub.code;
     } else {
-      setCode(exercise?.starterCode ?? "");
+      const starter = exercise?.starterCode ?? "";
+      setCode(starter);
       setPassed(false);
       setBestScore(undefined);
+      currentStubRef.current = starter;
     }
+    dirtyRef.current = false;
     setOutput("");
     setTests([]);
     setShowHint(false);
@@ -315,9 +355,40 @@ export function PathExerciseIde({
   };
 
   const reset = () => {
-    setCode(exercise?.starterCode ?? "");
+    const starter = stubFor(graderType, language, exercise ?? {});
+    setCode(starter);
+    currentStubRef.current = starter;
+    dirtyRef.current = false;
     setOutput("");
     setTests([]);
+  };
+
+  // Switch the editor language and re-seed its contents:
+  // - saved submission for that language wins (f1 precedence);
+  // - else if the learner has edited, confirm before replacing;
+  // - else swap in the generated stub for the new language.
+  const switchLanguage = (newLang: string) => {
+    if (newLang === language) return;
+    const sub = exercise?.userSubmission;
+    const savedForLang =
+      sub?.code && String(sub.language).toLowerCase() === newLang
+        ? sub.code
+        : null;
+    const newStub = savedForLang ?? stubFor(graderType, newLang, exercise ?? {});
+
+    if (
+      !savedForLang &&
+      dirtyRef.current &&
+      typeof window !== "undefined" &&
+      !window.confirm("Switching languages will replace your code. Continue?")
+    ) {
+      return; // learner cancelled — keep current language + code
+    }
+
+    setLanguage(newLang);
+    setCode(newStub);
+    currentStubRef.current = newStub;
+    dirtyRef.current = false;
   };
 
   const instructionsHtml = exercise?.instructions
@@ -344,14 +415,15 @@ export function PathExerciseIde({
           )}
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) => switchLanguage(e.target.value)}
             disabled={lockLanguage}
+            aria-label="Programming language"
             className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
             title={lockLanguage ? "This exercise uses a fixed language" : "Language"}
           >
             {langOptions.map((c) => (
               <option key={c} value={c}>
-                {LANG_BY_CODE(c)?.label ?? c}
+                {labelForCode(c)}
               </option>
             ))}
           </select>
@@ -381,7 +453,12 @@ export function PathExerciseIde({
           language={monacoLanguage}
           theme={editorTheme}
           value={code}
-          onChange={(v) => setCode(v ?? "")}
+          onChange={(v) => {
+            const next = v ?? "";
+            setCode(next);
+            // Any divergence from the seeded stub/starter is a learner edit.
+            if (next !== currentStubRef.current) dirtyRef.current = true;
+          }}
           beforeMount={(monaco) => {
             monaco.editor.defineTheme("mb-dark", {
               base: "vs-dark",
