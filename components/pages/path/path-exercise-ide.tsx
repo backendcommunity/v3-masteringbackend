@@ -165,6 +165,13 @@ export function PathExerciseIde({
   const [outTab, setOutTab] = useState<OutTab>("Output");
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
+  // F4 — streaming phase status and per-check stdout blocks.
+  // `phaseStatus` is null when no run is in flight; a human-readable string otherwise.
+  // `streamChecks` accumulates visible per-check stdout chunks while running.
+  const [phaseStatus, setPhaseStatus] = useState<string | null>(null);
+  const [streamChecks, setStreamChecks] = useState<
+    { index: number; name: string; stdout: string }[]
+  >([]);
   // `passed` is set on a successful submit OR pre-populated from userSubmission.
   const [passed, setPassed] = useState<boolean>(
     () => exercise?.userSubmission?.passed === true,
@@ -257,13 +264,60 @@ export function PathExerciseIde({
       if (modeRef.current === "submit") toast.error(e.message || "Execution error.");
     };
 
+    // F4 — streaming phase marker: update the status line for the in-flight submission.
+    const onPhase = (p: { submissionId: string; phase: string }) => {
+      if (p.submissionId !== pendingId.current) return; // ignore stale
+      switch (p.phase) {
+        case "queued":
+          setPhaseStatus("Queued…");
+          break;
+        case "compiling":
+          setPhaseStatus("Compiling…");
+          break;
+        case "running":
+          setPhaseStatus("Running…");
+          break;
+        case "done":
+          // "done" immediately precedes submission:result; keep visible briefly
+          setPhaseStatus("Done");
+          break;
+        default:
+          break;
+      }
+    };
+
+    // F4 — per-check streaming: append each visible check's stdout as it arrives.
+    const onCheck = (c: {
+      submissionId: string;
+      index: number;
+      total: number;
+      name: string;
+      passed: boolean;
+      stdout: string;
+      hidden: boolean;
+    }) => {
+      if (c.submissionId !== pendingId.current) return; // ignore stale
+      // Update running count in status line
+      setPhaseStatus(`Running… (${c.index + 1}/${c.total})`);
+      // Skip empty stdout (hidden checks or checks with no output)
+      if (!c.stdout) return;
+      setStreamChecks((prev) => [
+        ...prev,
+        { index: c.index, name: c.name, stdout: c.stdout },
+      ]);
+    };
+
     socket.on("submission:queued", onQueued);
     socket.on("submission:result", onResult);
     socket.on("submission:error", onErr);
+    socket.on("exercise:phase", onPhase);
+    socket.on("exercise:check", onCheck);
     return () => {
       socket.off("submission:queued", onQueued);
       socket.off("submission:result", onResult);
       socket.off("submission:error", onErr);
+      socket.off("exercise:phase", onPhase);
+      socket.off("exercise:check", onCheck);
       if (pollTimer.current) clearTimeout(pollTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,6 +343,9 @@ export function PathExerciseIde({
     pendingId.current = null;
     setRunning(false);
     setSubmitting(false);
+    // F4 — clear streaming state on final result
+    setPhaseStatus(null);
+    setStreamChecks([]);
 
     setTests(
       (r.caseResults ?? []).map((c) => ({ description: c.name, passed: c.passed })),
@@ -336,6 +393,9 @@ export function PathExerciseIde({
     setOutput("");
     setTests([]);
     setOutTab("Output");
+    // F4 — reset streaming state on each new run
+    setPhaseStatus(null);
+    setStreamChecks([]);
     analytics.track("exercise_run", { exerciseId, language: langCode });
     getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "run" });
   };
@@ -348,6 +408,9 @@ export function PathExerciseIde({
     setOutput("");
     setTests([]);
     setOutTab("Tests");
+    // F4 — reset streaming state on each new submit
+    setPhaseStatus(null);
+    setStreamChecks([]);
     analytics.track("exercise_submitted", { exerciseId, language: langCode });
     getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "submit" });
   };
@@ -584,13 +647,35 @@ export function PathExerciseIde({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 font-mono text-[12px] leading-relaxed text-slate-300">
         {outTab === "Output" ? (
-          output ? (
-            <pre className="whitespace-pre-wrap">{output}</pre>
-          ) : (
-            <span className="text-slate-500">
-              Run your code to see the output here.
-            </span>
-          )
+          <>
+            {/* F4 — live phase status line (visible while a run is in flight) */}
+            {phaseStatus != null && (
+              <div
+                data-testid="exercise-phase-status"
+                className="mb-2 flex items-center gap-2 text-[11px] text-slate-400"
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>{phaseStatus}</span>
+              </div>
+            )}
+            {/* F4 — progressive per-check stdout blocks */}
+            {streamChecks.map((c) => (
+              <div key={c.index} className="mb-3">
+                <div className="mb-1 text-[11px] font-semibold text-slate-400">
+                  Check {c.index + 1} — {c.name}
+                </div>
+                <pre className="whitespace-pre-wrap text-slate-300">{c.stdout}</pre>
+              </div>
+            ))}
+            {/* Final / static output (set by finish()) */}
+            {output ? (
+              <pre className="whitespace-pre-wrap">{output}</pre>
+            ) : !phaseStatus && streamChecks.length === 0 ? (
+              <span className="text-slate-500">
+                Run your code to see the output here.
+              </span>
+            ) : null}
+          </>
         ) : tests.length ? (
           <ul className="space-y-1.5">
             {tests.map((t, i) => (
