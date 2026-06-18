@@ -9,10 +9,16 @@ import { PathExerciseIde } from "../path-exercise-ide";
 export function ExerciseStep({
   step,
   onComplete,
+  onPassed,
+  onContinue,
 }: {
   step: PathSessionStep;
   onComplete: (stepId: string, payload?: Record<string, unknown>) => void;
   onNavigate: (path: string) => void;
+  // Exercise-only: record completion without advancing (Task 3). Task 4 wires
+  // the IDE to use onPassed/onContinue instead of onComplete.
+  onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
+  onContinue?: () => void;
 }) {
   const store = useAppStore();
   const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -41,6 +47,8 @@ export function ExerciseStep({
       step={step}
       exercise={exercise}
       onComplete={(id) => onComplete(id)}
+      onPassed={onPassed}
+      onContinue={onContinue}
     />
   );
 }
