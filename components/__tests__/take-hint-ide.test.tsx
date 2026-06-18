@@ -187,4 +187,50 @@ describe("Take Hint", () => {
       expect.objectContaining({ points: 70 }),
     );
   });
+
+  it("already taken → reveals hint without an API call", async () => {
+    render(
+      <PathExerciseIde
+        exercise={{ ...ex, hintTaken: true }}
+        step={step}
+        onPassed={vi.fn()}
+        onContinue={vi.fn()}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /Show Hint/i }));
+
+    // Hint content must be revealed
+    expect(await screen.findByText(/do it/i)).toBeInTheDocument();
+    // takeExerciseHint must NOT be called
+    expect(takeHint).not.toHaveBeenCalled();
+  });
+
+  it("insufficient modal dismiss closes it", async () => {
+    takeHint.mockResolvedValue({ error: "INSUFFICIENT", shortfall: 20 });
+
+    render(
+      <PathExerciseIde
+        exercise={ex}
+        step={step}
+        onPassed={vi.fn()}
+        onContinue={vi.fn()}
+        onComplete={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /Take Hint/i }));
+
+    // Insufficient-MB modal must appear
+    const modal = await screen.findByText(/more MB/i);
+    expect(modal).toBeInTheDocument();
+
+    // Find and click Dismiss button (exact match to avoid other buttons)
+    const dismissBtn = screen.getByRole("button", { name: "Dismiss" });
+    await userEvent.click(dismissBtn);
+
+    // Modal text must be gone
+    expect(screen.queryByText(/more MB/i)).toBeNull();
+  });
 });
