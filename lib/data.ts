@@ -697,6 +697,14 @@ export interface Exercise {
   completed: boolean;
   attempts: number;
   instructions?: string;
+  userSubmission?: {
+    code: string;
+    language: string;
+    status: "PASSED" | "FAILED" | "ERROR";
+    score: number;
+    bestScore: number;
+    passed: boolean;
+  };
 }
 
 export interface CaseResult {
