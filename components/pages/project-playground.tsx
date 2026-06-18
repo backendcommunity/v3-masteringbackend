@@ -2645,13 +2645,21 @@ export function ProjectPlaygroundPage({
       </Dialog>
 
       <PaymentDialog
-        disableMB={true}
+        disableMB={false}
         disableOnetime={true}
         onClose={() => setShowPayment(false)}
         open={showPayment}
         data={{ ...project, type: "project" }}
         onHandlePreview={() => {}}
-        onHandlePurchase={(id: string, type: any, success: boolean) => {}}
+        onHandlePurchase={async (_id: string, _type: any, success: boolean) => {
+          setShowPayment(false);
+          if (!success) return;
+          // Entitlement was granted server-side (MB redeem / subscription) —
+          // re-fetch so the playground reflects unlocked access without a reload.
+          const fresh = await store.getProject(slug);
+          if (fresh) setProject(fresh);
+          toast.success("Unlocked — enjoy the full project.");
+        }}
       />
 
       <style jsx global>{`

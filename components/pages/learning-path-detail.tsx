@@ -48,7 +48,6 @@ import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
-import { PaymentDialog } from "../payment-dialog";
 import { PathPreviewDialog } from "../path-preview-dialog";
 import {
   Dialog,
@@ -281,7 +280,6 @@ export function LearningPathDetailPage({
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [navigating, setNavigating] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
@@ -375,57 +373,6 @@ export function LearningPathDetailPage({
       source: "enroll_button",
     });
 
-    // Free roadmap or premium user → enroll directly without payment
-    if (!roadmap?.isPremium || user?.isPremium) {
-      setEnrolling(true);
-      try {
-        const enrollResult = await store.enrollInRoadmap(pathId);
-
-        if (!enrollResult) {
-          toast.error("Failed to enroll in path. Please try again.");
-          return;
-        }
-
-        // Just to make first start access faster
-        const userRoadmap = enrollResult?.userRoadmap;
-        milestoneCache.current[userRoadmap?.currentTopicId] =
-          userRoadmap?.currentTopic;
-
-        const updated = await store.getRoadmapBySlug(pathId);
-        setRoadmap(updated);
-        setUserRoadmap(updated?.userRoadmap ?? null);
-
-        setCelebration(true);
-        setShowWelcomeDialog(true);
-
-        analytics.track("path_enrolled", {
-          pathId,
-          pathTitle: roadmap?.title,
-          method: "direct",
-        });
-      } catch (error: any) {
-        const errorMsg =
-          error?.response?.data?.message ||
-          error?.message ||
-          error?.toString?.() ||
-          "Failed to enroll in path";
-        toast.error(errorMsg);
-      } finally {
-        setEnrolling(false);
-      }
-      return;
-    }
-
-    // Premium roadmap, non-premium user → show payment dialog
-    analytics.track("path_payment_dialog_opened", {
-      pathId,
-      roadmapAmount: roadmap?.amount,
-    });
-    setShowPaymentDialog(true);
-  };
-
-  const handlePaymentComplete = async () => {
-    setShowPaymentDialog(false);
     setEnrolling(true);
     try {
       const enrollResult = await store.enrollInRoadmap(pathId);
@@ -435,18 +382,30 @@ export function LearningPathDetailPage({
         return;
       }
 
-      analytics.track("path_enrolled", {
-        pathId,
-        pathTitle: roadmap?.title,
-        method: "payment",
-      });
-      toast.success("Successfully enrolled in path!");
+      // Just to make first start access faster
+      const userRoadmap = enrollResult?.userRoadmap;
+      milestoneCache.current[userRoadmap?.currentTopicId] =
+        userRoadmap?.currentTopic;
 
       const updated = await store.getRoadmapBySlug(pathId);
       setRoadmap(updated);
       setUserRoadmap(updated?.userRoadmap ?? null);
+
+      setCelebration(true);
+      setShowWelcomeDialog(true);
+
+      analytics.track("path_enrolled", {
+        pathId,
+        pathTitle: roadmap?.title,
+        method: "direct",
+      });
     } catch (error: any) {
-      toast.error(error?.message || "Failed to enroll in path");
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        error?.toString?.() ||
+        "Failed to enroll in path";
+      toast.error(errorMsg);
     } finally {
       setEnrolling(false);
     }
@@ -763,18 +722,10 @@ export function LearningPathDetailPage({
                     {enrolling ? "Enrolling…" : "Enroll in path"}
                   </button>
                   <span className="text-sm text-white/[.65]">
-                    {!roadmap.isPremium || user?.isPremium ? (
-                      <>
-                        Free with{" "}
-                        <span className="font-semibold text-white">Pro</span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-white">
-                        {roadmap.amount
-                          ? `$${roadmap.amount}`
-                          : "Premium membership required"}
-                      </span>
-                    )}
+                    Free to start ·{" "}
+                    <span className="font-semibold text-white">
+                      Pro unlocks premium milestones
+                    </span>
                   </span>
                 </div>
               )}
@@ -1011,18 +962,10 @@ export function LearningPathDetailPage({
           </div>
         )}
         <div className="text-sm text-muted-foreground mb-3">
-          {!roadmap.isPremium || user?.isPremium ? (
-            <>
-              Free with{" "}
-              <span className="font-semibold text-foreground">Pro</span>
-            </>
-          ) : (
-            <span className="font-semibold text-foreground">
-              {roadmap.amount
-                ? `$${roadmap.amount}`
-                : "Premium membership required"}
-            </span>
-          )}
+          Free to start ·{" "}
+          <span className="font-semibold text-foreground">
+            Pro unlocks premium
+          </span>
         </div>
         <button
           disabled={enrolling}
@@ -1271,19 +1214,6 @@ export function LearningPathDetailPage({
             {shareRow}
           </div>
         </div>
-
-        <PaymentDialog
-          open={showPaymentDialog}
-          onClose={() => setShowPaymentDialog(false)}
-          onHandlePreview={() => {}}
-          onHandlePurchase={async (_, __, success) => {
-            if (success) {
-              await handlePaymentComplete();
-            }
-          }}
-          data={{ ...roadmap, type: "roadmap" }}
-          disableOnetime={!roadmap?.paddle_price_id}
-        />
 
         <PathPreviewDialog
           open={showPreviewDialog}
@@ -1778,18 +1708,6 @@ export function LearningPathDetailPage({
           </Button>
         </div>
       )}
-
-      <PaymentDialog
-        open={showPaymentDialog}
-        onClose={() => setShowPaymentDialog(false)}
-        onHandlePreview={() => {}}
-        onHandlePurchase={async (_, __, success) => {
-          if (success) {
-            await handlePaymentComplete();
-          }
-        }}
-        data={{ ...roadmap, type: "roadmap" }}
-      />
 
       <ConfettiCelebration
         onComplete={() => setCelebration(false)}

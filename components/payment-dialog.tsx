@@ -292,71 +292,58 @@ export function PaymentDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 md:space-y-4">
-            <Card
-              className={`border ${
-                disableSubscription
-                  ? "bg-muted/10 opacity-50"
-                  : "hover:border-primary hover:bg-muted/50 cursor-pointer"
-              }`}
-              onClick={() => {
-                if (!disableSubscription) {
+            {!disableSubscription && (
+              <Card
+                className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
+                onClick={() => {
                   analytics.track("payment_plan_selected", {
                     plan: "subscription",
                     contentId: data.id,
                   });
                   handlePayment(data.id, "subscription");
-                }
-              }}
-            >
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-3">
-                  <Crown className="h-6 w-6 md:h-8 md:w-8 text-[#F2C94C] flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm md:text-base">
-                      Upgrade to {data?.plan ?? "Pro"}
-                    </h3>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      {disableSubscription
-                        ? "Not available for this bootcamp"
-                        : "Get unlimited access to MB Platform"}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-right">
-                      <div className="font-bold text-sm md:text-base">
-                        ${channel?.originalMonthlyPrice}/mo
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {disableSubscription ? "Disabled" : "Best value"}
-                      </div>
+                }}
+              >
+                <CardContent className="p-3 md:p-4">
+                  <div className="flex items-center gap-3">
+                    <Crown className="h-6 w-6 md:h-8 md:w-8 text-[#F2C94C] flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm md:text-base">
+                        Upgrade to {data?.plan ?? "Pro"}
+                      </h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Get unlimited access to MB Platform
+                      </p>
                     </div>
-                    {!disableSubscription && (
+                    <div>
+                      <div className="text-right">
+                        <div className="font-bold text-sm md:text-base">
+                          ${channel?.originalMonthlyPrice}/mo
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Best value
+                        </div>
+                      </div>
                       <Link
                         href={"/subscription/plans"}
                         className="text-xs text-primary z-10"
                       >
                         Choose another plan
                       </Link>
-                    )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
+            {!disableOnetime && (
             <Card
-              className={`border ${
-                disableOnetime
-                  ? "bg-muted/10"
-                  : "hover:border-primary hover:bg-muted/50 cursor-pointer"
-              }`}
+              className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
               onClick={() => {
-                if (!disableOnetime) {
-                  analytics.track("payment_plan_selected", {
-                    plan: "individual",
-                    contentId: data.id,
-                  });
-                  handlePayment(data.id, "individual");
-                }
+                analytics.track("payment_plan_selected", {
+                  plan: "individual",
+                  contentId: data.id,
+                });
+                handlePayment(data.id, "individual");
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -385,21 +372,17 @@ export function PaymentDialog({
                 </div>
               </CardContent>
             </Card>
+            )}
 
+            {!disableMB && (
             <Card
-              className={`border ${
-                disableMB
-                  ? "bg-muted/10"
-                  : "hover:border-primary hover:bg-muted/50 cursor-pointer"
-              }`}
+              className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
               onClick={() => {
-                if (!disableMB) {
-                  analytics.track("payment_plan_selected", {
-                    plan: "mb",
-                    contentId: data.id,
-                  });
-                  handlePayment(data.id, "mb");
-                }
+                analytics.track("payment_plan_selected", {
+                  plan: "mb",
+                  contentId: data.id,
+                });
+                handlePayment(data.id, "mb");
               }}
             >
               <CardContent className="p-3 md:p-4">
@@ -424,6 +407,7 @@ export function PaymentDialog({
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {isNigerian && data.asyncpay_plan_id && (
               <Card

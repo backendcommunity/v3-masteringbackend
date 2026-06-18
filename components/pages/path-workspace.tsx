@@ -138,6 +138,31 @@ export function PathWorkspace({
     [session, currentStepId],
   );
 
+  const premiumStepCount = useMemo(
+    () => session?.steps.filter((s) => s.access?.allowed === false).length ?? 0,
+    [session],
+  );
+  const freeDoneCount = useMemo(
+    () =>
+      session?.steps.filter(
+        (s) => s.access?.allowed !== false && s.status === "DONE",
+      ).length ?? 0,
+    [session],
+  );
+  const paywallCtx = useMemo(
+    () =>
+      session
+        ? {
+            payment: session.path.payment,
+            pathTitle: session.path.title,
+            premiumStepCount,
+            freeDoneCount,
+            onUnlock: load,
+          }
+        : undefined,
+    [session, premiumStepCount, freeDoneCount, load],
+  );
+
   const selectStep = useCallback(
     (stepId: string) => {
       // Selecting any normal step always exits the certificate landing.
@@ -453,6 +478,7 @@ export function PathWorkspace({
             updateProgress={updateProgressFn}
             onPassed={recordStepComplete}
             onContinue={advance}
+            paywall={paywallCtx}
           />
         </div>
         {outlineDrawer}
@@ -532,6 +558,7 @@ export function PathWorkspace({
               updateProgress={updateProgressFn}
               onPassed={recordStepComplete}
               onContinue={advance}
+              paywall={paywallCtx}
             />
           </PathStage>
 

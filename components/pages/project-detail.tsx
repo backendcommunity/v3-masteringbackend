@@ -580,7 +580,7 @@ export function ProjectDetailPage({
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
           {showPaymentDialog && (
             <PaymentDialog
-              disableMB={true}
+              disableMB={false}
               disableOnetime={true}
               onClose={() => setShowPaymentDialog(false)}
               open={showPaymentDialog}
@@ -699,7 +699,7 @@ export function ProjectDetailPage({
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 {!project?.isPremium || user?.isPremium
                   ? "Build at your own pace · Earn a verified certificate"
-                  : "30-day money-back guarantee"}
+                  : "Cancel anytime · Earn a verified certificate"}
               </p>
 
               {(project?.PRDLink || project?.frontendURL) && (
