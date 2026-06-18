@@ -137,6 +137,15 @@ export function PathExerciseIde({
   const [outTab, setOutTab] = useState<OutTab>("Output");
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
+  // `passed` is set on a successful submit OR pre-populated from userSubmission.
+  const [passed, setPassed] = useState<boolean>(
+    () => exercise?.userSubmission?.passed === true,
+  );
+  // bestScore shown in the Passed badge — comes from userSubmission or the last
+  // graded result (updated when a submit comes back PASSED).
+  const [bestScore, setBestScore] = useState<number | undefined>(
+    () => exercise?.userSubmission?.bestScore,
+  );
 
   const monacoLanguage = LANG_BY_CODE(language)?.monaco ?? language;
   // `language` is already the lowercase code the gateway/executor expect.
@@ -149,7 +158,18 @@ export function PathExerciseIde({
   const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
 
   useEffect(() => {
-    setCode(exercise?.starterCode ?? "");
+    const sub = exercise?.userSubmission;
+    if (sub?.code) {
+      // Returning learner: seed editor with their saved solution.
+      setCode(sub.code);
+      if (sub.language) setLanguage(String(sub.language).toLowerCase());
+      setPassed(sub.passed === true);
+      setBestScore(sub.bestScore);
+    } else {
+      setCode(exercise?.starterCode ?? "");
+      setPassed(false);
+      setBestScore(undefined);
+    }
     setOutput("");
     setTests([]);
     setShowHint(false);
@@ -242,7 +262,12 @@ export function PathExerciseIde({
     if (modeRef.current === "submit") {
       if (r.status === "PASSED") {
         toast.success("Nice work — answer accepted!");
-        onComplete(step.id);
+        // Set local passed state (shows Continue button + Passed badge) and
+        // record completion WITHOUT navigating. Navigation happens when the
+        // learner clicks the Continue → button.
+        setPassed(true);
+        setBestScore(r.score);
+        _onPassed?.(step.id);
       } else if (r.status === "ERROR") {
         toast.error("Execution error. Check the output and try again.");
       } else {
@@ -425,6 +450,14 @@ export function PathExerciseIde({
             {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Submit Answer
           </Button>
+          {passed && (
+            <Button
+              onClick={() => _onContinue?.()}
+              className="h-9 bg-emerald-500 font-bold text-white hover:bg-emerald-600"
+            >
+              Continue →
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -506,9 +539,16 @@ export function PathExerciseIde({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <h1 className="text-lg font-bold leading-snug">
-          {exercise?.title ?? step.title}
-        </h1>
+        <div className="flex items-start gap-2">
+          <h1 className="flex-1 text-lg font-bold leading-snug">
+            {exercise?.title ?? step.title}
+          </h1>
+          {passed && (
+            <span className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 ring-1 ring-emerald-500/40">
+              Passed ✓{bestScore != null ? ` ${bestScore}%` : ""}
+            </span>
+          )}
+        </div>
         {exercise?.description && (
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
             {exercise.description}
