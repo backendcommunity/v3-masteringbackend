@@ -491,6 +491,12 @@ interface AppState {
     stepId: string,
     payload: { duration: number },
   ) => Promise<{ stepId: string; currentDuration?: number }>;
+  takeExerciseHint: (
+    exerciseId: string,
+  ) => Promise<
+    | { hint: string; points: number; charged: boolean; cost: number }
+    | { error: "INSUFFICIENT"; shortfall: number }
+  >;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -659,6 +665,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   getSubmissionStatus: async (exerciseId: string, submissionId: string) => {
     const { data } = await api.get(`/exercises/${exerciseId}/submissions/${submissionId}`);
     return data?.data;
+  },
+  takeExerciseHint: async (exerciseId: string) => {
+    try {
+      const { data } = await api.post(`/exercises/${exerciseId}/hint`);
+      return data?.data;
+    } catch (e: any) {
+      if (e?.response?.status === 402)
+        return { error: "INSUFFICIENT", shortfall: e.response.data?.shortfall ?? 0 };
+      throw e;
+    }
   },
   getMilestone: async (slug: string, topicId: string) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
