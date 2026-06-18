@@ -62,6 +62,11 @@ vi.mock("@/lib/store", () => ({
   useAppStore: () => ({}),
 }));
 
+vi.mock("@/lib/user-store", () => ({
+  useUserStore: (sel: any) =>
+    sel ? sel({ user: null }) : { user: null },
+}));
+
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));

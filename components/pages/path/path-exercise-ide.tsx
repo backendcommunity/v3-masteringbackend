@@ -25,7 +25,9 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { InsufficientMbModal } from "@/components/exercises/insufficient-mb-modal";
 import { useAppStore } from "@/lib/store";
+import { useUserStore } from "@/lib/user-store";
 import { PathSessionStep } from "@/lib/path-types";
 import { getExerciseSocket } from "@/lib/exercise-socket";
 import { analytics } from "@/lib/analytics";
@@ -92,6 +94,7 @@ export function PathExerciseIde({
   onContinue?: () => void;
 }) {
   const store = useAppStore();
+  const currentUser = useUserStore((s) => s.user);
   const editorRef = useRef<unknown>(null);
   const pendingId = useRef<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,9 +156,19 @@ export function PathExerciseIde({
   const exerciseId: string =
     exercise?.id ?? exercise?.exerciseId ?? step.itemId;
   const points: number | undefined = exercise?.points;
-  // Hint cost equals the step's reward, so both XP figures show the same value.
-  const hintCost = Math.max(1, points ?? 50);
+  // Hint cost comes from the exercise field; fall back to 30 MB.
+  const hintCost: number = exercise?.hintCost ?? 30;
   const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
+  // Track whether the hint has been taken (paid) this session or was pre-paid.
+  const [hintTaken, setHintTaken] = useState<boolean>(
+    () => exercise?.hintTaken === true,
+  );
+  // Insufficient-MB modal state
+  const [insufficientModal, setInsufficientModal] = useState<{
+    open: boolean;
+    shortfall: number;
+  }>({ open: false, shortfall: 0 });
+  const [hintLoading, setHintLoading] = useState(false);
 
   useEffect(() => {
     const sub = exercise?.userSubmission;
@@ -173,6 +186,7 @@ export function PathExerciseIde({
     setOutput("");
     setTests([]);
     setShowHint(false);
+    setHintTaken(exercise?.hintTaken === true);
   }, [exercise]);
 
   // Academy exercise gateway. Run Code + Submit Answer both emit
@@ -595,12 +609,41 @@ export function PathExerciseIde({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowHint(true)}
+                disabled={hintLoading}
+                onClick={async () => {
+                  // If already paid (persisted or this session), just reveal.
+                  if (hintTaken) {
+                    setShowHint(true);
+                    return;
+                  }
+                  setHintLoading(true);
+                  try {
+                    const r = await store.takeExerciseHint(exerciseId);
+                    if (r && "error" in r && r.error === "INSUFFICIENT") {
+                      setInsufficientModal({ open: true, shortfall: r.shortfall });
+                    } else if (r && "points" in r) {
+                      setShowHint(true);
+                      setHintTaken(true);
+                      store.syncUserSnapshot({
+                        points: r.points,
+                        level: currentUser?.level ?? 0,
+                      });
+                    }
+                  } finally {
+                    setHintLoading(false);
+                  }
+                }}
                 className="gap-1.5"
               >
-                <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
-                Take Hint
-                <span className="font-bold text-[#a87900]">−{hintCost} XP</span>
+                {hintLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
+                )}
+                {hintTaken ? "Show Hint" : `Take Hint`}
+                {!hintTaken && (
+                  <span className="font-bold text-[#a87900]">−{hintCost} MB</span>
+                )}
               </Button>
             )}
           </div>
@@ -652,6 +695,12 @@ export function PathExerciseIde({
           )}
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <InsufficientMbModal
+        open={insufficientModal.open}
+        shortfall={insufficientModal.shortfall}
+        onClose={() => setInsufficientModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }
