@@ -60,6 +60,13 @@ export interface PathSession {
     certThreshold: number;
     isCompleted: boolean;
     certEligible: boolean;
+    payment: {
+      id: string;
+      kind: "path" | "course";
+      amount: number | null;
+      paddlePriceId: string | null;
+      isPremium: boolean;
+    };
   };
   cursor: {
     currentStepId: string | null;

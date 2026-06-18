@@ -42,7 +42,6 @@ import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
-import { PaymentDialog } from "../payment-dialog";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -62,7 +61,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -131,10 +129,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         courseTitle: course?.title,
         isPremium: course?.isPremium,
       });
-      if (!user?.isPremium && course?.isPremium) {
-        setShowPaymentDialog(!showPaymentDialog);
-        return;
-      }
       setEnrolling(true);
       const data = await handleEnrollment(course?.id!);
       if (!data) {
@@ -326,18 +320,10 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     {enrolling ? "Enrolling…" : "Start Learning"}
                   </button>
                   <span className="text-sm text-white/[.65]">
-                    {!course?.isPremium || user?.isPremium ? (
-                      <>
-                        Free with{" "}
-                        <span className="font-semibold text-white">Pro</span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-white">
-                        {course?.amount
-                          ? `$${course.amount}`
-                          : "Premium membership required"}
-                      </span>
-                    )}
+                    Free to start ·{" "}
+                    <span className="font-semibold text-white">
+                      Pro unlocks premium lessons
+                    </span>
                   </span>
                 </div>
               )}
@@ -646,18 +632,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
-          {showPaymentDialog && (
-            <PaymentDialog
-              onClose={() => setShowPaymentDialog(false)}
-              open={showPaymentDialog}
-              data={{ ...course, type: "course" }}
-              onHandlePreview={() => {}}
-              onHandlePurchase={(id: string, type: any, success: boolean) =>
-                handlePurchase(id, type, success)
-              }
-            />
-          )}
-
           {/* Primary action — buy (cold) or continue (warm) */}
           {course?.enrolled ? (
             <>
@@ -694,18 +668,12 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
             /* Buy card */
             <div className="rounded-2xl border border-border bg-card p-5">
               <div className="text-2xl font-bold mb-1">
-                {!course?.isPremium || user?.isPremium ? (
-                  <span className="flex items-baseline gap-2">
-                    Free
-                    <span className="text-sm font-medium text-muted-foreground">
-                      with Pro
-                    </span>
+                <span className="flex items-baseline gap-2">
+                  Start free
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Pro unlocks premium
                   </span>
-                ) : course?.amount ? (
-                  `$${course.amount}`
-                ) : (
-                  <span className="text-lg">Premium membership</span>
-                )}
+                </span>
               </div>
 
               {(() => {
@@ -761,9 +729,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               </button>
 
               <p className="mt-3 text-xs text-center text-muted-foreground">
-                {!course?.isPremium || user?.isPremium
-                  ? "Cancel anytime · Full lifetime access"
-                  : "30-day money-back guarantee"}
+                Cancel anytime · Earn a verified certificate
               </p>
             </div>
           )}
