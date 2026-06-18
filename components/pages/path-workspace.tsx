@@ -110,6 +110,7 @@ export function PathWorkspace({
   const [pendingNextStepId, setPendingNextStepId] = useState<string | null>(
     null,
   );
+  const [pendingCertUnlocked, setPendingCertUnlocked] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -231,14 +232,16 @@ export function PathWorkspace({
         setSession(fresh);
 
         const cel = delta.celebrations ?? [];
+        const certUnlocked = cel.some((c) => c.kind === "certUnlocked");
         // Surface all meaningful celebrations (same filter as completeStep).
         setCelebrationQueue(
           cel.filter(
             (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
           ),
         );
-        // Stash the next step so advance() can navigate when the user clicks Continue.
+        // Stash next step + cert flag so advance() can replicate completeStep routing.
         setPendingNextStepId(delta.cursor?.nextStepId ?? null);
+        setPendingCertUnlocked(certUnlocked);
         return delta;
       } catch {
         toast.error("Could not mark this step complete.");
@@ -249,15 +252,21 @@ export function PathWorkspace({
 
   // Navigate to the pending next step (set by recordStepComplete). Falls back to
   // the cursor's nextStepId if pendingNextStepId was cleared between calls.
+  // Mirrors completeStep's certificate-routing branch so the final exercise step
+  // of a certificate-bearing path shows the certificate screen instead of the
+  // end-of-course toast.
   const advance = useCallback(() => {
     const nextId = pendingNextStepId ?? session?.cursor?.nextStepId ?? null;
-    if (nextId) {
+    if (hasCertificate && (pendingCertUnlocked || !nextId)) {
+      setShowCertificate(true);
+    } else if (nextId) {
       setCurrentStepId(nextId);
     } else {
       toast.success("You've completed this course! 🎉");
     }
     setPendingNextStepId(null);
-  }, [pendingNextStepId, session?.cursor?.nextStepId]);
+    setPendingCertUnlocked(false);
+  }, [pendingNextStepId, pendingCertUnlocked, hasCertificate, session?.cursor?.nextStepId]);
 
   const ordered = useMemo(
     () => (session ? [...session.steps].sort((a, b) => a.order - b.order) : []),
