@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Player from "@vimeo/player";
 import { Video } from "@/lib/data";
 import { registerActivitySource } from "@/lib/activity";
+import { useAppStore } from "@/lib/store";
 
 interface VimeoPlayerProps {
   video: Partial<Video>;
@@ -41,6 +42,13 @@ const VimeoPlayer = ({
   // stale closure if the parent re-renders with new handler identities.
   const cbRef = useRef({ onEnded, onPlay, onPause, onComplete, onTimeUpdate, onError });
   cbRef.current = { onEnded, onPlay, onPause, onComplete, onTimeUpdate, onError };
+
+  // Pause the video whenever the return-recap modal is open. A ref mirrors the
+  // flag so the play handler (which closes over the initial render) can also see
+  // it — this covers the race where the recap opens before the SDK is ready.
+  const isRecapOpen = useAppStore((s) => !!s.returnRecap);
+  const recapOpenRef = useRef(isRecapOpen);
+  recapOpenRef.current = isRecapOpen;
 
   const [speed, setSpeed] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
@@ -131,6 +139,11 @@ const VimeoPlayer = ({
           .catch(() => {});
 
         player.on("play", () => {
+          // Recap opened before the player was ready (autoplay race) — pause back.
+          if (recapOpenRef.current) {
+            player.pause().catch(() => {});
+            return;
+          }
           if (!releaseActivityRef.current) {
             releaseActivityRef.current = registerActivitySource();
           }
@@ -206,6 +219,13 @@ const VimeoPlayer = ({
       }
     };
   }, [video]);
+
+  // Pause when the return-recap modal opens over a playing video.
+  useEffect(() => {
+    if (isRecapOpen) {
+      playerInstanceRef.current?.pause().catch(() => {});
+    }
+  }, [isRecapOpen]);
 
   const handleSpeedChange = (s: number) => {
     setSpeed(s);
