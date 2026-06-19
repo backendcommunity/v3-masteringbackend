@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { HabitStrip } from "@/components/dashboard/habit-strip";
 import { ResumeHero } from "@/components/dashboard/resume-hero";
 import { UpNextPanel } from "@/components/dashboard/up-next-panel";
 import { LeaguePanel } from "@/components/dashboard/league-panel";
+import { triggerWelcomeBack } from "@/lib/use-journey-recap-trigger";
 
 function DashboardSkeleton() {
   return (
@@ -27,6 +29,10 @@ function DashboardSkeleton() {
 export function DashboardContent() {
   const user = useUser();
   const data = useDashboardData();
+
+  useEffect(() => {
+    setTimeout(() => { void triggerWelcomeBack(); }, 0);
+  }, []);
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
