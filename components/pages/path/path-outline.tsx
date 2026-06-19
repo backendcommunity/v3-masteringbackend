@@ -60,6 +60,61 @@ function StatusIcon({
   return <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />;
 }
 
+// Split a course group's members into chapter sections, preserving compiled
+// order. Consecutive steps sharing a chapterId fold into one section; steps
+// with no chapter (course-level quizzes/projects) form null-chapter sections
+// that render flat. A course with no chapter metadata yields a single
+// null-chapter section — identical to the old flat list.
+type ChapterSection = {
+  chapterId: string | null;
+  chapterTitle: string | null;
+  steps: PathSessionStep[];
+};
+
+function toChapterSections(members: PathSessionStep[]): ChapterSection[] {
+  const sections: ChapterSection[] = [];
+  members.forEach((s) => {
+    const chapterId = s.chapterId ?? null;
+    const last = sections[sections.length - 1];
+    if (last && last.chapterId === chapterId) {
+      last.steps.push(s);
+    } else {
+      sections.push({
+        chapterId,
+        chapterTitle: s.chapterTitle ?? null,
+        steps: [s],
+      });
+    }
+  });
+  return sections;
+}
+
+function renderStep(
+  s: PathSessionStep,
+  active: boolean,
+  onSelectStep: (id: string) => void,
+) {
+  return (
+    <button
+      key={s.id}
+      type="button"
+      data-path-active={active ? "true" : undefined}
+      onClick={() => onSelectStep(s.id)}
+      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
+        active
+          ? "bg-primary/10 font-medium text-primary"
+          : "text-foreground hover:bg-muted/50"
+      }`}
+    >
+      <StatusIcon step={s} active={active} />
+      <span className="flex-1 truncate">{s.title}</span>
+      {s.score != null && s.type === "QUIZ" && (
+        <span className="text-[10px] text-muted-foreground">{s.score}%</span>
+      )}
+    </button>
+  );
+}
+
 export function PathOutline({
   session,
   currentStepId,
@@ -157,32 +212,22 @@ export function PathOutline({
                       </AccordionTrigger>
                       <AccordionContent className="px-2 pb-2 pt-0">
                         <div className="space-y-0.5 border-t pt-2">
-                          {members.map((s) => {
-                            const active = s.id === currentStepId;
-                            return (
-                              <button
-                                key={s.id}
-                                type="button"
-                                data-path-active={active ? "true" : undefined}
-                                onClick={() => onSelectStep(s.id)}
-                                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
-                                  active
-                                    ? "bg-primary/10 font-medium text-primary"
-                                    : "text-foreground hover:bg-muted/50"
-                                }`}
-                              >
-                                <StatusIcon step={s} active={active} />
-                                <span className="flex-1 truncate">
-                                  {s.title}
-                                </span>
-                                {s.score != null && s.type === "QUIZ" && (
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {s.score}%
-                                  </span>
+                          {toChapterSections(members).map((sec, i) =>
+                            sec.chapterId ? (
+                              <div key={`ch-${sec.chapterId}-${i}`} className="pt-1">
+                                <div className="px-2 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                                  {sec.chapterTitle}
+                                </div>
+                                {sec.steps.map((s) =>
+                                  renderStep(s, s.id === currentStepId, onSelectStep),
                                 )}
-                              </button>
-                            );
-                          })}
+                              </div>
+                            ) : (
+                              sec.steps.map((s) =>
+                                renderStep(s, s.id === currentStepId, onSelectStep),
+                              )
+                            ),
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>

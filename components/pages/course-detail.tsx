@@ -319,12 +319,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                     )}
                     {enrolling ? "Enrolling…" : "Start Learning"}
                   </button>
-                  <span className="text-sm text-white/[.65]">
-                    Free to start ·{" "}
-                    <span className="font-semibold text-white">
-                      Pro unlocks premium lessons
-                    </span>
-                  </span>
                 </div>
               )}
             </div>
@@ -667,15 +661,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           ) : (
             /* Buy card */
             <div className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-2xl font-bold mb-1">
-                <span className="flex items-baseline gap-2">
-                  Start free
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Pro unlocks premium
-                  </span>
-                </span>
-              </div>
-
               {(() => {
                 // Social proof for a young catalog: never expose tiny absolute
                 // counts (2–3 learners reads as "nobody's here" — negative

@@ -375,7 +375,9 @@ export function LearningPathDetailPage({
 
     setEnrolling(true);
     try {
-      const enrollResult = await store.enrollInRoadmap(pathId);
+      // Free join → preview enrollment (isPreview=true). Premium steps gate
+      // until the learner subscribes / redeems; a paid grant flips this to full.
+      const enrollResult = await store.enrollInRoadmap(pathId, true);
 
       if (!enrollResult) {
         toast.error("Failed to enroll in path. Please try again.");
@@ -721,12 +723,6 @@ export function LearningPathDetailPage({
                     <Sparkles className="w-4 h-4" />
                     {enrolling ? "Enrolling…" : "Enroll in path"}
                   </button>
-                  <span className="text-sm text-white/[.65]">
-                    Free to start ·{" "}
-                    <span className="font-semibold text-white">
-                      Pro unlocks premium milestones
-                    </span>
-                  </span>
                 </div>
               )}
             </div>
@@ -961,12 +957,6 @@ export function LearningPathDetailPage({
             <span className="text-muted-foreground">Be among the first</span>
           </div>
         )}
-        <div className="text-sm text-muted-foreground mb-3">
-          Free to start ·{" "}
-          <span className="font-semibold text-foreground">
-            Pro unlocks premium
-          </span>
-        </div>
         <button
           disabled={enrolling}
           onClick={handleEnroll}
