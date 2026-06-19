@@ -650,7 +650,8 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                   className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                 >
                   <Play className="w-4 h-4" />
-                  {courseProgress > 0 ? "Continue Learning" : "Start Learning"}
+                  {/* Enrolled → always "Continue Learning", regardless of % */}
+                  Continue Learning
                 </button>
               </div>
 
