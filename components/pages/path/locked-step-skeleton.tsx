@@ -9,7 +9,7 @@ export function LockedStepSkeleton({ type }: { type: PathStepType }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none select-none blur-md opacity-60"
+      className="pointer-events-none select-none blur-sm opacity-70"
     >
       {renderByType(type)}
     </div>

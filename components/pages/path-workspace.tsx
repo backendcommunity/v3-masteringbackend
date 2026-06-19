@@ -170,6 +170,9 @@ export function PathWorkspace({
         : undefined,
     [session, premiumStepCount, freeDoneCount, load],
   );
+  // Current step gated behind the paywall → the only action is "Go Pro" (in the
+  // overlay), so suppress the bottom-bar Next entirely.
+  const currentLocked = currentStep?.access?.allowed === false && !!paywallCtx;
 
   const selectStep = useCallback(
     (stepId: string) => {
@@ -335,7 +338,8 @@ export function PathWorkspace({
   const listHref = entityKind === "course" ? "/courses" : "/paths";
   const detailHref =
     entityKind === "course" ? `/courses/${pathId}` : `/paths/${pathId}`;
-  const hasContext = !!currentStep && !fullBleed;
+  // Locked steps show only the paywall — no Kap context panel / transcript.
+  const hasContext = !!currentStep && !fullBleed && !currentLocked;
 
   const milestoneSteps = ordered.filter(
     (s) => s.topicId === currentStep?.topicId,
@@ -601,7 +605,7 @@ export function PathWorkspace({
             onPrev={() => prev && selectStep(prev.id)}
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
-            hideNext={fullBleed}
+            hideNext={fullBleed || currentLocked}
           />
         </div>
       </div>

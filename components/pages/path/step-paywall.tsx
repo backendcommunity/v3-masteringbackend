@@ -37,7 +37,14 @@ export function StepPaywall({
 
   return (
     <>
-      {/* Glass overlay — sits above the blurred step body */}
+      {/* Full-area frosted scrim — frosts the whole stage so the gated step
+          stays faintly visible behind glass (not a hard wall). The teaser body
+          underneath supplies the shapes; this unifies it into one glass panel. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 z-20 bg-background/40 backdrop-blur-[2px]"
+      />
+      {/* Glass card — sits above the frosted body */}
       <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
         <Card className="w-full max-w-sm border border-primary/20 bg-card/80 shadow-2xl backdrop-blur-xl">
           <CardContent className="flex flex-col items-center gap-5 p-6 text-center">
