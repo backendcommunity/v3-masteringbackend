@@ -361,6 +361,18 @@ interface AppState {
 
   markCourseCompleted: (id: string) => any;
   markProjectTaskAsCompleted: (slug: string, id: string) => any;
+  gradeProjectTask: (
+    slug: string,
+    id: string,
+  ) => Promise<{
+    passed: boolean;
+    checks: Array<{ kind: string; passed: boolean; detail: string }>;
+    statusCode: number | null;
+    latencyMs: number;
+    pointsAwarded: number;
+    projectCompleted: boolean;
+    error?: string;
+  }>;
   markRoadmapVideoCompleted: (
     slug: string,
     topicId: string,
@@ -1198,6 +1210,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   markProjectTaskAsCompleted: async (slug: string, id: string) => {
     const { data } = await api.post(`/projects/${slug}/tasks/${id}`);
+    return data?.data;
+  },
+  gradeProjectTask: async (slug: string, id: string) => {
+    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`);
     return data?.data;
   },
   cancelSubscription: async (id: string) => {

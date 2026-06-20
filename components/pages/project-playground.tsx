@@ -1170,51 +1170,124 @@ export function ProjectPlaygroundPage({
     return rows;
   }
 
-  // Run the task's test: hits the (manual, for now) completion endpoint, shows a
-  // running state, then renders the pass/fail assertion rows. Keeps the drawer
-  // open so the learner sees the result.
+  // Marks a task complete in local state (project tree + active task reference).
+  const markTaskCompleteInState = (taskId: string) => {
+    setProject((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            projectTasks: prev.projectTasks.map((pt: any) => ({
+              ...pt,
+              tasks: pt.tasks.map((task: any) =>
+                task?.id === taskId
+                  ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
+                  : task,
+              ),
+            })),
+          }
+        : prev,
+    );
+    setActiveTask((p: any) =>
+      p ? { ...p, userTask: { ...p.userTask, isCompleted: true } } : p,
+    );
+  };
+
+  // Advances the path step once every task in the project is done.
+  const maybeAdvance = (t: any) => {
+    const allTasks = (project?.projectTasks ?? []).flatMap(
+      (pt: any) => pt.tasks ?? [],
+    );
+    const allDone = allTasks.every(
+      (task: any) => task?.userTask?.isCompleted || task?.id === t.id,
+    );
+    if (allDone) onComplete?.();
+  };
+
+  // Run the task's test: for endpoint tasks (apiSpec present) this calls the
+  // real backend grader which probes the learner's running server and returns
+  // per-assertion verdicts. Non-endpoint tasks use the legacy self-certify path.
   const runTaskTest = async (t: any) => {
     if (!t) return;
+
+    const isEndpointTask = !!t.apiSpec;
+
+    // Gate: endpoint tasks need a live sandbox — catch it before the network
+    // round-trip so the learner gets instant, clear feedback.
+    if (isEndpointTask && !baseURL) {
+      toast.error("Start your server first — click Run Server.");
+      setTestRun({
+        status: "fail",
+        checks: [{ label: "Server not running — click Run Server", ok: false }],
+      });
+      return;
+    }
+
     setTestRun({ status: "running", checks: [] });
     try {
-      // Ensure the learner is enrolled (path steps may land here un-enrolled),
-      // then mark/verify the task.
-      let completed;
-      try {
-        completed = await store.markProjectTaskAsCompleted(slug, t.id);
-      } catch {
-        await store.handleProjectEnrollment(slug);
-        completed = await store.markProjectTaskAsCompleted(slug, t.id);
+      if (!isEndpointTask) {
+        // Legacy non-endpoint completion (article / manual tasks).
+        let completed;
+        try {
+          completed = await store.markProjectTaskAsCompleted(slug, t.id);
+        } catch {
+          await store.handleProjectEnrollment(slug);
+          completed = await store.markProjectTaskAsCompleted(slug, t.id);
+        }
+        markTaskCompleteInState(completed.taskId ?? t.id);
+        setTestRun({ status: "pass", checks: synthChecks(t) });
+        setCelebration(true);
+        toast.success("All assertions passed — task complete");
+        maybeAdvance(t);
+        return;
       }
-      setProject((prev: any) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          projectTasks: prev.projectTasks.map((pt: any) => ({
-            ...pt,
-            tasks: pt.tasks.map((task: any) =>
-              task?.id === completed.taskId
-                ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
-                : task,
-            ),
-          })),
-        };
-      });
-      setActiveTask((p: any) =>
-        p ? { ...p, userTask: { ...p.userTask, isCompleted: true } } : p,
-      );
-      setTestRun({ status: "pass", checks: synthChecks(t) });
-      setCelebration(true);
-      toast.success("All assertions passed — task complete");
-      // Only advance the path step once EVERY task in the project is done —
-      // a single task passing keeps the drawer + results on screen.
-      const allTasks = (project?.projectTasks ?? []).flatMap(
-        (pt: any) => pt.tasks ?? [],
-      );
-      const allDone = allTasks.every(
-        (task: any) => task?.userTask?.isCompleted || task?.id === t.id,
-      );
-      if (allDone) onComplete?.();
+
+      // Real grading: the backend probes the endpoint and returns per-assertion results.
+      let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
+      try {
+        verdict = await store.gradeProjectTask(slug, t.id);
+      } catch (e: any) {
+        if (e?.response?.status === 409) {
+          toast.error("Start your server first — click Run Server.");
+          setTestRun({
+            status: "fail",
+            checks: [{ label: "Server not running — click Run Server", ok: false }],
+          });
+          return;
+        }
+        throw e;
+      }
+
+      const checks = Array.isArray(verdict?.checks)
+        ? verdict.checks.map((c) => ({ label: c.detail || c.kind, ok: !!c.passed }))
+        : [];
+
+      if (verdict?.passed) {
+        markTaskCompleteInState(t.id);
+        setTestRun({
+          status: "pass",
+          checks: checks.length ? checks : [{ label: "All assertions passed", ok: true }],
+        });
+        setCelebration(true);
+        toast.success(
+          verdict.pointsAwarded > 0
+            ? `Passed — +${verdict.pointsAwarded} MB`
+            : "Passed",
+        );
+        maybeAdvance(t);
+      } else {
+        setTestRun({
+          status: "fail",
+          checks: checks.length
+            ? checks
+            : [
+                {
+                  label: verdict?.error || "Endpoint did not match the expected response",
+                  ok: false,
+                },
+              ],
+        });
+        toast.error("Not passing yet — check the failing assertions.");
+      }
     } catch {
       setTestRun({
         status: "fail",
@@ -2405,14 +2478,17 @@ export function ProjectPlaygroundPage({
 
               <div className="df">
                 <span className="hint">
-                  Runs your endpoint in the sandbox and checks each assertion.
+                  {activeTask?.apiSpec && !baseURL
+                    ? "Run your server first to test this endpoint."
+                    : "Runs your endpoint in the sandbox and checks each assertion."}
                 </span>
                 <button
                   className="btn run"
                   onClick={() => runTaskTest(activeTask)}
                   disabled={
                     testRun.status === "running" ||
-                    activeTask?.userTask?.isCompleted
+                    activeTask?.userTask?.isCompleted ||
+                    (!!activeTask?.apiSpec && !baseURL)
                   }
                 >
                   {I.play}{" "}
