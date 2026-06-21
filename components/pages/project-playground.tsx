@@ -447,6 +447,65 @@ export function ProjectPlaygroundPage({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  // Single definition of the autosync engine factory, shared by the engine
+  // effect (mount / repo-identity change) and `handleGhConnected` (connect
+  // mid-session). `pgCtx` and the various setters/refs are read from closure;
+  // the caller supplies the repo identity so the connect handler can build the
+  // engine inline before the project refetch propagates into the effect.
+  const buildSyncEngine = useCallback(
+    (
+      o: string,
+      r: string,
+      instId: string | number,
+    ): PlaygroundSync => {
+      if (!pgCtx) throw new Error("buildSyncEngine called without a worker ctx");
+      return createPlaygroundSync({
+        ctx: pgCtx,
+        owner: o,
+        repo: r,
+        installationId: instId,
+        getLastSha: () => lastShaRef.current,
+        setLastSha: (s) => {
+          lastShaRef.current = s;
+          setLastSha(s);
+        },
+        onStatus: (state, at) => setSyncStatus({ state, at }),
+        onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
+        onReloaded: () => {
+          void refreshTreeRef.current?.();
+        },
+      });
+    },
+    [pgCtx],
+  );
+
+  // Build (and tear down) the GitHub autosync engine when the project is linked
+  // to a repo and the user has the App installed. Rebuilt only when the repo
+  // identity changes — the engine reads the latest sha through `lastShaRef`, so
+  // a per-commit sha update never re-creates it.
+  //
+  // IMPORTANT: this effect MUST be declared ABOVE the seed-on-open effect so it
+  // runs first within a commit (React flushes sibling effects in declaration
+  // order). That guarantees `syncRef.current` is populated before the seed
+  // effect's first `await`, so a connected user's repo is hydrated on first
+  // open instead of silently falling back to the ephemeral seed path.
+  useEffect(() => {
+    if (!pgCtx || !ghConnected || !owner || !repo || !installationId) {
+      syncRef.current?.dispose();
+      syncRef.current = null;
+      return;
+    }
+    // Dispose any engine built ahead of this effect (e.g. inline by
+    // handleGhConnected) so we never double-build / leak before reassigning.
+    syncRef.current?.dispose();
+    const engine = buildSyncEngine(owner, repo, installationId);
+    syncRef.current = engine;
+    return () => {
+      engine.dispose();
+      if (syncRef.current === engine) syncRef.current = null;
+    };
+  }, [pgCtx, ghConnected, owner, repo, installationId, buildSyncEngine]);
+
   // Initial tree load + best-effort seed (replaces the socket folder:read +
   // project:start/clone flow). Runs once the worker ctx is ready.
   useEffect(() => {
@@ -461,9 +520,9 @@ export function ProjectPlaygroundPage({
         // push it as the initial commit so the repo isn't left blank. A hydrate
         // failure falls back to the ephemeral seed path (best-effort) so the IDE
         // still opens with something runnable.
-        // The engine is built by a sibling effect that flushes in the same
-        // commit; `syncRef.current` is populated before this first `await`
-        // resolves. We still guard on it and fall back if it isn't ready.
+        // The engine effect above is declared first, so it flushes earlier in
+        // the same commit and `syncRef.current` is populated before this first
+        // `await`. We still guard on it and fall back if it isn't ready.
         if (ghConnected && syncRef.current) {
           try {
             const r = await syncRef.current.hydrate();
@@ -534,39 +593,6 @@ export function ProjectPlaygroundPage({
     // the seed effect re-runs and hydrates via the (now built) engine.
     ghConnected,
   ]);
-
-  // Build (and tear down) the GitHub autosync engine when the project is linked
-  // to a repo and the user has the App installed. Rebuilt only when the repo
-  // identity changes — the engine reads the latest sha through `lastShaRef`, so
-  // a per-commit sha update never re-creates it.
-  useEffect(() => {
-    if (!pgCtx || !ghConnected || !owner || !repo || !installationId) {
-      syncRef.current?.dispose();
-      syncRef.current = null;
-      return;
-    }
-    const engine = createPlaygroundSync({
-      ctx: pgCtx,
-      owner,
-      repo,
-      installationId,
-      getLastSha: () => lastShaRef.current,
-      setLastSha: (s) => {
-        lastShaRef.current = s;
-        setLastSha(s);
-      },
-      onStatus: (state, at) => setSyncStatus({ state, at }),
-      onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
-      onReloaded: () => {
-        void refreshTreeRef.current?.();
-      },
-    });
-    syncRef.current = engine;
-    return () => {
-      engine.dispose();
-      if (syncRef.current === engine) syncRef.current = null;
-    };
-  }, [pgCtx, ghConnected, owner, repo, installationId]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
@@ -784,22 +810,26 @@ export function ProjectPlaygroundPage({
       if (fresh) setProject(fresh);
       toast.success(`Connected ${newRepoFullName}`);
 
-      // The engine rebuilds asynchronously off the refetched project. Wait a tick
-      // for the effect to flush, then hydrate + push-if-empty.
-      setTimeout(async () => {
-        const engine = syncRef.current;
-        if (!engine) return;
-        try {
-          const r = await engine.hydrate();
-          if (r?.empty) {
-            // New empty repo → push what the learner has already built.
-            await engine.saveNow("manual");
-          }
-          await refreshTree();
-        } catch {
-          toast.error("Connected, but couldn't sync from GitHub yet.");
+      // Build the engine inline (instead of waiting a microtask for the engine
+      // effect to rebuild off the refetched project) so we hydrate
+      // deterministically. The effect will re-run when the refetched project's
+      // repo identity propagates; it disposes this engine first, so there's no
+      // double-build / leak.
+      const [newOwner, newRepo] = newRepoFullName.split("/");
+      if (!pgCtx || !newOwner || !newRepo || !installationId) return;
+      syncRef.current?.dispose();
+      const engine = buildSyncEngine(newOwner, newRepo, installationId);
+      syncRef.current = engine;
+      try {
+        const r = await engine.hydrate();
+        if (r?.empty) {
+          // New empty repo → push what the learner has already built.
+          await engine.saveNow("manual");
         }
-      }, 0);
+        await refreshTree();
+      } catch {
+        toast.error("Connected, but couldn't sync from GitHub yet.");
+      }
     } catch {
       toast.error("Couldn't finish connecting GitHub. Try again.");
     }
