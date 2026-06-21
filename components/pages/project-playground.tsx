@@ -2309,6 +2309,12 @@ export function ProjectPlaygroundPage({
                       <iframe
                         src={resolvedPreviewUrl}
                         title="Project preview"
+                        // Defense-in-depth: the preview serves learner-authored
+                        // code from the sandbox. Sandbox the frame so a misbehaving
+                        // app can't reach the parent. allow-same-origin is kept so
+                        // the previewed API can use its own cookies/storage; the
+                        // preview is a distinct origin from academy regardless.
+                        sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
                       />
                     ) : (
                       <div className="empty pv-empty">
