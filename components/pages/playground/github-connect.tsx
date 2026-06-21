@@ -46,6 +46,8 @@ interface GithubConnectProps {
   projectName?: string;
   onConnected?: (repoFullName: string) => void;
   compact?: boolean;
+  /** Render a single ghost icon button for the top nav (no labelled button). */
+  iconOnly?: boolean;
 }
 
 // Append the current page as the return target. Academy hands back install URLs
@@ -79,6 +81,7 @@ export function GithubConnect({
   projectName,
   onConnected,
   compact = false,
+  iconOnly = false,
 }: GithubConnectProps) {
   const store = useAppStore();
   const [loading, setLoading] = useState(true);
@@ -149,6 +152,47 @@ export function GithubConnect({
       setSaving(false);
     }
   };
+
+  // Icon-only entry for the top nav: a single ghost icon button (matches the
+  // other nav icons via the playground's `.btn.ghost`/`svg.i` styles). Clicking
+  // does the state-appropriate action; the labelled flow + Advanced live in the
+  // connect banner.
+  if (iconOnly) {
+    const onClick = () => {
+      if (!status) return;
+      if (!status.installed) {
+        if (status.installUrl) window.location.href = withReturn(status.installUrl);
+        return;
+      }
+      if (status.connected && status.repoFullName) {
+        window.open(`https://github.com/${status.repoFullName}`, "_blank", "noreferrer");
+        return;
+      }
+      void handleSave();
+    };
+    const title = !status
+      ? "GitHub"
+      : !status.installed
+        ? "Connect GitHub"
+        : status.connected && status.repoFullName
+          ? `Synced to ${status.repoFullName}`
+          : "Save to GitHub";
+    return (
+      <button
+        className="btn ghost"
+        onClick={onClick}
+        title={title}
+        aria-label={title}
+        disabled={saving || loading}
+      >
+        {saving ? (
+          <Loader2 className="i animate-spin" />
+        ) : (
+          <Github className="i" />
+        )}
+      </button>
+    );
+  }
 
   if (loading) {
     return (
