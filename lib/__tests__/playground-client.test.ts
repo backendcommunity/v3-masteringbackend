@@ -176,7 +176,7 @@ describe("pgGit", () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true, pushedSha: "def" }),
+      json: async () => ({ ok: true, pushed: true, sha: "def" }),
     });
 
     const res = await pgGit(ctx, {
@@ -188,7 +188,7 @@ describe("pgGit", () => {
       message: "autosave",
     });
 
-    expect(res).toEqual({ ok: true, pushedSha: "def" });
+    expect(res).toEqual({ ok: true, pushed: true, sha: "def" });
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const [url, init] = (global.fetch as any).mock.calls[0];
     expect(url).toBe("http://localhost:8787/git");
