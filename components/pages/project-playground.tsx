@@ -2080,16 +2080,15 @@ export function ProjectPlaygroundPage({
             )}
           </button>
           <PathFeedbackDialog />
-          {ghConnected ? (
-            renderSyncChip()
-          ) : (
-            <GithubConnect
-              slug={slug}
-              projectName={project?.title}
-              onConnected={handleGhConnected}
-              compact
-            />
-          )}
+          {/* GitHub entry point stays in the top nav in every state (icon/pill);
+              the sync chip sits alongside it once connected. */}
+          <GithubConnect
+            slug={slug}
+            projectName={project?.title}
+            onConnected={handleGhConnected}
+            compact
+          />
+          {ghConnected && renderSyncChip()}
         </div>
       )}
 
