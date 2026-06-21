@@ -2225,7 +2225,7 @@ export function ProjectPlaygroundPage({
               collapsed={!showTerminal}
               onToggle={toggleTerminal}
               onClose={() => toggleTerminal()}
-              slug={slug}
+              ctx={pgCtx}
               output={terminalOutput}
             />
           </div>

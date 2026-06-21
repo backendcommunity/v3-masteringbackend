@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@asyncpay/checkout": "^0.0.37",
+    "@cloudflare/sandbox": "0.8.9",
     "@excalidraw/excalidraw": "^0.18.1",
     "@hookform/resolvers": "^3.9.1",
     "@livekit/components-react": "^2.9.17",
