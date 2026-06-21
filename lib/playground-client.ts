@@ -152,14 +152,26 @@ export function pgSeed(
   return request(ctx, "/seed", args);
 }
 
+/**
+ * Worker `/git` endpoint. The worker dispatches on `op`:
+ *  - `hydrate`        — pull the remote into the workdir
+ *  - `push`           — fast-forward push (optimistic-locked on `baseSha`)
+ *  - `pushForce`      — overwrite the remote with the workdir
+ *  - `resetToRemote`  — discard local changes, reset to the remote head
+ *
+ * `owner`/`repo`/`installationId` identify the GitHub repo + App installation.
+ * `baseSha` (push) guards against clobbering concurrent remote changes;
+ * `message` is the commit subject for push/pushForce.
+ */
 export function pgGit(
   ctx: PgCtx,
   args: {
-    op: "hydrate" | "push";
-    installationId?: string | number;
-    owner?: string;
-    repo?: string;
-    message?: string;
+    op: "hydrate" | "push" | "pushForce" | "resetToRemote";
+    owner: string;
+    repo: string;
+    installationId: string | number;
+    baseSha?: string | null; // push
+    message?: string; // push / pushForce
   },
 ): Promise<any> {
   return request(ctx, "/git", args);

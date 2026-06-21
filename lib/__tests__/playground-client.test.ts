@@ -8,6 +8,7 @@ process.env.NEXT_PUBLIC_PLAYGROUND_WORKER_URL = "http://localhost:8787";
 import {
   getWorkerToken,
   pgFs,
+  pgGit,
   pgSeed,
   pgTerminalUrl,
   clearWorkerTokens,
@@ -165,6 +166,48 @@ describe("pgSeed", () => {
       projectId: "proj-db-id",
       projectName: "my-project",
       baseRepository: "https://github.com/x/y",
+    });
+  });
+});
+
+describe("pgGit", () => {
+  it("POSTs the worker /git with bearer token, ctx fields + git args, returns parsed json", async () => {
+    mockTokenResponse("tok");
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, pushedSha: "def" }),
+    });
+
+    const res = await pgGit(ctx, {
+      op: "push",
+      owner: "o",
+      repo: "r",
+      installationId: "1",
+      baseSha: "abc",
+      message: "autosave",
+    });
+
+    expect(res).toEqual({ ok: true, pushedSha: "def" });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as any).mock.calls[0];
+    expect(url).toBe("http://localhost:8787/git");
+    expect(init.method).toBe("POST");
+    expect(init.headers.authorization).toBe("Bearer tok");
+    expect(init.headers["content-type"]).toBe("application/json");
+    const body = JSON.parse(init.body);
+    expect(body).toMatchObject({
+      // ctx fields merged by request()
+      userId: "user-1",
+      projectId: "proj-db-id",
+      projectName: "my-project",
+      // git args
+      op: "push",
+      owner: "o",
+      repo: "r",
+      installationId: "1",
+      baseSha: "abc",
+      message: "autosave",
     });
   });
 });
