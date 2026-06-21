@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -41,7 +41,7 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import socket from "@/lib/socketIo";
+import { pgFs, pgRun, pgStop, pgGit, type PgCtx } from "@/lib/playground-client";
 import { cn, getLanguageFromFileName, terminalSample } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { ContextMenu } from "./../ContextMenu";
@@ -89,6 +89,84 @@ interface FileNode {
 // its file/folder handlers resolve against BASE_DIR/<userId> and reject an
 // absolute leading "/". Convert tree paths to project-relative before emitting.
 const toRel = (p?: string) => (p || "").replace(/^\/+/, "");
+
+// ── worker `/fs list` shape (Cloudflare SDK `listFiles`) ──
+// `pgFs(ctx,{op:"list"})` returns `{ ok, files }` where `files` is the SDK
+// `ListFilesResult`: { success, path, files: FileInfo[], count, timestamp }.
+// Each FileInfo is FLAT (relativePath, type:'file'|'directory', name); the worker
+// lists a single directory level (NON-recursive), so nested folders come back as
+// `directory` entries with no children until the worker exposes sub-path listing.
+interface WorkerFileInfo {
+  name: string;
+  relativePath: string;
+  type: "file" | "directory" | "symlink" | "other";
+}
+interface WorkerListResult {
+  files?: WorkerFileInfo[];
+}
+
+// Adapt the SDK list shape into the nested FileNode[] the renderer expects.
+// The renderer assumes `fileTree[0]` is a single root folder whose `children`
+// are the project's entries (see lines using `fileTree[0]` / `depth === 0`), so
+// we wrap everything under one synthetic root keyed off the project slug.
+//
+// `result` is the unwrapped SDK ListFilesResult (i.e. `r.files`, NOT `r`).
+// We split each `relativePath` on "/" so the adapter also builds a real nested
+// tree if the worker ever returns a recursive listing — today it's top-level only.
+const toFileTree = (
+  result: WorkerListResult | undefined | null,
+  rootName: string,
+): FileNode[] => {
+  const root: FileNode = {
+    name: rootName,
+    type: "folder",
+    icon: "",
+    path: "",
+    isOpen: true,
+    children: [],
+  };
+
+  const entries = result?.files ?? [];
+  for (const entry of entries) {
+    const rel = (entry.relativePath || entry.name || "").replace(/^\/+/, "");
+    if (!rel) continue;
+    const segments = rel.split("/").filter(Boolean);
+    let cursor = root;
+    segments.forEach((seg, i) => {
+      const isLeaf = i === segments.length - 1;
+      const segPath = segments.slice(0, i + 1).join("/");
+      const children = (cursor.children ??= []);
+      let node = children.find((c) => c.name === seg);
+      if (!node) {
+        const isFolder = isLeaf ? entry.type === "directory" : true;
+        node = {
+          name: seg,
+          type: isFolder ? "folder" : "file",
+          icon: isFolder ? "" : "📄",
+          path: segPath,
+          ...(isFolder
+            ? { isOpen: false, children: [] }
+            : { language: getLanguageFromFileName(seg) }),
+        };
+        children.push(node);
+      }
+      cursor = node;
+    });
+  }
+
+  // Folders first, then files; each group alphabetical — stable, predictable tree.
+  const sortTree = (nodes: FileNode[]): FileNode[] => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const n of nodes) if (n.children) sortTree(n.children);
+    return nodes;
+  };
+  sortTree(root.children!);
+
+  return [root];
+};
 
 // Render a task description: turn `backtick` spans into <code>, preserve
 // newlines via white-space:pre-wrap on the container. Plain text in → JSX out.
@@ -206,6 +284,19 @@ export function ProjectPlaygroundPage({
 
   const AUTO_COMMIT_INTERVAL = 1 * 60 * 1000; // 2 minutes
 
+  // Per-call worker context — built once project + user are known. Every worker
+  // call is guarded by `if (!pgCtx) return;`. `projectName = project.slug` (it's
+  // worker-safe `[A-Za-z0-9_-]{1,64}` and becomes the sandbox workdir name).
+  const pgCtx: PgCtx | null = useMemo(() => {
+    if (!project?.id || !user?.id) return null;
+    return {
+      slug: project.slug,
+      userId: user.id,
+      projectId: project.id,
+      projectName: project.slug,
+    };
+  }, [project?.id, project?.slug, user?.id]);
+
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
       if (node.path === filePath && node.type === "file") {
@@ -229,18 +320,6 @@ export function ProjectPlaygroundPage({
     setConnected(!!user?.githubInstallationId || !!user?.github);
     findProject(slug);
   }, [slug, user?.github, user?.githubInstallationId]);
-
-  // The socket auto-connects at import — before the user is known — so its
-  // handshake has no userId and mb-executor rejects it. Once the user loads,
-  // force a fresh handshake so the auth callback re-sends the real userId.
-  // Buffered emits (e.g. folder:read) flush automatically on (re)connect.
-  useEffect(() => {
-    if (!user?.id) return;
-    if (!socket.connected) {
-      socket.disconnect();
-      socket.connect();
-    }
-  }, [user?.id]);
 
   // Embedded in a path step → publish Run/Preview state + handlers so the path
   // top bar can render them (this component's own header is hidden).
@@ -303,105 +382,62 @@ export function ProjectPlaygroundPage({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  // Initial tree load + best-effort seed (replaces the socket folder:read +
+  // project:start/clone flow). Runs once the worker ctx is ready.
   useEffect(() => {
-    socket.emit("folder:read", {
-      userId: user?.id,
-      projectName: slug,
-      // Project-root, relative to the sandbox dir. The executor's
-      // safeResolvePath rejects an absolute "/", so root must be "".
-      path: "",
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
+    if (!pgCtx) return;
+    let cancelled = false;
 
-    socket.on("folder:response", (data) => {
+    const loadTree = async () => {
       setLoadingFiles(true);
-      // Do NOT auto-open a file — land on the welcome/get-started card (matches
-      // the design). The user opens a file from Files or starts a task.
-      setFileTree(data.files);
-      setLoadingFiles(false);
-    });
+      try {
+        // Best-effort seed: if the sandbox is empty, try hydrating the project's
+        // template from GitHub. Hydrate is Phase 5 (no owner/repo on the project
+        // model yet) — it's strictly best-effort and must NOT block the IDE.
+        const first = await pgFs(pgCtx, { op: "list" });
+        const empty = (first?.files?.files?.length ?? 0) === 0;
+        if (empty && project?.template) {
+          try {
+            await pgGit(pgCtx, {
+              op: "hydrate",
+              installationId: user?.githubInstallationId,
+            });
+          } catch {
+            // GitHub seed not wired yet — start with an empty tree, learner codes.
+          }
+        }
 
-    socket.on("folder:restart", (data) => {
-      setLoadingFiles(true);
-      setRestart(true);
-      setLoadingFiles(false);
-    });
+        const r = await pgFs(pgCtx, { op: "list" });
+        if (cancelled) return;
+        // Do NOT auto-open a file — land on the welcome/get-started card (matches
+        // the design). The user opens a file from Files or starts a task.
+        setFileTree(toFileTree(r?.files, project?.title || slug));
+      } catch {
+        if (!cancelled) toast.error("Failed to load project files");
+      } finally {
+        if (!cancelled) setLoadingFiles(false);
+      }
+    };
 
-    socket.on("project:commit:result", (data) => {
-      setIsSaving(false);
-    });
+    loadTree();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    pgCtx,
+    project?.template,
+    project?.title,
+    user?.githubInstallationId,
+    slug,
+  ]);
 
-    socket.on("project:run:error", (data) => {
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-      setIsRunning(false);
-    });
-
-    socket.on("project:running", (data) => {
-      setBaseURL(data?.url);
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, `[BASE_URL]: ${data?.url}`];
-      });
-      setProgressValue(100);
-      setIsRunning(false);
-    });
-
-    let chunks: any = [];
-    let downloadFilename = "download.zip";
-    socket.on("project:download:start", ({ filename }) => {
-      chunks = [];
-      downloadFilename = filename;
-      setDownloadProgress(0);
-    });
-
-    socket.on("project:download:chunk", (chunk) => {
-      chunks.push(chunk);
-    });
-
-    socket.on("project:download:progress", ({ percent }) => {
-      setProgressText(`Downloading your project... ${percent}%`);
-      setTerminalOutput((prev) => {
-        return [...prev, `Downloading your project... ${percent}%`];
-      });
-      setDownloadProgress(percent);
-    });
-
-    socket.on("project:download:end", () => {
-      const blob = new Blob(chunks, { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = downloadFilename;
-      a.click();
-
-      URL.revokeObjectURL(url);
-      setDownloadProgress(100);
-      setProgressText(`Project downloaded successfull... ${100}%`);
-      setTerminalOutput((prev) => {
-        return [...prev, `Project downloaded successfull... ${100}%`];
-      });
-    });
-
-    socket.on("project:download:error", (data) => {
-      toast.error(data.message);
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-    });
-
-    socket.on("project:run:status", (data) => {
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-    });
-  }, []);
+  // When there's nothing to load (project resolved but not enrolled, or no
+  // worker ctx), clear the file-loading state so the early-return reaches the
+  // "Not enrolled" card instead of spinning forever.
+  useEffect(() => {
+    if (loading) return; // project still resolving
+    if (!pgCtx) setLoadingFiles(false);
+  }, [loading, pgCtx]);
 
   useEffect(() => {
     const file = findFile(fileTree, activeFile);
@@ -511,40 +547,34 @@ export function ProjectPlaygroundPage({
     )[(m || "").toUpperCase()] || "m-post";
 
   // ====================================
-  const handleProjectSetup = () => {
-    socket.emit("project:start", {
-      userId: user?.id,
-      template: language,
-      projectName: slug,
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
-
-    socket.on("clone:progress", (data) => {
-      setShowProgress(true);
-      setProgressText(data.message);
-      setProgressValue(Math.min(Math.max(data.percent, 0), 100));
-    });
-
-    socket.on("project:error", (data) => {
-    });
-
-    socket.on("clone:done", (data) => {
-      // Update userproject if cloned successfully
-      setShowProgress(true);
-      setProgressText(data.message);
+  // Project (re)setup: best-effort hydrate the template into the sandbox, then
+  // re-list the tree. Replaces the socket project:start/clone:progress/clone:done
+  // flow. Hydrate is Phase 5 (no owner/repo on the project yet) → best-effort.
+  const handleProjectSetup = async () => {
+    if (!pgCtx) return;
+    setShowProgress(true);
+    setProgressText("Setting up your project");
+    setProgressValue(40);
+    try {
+      if (project?.template) {
+        try {
+          await pgGit(pgCtx, {
+            op: "hydrate",
+            installationId: user?.githubInstallationId,
+          });
+        } catch {
+          // GitHub seed not wired yet — proceed with whatever is in the sandbox.
+        }
+      }
+      const r = await pgFs(pgCtx, { op: "list" });
+      setFileTree(toFileTree(r?.files, project?.title || slug));
+      setProgressText("Project ready");
       setProgressValue(100);
       setRestart(false);
-
-      // Read file again
-      socket.emit("folder:read", {
-        userId: user?.id,
-        projectName: slug,
-        path: "",
-        installationId: user?.githubInstallationId,
-        github: user?.github,
-      });
-    });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to set up project");
+      setProgressValue(100);
+    }
   };
 
   const handleEnrollNow = async () => {
@@ -585,14 +615,14 @@ export function ProjectPlaygroundPage({
   };
 
   // ── explorer toolbar actions (new file / new folder / refresh / collapse) ──
-  const refreshTree = () => {
-    socket.emit("folder:read", {
-      userId: user?.id,
-      projectName: slug,
-      path: "",
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
+  const refreshTree = async () => {
+    if (!pgCtx) return;
+    try {
+      const r = await pgFs(pgCtx, { op: "list" });
+      setFileTree(toFileTree(r?.files, project?.title || slug));
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to refresh files");
+    }
   };
 
   const collapseAll = () => {
@@ -618,41 +648,22 @@ export function ProjectPlaygroundPage({
     setCreatingItem({ parentPath: root.path, type });
   };
 
+  // GitHub commit/persistence is Phase 5; the sandbox is the live store for now —
+  // each keystroke is debounced-flushed to the sandbox via pgFs write, so there's
+  // nothing extra to persist here. These remain as no-ops so existing idle/manual
+  // save triggers keep working without a socket round-trip.
   const autoSaveAndCommit = () => {
     const now = Date.now();
-
-    // Throttle commits: only every 2 min
     if (now - lastAutoCommit.current < AUTO_COMMIT_INTERVAL) return;
-
-    if (!fileTree || fileTree.length === 0) return;
-
-    setIsSaving(true);
     lastAutoCommit.current = now;
-
-    socket.emit("project:save", {
-      userId: user?.id,
-      projectSlug: project?.slug,
-      token: user?.github,
-      installationId: user?.githubInstallationId,
-      files: fileTree,
-    });
+    // No remote commit — files already live in the sandbox.
   };
 
   const manualSave = () => {
     clearTimeout(idleTimer?.current!); // cancel pending autosave
-
-    if (!fileTree || fileTree.length === 0) return;
-
-    setIsSaving(true);
     lastAutoCommit.current = Date.now();
-
-    socket.emit("project:save", {
-      userId: user?.id,
-      projectSlug: project?.slug,
-      token: user?.github,
-      installationId: user?.githubInstallationId,
-      files: fileTree,
-    });
+    // Files already persist to the sandbox on each debounced flush.
+    toast.success("Saved");
   };
 
   const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
@@ -682,66 +693,52 @@ export function ProjectPlaygroundPage({
       return node;
     });
 
-  const addItem = (name: string) => {
-    if (!creatingItem?.parentPath || !creatingItem.type) return;
+  const addItem = async (name: string) => {
+    // `parentPath` may legitimately be "" (the synthetic root), so guard on
+    // undefined — not falsiness — and require a type + a non-empty name.
+    if (creatingItem?.parentPath === undefined || !creatingItem.type || !name) {
+      setCreatingItem(null);
+      return;
+    }
+    if (!pgCtx) {
+      setCreatingItem(null);
+      return;
+    }
 
+    const parentPath = creatingItem.parentPath ?? "";
+    const isFolder = creatingItem.type === "folder";
     const language = getLanguageFromFileName(name);
+    // `path` is relative to the synthetic root (root.path === ""). Strip the
+    // leading slash for the worker, which resolves paths under the workdir.
+    const fullPath = [parentPath, name].filter(Boolean).join("/");
+    const rel = toRel(fullPath);
 
-    let newItem: FileNode | any = {
+    const newItem: FileNode = {
       name,
       type: creatingItem.type,
-      icon: creatingItem.type === "folder" ? "" : "📄",
-      path: `${creatingItem.parentPath}/${name}`,
+      icon: isFolder ? "" : "📄",
+      path: fullPath,
+      ...(isFolder ? { isOpen: false, children: [] } : { language }),
     };
 
-    if (creatingItem.type.includes("file"))
-      socket.emit("file:create", {
-        userId: user?.id,
-        name,
-        path: toRel(`${creatingItem.parentPath}/${name}`),
-      });
-    else
-      socket.emit("folder:create", {
-        userId: user?.id,
-        path: toRel(`${creatingItem.parentPath}/${name}`),
-      });
-
-    socket.on("file:created", (data) => {
-      setLoadingFiles(true);
-
-      newItem = {
-        ...data,
-        name,
-        type: creatingItem.type,
-        language,
-      };
-
-      setFileTree((prev) => addToTree(prev, newItem));
-      if (creatingItem?.type?.includes("file")) openFile(newItem);
-
-      setActiveFile(newItem.path);
-      setOpenFiles([newItem.path]);
-      setLoadingFiles(false);
-    });
-
-    socket.on("folder:created", (data) => {
-      setLoadingFiles(true);
-
-      newItem = {
-        ...data,
-      };
-
-      setFileTree((prev) => addToTree(prev, newItem));
-      setLoadingFiles(false);
-    });
-
-    socket.on("file:error", (data) => {
-      setLoadingFiles(true);
-      toast.error(data);
-      setLoadingFiles(false);
-    });
-
+    // Optimistic insert so the tree updates instantly; re-list after the write
+    // to reconcile with the sandbox (source of truth).
+    setFileTree((prev) => addToTree(prev, newItem));
     setCreatingItem(null);
+
+    try {
+      if (isFolder) {
+        await pgFs(pgCtx, { op: "mkdir", path: rel });
+      } else {
+        await pgFs(pgCtx, { op: "write", path: rel, content: "" });
+        await openFile(newItem);
+      }
+      await refreshTree();
+    } catch (error: any) {
+      toast.error(error?.message || `Failed to create ${creatingItem.type}`);
+      // Reconcile back to the real sandbox state.
+      await refreshTree();
+    }
   };
 
   const handleMenuAction = (action: string) => {
@@ -767,21 +764,22 @@ export function ProjectPlaygroundPage({
     }
   };
 
-  const openFile = (file: FileNode) => {
+  const openFile = async (file: FileNode) => {
+    if (!pgCtx) return;
     const filePath = file.path;
-    socket.emit("file:open", { userId: user?.id, path: toRel(filePath) });
-    socket.once("file:opened", ({ content }) => {
-      const fileName = file.name;
-      const _file = findFile(fileTree, filePath);
-      if (_file) {
-        setActiveFile(filePath);
-        setCode(content);
-        setCurrentLanguage(_file.language || getLanguageFromFileName(fileName));
-        if (!openFiles.includes(filePath)) {
-          setOpenFiles([...openFiles, filePath]);
-        }
-      }
-    });
+    const fileName = file.name;
+    // Optimistically focus the tab so the editor responds instantly.
+    setActiveFile(filePath);
+    setCurrentLanguage(file.language || getLanguageFromFileName(fileName));
+    setOpenFiles((prev) =>
+      prev.includes(filePath) ? prev : [...prev, filePath],
+    );
+    try {
+      const r = await pgFs(pgCtx, { op: "read", path: toRel(filePath) });
+      setCode(r?.content ?? "");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to open file");
+    }
   };
 
   const getFileName = (fileName: string) => {
@@ -838,13 +836,8 @@ export function ProjectPlaygroundPage({
   };
 
   const handleDownloadProject = () => {
-    if (!user?.isPremium) return;
-    socket.emit("project:download:stream", {
-      projectName: slug,
-      userId: user?.id,
-    });
-
-    setShowLoader(true);
+    // A worker zip endpoint is a later phase — non-core for now.
+    toast.message("Download is coming soon");
   };
 
   const handleEditorDidMount = (editor: any) => {
@@ -872,14 +865,20 @@ export function ProjectPlaygroundPage({
   };
 
   const handleTyping: OnChange = (value, v) => {
-    clearTimeout(fileBuffer[activeFile]);
+    const path = activeFile;
+    clearTimeout(fileBuffer[path]);
 
-    fileBuffer[activeFile] = setTimeout(async () => {
-      socket.emit("file:flush", {
-        userId: user?.id,
-        path: toRel(activeFile),
-        content: value,
-      });
+    fileBuffer[path] = setTimeout(async () => {
+      if (!pgCtx) return;
+      try {
+        await pgFs(pgCtx, {
+          op: "write",
+          path: toRel(path),
+          content: value ?? "",
+        });
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to save changes");
+      }
     }, 300); // Wait 300ms after last change
 
     // clearTimeout(idleTimer?.current!);
@@ -890,16 +889,10 @@ export function ProjectPlaygroundPage({
     setCode(value ?? "");
   };
 
-  const handleDeleteFile = (file: FileNode) => {
-    if (!file) return;
+  const handleDeleteFile = async (file: FileNode) => {
+    if (!file || !pgCtx) return;
 
-    const event = file.type === "file" ? "file:delete" : "folder:delete";
-    socket.emit(event, {
-      userId: user?.id,
-      path: toRel(file.path),
-    });
-
-    // Recursively remove deleted file/folder from the tree
+    // Recursively remove the deleted file/folder from the tree.
     const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
       return nodes
         .filter((node) => node.path !== targetPath)
@@ -910,17 +903,20 @@ export function ProjectPlaygroundPage({
         );
     };
 
-    socket.on("file:deleted", (data) => {
-      if (!data.success) return;
-      setFileTree((prevTree) => removeNode(prevTree, file.path));
-      setDeleteFile(null);
-    });
+    // Optimistic remove + close any open tab for the deleted path.
+    setFileTree((prevTree) => removeNode(prevTree, file.path));
+    setOpenFiles((prev) => prev.filter((p) => p !== file.path));
+    if (activeFile === file.path) setActiveFile("");
+    setDeleteFile(null);
 
-    socket.on("folder:deleted", (data) => {
-      if (!data.success) return;
-      setFileTree((prevTree) => removeNode(prevTree, file.path));
-      setDeleteFile(null);
-    });
+    try {
+      await pgFs(pgCtx, { op: "delete", path: toRel(file.path) });
+      await refreshTree();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete");
+      // Reconcile back to the real sandbox state.
+      refreshTree();
+    }
   };
 
   const renderFileTree = (nodes: FileNode[], depth = 0) => {
@@ -1307,16 +1303,43 @@ export function ProjectPlaygroundPage({
     );
   };
 
-  const handleRunProject = () => {
+  const handleRunProject = async () => {
+    if (!pgCtx) return;
     setIsRunning(true);
-    socket.emit("project:run", {
-      language: project?.template ?? "node",
-      projectName: slug,
-      userId: user?.id,
-      installationId: user?.githubInstallationId,
-    });
-
     setTerminalOutput(terminalSample);
+    try {
+      // installCmd/startCmd default on the worker (npm ci / npm run dev) — pass
+      // through any project-level overrides if the model ever carries them.
+      const r = await pgRun(pgCtx, {});
+      // Single message only. Unhealthy is the failure case; healthy-with-url is
+      // the deployed case; healthy-without-url is the local case (info, not error).
+      if (r?.status !== "healthy") {
+        toast.error(r?.error || "Server did not become healthy");
+        return;
+      }
+      if (r?.serverUrl) {
+        setBaseURL(r.serverUrl);
+      } else {
+        // Locally (wrangler dev) a public URL needs the playground custom domain,
+        // so serverUrl can be null — the server still started.
+        toast.message("Server started (public URL needs the playground domain)");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Run failed");
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleStopProject = async () => {
+    if (!pgCtx) return;
+    try {
+      await pgStop(pgCtx);
+      setBaseURL("");
+      toast.message("Server stopped");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to stop server");
+    }
   };
 
   // Keep the refs the path top bar calls pointed at the live handlers.
@@ -1711,13 +1734,24 @@ export function ProjectPlaygroundPage({
               {sandboxLive ? "sandbox live · :3000" : "sandbox idle"}
             </span>
           </div>
-          <button
-            className="btn run"
-            onClick={handleRunProject}
-            disabled={isSaving || isRunning || !connected}
-          >
-            {I.play} {isRunning ? "Running…" : "Run server"}
-          </button>
+          {sandboxLive ? (
+            <button
+              className="btn ghost"
+              onClick={handleStopProject}
+              title="Stop server"
+              aria-label="Stop server"
+            >
+              {I.x} Stop
+            </button>
+          ) : (
+            <button
+              className="btn run"
+              onClick={handleRunProject}
+              disabled={isSaving || isRunning}
+            >
+              {I.play} {isRunning ? "Running…" : "Run server"}
+            </button>
+          )}
           <button
             className={cn("btn", isRightPanelVisible && "on")}
             onClick={() => setIsRightPanelVisible((p) => !p)}
