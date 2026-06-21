@@ -26,7 +26,7 @@ import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
 import Image from "next/image";
 import { PathFeedbackDialog } from "./path/path-feedback-dialog";
-import { GithubConnectDialog } from "./path/github-connect-dialog";
+import { GithubConnect } from "./playground/github-connect";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { Loader } from "../ui/loader";
@@ -41,7 +41,12 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import { pgFs, pgRun, pgStop, pgGit, pgSeed, type PgCtx } from "@/lib/playground-client";
+import { pgFs, pgRun, pgStop, pgSeed, type PgCtx } from "@/lib/playground-client";
+import {
+  createPlaygroundSync,
+  type PlaygroundSync,
+  type SyncState,
+} from "@/lib/playground-sync";
 import { cn, getLanguageFromFileName, terminalSample } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { ContextMenu } from "./../ContextMenu";
@@ -166,6 +171,21 @@ const toFileTree = (
   sortTree(root.children!);
 
   return [root];
+};
+
+// Relative time for the sync chip ("just now", "2 min ago"). Native Intl —
+// no date-fns. `at` is an epoch ms; falsy → "just now".
+const relTime = (at?: number): string => {
+  if (!at) return "just now";
+  const diffMs = Date.now() - at;
+  const sec = Math.round(diffMs / 1000);
+  if (sec < 10) return "just now";
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (sec < 60) return rtf.format(-sec, "second");
+  const min = Math.round(sec / 60);
+  if (min < 60) return rtf.format(-min, "minute");
+  const hr = Math.round(min / 60);
+  return rtf.format(-hr, "hour");
 };
 
 // Render a task description: turn `backtick` spans into <code>, preserve
@@ -297,6 +317,51 @@ export function ProjectPlaygroundPage({
     };
   }, [project?.id, project?.slug, user?.id]);
 
+  // ── GitHub autosync wiring ──────────────────────────────────────────────
+  // GitHub is the source of truth ONLY when the project has a linked repo AND
+  // the user installed the App. Until then the sandbox is ephemeral (unchanged
+  // pre-existing behaviour) — no engine, no autosave, no indicator.
+  const repoFullName: string | undefined =
+    project?.userProject?.githubRepoFullName ?? undefined;
+  const installationId = user?.githubInstallationId ?? undefined;
+  const ghConnected = !!repoFullName && !!installationId;
+  const [owner, repo] = repoFullName
+    ? repoFullName.split("/")
+    : [undefined, undefined];
+
+  // The sync engine instance (rebuilt when the connection identity changes).
+  const syncRef = useRef<PlaygroundSync | null>(null);
+  // Latest `refreshTree` (defined below, after the early returns) — the engine's
+  // onReloaded callback reaches it via this ref so the effect can live up here
+  // with the other hooks without a TDZ / stale-closure hazard.
+  const refreshTreeRef = useRef<() => Promise<void> | void>(() => {});
+  // `lastSha` mirrored into a ref so the engine reads the latest value without
+  // being torn down/rebuilt on every commit.
+  const [lastSha, setLastSha] = useState<string | null>(
+    project?.userProject?.lastSyncedSha ?? null,
+  );
+  const lastShaRef = useRef<string | null>(lastSha);
+  useEffect(() => {
+    lastShaRef.current = lastSha;
+  }, [lastSha]);
+  // Keep the seed from the freshly-loaded project in sync (e.g. after a refetch).
+  useEffect(() => {
+    const seeded = project?.userProject?.lastSyncedSha ?? null;
+    setLastSha(seeded);
+    lastShaRef.current = seeded;
+  }, [project?.userProject?.lastSyncedSha]);
+
+  const [syncStatus, setSyncStatus] = useState<{
+    state: SyncState;
+    at?: number;
+  } | null>(null);
+  const [conflict, setConflict] = useState<{
+    open: boolean;
+    remoteSha?: string;
+  }>({ open: false });
+  // Resolving-in-progress guard so the conflict dialog buttons can't double-fire.
+  const [resolvingConflict, setResolvingConflict] = useState(false);
+
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
       if (node.path === filePath && node.type === "file") {
@@ -391,6 +456,44 @@ export function ProjectPlaygroundPage({
     const loadTree = async () => {
       setLoadingFiles(true);
       try {
+        // CONNECTED → GitHub is the source of truth: hydrate the repo into the
+        // sandbox. If the repo is empty (first connect), seed the starter then
+        // push it as the initial commit so the repo isn't left blank. A hydrate
+        // failure falls back to the ephemeral seed path (best-effort) so the IDE
+        // still opens with something runnable.
+        // The engine is built by a sibling effect that flushes in the same
+        // commit; `syncRef.current` is populated before this first `await`
+        // resolves. We still guard on it and fall back if it isn't ready.
+        if (ghConnected && syncRef.current) {
+          try {
+            const r = await syncRef.current.hydrate();
+            if (cancelled) return;
+            if (r?.empty) {
+              // Empty repo: seed the runnable baseline, then push the first commit.
+              try {
+                await pgSeed(pgCtx, {
+                  baseRepository: project?.baseRepository,
+                  language: project?.languages?.[0],
+                });
+              } catch {
+                // Seed unavailable — push whatever is in the workdir (maybe nothing).
+              }
+              await syncRef.current.saveNow("manual");
+              if (cancelled) return;
+            }
+            const list = await pgFs(pgCtx, { op: "list" });
+            if (cancelled) return;
+            setFileTree(toFileTree(list?.files, project?.title || slug));
+            return;
+          } catch {
+            // Hydrate failed — surface it, then fall through to the ephemeral seed
+            // so the learner can still work locally in the sandbox.
+            if (!cancelled)
+              toast.error("Couldn't sync from GitHub — working locally for now.");
+          }
+        }
+
+        // NOT CONNECTED (or hydrate failed) — ephemeral path (unchanged):
         // Best-effort seed: ask the worker for a runnable baseline. The worker is
         // idempotent (skips a non-empty workdir), clones `baseRepository` when set,
         // else scaffolds a Node.js starter. Strictly best-effort — must NOT block
@@ -427,7 +530,53 @@ export function ProjectPlaygroundPage({
     project?.languages,
     project?.title,
     slug,
+    // ghConnected is intentionally a dep: when the learner connects mid-session
+    // the seed effect re-runs and hydrates via the (now built) engine.
+    ghConnected,
   ]);
+
+  // Build (and tear down) the GitHub autosync engine when the project is linked
+  // to a repo and the user has the App installed. Rebuilt only when the repo
+  // identity changes — the engine reads the latest sha through `lastShaRef`, so
+  // a per-commit sha update never re-creates it.
+  useEffect(() => {
+    if (!pgCtx || !ghConnected || !owner || !repo || !installationId) {
+      syncRef.current?.dispose();
+      syncRef.current = null;
+      return;
+    }
+    const engine = createPlaygroundSync({
+      ctx: pgCtx,
+      owner,
+      repo,
+      installationId,
+      getLastSha: () => lastShaRef.current,
+      setLastSha: (s) => {
+        lastShaRef.current = s;
+        setLastSha(s);
+      },
+      onStatus: (state, at) => setSyncStatus({ state, at }),
+      onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
+      onReloaded: () => {
+        void refreshTreeRef.current?.();
+      },
+    });
+    syncRef.current = engine;
+    return () => {
+      engine.dispose();
+      if (syncRef.current === engine) syncRef.current = null;
+    };
+  }, [pgCtx, ghConnected, owner, repo, installationId]);
+
+  // Best-effort final save when the tab/window closes (connected only — the
+  // guard lives in the engine ref being null when not connected).
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      syncRef.current?.flushOnClose();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
   // When there's nothing to load (project resolved but not enrolled, or no
   // worker ctx), clear the file-loading state so the early-return reaches the
@@ -554,14 +703,14 @@ export function ProjectPlaygroundPage({
     setProgressText("Setting up your project");
     setProgressValue(40);
     try {
-      if (project?.template) {
+      // When linked to GitHub, hydrate from the repo via the sync engine so the
+      // reset pulls the canonical remote. Otherwise proceed with whatever the
+      // worker seeded into the sandbox (ephemeral path).
+      if (ghConnected && syncRef.current) {
         try {
-          await pgGit(pgCtx, {
-            op: "hydrate",
-            installationId: user?.githubInstallationId,
-          });
+          await syncRef.current.hydrate();
         } catch {
-          // GitHub seed not wired yet — proceed with whatever is in the sandbox.
+          // Hydrate unavailable — proceed with whatever is in the sandbox.
         }
       }
       const r = await pgFs(pgCtx, { op: "list" });
@@ -620,6 +769,39 @@ export function ProjectPlaygroundPage({
       setFileTree(toFileTree(r?.files, project?.title || slug));
     } catch (error: any) {
       toast.error(error?.message || "Failed to refresh files");
+    }
+  };
+  // Keep the engine's onReloaded callback pointed at the latest refreshTree.
+  refreshTreeRef.current = refreshTree;
+
+  // Called by GithubConnect when the project becomes linked mid-session. Refetch
+  // the project so `userProject.githubRepoFullName` is populated (which rebuilds
+  // the engine via the sibling effect), then hydrate. If the new repo is empty,
+  // push the current sandbox work so connecting preserves what they've done.
+  const handleGhConnected = async (newRepoFullName: string) => {
+    try {
+      const fresh = await store.getProject(slug);
+      if (fresh) setProject(fresh);
+      toast.success(`Connected ${newRepoFullName}`);
+
+      // The engine rebuilds asynchronously off the refetched project. Wait a tick
+      // for the effect to flush, then hydrate + push-if-empty.
+      setTimeout(async () => {
+        const engine = syncRef.current;
+        if (!engine) return;
+        try {
+          const r = await engine.hydrate();
+          if (r?.empty) {
+            // New empty repo → push what the learner has already built.
+            await engine.saveNow("manual");
+          }
+          await refreshTree();
+        } catch {
+          toast.error("Connected, but couldn't sync from GitHub yet.");
+        }
+      }, 0);
+    } catch {
+      toast.error("Couldn't finish connecting GitHub. Try again.");
     }
   };
 
@@ -874,6 +1056,9 @@ export function ProjectPlaygroundPage({
           path: toRel(path),
           content: value ?? "",
         });
+        // Connected → nudge the GitHub autosave (trailing-debounced in the
+        // engine, so rapid edits collapse into a single commit on idle).
+        syncRef.current?.nudgeSave();
       } catch (error: any) {
         toast.error(error?.message || "Failed to save changes");
       }
@@ -1322,6 +1507,8 @@ export function ProjectPlaygroundPage({
         toast.error(r?.error || "Server did not become healthy");
         return;
       }
+      // Checkpoint the current work to GitHub on a healthy run (connected only).
+      syncRef.current?.saveNow("run");
       if (r?.serverUrl) {
         setBaseURL(r.serverUrl);
         // Surface the URL in the terminal so it's visible + copyable (the `$`
@@ -1706,6 +1893,66 @@ export function ProjectPlaygroundPage({
   const tMethod = tSpec.method || activeTask?.method;
   const tUrl = tSpec.url || activeTask?.url;
 
+  // ── GitHub sync status chip (connected only) ──
+  const renderSyncChip = () => {
+    if (!ghConnected) return null;
+    const state = syncStatus?.state ?? "synced";
+    const at = syncStatus?.at;
+    const base =
+      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap";
+    if (state === "syncing") {
+      return (
+        <span
+          className={cn(base, "border-border bg-card text-muted-foreground")}
+          aria-live="polite"
+        >
+          <svg className="i spin" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+            <path d="M21 12a9 9 0 1 1-6.2-8.6" />
+          </svg>
+          Syncing…
+        </span>
+      );
+    }
+    if (state === "conflict") {
+      return (
+        <button
+          type="button"
+          onClick={() => setConflict((c) => ({ ...c, open: true }))}
+          className={cn(
+            base,
+            "border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
+          )}
+          title="Resolve sync conflict"
+        >
+          <AlertTriangle style={{ width: 12, height: 12 }} />
+          Conflict
+        </button>
+      );
+    }
+    if (state === "error") {
+      return (
+        <span
+          className={cn(base, "border-destructive/40 bg-destructive/10 text-destructive")}
+          aria-live="polite"
+          title="Couldn't reach GitHub — the next change will retry"
+        >
+          <AlertTriangle style={{ width: 12, height: 12 }} />
+          Offline · will retry
+        </span>
+      );
+    }
+    // synced
+    return (
+      <span
+        className={cn(base, "border-border bg-card text-muted-foreground")}
+        aria-live="polite"
+      >
+        <Check style={{ width: 12, height: 12 }} className="text-primary" />
+        Synced · {relTime(at)}
+      </span>
+    );
+  };
+
   return (
     <div className="pg-root">
       {/* ── TOP BAR (standalone only — in the path step the controls move to
@@ -1803,13 +2050,40 @@ export function ProjectPlaygroundPage({
             )}
           </button>
           <PathFeedbackDialog />
-          <GithubConnectDialog
-            slug={slug}
-            triggerClassName="btn ghost"
-            onConnected={() => setConnected(true)}
-          />
+          {ghConnected ? (
+            renderSyncChip()
+          ) : (
+            <GithubConnect
+              slug={slug}
+              projectName={project?.title}
+              onConnected={handleGhConnected}
+              compact
+            />
+          )}
         </div>
       )}
+
+      {/* ── GitHub connect nudge / sync status strip ──
+          Persistent so it works in BOTH standalone and embedded (path-step) mode
+          where the top bar is hidden. Not-connected → a connect prompt with the
+          GithubConnect entry point. Connected (embedded only, since standalone
+          shows the chip in its top bar) → the sync chip. */}
+      {!ghConnected ? (
+        <div className="gh-nudge">
+          <span className="gh-nudge-msg">
+            <AlertTriangle style={{ width: 14, height: 14 }} />
+            Connect GitHub to save your work — otherwise this sandbox is temporary.
+          </span>
+          <GithubConnect
+            slug={slug}
+            projectName={project?.title}
+            onConnected={handleGhConnected}
+            compact
+          />
+        </div>
+      ) : embedded ? (
+        <div className="gh-nudge gh-nudge-synced">{renderSyncChip()}</div>
+      ) : null}
 
       {/* ── WORKSPACE ── */}
       <div className="ws" data-mp={mobilePane}>
@@ -2687,6 +2961,70 @@ export function ProjectPlaygroundPage({
         </DialogContent>
       </Dialog>
 
+      {/* ── GitHub sync conflict resolver ── */}
+      <Dialog
+        open={conflict.open}
+        onOpenChange={(open) =>
+          setConflict((c) => ({ ...c, open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[480px] w-[95vw]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Sync conflict
+            </DialogTitle>
+            <DialogDescription>
+              This project changed on GitHub since your last sync — likely from
+              another device or tab. Choose which version to keep. This can&apos;t
+              be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resolvingConflict}
+              onClick={async () => {
+                if (!syncRef.current) return;
+                setResolvingConflict(true);
+                try {
+                  await syncRef.current.resolveReload();
+                  toast.success("Reloaded the latest version from GitHub");
+                } catch {
+                  toast.error("Couldn't reload from GitHub. Try again.");
+                } finally {
+                  setResolvingConflict(false);
+                  setConflict({ open: false });
+                }
+              }}
+            >
+              Reload from GitHub (discard local)
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full"
+              disabled={resolvingConflict}
+              onClick={async () => {
+                if (!syncRef.current) return;
+                setResolvingConflict(true);
+                try {
+                  await syncRef.current.resolveOverwrite();
+                  toast.success("Overwrote GitHub with your version");
+                } catch {
+                  toast.error("Couldn't overwrite GitHub. Try again.");
+                } finally {
+                  setResolvingConflict(false);
+                  setConflict({ open: false });
+                }
+              }}
+            >
+              Overwrite GitHub with my version
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ConfettiCelebration
         onComplete={() => setCelebration(false)}
         isVisible={celebration}
@@ -2885,6 +3223,34 @@ export function ProjectPlaygroundPage({
         .pg-root .topbar.embedded-bar {
           height: 44px;
           flex: 0 0 44px;
+        }
+        /* GitHub connect nudge / sync strip — sits under the top bar (or stands
+           in for it in embedded mode). */
+        .pg-root .gh-nudge {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex: 0 0 auto;
+          padding: 8px 14px;
+          border-bottom: 1px solid var(--line);
+          background: var(--panel-2);
+        }
+        .pg-root .gh-nudge.gh-nudge-synced {
+          justify-content: flex-end;
+        }
+        .pg-root .gh-nudge-msg {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--muted);
+        }
+        .pg-root .gh-nudge-msg svg {
+          color: var(--gold);
+          flex: 0 0 auto;
         }
         .pg-root .logo {
           width: 28px;
