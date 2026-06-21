@@ -65,7 +65,16 @@ export function GithubConnectDialog({
       try {
         const s = await store.getProjectGithub(slug);
         if (!active) return;
-        setStatus(s);
+        setStatus({
+          connected: s.connected,
+          installUrl: s.installUrl,
+          repo: s.repoFullName
+            ? {
+                fullName: s.repoFullName,
+                htmlUrl: `https://github.com/${s.repoFullName}`,
+              }
+            : null,
+        });
         if (s.connected) {
           const o = await store.listGithubOwners();
           if (!active) return;
