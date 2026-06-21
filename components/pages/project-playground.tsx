@@ -2224,6 +2224,7 @@ export function ProjectPlaygroundPage({
               onToggle={toggleTerminal}
               onClose={() => toggleTerminal()}
               ctx={pgCtx}
+              jail={project?.playgroundConfig?.terminalJail !== false}
               output={terminalOutput}
             />
           </div>

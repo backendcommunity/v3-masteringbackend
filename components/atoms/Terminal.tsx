@@ -19,6 +19,8 @@ interface TerminalProps {
   onClose: (open: boolean) => void;
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Per-project terminal sandbox jail. Defaults ON; only `false` disables it. */
+  jail?: boolean;
 }
 
 // Mock-matched dark theme (navy/cyan/teal palette).
@@ -87,6 +89,7 @@ export function Terminal({
   output,
   collapsed,
   onToggle,
+  jail = true,
 }: TerminalProps) {
   const { theme } = useTheme();
   const isDark = !theme || theme.includes("dark");
@@ -146,7 +149,7 @@ export function Terminal({
       new SandboxAddon({
         reconnect: true,
         getWebSocketUrl: () =>
-          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows }),
+          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
         onStateChange: (state, error) => {
           if (state === "disconnected" && error) {
             xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);
@@ -238,7 +241,7 @@ export function Terminal({
       const addon = new SandboxAddon({
         reconnect: true,
         getWebSocketUrl: () =>
-          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows }),
+          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
         onStateChange: (state, error) => {
           if (state === "disconnected" && error)
             xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);

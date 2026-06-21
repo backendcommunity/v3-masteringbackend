@@ -180,11 +180,26 @@ describe("pgTerminalUrl", () => {
     expect(url).toContain("projectName=my-project");
     expect(url).toContain("cols=100");
     expect(url).toContain("rows=30");
+    // jail is omitted by default — the worker defaults the jail ON.
+    expect(url).not.toContain("jail=false");
   });
 
   it("defaults cols=80 rows=24", () => {
     const url = pgTerminalUrl("tok", ctx);
     expect(url).toContain("cols=80");
     expect(url).toContain("rows=24");
+  });
+
+  it("appends jail=false only when jail === false", () => {
+    const off = pgTerminalUrl("tok", ctx, { jail: false });
+    expect(off).toContain("jail=false");
+
+    // jail: true and omitted both leave the param off (worker defaults ON).
+    const on = pgTerminalUrl("tok", ctx, { jail: true });
+    expect(on).not.toContain("jail=false");
+    expect(on).not.toContain("jail=true");
+
+    const omitted = pgTerminalUrl("tok", ctx);
+    expect(omitted).not.toContain("jail");
   });
 });

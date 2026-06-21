@@ -173,7 +173,7 @@ export function pgGit(
 export function pgTerminalUrl(
   token: string,
   ctx: PgCtx,
-  args?: { cols?: number; rows?: number },
+  args?: { cols?: number; rows?: number; jail?: boolean },
 ): string {
   const wsBase = WORKER_BASE.replace(/^http(s?):\/\//, (_m, s) =>
     s ? "wss://" : "ws://",
@@ -186,5 +186,8 @@ export function pgTerminalUrl(
     cols: String(args?.cols ?? 80),
     rows: String(args?.rows ?? 24),
   });
+  // The worker defaults the terminal jail ON; we only signal the OFF case.
+  // Omitting the param entirely lets the worker keep its safe default.
+  if (args?.jail === false) params.set("jail", "false");
   return `${wsBase}/terminal?${params.toString()}`;
 }
