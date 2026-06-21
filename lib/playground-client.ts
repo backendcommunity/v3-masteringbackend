@@ -137,6 +137,21 @@ export function pgStop(ctx: PgCtx): Promise<any> {
   return request(ctx, "/stop", {});
 }
 
+/**
+ * Seed the project's workdir so it opens with a runnable baseline.
+ *
+ * Idempotent on the worker: a non-empty workdir is left untouched. If
+ * `baseRepository` is set the worker clones it; otherwise it scaffolds a
+ * Node.js starter. The worker also cd's the terminal into the project folder.
+ * Best-effort caller — never block the IDE on this.
+ */
+export function pgSeed(
+  ctx: PgCtx,
+  args: { baseRepository?: string; language?: string } = {},
+): Promise<any> {
+  return request(ctx, "/seed", args);
+}
+
 export function pgGit(
   ctx: PgCtx,
   args: {

@@ -762,6 +762,8 @@ export interface Project {
   slug: string;
   description: string;
   template?: string;
+  baseRepository?: string;         // optional git repo the worker clones as the project baseline
+  languages?: string[];            // project language codes; languages[0] seeds the starter
   summary: string;
   difficulty: "Easy" | "Medium" | "Hard";
   level: string;

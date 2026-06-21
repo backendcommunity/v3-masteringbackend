@@ -41,7 +41,7 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import { pgFs, pgRun, pgStop, pgGit, type PgCtx } from "@/lib/playground-client";
+import { pgFs, pgRun, pgStop, pgGit, pgSeed, type PgCtx } from "@/lib/playground-client";
 import { cn, getLanguageFromFileName, terminalSample } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { ContextMenu } from "./../ContextMenu";
@@ -391,22 +391,20 @@ export function ProjectPlaygroundPage({
     const loadTree = async () => {
       setLoadingFiles(true);
       try {
-        // Best-effort seed: if the sandbox is empty, try hydrating the project's
-        // template from GitHub. Hydrate is Phase 5 (no owner/repo on the project
-        // model yet) — it's strictly best-effort and must NOT block the IDE.
-        const first = await pgFs(pgCtx, { op: "list" });
-        const empty = (first?.files?.files?.length ?? 0) === 0;
-        if (empty && project?.template) {
-          try {
-            await pgGit(pgCtx, {
-              op: "hydrate",
-              installationId: user?.githubInstallationId,
-            });
-          } catch {
-            // GitHub seed not wired yet — start with an empty tree, learner codes.
-          }
+        // Best-effort seed: ask the worker for a runnable baseline. The worker is
+        // idempotent (skips a non-empty workdir), clones `baseRepository` when set,
+        // else scaffolds a Node.js starter. Strictly best-effort — must NOT block
+        // the IDE — so it's wrapped in its own try/catch.
+        try {
+          await pgSeed(pgCtx, {
+            baseRepository: project?.baseRepository,
+            language: project?.languages?.[0],
+          });
+        } catch {
+          // Seed unavailable — start with an empty tree, learner codes.
         }
 
+        // Re-list so the freshly-seeded files show in the tree.
         const r = await pgFs(pgCtx, { op: "list" });
         if (cancelled) return;
         // Do NOT auto-open a file — land on the welcome/get-started card (matches
@@ -425,9 +423,9 @@ export function ProjectPlaygroundPage({
     };
   }, [
     pgCtx,
-    project?.template,
+    project?.baseRepository,
+    project?.languages,
     project?.title,
-    user?.githubInstallationId,
     slug,
   ]);
 
