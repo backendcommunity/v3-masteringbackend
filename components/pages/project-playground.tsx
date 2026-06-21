@@ -1203,11 +1203,14 @@ export function ProjectPlaygroundPage({
   const runTaskTest = async (t: any) => {
     if (!t) return;
 
-    const isEndpointTask = !!t.apiSpec;
+    // Run Test grades endpoint tasks only (those with an apiSpec). Non-endpoint
+    // tasks complete via "Mark as complete" (markTaskManually) — this path never
+    // auto-passes a task.
+    if (!t.apiSpec) return;
 
-    // Gate: endpoint tasks need a live sandbox — catch it before the network
-    // round-trip so the learner gets instant, clear feedback.
-    if (isEndpointTask && !baseURL) {
+    // Endpoint tasks need a live sandbox — catch before the network round-trip
+    // so the learner gets instant, clear feedback.
+    if (!baseURL) {
       toast.error("Start your server first — click Run Server.");
       setTestRun({
         status: "fail",
@@ -1218,23 +1221,6 @@ export function ProjectPlaygroundPage({
 
     setTestRun({ status: "running", checks: [] });
     try {
-      if (!isEndpointTask) {
-        // Legacy non-endpoint completion (article / manual tasks).
-        let completed;
-        try {
-          completed = await store.markProjectTaskAsCompleted(slug, t.id);
-        } catch {
-          await store.handleProjectEnrollment(slug);
-          completed = await store.markProjectTaskAsCompleted(slug, t.id);
-        }
-        markTaskCompleteInState(completed.taskId ?? t.id);
-        setTestRun({ status: "pass", checks: synthChecks(t) });
-        setCelebration(true);
-        toast.success("All assertions passed — task complete");
-        maybeAdvance(t);
-        return;
-      }
-
       // Real grading: the backend probes the endpoint and returns per-assertion results.
       let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
       try {
@@ -1291,6 +1277,27 @@ export function ProjectPlaygroundPage({
     }
   };
 
+  // Manual completion for tasks with no automated test (design/spec tasks).
+  // Explicit learner action — NOT framed as a passing test, so it can't read as
+  // a false "all assertions passed".
+  const markTaskManually = async (t: any) => {
+    if (!t || t?.userTask?.isCompleted) return;
+    try {
+      let completed;
+      try {
+        completed = await store.markProjectTaskAsCompleted(slug, t.id);
+      } catch {
+        await store.handleProjectEnrollment(slug);
+        completed = await store.markProjectTaskAsCompleted(slug, t.id);
+      }
+      markTaskCompleteInState(completed?.taskId ?? t.id);
+      toast.success("Task marked complete");
+      maybeAdvance(t);
+    } catch {
+      toast.error("Couldn't mark complete. Try again.");
+    }
+  };
+
   const openTaskDrawer = (task: any) => {
     setActiveTask(task);
     setShowTask(true);
@@ -1317,6 +1324,14 @@ export function ProjectPlaygroundPage({
       }
       if (r?.serverUrl) {
         setBaseURL(r.serverUrl);
+        // Surface the URL in the terminal so it's visible + copyable (the `$`
+        // prefix renders cyan via the run-log colouriser).
+        setTerminalOutput((prev) => [
+          ...prev,
+          "",
+          `$ Server running at: ${r.serverUrl}`,
+          "$ Use this as your base URL in Postman or your frontend.",
+        ]);
       } else {
         // Locally (wrangler dev) a public URL needs the playground custom domain,
         // so serverUrl can be null — the server still started.
@@ -1638,6 +1653,12 @@ export function ProjectPlaygroundPage({
         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
       </svg>
     ),
+    copy: (
+      <svg className="i" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+    ),
   } as const;
 
   const railBtns = [
@@ -1684,8 +1705,6 @@ export function ProjectPlaygroundPage({
   const tSpec = activeTask?.apiSpec || {};
   const tMethod = tSpec.method || activeTask?.method;
   const tUrl = tSpec.url || activeTask?.url;
-  const tReq = tSpec.request || activeTask?.request;
-  const tRes = tSpec.response || activeTask?.response;
 
   return (
     <div className="pg-root">
@@ -1734,7 +1753,7 @@ export function ProjectPlaygroundPage({
           </div>
           {sandboxLive ? (
             <button
-              className="btn ghost"
+              className="btn stop"
               onClick={handleStopProject}
               title="Stop server"
               aria-label="Stop server"
@@ -2292,6 +2311,21 @@ export function ProjectPlaygroundPage({
                     >
                       {I.refresh}
                     </button>
+                    <button
+                      className="pvbtn"
+                      title="Copy server URL"
+                      aria-label="Copy server URL"
+                      disabled={!baseURL}
+                      onClick={() => {
+                        if (!baseURL) return;
+                        navigator.clipboard
+                          ?.writeText(baseURL)
+                          .then(() => toast.success("Server URL copied"))
+                          .catch(() => toast.error("Couldn't copy"));
+                      }}
+                    >
+                      {I.copy}
+                    </button>
                     <a
                       className="pvbtn"
                       target="_blank"
@@ -2461,19 +2495,6 @@ export function ProjectPlaygroundPage({
                   </div>
                 </div>
 
-                {(tReq || tRes) && (
-                  <div className="two">
-                    <div className="sec">
-                      <h4>Request we send</h4>
-                      <div className="spec">{tReq || "—"}</div>
-                    </div>
-                    <div className="sec">
-                      <h4>Expected response</h4>
-                      <div className="spec">{tRes || "—"}</div>
-                    </div>
-                  </div>
-                )}
-
                 <div className="sec">
                   <h4>Test results</h4>
                   <div className="checks">
@@ -2516,27 +2537,48 @@ export function ProjectPlaygroundPage({
               </div>
 
               <div className="df">
-                <span className="hint">
-                  {activeTask?.apiSpec && !baseURL
-                    ? "Run your server first to test this endpoint."
-                    : "Runs your endpoint in the sandbox and checks each assertion."}
-                </span>
-                <button
-                  className="btn run"
-                  onClick={() => runTaskTest(activeTask)}
-                  disabled={
-                    testRun.status === "running" ||
-                    activeTask?.userTask?.isCompleted ||
-                    (!!activeTask?.apiSpec && !baseURL)
-                  }
-                >
-                  {I.play}{" "}
-                  {activeTask?.userTask?.isCompleted
-                    ? "Passed"
-                    : testRun.status === "running"
-                      ? "Running…"
-                      : "Run test"}
-                </button>
+                {activeTask?.apiSpec ? (
+                  <>
+                    <span className="hint">
+                      {!baseURL
+                        ? "Run your server first to test this endpoint."
+                        : "Runs your endpoint in the sandbox and checks each assertion."}
+                    </span>
+                    <button
+                      className="btn run"
+                      onClick={() => runTaskTest(activeTask)}
+                      disabled={
+                        testRun.status === "running" ||
+                        activeTask?.userTask?.isCompleted ||
+                        !baseURL
+                      }
+                    >
+                      {I.play}{" "}
+                      {activeTask?.userTask?.isCompleted
+                        ? "Passed"
+                        : testRun.status === "running"
+                          ? "Running…"
+                          : "Run test"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="hint">
+                      This task has no automated test — mark it complete when
+                      you&apos;ve finished it.
+                    </span>
+                    <button
+                      className="btn run"
+                      onClick={() => markTaskManually(activeTask)}
+                      disabled={activeTask?.userTask?.isCompleted}
+                    >
+                      {I.check}{" "}
+                      {activeTask?.userTask?.isCompleted
+                        ? "Completed"
+                        : "Mark as complete"}
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -2946,6 +2988,19 @@ export function ProjectPlaygroundPage({
           width: 32px;
           justify-content: center;
           padding: 0;
+        }
+        /* Labeled stop button — same footprint as Run (icon + text), red accent. */
+        .pg-root .btn.stop {
+          background: var(--panel);
+          border-color: var(--line);
+          color: #ef5d6b;
+        }
+        .pg-root .btn.stop:hover {
+          border-color: #ef5d6b;
+          background: rgba(239, 93, 107, 0.08);
+        }
+        .pg-root .btn.stop svg.i {
+          color: currentColor;
         }
         .pg-root .btn.ghost:hover {
           color: var(--text);
@@ -3416,11 +3471,6 @@ export function ProjectPlaygroundPage({
           background: var(--teal-deep);
           border-color: var(--teal);
           color: #fff;
-        }
-        .pg-root .st.doing {
-          border-color: rgba(19, 174, 206, 0.28);
-          border-top-color: var(--cyan);
-          animation: pg-spin 0.7s linear infinite;
         }
         @keyframes pg-spin {
           to {
@@ -4077,6 +4127,7 @@ export function ProjectPlaygroundPage({
           font-weight: 700;
         }
         .pg-root .spec {
+          margin: 0;
           background: var(--bg);
           border: 1px solid var(--line);
           border-radius: 10px;
@@ -4087,6 +4138,7 @@ export function ProjectPlaygroundPage({
           color: var(--text);
           overflow: auto;
           white-space: pre-wrap;
+          word-break: break-word;
         }
         .pg-root .task-desc {
           color: var(--text);
