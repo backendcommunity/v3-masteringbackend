@@ -2110,8 +2110,6 @@ export function ProjectPlaygroundPage({
             compact
           />
         </div>
-      ) : embedded ? (
-        <div className="gh-nudge gh-nudge-synced">{renderSyncChip()}</div>
       ) : null}
 
       {/* ── WORKSPACE ── */}
