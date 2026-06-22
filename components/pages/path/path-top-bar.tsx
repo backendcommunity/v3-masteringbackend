@@ -10,8 +10,12 @@ import {
   Zap,
   Clock,
   PhoneOff,
+  Play,
+  Square,
+  Eye,
 } from "lucide-react";
 import { useInterviewTimer } from "@/lib/interview-timer-store";
+import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { Button } from "@/components/ui/button";
 import { PathSessionStep } from "@/lib/path-types";
 import { PathHelpSheet } from "./path-help-sheet";
@@ -22,6 +26,64 @@ import { PathResourceSheet } from "./path-resource-sheet";
 export interface Crumb {
   label?: string;
   href?: string;
+}
+
+/**
+ * Run / Stop / Preview for an embedded project playground. The playground (whose
+ * own header is hidden in path steps) publishes its handlers + state into
+ * `usePlaygroundControls`; this renders them in the path top bar so start/stop
+ * and preview are reachable on the primary learning surface. Renders nothing
+ * when no playground is mounted.
+ */
+function PlaygroundControls({ compact = false }: { compact?: boolean }) {
+  const {
+    active,
+    isRunning,
+    isStopping,
+    sandboxLive,
+    previewVisible,
+    runServer,
+    stopServer,
+    togglePreview,
+  } = usePlaygroundControls();
+  if (!active) return null;
+
+  return (
+    <div className={compact ? "flex items-center gap-1" : "flex items-center gap-1.5"}>
+      {sandboxLive ? (
+        <Button
+          size="sm"
+          variant="destructive"
+          className="h-8 gap-1.5 px-3 text-xs"
+          disabled={isStopping}
+          onClick={() => stopServer?.()}
+        >
+          <Square className="w-3.5 h-3.5" />
+          {isStopping ? "Stopping…" : "Stop"}
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          className="h-8 gap-1.5 px-3 text-xs"
+          disabled={isRunning}
+          onClick={() => runServer?.()}
+        >
+          <Play className="w-3.5 h-3.5" />
+          {isRunning ? "Running…" : "Run"}
+        </Button>
+      )}
+      <Button
+        size="sm"
+        variant={previewVisible ? "secondary" : "ghost"}
+        className="h-8 gap-1.5 px-3 text-xs"
+        onClick={() => togglePreview?.()}
+        aria-pressed={previewVisible}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        Preview
+      </Button>
+    </div>
+  );
 }
 
 export interface PathTopBarProps {
@@ -187,6 +249,7 @@ export function PathTopBar({
 
       {/* Right: full cluster on desktop, collapsed menu on mobile */}
       <div className="hidden md:flex items-center gap-3">
+        <PlaygroundControls />
         {projectActions}
         {interviewOnEnd && (
           <Button
@@ -244,6 +307,7 @@ export function PathTopBar({
               onClick={() => setMobileOpen(false)}
             />
             <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-popover p-2 shadow-lg">
+              <PlaygroundControls compact />
               {interviewSeconds != null && (
                 <div className="flex items-center justify-between rounded-lg px-2 py-2">
                   <span className="text-xs text-muted-foreground">Time left</span>

@@ -1,4 +1,4 @@
-import { pgGit, type PgCtx } from "@/lib/playground-client";
+import { pgGit, type PgCtx, type SeedAndPushArgs } from "@/lib/playground-client";
 
 /**
  * Project Playground autosave / conflict engine.
@@ -35,6 +35,10 @@ export interface PlaygroundSyncOpts {
 
 export interface PlaygroundSync {
   hydrate(): Promise<{ empty: boolean; sha: string | null } | null>;
+  // Rule 2 (atomic): seed the base into the workdir AND push it to the (empty)
+  // user repo in ONE worker call, so a missed second request can't leave the
+  // repo empty. No-op if the remote already has content.
+  seedAndPush(args: SeedAndPushArgs): Promise<{ seeded: boolean; sha: string | null }>;
   nudgeSave(): void; // debounced autosave
   saveNow(reason: "idle" | "run" | "close" | "manual"): Promise<void>;
   flushOnClose(): void; // best-effort final save
@@ -96,6 +100,21 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
     } catch {
       opts.onStatus("error");
       return null;
+    }
+  }
+
+  async function seedAndPush(
+    args: SeedAndPushArgs,
+  ): Promise<{ seeded: boolean; sha: string | null }> {
+    try {
+      opts.onStatus("syncing");
+      const r = await pgGit(opts.ctx, { op: "seedAndPush", ...repoArgs, ...args });
+      opts.setLastSha(r.sha ?? null);
+      opts.onStatus("synced", now());
+      return { seeded: !!r.seeded, sha: r.sha ?? null };
+    } catch {
+      opts.onStatus("error");
+      return { seeded: false, sha: null };
     }
   }
 
@@ -185,6 +204,7 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
 
   return {
     hydrate,
+    seedAndPush,
     nudgeSave,
     saveNow,
     flushOnClose,

@@ -48,6 +48,54 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("seedAndPush (rule 2, atomic)", () => {
+  it("calls the worker once with op:seedAndPush + repo identity + seed args, records sha", async () => {
+    pgGitMock.mockResolvedValue({ seeded: true, sha: "seed-sha", pushed: true });
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+
+    const r = await sync.seedAndPush({
+      baseRepository: "https://github.com/acme/base",
+      frontendPreview: true,
+      previewDir: "_preview",
+    });
+
+    expect(pgGitMock).toHaveBeenCalledTimes(1);
+    expect(pgGitMock).toHaveBeenCalledWith(ctx, {
+      op: "seedAndPush",
+      owner: "acme",
+      repo: "widgets",
+      installationId: 42,
+      baseRepository: "https://github.com/acme/base",
+      frontendPreview: true,
+      previewDir: "_preview",
+    });
+    expect(r).toEqual({ seeded: true, sha: "seed-sha" });
+    expect(opts.setLastSha).toHaveBeenCalledWith("seed-sha");
+    expect(opts.onStatus).toHaveBeenCalledWith("synced", expect.any(Number));
+  });
+
+  it("reports remote-not-empty as a no-op (seeded:false), never an error", async () => {
+    pgGitMock.mockResolvedValue({ seeded: false, reason: "remote-not-empty", sha: "remote-sha" });
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+
+    const r = await sync.seedAndPush({ baseRepository: "https://github.com/acme/base" });
+    expect(r).toEqual({ seeded: false, sha: "remote-sha" });
+    expect(opts.onStatus).not.toHaveBeenCalledWith("error");
+  });
+
+  it("surfaces a transport failure as error status, returns a safe result", async () => {
+    pgGitMock.mockRejectedValue(new Error("network"));
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+
+    const r = await sync.seedAndPush({ baseRepository: "https://github.com/acme/base" });
+    expect(r).toEqual({ seeded: false, sha: null });
+    expect(opts.onStatus).toHaveBeenCalledWith("error");
+  });
+});
+
 describe("nudgeSave debounce", () => {
   it("collapses multiple calls within the window into one push", async () => {
     pgGitMock.mockResolvedValue({ pushed: true, sha: "new" });

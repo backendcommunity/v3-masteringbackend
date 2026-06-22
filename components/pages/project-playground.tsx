@@ -45,6 +45,8 @@ import {
   pgFs,
   pgRun,
   pgStop,
+  pgStatus,
+  pgReload,
   pgSeed,
   pgDownload,
   pgRestart,
@@ -216,6 +218,7 @@ export function ProjectPlaygroundPage({
   const idleTimer = useRef(null);
   // Latest run/preview handlers — published to the path top bar when embedded.
   const runServerRef = useRef<() => void>(() => {});
+  const stopServerRef = useRef<() => void>(() => {});
   const togglePreviewRef = useRef<() => void>(() => {});
   const setPgControls = usePlaygroundControls((s) => s.setControls);
   const store = useAppStore();
@@ -270,6 +273,11 @@ export function ProjectPlaygroundPage({
   const [currentLanguage, setCurrentLanguage] = useState("javascript");
   const [showPayment, setShowPayment] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  // In-flight guards so a double-click / two-tab can't fire overlapping
+  // run/stop requests (which race the sandbox into an indeterminate state).
+  const runInFlightRef = useRef(false);
+  const stopInFlightRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [language, setLanguage] = useState("");
@@ -303,7 +311,16 @@ export function ProjectPlaygroundPage({
   const rightRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<HTMLDivElement>(null);
   const lastTermH = useRef("150px"); // remembers expanded height across collapse
-  const fileBuffer: Record<string, NodeJS.Timeout> = {};
+  // Per-path debounce timers for autosave. MUST be a ref: a plain `{}` in the
+  // component body is recreated every render, so clearTimeout never finds the
+  // previous timer → the debounce never coalesces → a write per keystroke
+  // (write storm + out-of-order writes → content loss).
+  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Debounces hot-reload (/reload) after edits while the server is running.
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Live mirror of `baseURL` so timer callbacks read the current value (not a
+  // stale closure) when deciding whether to hot-reload.
+  const baseURLRef = useRef("");
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -429,14 +446,19 @@ export function ProjectPlaygroundPage({
       active: true,
       connected,
       isRunning,
+      isStopping,
+      sandboxLive: !!baseURL,
       previewVisible: isRightPanelVisible,
       runServer: () => runServerRef.current?.(),
+      stopServer: () => stopServerRef.current?.(),
       togglePreview: () => togglePreviewRef.current?.(),
     });
   }, [
     embedded,
     connected,
     isRunning,
+    isStopping,
+    baseURL,
     isRightPanelVisible,
     setPgControls,
   ]);
@@ -579,12 +601,33 @@ export function ProjectPlaygroundPage({
             const r = await syncRef.current.hydrate();
             if (cancelled) return;
             if (r?.empty) {
-              // Empty repo: seed the runnable baseline, then push the first commit.
+              // Empty repo (first connect): seed the base AND push it to the
+              // user's repo in ONE atomic worker call (rule 2). A single request
+              // either initialises the repo or no-ops — it can't leave the repo
+              // empty the way a separate seed-then-push could if the push was
+              // missed (tab closed, network drop).
+              await syncRef.current.seedAndPush({
+                baseRepository: project?.baseRepository,
+                language: project?.languages?.[0],
+                frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+                previewDir: (project as any)?.playgroundConfig?.previewDir,
+                showcaseSlug: slug,
+                showcaseVersion: project?.updatedAt
+                  ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+                  : undefined,
+              });
+              if (cancelled) return;
+            } else if (!!(project as any)?.playgroundConfig?.frontendPreview) {
+              // Non-empty connected repo: the learner's repo carries no preview
+              // folder, so the predefined frontend (<workdir>.frontend) is missing
+              // and /__app/ would 404. Seed is idempotent for a populated workspace
+              // — it leaves the backend untouched and only rebuilds .frontend from
+              // the base repo's previewDir. Best-effort; must not block the IDE.
               try {
                 await pgSeed(pgCtx, {
                   baseRepository: project?.baseRepository,
                   language: project?.languages?.[0],
-                  frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+                  frontendPreview: true,
                   previewDir: (project as any)?.playgroundConfig?.previewDir,
                   showcaseSlug: slug,
                   showcaseVersion: project?.updatedAt
@@ -592,9 +635,8 @@ export function ProjectPlaygroundPage({
                     : undefined,
                 });
               } catch {
-                // Seed unavailable — push whatever is in the workdir (maybe nothing).
+                /* frontend-preview rebuild failed — IDE still opens normally */
               }
-              await syncRef.current.saveNow("manual");
               if (cancelled) return;
             }
             const list = await listWithRetry();
@@ -602,14 +644,34 @@ export function ProjectPlaygroundPage({
             setFileTree(toFileTree(list?.files, project?.title || slug));
             return;
           } catch {
-            // Hydrate failed — surface it, then fall through to the ephemeral seed
-            // so the learner can still work locally in the sandbox.
-            if (!cancelled)
-              toast.error("Couldn't sync from GitHub — working locally for now.");
+            // Hydrate FAILED for a connected project. Do NOT seed the base
+            // template (that would overwrite the learner's repo on the next
+            // autosave) and BLOCK autosave entirely — pushing from an
+            // un-hydrated sandbox could clobber their GitHub repo. Show what's
+            // already in the sandbox; the engine rebuilds + retries on reopen.
+            if (!cancelled) {
+              toast.error(
+                "Couldn't sync from GitHub. Reopen to retry — your work on GitHub is safe.",
+              );
+              try {
+                syncRef.current?.dispose();
+              } catch {
+                /* ignore */
+              }
+              syncRef.current = null;
+              try {
+                const list = await listWithRetry();
+                if (!cancelled)
+                  setFileTree(toFileTree(list?.files, project?.title || slug));
+              } catch {
+                /* leave tree as-is */
+              }
+            }
+            return; // never fall through to seed-base for a connected project
           }
         }
 
-        // NOT CONNECTED (or hydrate failed) — ephemeral path (unchanged):
+        // NOT CONNECTED — ephemeral path:
         // Best-effort seed: ask the worker for a runnable baseline. The worker is
         // idempotent (skips a non-empty workdir), clones `baseRepository` when set,
         // else scaffolds a Node.js starter. Strictly best-effort — must NOT block
@@ -759,6 +821,31 @@ export function ProjectPlaygroundPage({
       },
     [],
   );
+
+  // Heartbeat: while we believe the server is up, confirm with the worker so the
+  // UI can't keep showing "live" after the sandbox slept (10-min idle) or the
+  // process died. On a real stop, clear the URL and tell the learner to re-Run.
+  // (Declared before the early returns below to satisfy rules-of-hooks.)
+  useEffect(() => {
+    if (!pgCtx || !baseURL) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      if (cancelled || runInFlightRef.current || stopInFlightRef.current) return;
+      try {
+        const s = await pgStatus(pgCtx);
+        if (!cancelled && s?.ok && !s.running) {
+          setBaseURL("");
+          toast.message("Server stopped (sandbox went idle). Click Run to restart.");
+        }
+      } catch {
+        /* transient worker hiccup — keep current state */
+      }
+    }, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [pgCtx, baseURL]);
 
   if (loading || loadingFiles)
     return (
@@ -1197,30 +1284,36 @@ export function ProjectPlaygroundPage({
     setRestart(false);
     setShowLoader(true);
     try {
-      await pgRestart(pgCtx, {
-        baseRepository: project?.baseRepository,
-        language: project?.languages?.[0],
-        frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
-        previewDir: (project as any)?.playgroundConfig?.previewDir,
-        showcaseSlug: slug,
-        showcaseVersion: project?.updatedAt
-          ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
-          : undefined,
-      });
-      // Overwrite the connected repo with the fresh base template.
       if (ghConnected && syncRef.current) {
-        try {
-          await syncRef.current.resolveOverwrite();
-        } catch {
-          toast.error("Reset locally, but couldn't push the reset to GitHub.");
-        }
+        // Connected → GitHub is the source of truth. "Restart" = reset the
+        // sandbox to the USER's repo (discard local sandbox changes, pull their
+        // latest). It must NEVER force-push the base template over their repo —
+        // that destroyed the learner's pushed work (the "restart not picking
+        // from github" bug). resolveReload() runs the worker `resetToRemote`.
+        await syncRef.current.resolveReload();
+      } else {
+        // Ephemeral (not connected) → wipe back to the base template / scaffold.
+        await pgRestart(pgCtx, {
+          baseRepository: project?.baseRepository,
+          language: project?.languages?.[0],
+          frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+          previewDir: (project as any)?.playgroundConfig?.previewDir,
+          showcaseSlug: slug,
+          showcaseVersion: project?.updatedAt
+            ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+            : undefined,
+        });
       }
       await refreshTree();
       setOpenFiles([]);
       setActiveFile("");
-      toast.success("Project reset to the base template.");
+      toast.success(
+        ghConnected
+          ? "Reset to your GitHub repo."
+          : "Project reset to the base template.",
+      );
     } catch {
-      toast.error("Couldn't restart the project. Try again.");
+      toast.error("Couldn't reset the project. Try again.");
     } finally {
       setShowLoader(false);
     }
@@ -1252,9 +1345,9 @@ export function ProjectPlaygroundPage({
 
   const handleTyping: OnChange = (value, v) => {
     const path = activeFile;
-    clearTimeout(fileBuffer[path]);
+    clearTimeout(fileBufferRef.current[path]);
 
-    fileBuffer[path] = setTimeout(async () => {
+    fileBufferRef.current[path] = setTimeout(async () => {
       if (!pgCtx) return;
       try {
         await pgFs(pgCtx, {
@@ -1265,6 +1358,14 @@ export function ProjectPlaygroundPage({
         // Connected → nudge the GitHub autosave (trailing-debounced in the
         // engine, so rapid edits collapse into a single commit on idle).
         syncRef.current?.nudgeSave();
+        // Hot-reload: if the server is running, restart it ~1s after the last
+        // edit so the change takes effect (debounced; the URL stays the same).
+        if (baseURLRef.current) {
+          if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+          reloadTimerRef.current = setTimeout(() => {
+            if (pgCtx && baseURLRef.current) void pgReload(pgCtx).catch(() => {});
+          }, 1000);
+        }
       } catch (error: any) {
         toast.error(error?.message || "Failed to save changes");
       }
@@ -1700,7 +1801,8 @@ export function ProjectPlaygroundPage({
   };
 
   const handleRunProject = async () => {
-    if (!pgCtx) return;
+    if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+    runInFlightRef.current = true;
     setIsRunning(true);
     setTerminalOutput(terminalSample);
     try {
@@ -1734,23 +1836,31 @@ export function ProjectPlaygroundPage({
       toast.error(e?.message || "Run failed");
     } finally {
       setIsRunning(false);
+      runInFlightRef.current = false;
     }
   };
 
   const handleStopProject = async () => {
-    if (!pgCtx) return;
+    if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+    stopInFlightRef.current = true;
+    setIsStopping(true);
     try {
       await pgStop(pgCtx);
       setBaseURL("");
       toast.message("Server stopped");
     } catch (e: any) {
       toast.error(e?.message || "Failed to stop server");
+    } finally {
+      setIsStopping(false);
+      stopInFlightRef.current = false;
     }
   };
 
   // Keep the refs the path top bar calls pointed at the live handlers.
   runServerRef.current = handleRunProject;
+  stopServerRef.current = handleStopProject;
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
+  baseURLRef.current = baseURL; // live mirror for timer callbacks
 
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
@@ -2201,10 +2311,11 @@ export function ProjectPlaygroundPage({
             <button
               className="btn stop"
               onClick={handleStopProject}
+              disabled={isStopping}
               title="Stop server"
               aria-label="Stop server"
             >
-              {I.x} Stop
+              {I.x} {isStopping ? "Stopping…" : "Stop"}
             </button>
           ) : (
             <button

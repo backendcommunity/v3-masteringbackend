@@ -138,6 +138,30 @@ export function pgStop(ctx: PgCtx): Promise<any> {
 }
 
 /**
+ * Restart the running server process in place (hot-reload after a save). Keeps
+ * the exposed preview URL — only the process restarts. No-op if not running.
+ */
+export function pgReload(
+  ctx: PgCtx,
+  args: { installCmd?: string; startCmd?: string } = {},
+): Promise<any> {
+  return request(ctx, "/reload", args);
+}
+
+/**
+ * True server status from the worker (process liveness), for the FE heartbeat.
+ * Returns `{ ok, running, status, exitCode? }`. Cheap; safe to poll.
+ */
+export function pgStatus(ctx: PgCtx): Promise<{
+  ok: boolean;
+  running: boolean;
+  status: string | null;
+  exitCode?: number;
+}> {
+  return request(ctx, "/status", {});
+}
+
+/**
  * Seed the project's workdir so it opens with a runnable baseline.
  *
  * Idempotent on the worker: a non-empty workdir is left untouched. If
@@ -192,24 +216,38 @@ export function pgRestart(
 /**
  * Worker `/git` endpoint. The worker dispatches on `op`:
  *  - `hydrate`        — pull the remote into the workdir
+ *  - `seedAndPush`    — seed base into the workdir AND push it to an empty repo
+ *                       (rule 2, atomic); no-op if the remote already has content
  *  - `push`           — fast-forward push (optimistic-locked on `baseSha`)
  *  - `pushForce`      — overwrite the remote with the workdir
  *  - `resetToRemote`  — discard local changes, reset to the remote head
  *
  * `owner`/`repo`/`installationId` identify the GitHub repo + App installation.
  * `baseSha` (push) guards against clobbering concurrent remote changes;
- * `message` is the commit subject for push/pushForce.
+ * `message` is the commit subject for push/pushForce. The `seedAndPush` fields
+ * (baseRepository/language/frontendPreview/previewDir/showcase*) configure the
+ * one-shot seed.
  */
+/** One-shot seed config for the `seedAndPush` git op (rule 2). */
+export type SeedAndPushArgs = {
+  baseRepository?: string;
+  language?: string;
+  frontendPreview?: boolean;
+  previewDir?: string;
+  showcaseSlug?: string;
+  showcaseVersion?: number;
+};
+
 export function pgGit(
   ctx: PgCtx,
   args: {
-    op: "hydrate" | "push" | "pushForce" | "resetToRemote";
+    op: "hydrate" | "seedAndPush" | "push" | "pushForce" | "resetToRemote";
     owner: string;
     repo: string;
     installationId: string | number;
     baseSha?: string | null; // push
     message?: string; // push / pushForce
-  },
+  } & SeedAndPushArgs,
 ): Promise<any> {
   return request(ctx, "/git", args);
 }
