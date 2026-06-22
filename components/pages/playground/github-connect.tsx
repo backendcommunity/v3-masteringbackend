@@ -14,15 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import {
-  Github,
-  GitBranch,
-  ExternalLink,
-  Loader2,
-  Plus,
-  Search,
-  AlertCircle,
-} from "lucide-react";
+import { Github, Loader2, Plus, Search } from "lucide-react";
 
 type GithubStatus = {
   installed: boolean;
@@ -44,9 +36,12 @@ interface GithubConnectProps {
   slug: string;
   projectName?: string;
   onConnected?: (repoFullName: string) => void;
-  compact?: boolean;
-  /** Render a single ghost icon button for the top nav (no labelled button). */
-  iconOnly?: boolean;
+  /**
+   * Surface an actionable error to a parent (e.g. the top banner). Called with
+   * the message + a retry handler while an error is live, and `null` once it
+   * clears. The icon/slide-in stay silent; the banner only appears on error.
+   */
+  onError?: (err: { message: string; retry: () => void } | null) => void;
 }
 
 // Append the current page as the return target. Academy hands back install URLs
@@ -69,18 +64,16 @@ function handle409Redirect(err: any): boolean {
   return false;
 }
 
-// One primary action that reflects connection state for a playground project:
-//   not-installed  → "Connect GitHub" (redirect to install the GitHub App)
-//   installed      → "Save to GitHub" (auto-provision a repo; handles 409s)
-//   connected      → linked repo as a "Synced to GitHub" pill
-// An "Advanced" disclosure opens a drawer to create-with-options or connect an
-// existing repo, reusing the existing owners/repos store actions.
+// A single ghost icon button for the playground top nav. Clicking it toggles the
+// options slide-in (`AdvancedDrawer`), which holds every state: not-installed →
+// install CTA; installed → create/connect a repo. Repo provisioning is automatic
+// (the effect below), so the icon's only job is to open the panel. Actionable
+// errors are reported up via `onError` (the parent renders the only banner).
 export function GithubConnect({
   slug,
   projectName,
   onConnected,
-  compact = false,
-  iconOnly = false,
+  onError,
 }: GithubConnectProps) {
   const store = useAppStore();
   const [loading, setLoading] = useState(true);
@@ -170,193 +163,69 @@ export function GithubConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, saving]);
 
-  // Icon-only entry for the top nav: a single ghost icon button (matches the
-  // other nav icons via the playground's `.btn.ghost`/`svg.i` styles). Clicking
-  // does the state-appropriate action; the labelled flow + Advanced live in the
-  // connect banner.
-  if (iconOnly) {
-    const onClick = () => {
-      if (!status) return;
-      if (!status.installed) {
-        if (status.installUrl) window.location.href = withReturn(status.installUrl);
-        return;
-      }
-      // Connected → toggle the options slide-in (create/connect a different repo,
-      // view the linked one). Installed-not-connected → kick the auto-provision.
-      if (status.connected) {
-        setSheetOpen((o) => !o);
-        return;
-      }
-      void handleSave();
-    };
-    const title = !status
-      ? "GitHub"
-      : !status.installed
-        ? "Connect GitHub"
-        : status.connected
-          ? "GitHub options"
-          : "Saving to GitHub…";
-    return (
-      <>
-        <button
-          className="btn ghost"
-          onClick={onClick}
-          title={title}
-          aria-label={title}
-          disabled={saving || loading}
-        >
-          {saving ? (
-            <Loader2 className="i animate-spin" />
-          ) : (
-            <Github className="i" />
-          )}
-        </button>
-        {status?.installed && (
-          <AdvancedDrawer
-            slug={slug}
-            projectName={projectName}
-            onConnected={applyConnected}
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-          />
-        )}
-      </>
-    );
-  }
+  // Report actionable errors up to the parent (the top banner) and clear them
+  // when resolved. The icon + slide-in stay silent in every healthy state; the
+  // banner is the *only* place an error surfaces.
+  useEffect(() => {
+    if (!onError) return;
+    if (loadError) {
+      onError({ message: "Couldn't load GitHub status.", retry: refresh });
+    } else if (actionError) {
+      onError({
+        message: actionError,
+        retry: () => {
+          autoTriggeredRef.current = true;
+          void handleSave();
+        },
+      });
+    } else {
+      onError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError, actionError]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Loading GitHub…</span>
-      </div>
-    );
-  }
-
-  if (loadError || !status) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <AlertCircle className="h-4 w-4" />
-          Couldn&apos;t load GitHub status.
-        </span>
-        <Button variant="outline" size="sm" onClick={refresh}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  // CONNECTED — show the linked repo.
-  if (status.connected && status.repoFullName) {
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm",
-          compact && "px-2.5 py-1.5",
-        )}
-      >
-        <a
-          href={`https://github.com/${status.repoFullName}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex min-w-0 items-center gap-2 text-foreground hover:text-primary"
-        >
-          <GitBranch className="h-4 w-4 shrink-0 text-primary" />
-          <span className="truncate font-medium">{status.repoFullName}</span>
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </a>
-        {!compact && (
-          <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-            Synced to GitHub
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  // NOT INSTALLED, but missing an install URL — nothing actionable to show, so
-  // fall back to the load-error/retry state instead of a dead button.
-  if (!status.installed && !status.installUrl) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <AlertCircle className="h-4 w-4" />
-          Couldn&apos;t load GitHub status.
-        </span>
-        <Button variant="outline" size="sm" onClick={refresh}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  // NOT INSTALLED — send to install the GitHub App.
-  if (!status.installed) {
-    return (
-      <div className="flex flex-col gap-2">
-        <Button
-          className="btn-primary w-full sm:w-auto"
-          onClick={() => {
-            window.location.href = withReturn(status.installUrl);
-          }}
-        >
-          <Github className="mr-2 h-4 w-4" />
-          Connect GitHub
-        </Button>
-        {!compact && (
-          <p className="text-xs text-muted-foreground">
-            Install on your account or any organization you administer.
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  // INSTALLED, NOT CONNECTED — auto-provision is in flight (the effect runs
-  // handleSave: create mb-<slug> + push). No manual button.
   return (
-    <div className="flex flex-col gap-2">
-      {actionError ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
-          <span className="flex items-center gap-1.5">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {actionError}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              autoTriggeredRef.current = true;
-              void handleSave();
-            }}
-            disabled={saving}
-          >
-            Retry
-          </Button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Saving to GitHub…</span>
-        </div>
+    <>
+      <button
+        className="btn ghost"
+        onClick={() => setSheetOpen((o) => !o)}
+        title="GitHub"
+        aria-label="GitHub"
+        disabled={loading}
+      >
+        {saving ? <Loader2 className="i animate-spin" /> : <Github className="i" />}
+      </button>
+      {status && (
+        <AdvancedDrawer
+          slug={slug}
+          projectName={projectName}
+          onConnected={applyConnected}
+          installed={status.installed}
+          installUrl={status.installUrl}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+        />
       )}
-    </div>
+    </>
   );
 }
 
-// Advanced drawer: create-with-options or connect an existing repo. Collapsed by
-// default behind a small "Advanced" link.
+// Options slide-in: install the App (not-installed), or create-with-options /
+// connect an existing repo (installed). Controlled by the parent via open/onOpenChange.
 function AdvancedDrawer({
   slug,
   projectName,
   onConnected,
+  installed,
+  installUrl,
   open,
   onOpenChange,
 }: {
   slug: string;
   projectName?: string;
   onConnected: (repoFullName: string, owner?: string, repo?: string) => void;
+  installed: boolean;
+  installUrl?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -377,7 +246,7 @@ function AdvancedDrawer({
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !installed) return;
     let active = true;
     (async () => {
       setOwnersLoading(true);
@@ -396,7 +265,7 @@ function AdvancedDrawer({
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, installed]);
 
   const loadRepos = async (ownerLogin: string, query: string) => {
     if (!ownerLogin) return;
@@ -458,41 +327,68 @@ function AdvancedDrawer({
       <SheetContent className="w-full overflow-y-auto sm:max-w-[440px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Github className="h-4 w-4" /> Advanced GitHub options
+            <Github className="h-4 w-4" /> GitHub options
           </SheetTitle>
           <SheetDescription>
-            Choose an owner and create a repo with options, or connect an
-            existing one.
+            {installed
+              ? "Choose an owner and create a repo with options, or connect an existing one."
+              : "Connect GitHub to save your work to a repository."}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-5">
-          <div>
-            <label
-              htmlFor="gh-owner"
-              className="text-xs font-medium text-muted-foreground"
-            >
-              Owner
-            </label>
-            <select
-              id="gh-owner"
-              value={owner}
-              disabled={ownersLoading}
-              onChange={(e) => {
-                setOwner(e.target.value);
-                setRepos([]);
+        {/* NOT INSTALLED — the only action is to install the GitHub App. Once
+            installed, a repo is provisioned automatically and this panel switches
+            to the owner/create/connect options below. */}
+        {!installed ? (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Install the GitHub App on your account or any organization you
+              administer. We&apos;ll create a repository and sync your work
+              automatically.
+            </p>
+            <Button
+              className="btn-primary w-full"
+              disabled={!installUrl}
+              onClick={() => {
+                if (installUrl) window.location.href = withReturn(installUrl);
               }}
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
             >
-              {ownersLoading && <option>Loading…</option>}
-              {owners.map((o) => (
-                <option key={o.login} value={o.login}>
-                  {o.login}
-                  {o.type === "org" ? " (org)" : ""}
-                </option>
-              ))}
-            </select>
+              <Github className="mr-2 h-4 w-4" /> Connect GitHub
+            </Button>
           </div>
+        ) : (
+        <div className="mt-6 space-y-5">
+          {/* Owner is auto-selected (the install account / first owner). Only
+              surface the picker when there's more than one account to choose
+              between — otherwise it's a single-option dropdown that adds noise. */}
+          {owners.length > 1 && (
+            <div>
+              <label
+                htmlFor="gh-owner"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Owner
+              </label>
+              <select
+                id="gh-owner"
+                value={owner}
+                disabled={ownersLoading}
+                onChange={(e) => {
+                  setOwner(e.target.value);
+                  setRepos([]);
+                }}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
+              >
+                {ownersLoading && <option>Loading…</option>}
+                {owners.map((o) => (
+                  <option key={o.login} value={o.login}>
+                    {o.login}
+                    {o.type === "org" ? " (org)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <Tabs defaultValue="create" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -608,6 +504,7 @@ function AdvancedDrawer({
             </TabsContent>
           </Tabs>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );

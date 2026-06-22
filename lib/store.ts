@@ -1709,12 +1709,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   listGithubOwners: async () => {
+    // Backend proxies the executor and returns the owners array as `data`
+    // directly (no `.owners` envelope), so unwrap `data.data`.
     const { data } = await api.get(`/github/owners`);
-    return data?.data?.owners ?? [];
+    return data?.data ?? [];
   },
   listGithubRepos: async (owner: string, q = "") => {
+    // Same bare-array shape as owners — `data.data` is the repos array.
     const { data } = await api.get(`/github/repos`, { params: { owner, q } });
-    return data?.data?.repos ?? [];
+    return data?.data ?? [];
   },
   createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
     const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });

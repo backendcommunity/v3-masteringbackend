@@ -21,6 +21,7 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
@@ -29,7 +30,6 @@ import { PathFeedbackDialog } from "./path/path-feedback-dialog";
 import { GithubConnect } from "./playground/github-connect";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
-import { Loader } from "../ui/loader";
 import { languages } from "@/lib/languages";
 import {
   Dialog,
@@ -41,7 +41,15 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import { pgFs, pgRun, pgStop, pgSeed, type PgCtx } from "@/lib/playground-client";
+import {
+  pgFs,
+  pgRun,
+  pgStop,
+  pgSeed,
+  pgDownload,
+  pgRestart,
+  type PgCtx,
+} from "@/lib/playground-client";
 import {
   createPlaygroundSync,
   type PlaygroundSync,
@@ -261,6 +269,13 @@ export function ProjectPlaygroundPage({
   const [showLoader, setShowLoader] = useState(false);
   const [language, setLanguage] = useState("");
   const [restart, setRestart] = useState(false);
+  // Welcome/start page: technology tags collapse past the first 8.
+  const [tagsExpanded, setTagsExpanded] = useState(false);
+  // Apply playgroundConfig.showPreviewOnLoad exactly once, when the project loads.
+  const previewDefaultApplied = useRef(false);
+  // Auto-open the first file once when the learner has already started — so a
+  // returning learner lands straight in the editor (no start page at all).
+  const autoOpenedRef = useRef(false);
   const [fileMenu, setFileMenu] = useState({
     visible: false,
     x: 0,
@@ -328,6 +343,11 @@ export function ProjectPlaygroundPage({
   const [owner, repo] = repoFullName
     ? repoFullName.split("/")
     : [undefined, undefined];
+  // Surfaced by GithubConnect only when there's an actionable problem. Drives the
+  // error-only banner — there is no persistent "connect GitHub" nudge.
+  const [ghError, setGhError] = useState<
+    { message: string; retry: () => void } | null
+  >(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
   const syncRef = useRef<PlaygroundSync | null>(null);
@@ -375,6 +395,11 @@ export function ProjectPlaygroundPage({
     return null;
   };
 
+  // Load the project. Keyed on `slug` ONLY. Connecting GitHub mid-session flips
+  // user.github / user.githubInstallationId — if those were deps here, this effect
+  // would re-run, setLoading(true), and tear down the whole playground (editor +
+  // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
+  // refetches the project (without setLoading) so connected state still updates.
   useEffect(() => {
     setLoading(true);
     async function findProject(slug: string) {
@@ -382,9 +407,14 @@ export function ProjectPlaygroundPage({
       setProject(project);
       setLoading(false);
     }
-    setConnected(!!user?.githubInstallationId || !!user?.github);
     findProject(slug);
-  }, [slug, user?.github, user?.githubInstallationId]);
+  }, [slug]);
+
+  // Track GitHub-connected state separately — a cheap flag update with no loading
+  // churn, so it can react to user changes without remounting the page.
+  useEffect(() => {
+    setConnected(!!user?.githubInstallationId || !!user?.github);
+  }, [user?.github, user?.githubInstallationId]);
 
   // Embedded in a path step → publish Run/Preview state + handlers so the path
   // top bar can render them (this component's own header is hidden).
@@ -512,6 +542,22 @@ export function ProjectPlaygroundPage({
     if (!pgCtx) return;
     let cancelled = false;
 
+    // The first worker call on a cold sandbox can transiently fail while the
+    // container boots. Retry the listing a few times with backoff so a boot blip
+    // never surfaces as "Failed to load project files".
+    const listWithRetry = async () => {
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          return await pgFs(pgCtx, { op: "list" });
+        } catch (e) {
+          lastErr = e;
+          await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        }
+      }
+      throw lastErr;
+    };
+
     const loadTree = async () => {
       setLoadingFiles(true);
       try {
@@ -540,7 +586,7 @@ export function ProjectPlaygroundPage({
               await syncRef.current.saveNow("manual");
               if (cancelled) return;
             }
-            const list = await pgFs(pgCtx, { op: "list" });
+            const list = await listWithRetry();
             if (cancelled) return;
             setFileTree(toFileTree(list?.files, project?.title || slug));
             return;
@@ -567,7 +613,7 @@ export function ProjectPlaygroundPage({
         }
 
         // Re-list so the freshly-seeded files show in the tree.
-        const r = await pgFs(pgCtx, { op: "list" });
+        const r = await listWithRetry();
         if (cancelled) return;
         // Do NOT auto-open a file — land on the welcome/get-started card (matches
         // the design). The user opens a file from Files or starts a task.
@@ -583,16 +629,13 @@ export function ProjectPlaygroundPage({
     return () => {
       cancelled = true;
     };
-  }, [
-    pgCtx,
-    project?.baseRepository,
-    project?.languages,
-    project?.title,
-    slug,
-    // ghConnected is intentionally a dep: when the learner connects mid-session
-    // the seed effect re-runs and hydrates via the (now built) engine.
-    ghConnected,
-  ]);
+    // NOTE: ghConnected is deliberately NOT a dep. Re-running this effect on a
+    // mid-session connect flips `loadingFiles` → the full-screen <Loader> →
+    // the whole playground unmounts/remounts (reads as a page reload). The
+    // connect path is handled by `handleGhConnected` instead, which hydrates +
+    // refreshes the tree in place without the loading teardown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pgCtx, project?.baseRepository, project?.languages, project?.title, slug]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
@@ -611,6 +654,42 @@ export function ProjectPlaygroundPage({
     if (loading) return; // project still resolving
     if (!pgCtx) setLoadingFiles(false);
   }, [loading, pgCtx]);
+
+  // Item 12: the preview pane's initial visibility is controlled per-project by
+  // playgroundConfig.showPreviewOnLoad (default false). Applied once on first
+  // project load so it never fights the user's later manual toggles.
+  useEffect(() => {
+    if (!project || previewDefaultApplied.current) return;
+    previewDefaultApplied.current = true;
+    setIsRightPanelVisible(
+      !!(project as any)?.playgroundConfig?.showPreviewOnLoad,
+    );
+  }, [project]);
+
+  // Item 10: a returning learner (started ≥1 task OR synced to GitHub) skips the
+  // start page entirely — auto-open the first file so they land in the editor.
+  // The `loading || loadingFiles` guard runs FIRST so this never touches
+  // `openFile` on a render that early-returned before it's defined.
+  useEffect(() => {
+    if (loading || loadingFiles) return;
+    if (autoOpenedRef.current || openFiles.length > 0) return;
+    const startedNow =
+      ((project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
+        (t: any) => t?.userTask?.isCompleted,
+      ).length > 0) ||
+      lastSha != null;
+    if (!startedNow) return;
+    const first =
+      fileTree[0]?.children?.find(
+        (f) => f.type === "file" && !f.isBlocked,
+      ) || fileTree.find((f) => f.type === "file");
+    if (first) {
+      autoOpenedRef.current = true;
+      openFile(first);
+      setRailTab("explorer");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, loadingFiles, fileTree, openFiles.length, project, lastSha]);
 
   useEffect(() => {
     const file = findFile(fileTree, activeFile);
@@ -664,7 +743,13 @@ export function ProjectPlaygroundPage({
     [],
   );
 
-  if (loading || loadingFiles) return <Loader isLoader={false} />;
+  if (loading || loadingFiles)
+    return (
+      <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm">Loading your project…</span>
+      </div>
+    );
   if (!project?.enrolled)
     return (
       <div className="container max-w-4xl py-12">
@@ -701,6 +786,25 @@ export function ProjectPlaygroundPage({
   const currentTaskId = tasks?.find(
     (t: any) => !t?.userTask?.isCompleted,
   )?.id;
+
+  // Item 10: "has the learner started this project?" — completed ≥1 task OR
+  // pushed work to GitHub (lastSyncedSha). When true, the big start/welcome page
+  // is skipped; the learner lands straight in the workspace.
+  const hasStarted = doneCount > 0 || lastSha != null;
+  // The big start page shows only before they've started AND with no file open.
+  const onStartPage = openFiles.length === 0 && !hasStarted;
+
+  // Item 2: "Start building"/"Continue building" opens the first editable file AND
+  // switches the left rail to the Files tab, so the learner lands in the editor
+  // with the file tree visible.
+  const startBuilding = () => {
+    const firstFile =
+      fileTree[0]?.children?.find(
+        (f) => f.type === "file" && !f.isBlocked,
+      ) || fileTree.find((f) => f.type === "file");
+    if (firstFile) openFile(firstFile);
+    setRailTab("explorer");
+  };
   // group-based numbering keyed by task id → "1.1", "2.3" …
   const taskNumber: Record<string, string> = {};
   project?.projectTasks?.forEach((g: any, gi: number) =>
@@ -1045,9 +1149,58 @@ export function ProjectPlaygroundPage({
     }
   };
 
-  const handleDownloadProject = () => {
-    // A worker zip endpoint is a later phase — non-core for now.
-    toast.message("Download is coming soon");
+  // Item 6: download the project as an archive. The worker zips the workdir
+  // (excluding node_modules/.git) and returns it base64-encoded; we decode it
+  // into a Blob and trigger a browser download.
+  const handleDownloadProject = async () => {
+    if (!pgCtx) return;
+    try {
+      toast.message("Preparing your download…");
+      const res = await pgDownload(pgCtx);
+      const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: res.mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Couldn't prepare the download. Try again.");
+    }
+  };
+
+  // Item 7: Restart wipes the sandbox back to the base template (destructive) and
+  // force-pushes the fresh base to the linked GitHub repo so the remote matches.
+  // Task progress is server-side and is left intact — only the code is reset.
+  const handleRestart = async () => {
+    if (!pgCtx) return;
+    setRestart(false);
+    setShowLoader(true);
+    try {
+      await pgRestart(pgCtx, {
+        baseRepository: project?.baseRepository,
+        language: project?.languages?.[0],
+      });
+      // Overwrite the connected repo with the fresh base template.
+      if (ghConnected && syncRef.current) {
+        try {
+          await syncRef.current.resolveOverwrite();
+        } catch {
+          toast.error("Reset locally, but couldn't push the reset to GitHub.");
+        }
+      }
+      await refreshTree();
+      setOpenFiles([]);
+      setActiveFile("");
+      toast.success("Project reset to the base template.");
+    } catch {
+      toast.error("Couldn't restart the project. Try again.");
+    } finally {
+      setShowLoader(false);
+    }
   };
 
   const handleEditorDidMount = (editor: any) => {
@@ -1615,11 +1768,6 @@ export function ProjectPlaygroundPage({
         label: "Restart Project",
         action: () => setRestart(true),
       },
-      { label: "separator", action: () => {} },
-      {
-        label: "Open in new tab",
-        action: () => baseURL && window.open(baseURL, "_blank"),
-      },
     ];
 
     const close = () =>
@@ -1683,17 +1831,17 @@ export function ProjectPlaygroundPage({
 
     return (
       <div
-        className="absolute top-5 left-1 bg-secondary text-white shadow-lg rounded-lg py-1 w-40 z-50"
+        className="absolute top-5 left-1 bg-popover text-popover-foreground border border-border shadow-lg rounded-lg py-1 w-44 z-50"
         onClick={(e) => e.stopPropagation()}
       >
         {menuItems?.map((item: any, i: number) => {
           return item.label === "separator" ? (
-            <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
+            <div key={i} className="my-0.5 bg-border h-[1px]"></div>
           ) : (
             <div
               key={i}
               onClick={() => item.action()}
-              className="px-3 my- py-2 hover:bg-primary cursor-pointer text-sm"
+              className="px-3 py-2 text-sm cursor-pointer text-foreground hover:bg-primary hover:text-primary-foreground"
             >
               {item.label}
             </div>
@@ -1718,12 +1866,6 @@ export function ProjectPlaygroundPage({
       <svg className="i" viewBox="0 0 24 24">
         <rect x="3" y="4" width="18" height="16" rx="2" />
         <path d="M14 4v16" />
-      </svg>
-    ),
-    restart: (
-      <svg className="i" viewBox="0 0 24 24">
-        <path d="M3 12a9 9 0 1 0 2.6-6.3" />
-        <path d="M3 4v4h4" />
       </svg>
     ),
     link: (
@@ -2056,14 +2198,6 @@ export function ProjectPlaygroundPage({
           </button>
           <button
             className="btn ghost"
-            onClick={() => setRestart(true)}
-            title="Restart project"
-            aria-label="Restart project"
-          >
-            {I.restart}
-          </button>
-          <button
-            className="btn ghost"
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             title="Toggle theme"
             aria-label="Toggle theme"
@@ -2086,29 +2220,26 @@ export function ProjectPlaygroundPage({
             slug={slug}
             projectName={project?.title}
             onConnected={handleGhConnected}
-            iconOnly
+            onError={setGhError}
           />
           {ghConnected && renderSyncChip()}
         </div>
       )}
 
-      {/* ── GitHub connect nudge / sync status strip ──
-          Persistent so it works in BOTH standalone and embedded (path-step) mode
-          where the top bar is hidden. Not-connected → a connect prompt with the
-          GithubConnect entry point. Connected (embedded only, since standalone
-          shows the chip in its top bar) → the sync chip. */}
-      {!ghConnected ? (
-        <div className="gh-nudge">
-          <span className="gh-nudge-msg">
+      {/* ── GitHub error strip ──
+          No persistent "connect GitHub" nudge — the nav icon + slide-in own all
+          the actions and provisioning is automatic. This strip appears ONLY when
+          GithubConnect reports an actionable error (load failed, auto-provision
+          failed), with a Retry that re-runs the failed step. */}
+      {ghError ? (
+        <div className="gh-nudge gh-nudge-error">
+          <span className="gh-nudge-msg gh-nudge-msg-error">
             <AlertTriangle style={{ width: 14, height: 14 }} />
-            Connect GitHub to save your work — otherwise this sandbox is temporary.
+            {ghError.message}
           </span>
-          <GithubConnect
-            slug={slug}
-            projectName={project?.title}
-            onConnected={handleGhConnected}
-            compact
-          />
+          <button className="btn ghost gh-retry" onClick={ghError.retry}>
+            Retry
+          </button>
         </div>
       ) : null}
 
@@ -2293,7 +2424,7 @@ export function ProjectPlaygroundPage({
                 projectId={project?.id}
                 taskId={activeTask?.id}
                 title={project?.title}
-                intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you — that's your build. Ask about the task, an error, or what's failing."
+                intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you. Ask about the task, an error, or what's failing."
                 starterPrompts={[
                   "Why is my test failing?",
                   "How do I return 201?",
@@ -2361,8 +2492,9 @@ export function ProjectPlaygroundPage({
           </div>
           )}
 
-          {/* editor OR welcome */}
-          {openFiles.length === 0 ? (
+          {/* editor OR welcome. Item 10: once started, no start page at all —
+              the auto-open effect lands the learner straight in the editor. */}
+          {openFiles.length === 0 && !hasStarted ? (
             <div className="welcome">
               <div className="wcard">
                 <div className="weyebrow">
@@ -2395,11 +2527,25 @@ export function ProjectPlaygroundPage({
                 </div>
                 {project?.technologies?.length > 0 && (
                   <div className="wtags">
-                    {project.technologies.map((t: string) => (
+                    {(tagsExpanded
+                      ? project.technologies
+                      : project.technologies.slice(0, 8)
+                    ).map((t: string) => (
                       <span className="wtag" key={t}>
                         {t}
                       </span>
                     ))}
+                    {project.technologies.length > 8 && (
+                      <button
+                        type="button"
+                        className="wtag wtag-more"
+                        onClick={() => setTagsExpanded((v) => !v)}
+                      >
+                        {tagsExpanded
+                          ? "Show less"
+                          : `+${project.technologies.length - 8} more`}
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -2434,17 +2580,7 @@ export function ProjectPlaygroundPage({
                 </div>
 
                 <div className="wcta">
-                  <button
-                    className="btn run"
-                    onClick={() => {
-                      const firstFile =
-                        fileTree[0]?.children?.find(
-                          (f) => f.type === "file" && !f.isBlocked,
-                        ) || fileTree.find((f) => f.type === "file");
-                      if (firstFile) openFile(firstFile);
-                      else setRailTab("explorer");
-                    }}
-                  >
+                  <button className="btn run" onClick={startBuilding}>
                     {I.play} Start building
                   </button>
                   <button className="btn" onClick={() => setRailTab("tasks")}>
@@ -2522,32 +2658,38 @@ export function ProjectPlaygroundPage({
             </div>
           )}
 
-          {showTerminal && (
-            <div
-              className="resizer row"
-              onMouseDown={startResize("term")}
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="Resize terminal"
-            />
+          {/* Item 11: no terminal on the start page — only once the learner is
+              actually in the workspace. */}
+          {!onStartPage && (
+            <>
+              {showTerminal && (
+                <div
+                  className="resizer row"
+                  onMouseDown={startResize("term")}
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label="Resize terminal"
+                />
+              )}
+              <div
+                className={cn(
+                  "term border-t border-border",
+                  !showTerminal && "collapsed",
+                )}
+                ref={termRef}
+                style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
+              >
+                <Terminal
+                  collapsed={!showTerminal}
+                  onToggle={toggleTerminal}
+                  onClose={() => toggleTerminal()}
+                  ctx={pgCtx}
+                  jail={project?.playgroundConfig?.terminalJail !== false}
+                  output={terminalOutput}
+                />
+              </div>
+            </>
           )}
-          <div
-            className={cn(
-              "term border-t border-border",
-              !showTerminal && "collapsed",
-            )}
-            ref={termRef}
-            style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
-          >
-            <Terminal
-              collapsed={!showTerminal}
-              onToggle={toggleTerminal}
-              onClose={() => toggleTerminal()}
-              ctx={pgCtx}
-              jail={project?.playgroundConfig?.terminalJail !== false}
-              output={terminalOutput}
-            />
-          </div>
         </div>
 
         {/* RIGHT — Preview / Tests (toggleable) */}
@@ -3063,45 +3205,40 @@ export function ProjectPlaygroundPage({
         <DialogContent className="sm:max-w-[500px] w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-amber-400" />
-              Restart your Project...
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Restart this project?
             </DialogTitle>
             <DialogDescription>
-              Relax! Let Kap AI do the hard work.
+              This wipes your sandbox back to the base template — all your code is
+              deleted and cannot be recovered.
             </DialogDescription>
           </DialogHeader>
-          <div className="pt-3">
-            <Label>Choose your preferred language</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                {languages
-                  .filter((l) => l.supported)
-                  .map((l) => (
-                    <SelectItem key={l.code} value={l.code}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {!language && (
-              <p className="text-red-700 italic text-xs">
-                This field is required
-              </p>
-            )}
+          <div className="pt-1 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">This will:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Delete everything in your sandbox and reset to the starter.</li>
+              {ghConnected ? (
+                <li>
+                  Overwrite your connected GitHub repo
+                  {repoFullName ? (
+                    <>
+                      {" "}
+                      (<b>{repoFullName}</b>)
+                    </>
+                  ) : null}{" "}
+                  with the base template.
+                </li>
+              ) : null}
+            </ul>
+            <p className="mt-3">Your task progress is kept. This can’t be undone.</p>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onNavigate(`/projects/${project.slug}`)}
-            >
-              Back
+            <Button variant="outline" onClick={() => setRestart(false)}>
+              Cancel
             </Button>
-            <Button variant="destructive" onClick={() => handleEnrollNow()}>
-              Restart
+            <Button variant="destructive" onClick={() => handleRestart()}>
+              Wipe & restart
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3278,6 +3415,23 @@ export function ProjectPlaygroundPage({
         .pg-root .gh-nudge-msg svg {
           color: var(--gold);
           flex: 0 0 auto;
+        }
+        /* Error variant — the strip only ever renders on a real problem. */
+        .pg-root .gh-nudge.gh-nudge-error {
+          background: rgba(220, 38, 38, 0.08);
+          border-bottom-color: rgba(220, 38, 38, 0.35);
+        }
+        .pg-root .gh-nudge-msg-error {
+          color: #dc2626;
+        }
+        .pg-root .gh-nudge-msg-error svg {
+          color: #dc2626;
+        }
+        .pg-root .gh-retry {
+          width: auto;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 600;
         }
         .pg-root .logo {
           width: 28px;
@@ -4101,6 +4255,13 @@ export function ProjectPlaygroundPage({
           border: 1px solid rgba(95, 176, 176, 0.25);
           border-radius: 6px;
           padding: 3px 8px;
+        }
+        .pg-root .wtag-more {
+          cursor: pointer;
+          font-weight: 700;
+        }
+        .pg-root .wtag-more:hover {
+          background: rgba(95, 176, 176, 0.2);
         }
         .pg-root .wh {
           font-size: 11px;

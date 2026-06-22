@@ -8,7 +8,7 @@ import {
   pgTerminalUrl,
   type PgCtx,
 } from "@/lib/playground-client";
-import { TerminalSquare, Trash2, HelpCircle, RefreshCw } from "lucide-react";
+import { TerminalSquare, Trash2, HelpCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 import "xterm/css/xterm.css";
@@ -223,38 +223,14 @@ export function Terminal({
       xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
   }, [isDark]);
 
-  const clearTerm = () => xtRef.current?.clear();
-
-  // Restart: tear down the live PTY addon and reconnect with a fresh token
-  // (getWorkerToken may serve a cached token — that's fine, the worker accepts
-  // any in-window scoped token).
-  const restartTerm = async () => {
+  // Run the shell `clear` command in the live PTY so the session itself is
+  // cleared (not just the local xterm buffer). Falls back to a local clear when
+  // the PTY isn't attached yet.
+  const clearTerm = () => {
     const xt = xtRef.current;
-    if (!xt || !ctx) return;
-    addonRef.current?.dispose();
-    addonRef.current = null;
-    try {
-      const token = await getWorkerToken(ctx.slug);
-      // Bail if the pane unmounted while the token was in flight (the effect
-      // cleanup nulls xtRef + disposes xt) — don't attach to a dead terminal.
-      if (xtRef.current !== xt) return;
-      const addon = new SandboxAddon({
-        reconnect: true,
-        getWebSocketUrl: () =>
-          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
-        onStateChange: (state, error) => {
-          if (state === "disconnected" && error)
-            xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);
-        },
-      });
-      addonRef.current = addon;
-      xt.loadAddon(addon as any);
-      addon.connect({ sandboxId: ctx.projectId });
-    } catch (e: any) {
-      xt.writeln(
-        `\r\n\x1b[31m${e?.message ?? "failed to restart terminal"}\x1b[0m`,
-      );
-    }
+    if (!xt) return;
+    if (addonRef.current) xt.input("clear\r");
+    else xt.clear();
   };
 
   const showHelp = () => {
@@ -295,15 +271,6 @@ export function Terminal({
           onClick={clearTerm}
         >
           <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Restart terminal"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-          onClick={restartTerm}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="ghost"

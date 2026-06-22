@@ -153,6 +153,29 @@ export function pgSeed(
 }
 
 /**
+ * Download the project as an archive. The worker zips the workdir (excluding
+ * node_modules/.git) inside the sandbox and returns it base64-encoded:
+ * `{ filename, mime, base64 }`. The caller decodes it into a Blob to download.
+ */
+export function pgDownload(
+  ctx: PgCtx,
+): Promise<{ ok: boolean; filename: string; mime: string; base64: string }> {
+  return request(ctx, "/download", {});
+}
+
+/**
+ * Restart the project: DESTRUCTIVE. The worker wipes the workdir + git dir and
+ * re-seeds the base template (clone `baseRepository`, else scaffold). The caller
+ * then force-pushes the fresh base to the linked GitHub repo so it matches.
+ */
+export function pgRestart(
+  ctx: PgCtx,
+  args: { baseRepository?: string; language?: string } = {},
+): Promise<any> {
+  return request(ctx, "/restart", args);
+}
+
+/**
  * Worker `/git` endpoint. The worker dispatches on `op`:
  *  - `hydrate`        — pull the remote into the workdir
  *  - `push`           — fast-forward push (optimistic-locked on `baseSha`)
