@@ -147,7 +147,14 @@ export function pgStop(ctx: PgCtx): Promise<any> {
  */
 export function pgSeed(
   ctx: PgCtx,
-  args: { baseRepository?: string; language?: string; frontendPreview?: boolean; previewDir?: string } = {},
+  args: {
+    baseRepository?: string;
+    language?: string;
+    frontendPreview?: boolean;
+    previewDir?: string;
+    showcaseSlug?: string;
+    showcaseVersion?: number;
+  } = {},
 ): Promise<any> {
   return request(ctx, "/seed", args);
 }
@@ -170,7 +177,14 @@ export function pgDownload(
  */
 export function pgRestart(
   ctx: PgCtx,
-  args: { baseRepository?: string; language?: string; frontendPreview?: boolean; previewDir?: string } = {},
+  args: {
+    baseRepository?: string;
+    language?: string;
+    frontendPreview?: boolean;
+    previewDir?: string;
+    showcaseSlug?: string;
+    showcaseVersion?: number;
+  } = {},
 ): Promise<any> {
   return request(ctx, "/restart", args);
 }
@@ -225,4 +239,13 @@ export function pgTerminalUrl(
   // Omitting the param entirely lets the worker keep its safe default.
   if (args?.jail === false) params.set("jail", "false");
   return `${wsBase}/terminal?${params.toString()}`;
+}
+
+/**
+ * Public URL for a project's published frontend-preview showcase bundle.
+ * The worker serves the static bundle (published to R2 at submit/restart time)
+ * under `/showcase/<slug>/__app/`.
+ */
+export function showcaseUrl(slug: string): string {
+  return `${WORKER_BASE}/showcase/${slug}/__app/`;
 }

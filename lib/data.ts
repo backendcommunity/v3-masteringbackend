@@ -789,6 +789,7 @@ export interface Project {
   cloned?: boolean;
   requirements: string[];
   resources: Resource[];
+  updatedAt?: string;              // last-modified timestamp; used to version the showcase bundle
 }
 
 export interface Resource {

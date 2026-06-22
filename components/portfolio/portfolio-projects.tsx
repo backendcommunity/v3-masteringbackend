@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { showcaseUrl } from "@/lib/playground-client";
 import type { PortfolioProject } from "@/lib/portfolio-types";
 import { EmptyStateCard } from "@/components/empty-state-card";
 
@@ -138,6 +139,13 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
   const [expanded, setExpanded] = useState(false);
   const isInProgress = project.status === "in_progress";
   const colors = getScoreColor(project.score);
+  // A completed project gets a published frontend-preview showcase bundle on the
+  // worker. We only have the slug to build the URL, so gate conservatively on:
+  // not in-progress + a slug present. (No frontendPreview flag on portfolio data.)
+  const hasShowcase = !isInProgress && !!project.slug;
+  // "Tests passed" reflects completion signal already on the card (verified, or a
+  // passing score) — no new data invented.
+  const testsPassed = !isInProgress && (project.isVerified || project.score >= 80);
   const hasWriteUp =
     (project.challenges && project.challenges.length > 0) ||
     (project.tools && project.tools.length > 0) ||
@@ -214,6 +222,15 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
               Approved
             </Badge>
           )}
+          {testsPassed && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 border-[#27AE60]/30 text-[#27AE60] bg-[#27AE60]/10 gap-0.5"
+            >
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              Tests passed
+            </Badge>
+          )}
           {isInProgress && (
             <Badge
               variant="outline"
@@ -246,7 +263,8 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
         </div>
 
         {/* Links */}
-        {!isInProgress && (project.repositoryUrl || project.liveUrl) && (
+        {!isInProgress &&
+          (project.repositoryUrl || project.liveUrl || hasShowcase) && (
           <div className="flex gap-2 pt-1">
             {project.repositoryUrl && (
               <Button
@@ -279,6 +297,23 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
                 >
                   <ExternalLink className="h-3 w-3" />
                   Live
+                </a>
+              </Button>
+            )}
+            {hasShowcase && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                asChild
+              >
+                <a
+                  href={showcaseUrl(project.slug)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Live demo
                 </a>
               </Button>
             )}

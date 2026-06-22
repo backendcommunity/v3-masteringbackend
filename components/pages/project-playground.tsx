@@ -586,6 +586,10 @@ export function ProjectPlaygroundPage({
                   language: project?.languages?.[0],
                   frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
                   previewDir: (project as any)?.playgroundConfig?.previewDir,
+                  showcaseSlug: slug,
+                  showcaseVersion: project?.updatedAt
+                    ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+                    : undefined,
                 });
               } catch {
                 // Seed unavailable — push whatever is in the workdir (maybe nothing).
@@ -616,6 +620,10 @@ export function ProjectPlaygroundPage({
             language: project?.languages?.[0],
             frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
             previewDir: (project as any)?.playgroundConfig?.previewDir,
+            showcaseSlug: slug,
+            showcaseVersion: project?.updatedAt
+              ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+              : undefined,
           });
         } catch {
           // Seed unavailable — start with an empty tree, learner codes.
@@ -1194,6 +1202,10 @@ export function ProjectPlaygroundPage({
         language: project?.languages?.[0],
         frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
         previewDir: (project as any)?.playgroundConfig?.previewDir,
+        showcaseSlug: slug,
+        showcaseVersion: project?.updatedAt
+          ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+          : undefined,
       });
       // Overwrite the connected repo with the fresh base template.
       if (ghConnected && syncRef.current) {
