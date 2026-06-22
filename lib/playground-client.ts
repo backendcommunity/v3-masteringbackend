@@ -147,7 +147,7 @@ export function pgStop(ctx: PgCtx): Promise<any> {
  */
 export function pgSeed(
   ctx: PgCtx,
-  args: { baseRepository?: string; language?: string } = {},
+  args: { baseRepository?: string; language?: string; frontendPreview?: boolean; previewDir?: string } = {},
 ): Promise<any> {
   return request(ctx, "/seed", args);
 }
@@ -170,7 +170,7 @@ export function pgDownload(
  */
 export function pgRestart(
   ctx: PgCtx,
-  args: { baseRepository?: string; language?: string } = {},
+  args: { baseRepository?: string; language?: string; frontendPreview?: boolean; previewDir?: string } = {},
 ): Promise<any> {
   return request(ctx, "/restart", args);
 }
