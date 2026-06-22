@@ -142,7 +142,11 @@ function ProjectCard({ project }: { project: PortfolioProject }) {
   // A completed project gets a published frontend-preview showcase bundle on the
   // worker. We only have the slug to build the URL, so gate conservatively on:
   // not in-progress + a slug present. (No frontendPreview flag on portfolio data.)
-  const hasShowcase = !isInProgress && !!project.slug;
+  // DEFERRED: the public showcase is off until the per-slug-subdomain serving fix
+  // lands (path-prefix serving breaks the built frontend). Gate the Live-demo link
+  // behind NEXT_PUBLIC_SHOWCASE_ENABLED (default off) so it never renders broken.
+  const showcaseEnabled = process.env.NEXT_PUBLIC_SHOWCASE_ENABLED === "true";
+  const hasShowcase = showcaseEnabled && !isInProgress && !!project.slug;
   // "Tests passed" reflects completion signal already on the card (verified, or a
   // passing score) — no new data invented.
   const testsPassed = !isInProgress && (project.isVerified || project.score >= 80);
