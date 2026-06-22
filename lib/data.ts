@@ -762,6 +762,9 @@ export interface Project {
   slug: string;
   description: string;
   template?: string;
+  baseRepository?: string;         // optional git repo the worker clones as the project baseline
+  languages?: string[];            // project language codes; languages[0] seeds the starter
+  playgroundConfig?: { terminalJail?: boolean } & Record<string, unknown>; // per-project playground settings; terminalJail defaults true (only false disables the worker jail)
   summary: string;
   difficulty: "Easy" | "Medium" | "Hard";
   level: string;
@@ -786,6 +789,7 @@ export interface Project {
   cloned?: boolean;
   requirements: string[];
   resources: Resource[];
+  updatedAt?: string;              // last-modified timestamp; used to version the showcase bundle
 }
 
 export interface Resource {

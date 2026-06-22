@@ -9,8 +9,11 @@ interface PlaygroundControlsState {
   active: boolean; // a playground is mounted in embedded mode
   connected: boolean;
   isRunning: boolean;
+  isStopping: boolean;
+  sandboxLive: boolean; // server believed running → show Stop instead of Run
   previewVisible: boolean;
   runServer: (() => void) | null;
+  stopServer: (() => void) | null;
   togglePreview: (() => void) | null;
   setControls: (partial: Partial<PlaygroundControlsState>) => void;
   reset: () => void;
@@ -20,8 +23,11 @@ const initial = {
   active: false,
   connected: false,
   isRunning: false,
+  isStopping: false,
+  sandboxLive: false,
   previewVisible: false,
   runServer: null,
+  stopServer: null,
   togglePreview: null,
 };
 

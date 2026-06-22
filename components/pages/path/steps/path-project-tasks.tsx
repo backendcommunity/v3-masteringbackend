@@ -265,7 +265,7 @@ export function PathProjectTasks({
               projectId={project?.id}
               taskId={selectedId || undefined}
               title={project?.title}
-              intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you — that's your build. Ask about the task, an error, or what's failing."
+              intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you. Ask about the task, an error, or what's failing."
               starterPrompts={[
                 "Why is my test failing?",
                 "How do I return 201?",

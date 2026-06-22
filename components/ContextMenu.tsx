@@ -63,15 +63,28 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const menuItems = target.type === "folder" ? folderActions : fileActions;
 
+  // Position with `fixed` (x/y are viewport clientX/clientY) and clamp so the
+  // menu never overflows the viewport edges. Width is w-60 (240px).
+  const MENU_W = 240;
+  const estHeight = (menuItems?.length ?? 0) * 38 + 8;
+  const left =
+    typeof window !== "undefined"
+      ? Math.min(x, window.innerWidth - MENU_W - 8)
+      : x;
+  const top =
+    typeof window !== "undefined"
+      ? Math.min(y, window.innerHeight - estHeight - 8)
+      : y;
+
   return (
     <div
-      className="absolute bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 text-white shadow-lg rounded-md py-1 w-60 z-50"
-      style={{ top: y, left: x }}
+      className="fixed bg-popover/95 backdrop-blur supports-[backdrop-filter]:bg-popover/80 text-popover-foreground border border-border shadow-lg rounded-md py-1 w-60 z-[9999]"
+      style={{ top, left }}
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems?.map((item, i) => {
         return item.label === "separator" ? (
-          <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
+          <div key={i} className="my-0.5 bg-border h-[1px]"></div>
         ) : (
           <div
             key={i}
@@ -80,7 +93,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onAction(item.label);
               onClose();
             }}
-            className="px-3 my- py-2 hover:bg-primary cursor-pointer text-sm"
+            className="px-3 py-2 text-sm cursor-pointer text-foreground hover:bg-primary hover:text-primary-foreground"
           >
             {item.label}
           </div>

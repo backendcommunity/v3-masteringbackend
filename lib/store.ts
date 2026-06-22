@@ -361,6 +361,18 @@ interface AppState {
 
   markCourseCompleted: (id: string) => any;
   markProjectTaskAsCompleted: (slug: string, id: string) => any;
+  gradeProjectTask: (
+    slug: string,
+    id: string,
+  ) => Promise<{
+    passed: boolean;
+    checks: Array<{ kind: string; passed: boolean; detail: string }>;
+    statusCode: number | null;
+    latencyMs: number;
+    pointsAwarded: number;
+    projectCompleted: boolean;
+    error?: string;
+  }>;
   markRoadmapVideoCompleted: (
     slug: string,
     topicId: string,
@@ -445,9 +457,21 @@ interface AppState {
   getProjectGithub: (
     slug: string,
   ) => Promise<{
+    installed: boolean;
     connected: boolean;
     installUrl: string;
-    repo: { fullName: string; htmlUrl: string } | null;
+    repoFullName?: string;
+    owner?: string;
+    repo?: string;
+  }>;
+  connectProjectGithub: (
+    slug: string,
+    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+  ) => Promise<{
+    connected: true;
+    repoFullName: string;
+    owner: string;
+    repo: string;
   }>;
   listGithubOwners: () => Promise<
     { login: string; type: "user" | "org"; avatarUrl?: string }[]
@@ -1200,6 +1224,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.post(`/projects/${slug}/tasks/${id}`);
     return data?.data;
   },
+  gradeProjectTask: async (slug: string, id: string) => {
+    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`);
+    return data?.data;
+  },
   cancelSubscription: async (id: string) => {
     const { data } = await api.post(`/payments/subscriptions/${id}/cancel`);
     return data?.data;
@@ -1670,13 +1698,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(`/projects/${slug}/github`);
     return data?.data;
   },
+  // One-click connect (auto-provision) or link an existing repo. On a 409 the
+  // axios error is rethrown so the caller can read response.data.{installUrl,
+  // authUrl,message} to drive the install / re-authorize redirect.
+  connectProjectGithub: async (
+    slug: string,
+    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+  ) => {
+    const { data } = await api.post(`/projects/${slug}/github`, body);
+    return data?.data;
+  },
   listGithubOwners: async () => {
+    // Backend proxies the executor and returns the owners array as `data`
+    // directly (no `.owners` envelope), so unwrap `data.data`.
     const { data } = await api.get(`/github/owners`);
-    return data?.data?.owners ?? [];
+    return data?.data ?? [];
   },
   listGithubRepos: async (owner: string, q = "") => {
+    // Same bare-array shape as owners — `data.data` is the repos array.
     const { data } = await api.get(`/github/repos`, { params: { owner, q } });
-    return data?.data?.repos ?? [];
+    return data?.data ?? [];
   },
   createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
     const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });

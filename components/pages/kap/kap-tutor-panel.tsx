@@ -173,7 +173,7 @@ export function KapTutorPanel({
                 {introText}
                 {title ? (
                   <span className="block mt-1 text-xs opacity-70">
-                    Lesson: {title}
+                    {scope === "project" ? "Project" : "Lesson"}: {title}
                   </span>
                 ) : null}
               </div>
