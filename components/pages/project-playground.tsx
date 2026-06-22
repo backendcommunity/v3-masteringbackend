@@ -239,6 +239,11 @@ export function ProjectPlaygroundPage({
   const [previewUrl, setPreviewUrl] = useState(
     process.env.NEXT_PUBLIC_EXECUTOR_URL ?? "http://localhost:3000",
   );
+  const frontendEnabled = !!(project as any)?.playgroundConfig?.frontendPreview;
+  const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
+  useEffect(() => {
+    if (frontendEnabled) setPreviewMode("app");
+  }, [frontendEnabled]);
   const [showTerminal, setShowTerminal] = useState(false); // collapsed to header by default
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -1859,7 +1864,11 @@ export function ProjectPlaygroundPage({
 
   // ── mock's makeResize: flex-basis drag with capture-phase listeners so the
   // editor/terminal can't swallow the drag; text-selection disabled mid-drag. ──
-  const resolvedPreviewUrl = baseURL || previewUrl;
+  const apiBase = baseURL || previewUrl;
+  const resolvedPreviewUrl =
+    frontendEnabled && previewMode === "app" && baseURL
+      ? baseURL.replace(/\/+$/, "") + "/__app/"
+      : apiBase;
 
   // ── inline SVG icons ported verbatim from the mock (exact paths) ──
   const I = {
@@ -2745,6 +2754,30 @@ export function ProjectPlaygroundPage({
                       aria-label="Preview URL"
                       readOnly={!baseURL}
                     />
+                    {frontendEnabled && (
+                      <div
+                        className="pv-seg"
+                        role="tablist"
+                        aria-label="Preview mode"
+                      >
+                        <button
+                          role="tab"
+                          aria-selected={previewMode === "app"}
+                          className={cn("pvbtn", previewMode === "app" && "on")}
+                          onClick={() => setPreviewMode("app")}
+                        >
+                          App
+                        </button>
+                        <button
+                          role="tab"
+                          aria-selected={previewMode === "api"}
+                          className={cn("pvbtn", previewMode === "api" && "on")}
+                          onClick={() => setPreviewMode("api")}
+                        >
+                          API
+                        </button>
+                      </div>
+                    )}
                     <button
                       className="pvbtn"
                       title="Refresh preview"
@@ -4440,6 +4473,14 @@ export function ProjectPlaygroundPage({
         .pg-root .pvbtn:hover {
           color: var(--text);
         }
+        .pg-root .pv-seg { display: inline-flex; gap: 2px; }
+        .pg-root .pv-seg .pvbtn {
+          width: auto;
+          padding: 0 8px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        .pg-root .pvbtn.on { color: var(--teal); background: rgba(95,176,176,0.12); }
         .pg-root .pvbtn svg.i {
           width: 14px;
           height: 14px;
