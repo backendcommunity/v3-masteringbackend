@@ -44,28 +44,30 @@ function LoginContent() {
   const redirect = searchParams?.get("redirect") ?? "";
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailLoading(true);
     try {
-      e.preventDefault();
-      setEmailLoading(true);
       const { email, password } = formData;
       analytics.track("login_attempted", { method: "email" });
       const user = await auth.login(email, password, rememberMe);
       if (!user) {
         toast.error("Login failed");
+        setEmailLoading(false);
         return;
       }
-      toast.success("Login successful! Redirecting...");
+      // Keep the button spinning through the redirect — the page unmounts on
+      // navigation, so we intentionally don't reset emailLoading on success.
       const redirectPath = redirect || "/";
       await router.push(redirectPath);
     } catch (error: any) {
       const message = error?.response?.data?.message ?? error?.message;
       if (message && message.includes("Confirm your email")) {
+        // Navigating away — leave the spinner on.
         router.push("/auth/email/verify?sent=true&email=" + formData.email);
         return;
       }
       analytics.track("login_failed", { method: "email", reason: message });
       toast.error(message || "Login failed. Please try again.");
-    } finally {
       setEmailLoading(false);
     }
   };
