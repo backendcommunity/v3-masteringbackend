@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
-import { Lightbulb, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { PathSessionStep } from "@/lib/path-types";
-import { useAppStore, KapInsights } from "@/lib/store";
+import { useAppStore } from "@/lib/store";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { useVideoTime } from "@/lib/video-time-store";
 import { VideoTranscript } from "@/components/pages/video-transcript";
@@ -31,23 +31,8 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [item, setItem] = useState<PanelItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const [insights, setInsights] = useState<KapInsights | null>(null);
 
   const videoId = step?.type === "VIDEO" ? step.itemId : undefined;
-
-  useEffect(() => {
-    let active = true;
-    setInsights(null);
-    if (!videoId) return;
-    (async () => {
-      const data = await store.getKapInsights(videoId);
-      if (active) setInsights(data);
-    })();
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId]);
 
   useEffect(() => {
     if (!step) {
@@ -96,40 +81,6 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
           learning path. Work through it, then mark it complete to move on.
         </p>
       )}
-      <div className="mt-5 space-y-4">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Lightbulb className="h-3.5 w-3.5 text-primary" /> Key takeaways
-          </div>
-          {insights?.keyTakeaways?.length ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] text-muted-foreground">
-              {insights.keyTakeaways.map((t, i) => (
-                <li key={i}>{t}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-1 text-[12px] text-muted-foreground/70">
-              {videoId ? "Generating insights…" : "Available on video lessons."}
-            </p>
-          )}
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Lightbulb className="h-3.5 w-3.5 text-primary" /> Real-world use
-          </div>
-          {insights?.realWorldUse?.length ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] text-muted-foreground">
-              {insights.realWorldUse.map((t, i) => (
-                <li key={i}>{t}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-1 text-[12px] text-muted-foreground/70">
-              {videoId ? "Generating insights…" : "Available on video lessons."}
-            </p>
-          )}
-        </div>
-      </div>
     </>
   ) : (
     <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -170,6 +121,11 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
               videoId={videoId}
               title={item?.title}
               className="flex-1 min-h-0"
+              starterPrompts={[
+                "Generate the key takeaways and real-world uses of this lesson",
+                "Explain this lesson simply",
+                "Quiz me on this lesson",
+              ]}
               header={
                 <div className="animate-in fade-in duration-200 px-2 pb-1">
                   {overviewContent}

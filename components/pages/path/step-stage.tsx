@@ -1,6 +1,8 @@
 "use client";
 import { Compass } from "lucide-react";
-import { PathSessionStep } from "@/lib/path-types";
+import { PathSession, PathSessionStep } from "@/lib/path-types";
+import { StepPaywall } from "./step-paywall";
+import { LockedStepSkeleton } from "./locked-step-skeleton";
 import { VideoStep } from "./steps/video-step";
 import { ArticleStep } from "./steps/article-step";
 import { ResourceStep } from "./steps/resource-step";
@@ -17,6 +19,9 @@ export function StepStage({
   onReachComplete,
   onNavigate,
   updateProgress,
+  onPassed,
+  onContinue,
+  paywall,
 }: {
   pathId: string;
   step?: PathSessionStep;
@@ -32,6 +37,19 @@ export function StepStage({
     stepId: string,
     payload: { duration: number },
   ) => Promise<unknown>;
+  // Exercise-specific: record pass without advancing (Task 3), then advance on
+  // explicit Continue click (Task 4). Non-exercise steps keep onComplete.
+  onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
+  onContinue?: () => void;
+  // Paywall context — when provided and the step's access.allowed is false,
+  // the step body is blurred and the upgrade card is overlaid.
+  paywall?: {
+    payment: PathSession["path"]["payment"];
+    pathTitle: string;
+    premiumStepCount: number;
+    freeDoneCount: number;
+    onUnlock: () => void;
+  };
 }) {
   if (!step)
     return (
@@ -64,7 +82,15 @@ export function StepStage({
       case "QUIZ":
         return <QuizStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
       case "EXERCISE":
-        return <ExerciseStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
+        return (
+          <ExerciseStep
+            step={step}
+            onComplete={onComplete}
+            onNavigate={onNavigate}
+            onPassed={onPassed}
+            onContinue={onContinue}
+          />
+        );
       case "PROJECT":
         return <ProjectStep step={step} onComplete={onComplete} onNavigate={onNavigate} />;
       case "MOCK_INTERVIEW":
@@ -80,11 +106,27 @@ export function StepStage({
     }
   };
 
+  const locked = step.access?.allowed === false && !!paywall;
+
+  if (locked && paywall) {
+    return (
+      <div className="interview-panel-enter relative min-h-full w-full min-w-0 flex-1">
+        {/* Static, non-interactive teaser — NO live step component mounts here.
+            Shape hints at the gated step type (code editor, quiz, chat, …). */}
+        <LockedStepSkeleton type={step.type} />
+        <StepPaywall
+          payment={paywall.payment}
+          pathTitle={paywall.pathTitle}
+          premiumStepCount={paywall.premiumStepCount}
+          freeDoneCount={paywall.freeDoneCount}
+          onUnlock={paywall.onUnlock}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div
-      key={step.id}
-      className="interview-panel-enter min-h-full w-full min-w-0 flex-1"
-    >
+    <div key={step.id} className="interview-panel-enter min-h-full w-full min-w-0 flex-1">
       {render()}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import {
   LiveKitRoom,
   useVoiceAssistant,
@@ -955,6 +956,10 @@ export function MockInterviewSessionPage({
       if (!sessionData) throw new Error("Interview session not found");
 
       setSession(sessionData);
+      const userInterviewId = (sessionData as any)?.userInterview?.id as string | undefined;
+      if (userInterviewId) {
+        setTimeout(() => { void triggerItemRecap("MOCK_INTERVIEW", userInterviewId); }, 0);
+      }
 
       // Set questions
       if (sessionData.questions?.length > 0) {

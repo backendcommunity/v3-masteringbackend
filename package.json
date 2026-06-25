@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@asyncpay/checkout": "^0.0.37",
+    "@cloudflare/sandbox": "0.8.9",
     "@excalidraw/excalidraw": "^0.18.1",
     "@hookform/resolvers": "^3.9.1",
     "@livekit/components-react": "^2.9.17",
@@ -106,6 +107,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

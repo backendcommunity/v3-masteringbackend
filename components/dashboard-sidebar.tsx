@@ -173,22 +173,29 @@ export function DashboardSidebar({
         >
           {collapsed && (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0">
-              {/* Navy rail in both themes — always the light mark, never the
-                  theme-switched blue icon (which renders dark-on-navy in light mode) */}
+              {/* Navy rail in both themes — white "mb." mark (recolored from the
+                  cyan icon), so it reads on navy regardless of theme. */}
               <img
-                src="/logo.png"
-                alt="logo"
-                className="h-7 w-7 object-contain"
+                src="/logo-white-icon.png"
+                alt="masteringbackend."
+                width={146}
+                height={90}
+                className="w-7 h-auto object-contain select-none"
+                draggable={false}
               />
             </div>
           )}
           {!collapsed && (
-            <div className="grid text-left text-sm leading-tight flex-1 min-w-0">
-              {/* Navy rail — always the white logo, both themes */}
+            <div className="flex items-center min-w-0 flex-1">
+              {/* Navy rail — white wordmark (trimmed of padding), both themes.
+                  Intrinsic 431×50; explicit dims lock the aspect ratio. */}
               <img
-                src="/logo-trimed.png"
-                alt="logo"
-                className="max-h-9 w-auto object-contain"
+                src="/White-trimed.png"
+                alt="masteringbackend."
+                width={431}
+                height={50}
+                className="block h-7 w-auto object-contain select-none"
+                draggable={false}
               />
             </div>
           )}

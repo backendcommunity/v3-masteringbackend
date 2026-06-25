@@ -19,6 +19,10 @@ export interface PathSessionStep {
   itemId: string;
   groupId: string | null;
   topicId: string;
+  // VIDEO/ARTICLE inside a course group carry their owning chapter so the path
+  // outline can sub-group a course's lessons by chapter. Null for other steps.
+  chapterId?: string | null;
+  chapterTitle?: string | null;
   title: string;
   url?: string | null;
   maxPoints: number;
@@ -60,6 +64,13 @@ export interface PathSession {
     certThreshold: number;
     isCompleted: boolean;
     certEligible: boolean;
+    payment: {
+      id: string;
+      kind: "path" | "course";
+      amount: number | null;
+      paddlePriceId: string | null;
+      isPremium: boolean;
+    };
   };
   cursor: {
     currentStepId: string | null;

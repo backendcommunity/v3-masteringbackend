@@ -25,47 +25,51 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { InsufficientMbModal } from "@/components/exercises/insufficient-mb-modal";
 import { useAppStore } from "@/lib/store";
+import { useUserStore } from "@/lib/user-store";
 import { PathSessionStep } from "@/lib/path-types";
 import { getExerciseSocket } from "@/lib/exercise-socket";
 import { analytics } from "@/lib/analytics";
+import { languageOptions, stubFor, ALL_LANGUAGES } from "@/lib/exercise-stubs";
 import type { SubmissionResult } from "@/lib/data";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Exercise = any;
 
-const LANGUAGES = [
-  "JavaScript",
-  "TypeScript",
-  "Python",
-  "Java",
-  "Go",
-  "Rust",
-  "C++",
-  "SQL",
-  "HTML",
-  "CSS",
+// The 13 runnable languages. `code` is what the gateway/executor expect,
+// `label` is what the learner sees, `monaco` is the editor syntax id.
+const LANGS: { code: string; label: string; monaco: string }[] = [
+  { code: "node", label: "JavaScript", monaco: "javascript" },
+  { code: "python", label: "Python", monaco: "python" },
+  { code: "php", label: "PHP", monaco: "php" },
+  { code: "ruby", label: "Ruby", monaco: "ruby" },
+  { code: "java", label: "Java", monaco: "java" },
+  { code: "c", label: "C", monaco: "c" },
+  { code: "cpp", label: "C++", monaco: "cpp" },
+  { code: "go", label: "Go", monaco: "go" },
+  { code: "rust", label: "Rust", monaco: "rust" },
+  { code: "csharp", label: "C#", monaco: "csharp" },
+  { code: "kotlin", label: "Kotlin", monaco: "kotlin" },
+  { code: "scala", label: "Scala", monaco: "scala" },
+  { code: "perl", label: "Perl", monaco: "perl" },
 ];
+const LANG_BY_CODE = (c: string) => LANGS.find((l) => l.code === String(c).toLowerCase());
 
-// The editor shows display names; the gateway/executor speak lowercase codes.
-const DISPLAY_TO_CODE: Record<string, string> = {
-  JavaScript: "node",
-  TypeScript: "node",
-  Python: "python",
-  Java: "java",
-  Go: "go",
-  Rust: "rust",
-  "C++": "cpp",
+// Monaco syntax ids for every code the any-language selector may offer.
+// Falls back to LANGS (then the code itself) for anything not listed here.
+const MONACO_BY_CODE: Record<string, string> = {
+  node: "javascript",
+  kotlin: "kotlin",
 };
-const CODE_TO_DISPLAY: Record<string, string> = {
-  node: "JavaScript",
-  nodejs: "JavaScript",
-  python: "Python",
-  java: "Java",
-  go: "Go",
-  rust: "Rust",
-  cpp: "C++",
-};
+const monacoForCode = (c: string) =>
+  MONACO_BY_CODE[c] ?? LANG_BY_CODE(c)?.monaco ?? c;
+// Display label for a code: prefer the IDE's LANGS label, then the
+// any-language list, then the raw code.
+const labelForCode = (c: string) =>
+  LANG_BY_CODE(c)?.label ??
+  ALL_LANGUAGES.find((l) => l.value === c)?.label ??
+  c;
 
 // Editor surface matches the chrome (#171B26) so the panel reads as one piece.
 const EDITOR_BG = "#171B26";
@@ -94,12 +98,19 @@ export function PathExerciseIde({
   step,
   exercise,
   onComplete,
+  onPassed: _onPassed,
+  onContinue: _onContinue,
 }: {
   step: PathSessionStep;
   exercise: Exercise;
   onComplete: (stepId: string) => void;
+  // Threaded through from ExerciseStep; Task 4 will wire these to replace
+  // the onComplete call once the Continue button is added.
+  onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
+  onContinue?: () => void;
 }) {
   const store = useAppStore();
+  const currentUser = useUserStore((s) => s.user);
   const editorRef = useRef<unknown>(null);
   const pendingId = useRef<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,18 +122,27 @@ export function PathExerciseIde({
   const [editorTheme, setEditorTheme] = useState<"mb-dark" | "mb-light">(
     "mb-dark",
   );
+  // Languages the learner may pick (f3 — any-language selector):
+  // - TEST_CASES -> locked to the single authored language.
+  // - OUTPUT_MATCH -> all 13.
+  // - FUNCTION_CALL -> all 13 if graderConfig.signature present, else the 5
+  //   dynamic langs (static langs can't be graded without a signature).
+  const graderType: string = exercise?.graderType ?? "OUTPUT_MATCH";
+  const isTestCases = graderType === "TEST_CASES";
+  const langOptions = languageOptions(graderType, exercise ?? {}).map(
+    (o) => o.value,
+  );
+  const lockLanguage = isTestCases || langOptions.length <= 1;
+
+  // `language` is a lowercase code (e.g. "node", "cpp"). Default to the
+  // authored native language (so its starterCode shows) when it's offered,
+  // else the first available option.
   const [language, setLanguage] = useState<string>(() => {
-    // Prefer the exercise's first declared language (languages[]), then the
-    // legacy singular field, mapped to a display name.
-    const init = String(
-      exercise?.languages?.[0] ?? exercise?.language ?? "",
-    ).toLowerCase();
-    return (
-      CODE_TO_DISPLAY[init] ??
-      LANGUAGES.find((l) => l.toLowerCase().replace("c++", "cpp") === init) ??
-      LANGUAGES.find((l) => l.toLowerCase() === init) ??
-      "Python"
-    );
+    const native = Array.isArray(exercise?.languages)
+      ? String(exercise.languages[0] ?? "").toLowerCase()
+      : "";
+    if (native && langOptions.includes(native)) return native;
+    return langOptions[0] ?? "python";
   });
   const [showHint, setShowHint] = useState(false);
   // Below lg the three-pane horizontal split is too cramped — stack vertically.
@@ -145,23 +165,73 @@ export function PathExerciseIde({
   const [outTab, setOutTab] = useState<OutTab>("Output");
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
+  // F4 — streaming phase status and per-check stdout blocks.
+  // `phaseStatus` is null when no run is in flight; a human-readable string otherwise.
+  // `streamChecks` accumulates visible per-check stdout chunks while running.
+  const [phaseStatus, setPhaseStatus] = useState<string | null>(null);
+  const [streamChecks, setStreamChecks] = useState<
+    { index: number; name: string; stdout: string }[]
+  >([]);
+  // `passed` is set on a successful submit OR pre-populated from userSubmission.
+  const [passed, setPassed] = useState<boolean>(
+    () => exercise?.userSubmission?.passed === true,
+  );
+  // bestScore shown in the Passed badge — comes from userSubmission or the last
+  // graded result (updated when a submit comes back PASSED).
+  const [bestScore, setBestScore] = useState<number | undefined>(
+    () => exercise?.userSubmission?.bestScore,
+  );
 
-  const monacoLanguage =
-    language.toLowerCase() === "c++" ? "cpp" : language.toLowerCase();
-  // The lowercase code the gateway/executor expect for this display language.
-  const langCode = DISPLAY_TO_CODE[language] ?? language.toLowerCase();
+  const monacoLanguage = monacoForCode(language);
+  // `dirty` tracks whether the learner has edited the editor beyond the
+  // current stub/starter. Switching language clobbers content only when the
+  // editor is at a stub (not dirty); otherwise we confirm first.
+  const dirtyRef = useRef(false);
+  // The stub/starter currently seeded into the editor — used to decide
+  // whether an onChange counts as a learner edit.
+  const currentStubRef = useRef<string>("");
+  // `language` is already the lowercase code the gateway/executor expect.
+  const langCode = language;
   const exerciseId: string =
     exercise?.id ?? exercise?.exerciseId ?? step.itemId;
   const points: number | undefined = exercise?.points;
-  // Hint cost equals the step's reward, so both XP figures show the same value.
-  const hintCost = Math.max(1, points ?? 50);
+  // Hint cost comes from the exercise field; fall back to 30 MB.
+  const hintCost: number = exercise?.hintCost ?? 30;
   const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
+  // Track whether the hint has been taken (paid) this session or was pre-paid.
+  const [hintTaken, setHintTaken] = useState<boolean>(
+    () => exercise?.hintTaken === true,
+  );
+  // Insufficient-MB modal state
+  const [insufficientModal, setInsufficientModal] = useState<{
+    open: boolean;
+    shortfall: number;
+  }>({ open: false, shortfall: 0 });
+  const [hintLoading, setHintLoading] = useState(false);
 
   useEffect(() => {
-    setCode(exercise?.starterCode ?? "");
+    const sub = exercise?.userSubmission;
+    if (sub?.code) {
+      // Returning learner: seed editor with their saved solution (f1).
+      setCode(sub.code);
+      if (sub.language) setLanguage(String(sub.language).toLowerCase());
+      setPassed(sub.passed === true);
+      setBestScore(sub.bestScore);
+      // Saved code is the learner's own — treat as untouched baseline so
+      // switching away then back doesn't prompt a needless confirm.
+      currentStubRef.current = sub.code;
+    } else {
+      const starter = exercise?.starterCode ?? "";
+      setCode(starter);
+      setPassed(false);
+      setBestScore(undefined);
+      currentStubRef.current = starter;
+    }
+    dirtyRef.current = false;
     setOutput("");
     setTests([]);
     setShowHint(false);
+    setHintTaken(exercise?.hintTaken === true);
   }, [exercise]);
 
   // Academy exercise gateway. Run Code + Submit Answer both emit
@@ -194,13 +264,60 @@ export function PathExerciseIde({
       if (modeRef.current === "submit") toast.error(e.message || "Execution error.");
     };
 
+    // F4 — streaming phase marker: update the status line for the in-flight submission.
+    const onPhase = (p: { submissionId: string; phase: string }) => {
+      if (p.submissionId !== pendingId.current) return; // ignore stale
+      switch (p.phase) {
+        case "queued":
+          setPhaseStatus("Queued…");
+          break;
+        case "compiling":
+          setPhaseStatus("Compiling…");
+          break;
+        case "running":
+          setPhaseStatus("Running…");
+          break;
+        case "done":
+          // "done" immediately precedes submission:result; keep visible briefly
+          setPhaseStatus("Done");
+          break;
+        default:
+          break;
+      }
+    };
+
+    // F4 — per-check streaming: append each visible check's stdout as it arrives.
+    const onCheck = (c: {
+      submissionId: string;
+      index: number;
+      total: number;
+      name: string;
+      passed: boolean;
+      stdout: string;
+      hidden: boolean;
+    }) => {
+      if (c.submissionId !== pendingId.current) return; // ignore stale
+      // Update running count in status line
+      setPhaseStatus(`Running… (${c.index + 1}/${c.total})`);
+      // Skip empty stdout (hidden checks or checks with no output)
+      if (!c.stdout) return;
+      setStreamChecks((prev) => [
+        ...prev,
+        { index: c.index, name: c.name, stdout: c.stdout },
+      ]);
+    };
+
     socket.on("submission:queued", onQueued);
     socket.on("submission:result", onResult);
     socket.on("submission:error", onErr);
+    socket.on("exercise:phase", onPhase);
+    socket.on("exercise:check", onCheck);
     return () => {
       socket.off("submission:queued", onQueued);
       socket.off("submission:result", onResult);
       socket.off("submission:error", onErr);
+      socket.off("exercise:phase", onPhase);
+      socket.off("exercise:check", onCheck);
       if (pollTimer.current) clearTimeout(pollTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,21 +343,40 @@ export function PathExerciseIde({
     pendingId.current = null;
     setRunning(false);
     setSubmitting(false);
+    // F4 — clear streaming state on final result
+    setPhaseStatus(null);
+    setStreamChecks([]);
 
     setTests(
       (r.caseResults ?? []).map((c) => ({ description: c.name, passed: c.passed })),
     );
+    // Output tab = the program's real stdout per case (+ stderr + a summary),
+    // so learners see their logs/output, not just the score.
+    const stdoutBlocks = (r.caseResults ?? [])
+      .filter((c) => c.gotPreview != null && c.gotPreview !== "")
+      .map((c) => `▸ ${c.name}\n${c.gotPreview}`)
+      .join("\n\n");
     setOutput(
       r.status === "ERROR"
         ? r.error || r.stderr || "Execution error."
-        : `${r.status} — ${r.score}% (${r.passedCount}/${r.totalCount})` +
-            (r.stderr ? `\n\n${r.stderr}` : ""),
+        : [
+            stdoutBlocks,
+            r.stderr ? `stderr:\n${r.stderr}` : "",
+            `— ${r.status} ${r.score}% (${r.passedCount}/${r.totalCount})`,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
     );
 
     if (modeRef.current === "submit") {
       if (r.status === "PASSED") {
         toast.success("Nice work — answer accepted!");
-        onComplete(step.id);
+        // Set local passed state (shows Continue button + Passed badge) and
+        // record completion WITHOUT navigating. Navigation happens when the
+        // learner clicks the Continue → button.
+        setPassed(true);
+        setBestScore(r.score);
+        _onPassed?.(step.id);
       } else if (r.status === "ERROR") {
         toast.error("Execution error. Check the output and try again.");
       } else {
@@ -257,6 +393,9 @@ export function PathExerciseIde({
     setOutput("");
     setTests([]);
     setOutTab("Output");
+    // F4 — reset streaming state on each new run
+    setPhaseStatus(null);
+    setStreamChecks([]);
     analytics.track("exercise_run", { exerciseId, language: langCode });
     getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "run" });
   };
@@ -269,14 +408,48 @@ export function PathExerciseIde({
     setOutput("");
     setTests([]);
     setOutTab("Tests");
+    // F4 — reset streaming state on each new submit
+    setPhaseStatus(null);
+    setStreamChecks([]);
     analytics.track("exercise_submitted", { exerciseId, language: langCode });
     getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "submit" });
   };
 
   const reset = () => {
-    setCode(exercise?.starterCode ?? "");
+    const starter = stubFor(graderType, language, exercise ?? {});
+    setCode(starter);
+    currentStubRef.current = starter;
+    dirtyRef.current = false;
     setOutput("");
     setTests([]);
+  };
+
+  // Switch the editor language and re-seed its contents:
+  // - saved submission for that language wins (f1 precedence);
+  // - else if the learner has edited, confirm before replacing;
+  // - else swap in the generated stub for the new language.
+  const switchLanguage = (newLang: string) => {
+    if (newLang === language) return;
+    const sub = exercise?.userSubmission;
+    const savedForLang =
+      sub?.code && String(sub.language).toLowerCase() === newLang
+        ? sub.code
+        : null;
+    const newStub = savedForLang ?? stubFor(graderType, newLang, exercise ?? {});
+
+    if (
+      !savedForLang &&
+      dirtyRef.current &&
+      typeof window !== "undefined" &&
+      !window.confirm("Switching languages will replace your code. Continue?")
+    ) {
+      return; // learner cancelled — keep current language + code
+    }
+
+    setLanguage(newLang);
+    setCode(newStub);
+    currentStubRef.current = newStub;
+    dirtyRef.current = false;
   };
 
   const instructionsHtml = exercise?.instructions
@@ -303,13 +476,15 @@ export function PathExerciseIde({
           )}
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary"
-            title="Language"
+            onChange={(e) => switchLanguage(e.target.value)}
+            disabled={lockLanguage}
+            aria-label="Programming language"
+            className="rounded border border-white/15 bg-[#2A3042] px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
+            title={lockLanguage ? "This exercise uses a fixed language" : "Language"}
           >
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {l}
+            {langOptions.map((c) => (
+              <option key={c} value={c}>
+                {labelForCode(c)}
               </option>
             ))}
           </select>
@@ -339,7 +514,12 @@ export function PathExerciseIde({
           language={monacoLanguage}
           theme={editorTheme}
           value={code}
-          onChange={(v) => setCode(v ?? "")}
+          onChange={(v) => {
+            const next = v ?? "";
+            setCode(next);
+            // Any divergence from the seeded stub/starter is a learner edit.
+            if (next !== currentStubRef.current) dirtyRef.current = true;
+          }}
           beforeMount={(monaco) => {
             monaco.editor.defineTheme("mb-dark", {
               base: "vs-dark",
@@ -422,6 +602,14 @@ export function PathExerciseIde({
             {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Submit Answer
           </Button>
+          {passed && (
+            <Button
+              onClick={() => _onContinue?.()}
+              className="h-9 bg-emerald-500 font-bold text-white hover:bg-emerald-600"
+            >
+              Continue →
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -459,13 +647,35 @@ export function PathExerciseIde({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3 font-mono text-[12px] leading-relaxed text-slate-300">
         {outTab === "Output" ? (
-          output ? (
-            <pre className="whitespace-pre-wrap">{output}</pre>
-          ) : (
-            <span className="text-slate-500">
-              Run your code to see the output here.
-            </span>
-          )
+          <>
+            {/* F4 — live phase status line (visible while a run is in flight) */}
+            {phaseStatus != null && (
+              <div
+                data-testid="exercise-phase-status"
+                className="mb-2 flex items-center gap-2 text-[11px] text-slate-400"
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>{phaseStatus}</span>
+              </div>
+            )}
+            {/* F4 — progressive per-check stdout blocks */}
+            {streamChecks.map((c) => (
+              <div key={c.index} className="mb-3">
+                <div className="mb-1 text-[11px] font-semibold text-slate-400">
+                  Check {c.index + 1} — {c.name}
+                </div>
+                <pre className="whitespace-pre-wrap text-slate-300">{c.stdout}</pre>
+              </div>
+            ))}
+            {/* Final / static output (set by finish()) */}
+            {output ? (
+              <pre className="whitespace-pre-wrap">{output}</pre>
+            ) : !phaseStatus && streamChecks.length === 0 ? (
+              <span className="text-slate-500">
+                Run your code to see the output here.
+              </span>
+            ) : null}
+          </>
         ) : tests.length ? (
           <ul className="space-y-1.5">
             {tests.map((t, i) => (
@@ -503,9 +713,16 @@ export function PathExerciseIde({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <h1 className="text-lg font-bold leading-snug">
-          {exercise?.title ?? step.title}
-        </h1>
+        <div className="flex items-start gap-2">
+          <h1 className="flex-1 text-lg font-bold leading-snug">
+            {exercise?.title ?? step.title}
+          </h1>
+          {passed && (
+            <span className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 ring-1 ring-emerald-500/40">
+              Passed ✓{bestScore != null ? ` ${bestScore}%` : ""}
+            </span>
+          )}
+        </div>
         {exercise?.description && (
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
             {exercise.description}
@@ -552,12 +769,41 @@ export function PathExerciseIde({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowHint(true)}
+                disabled={hintLoading}
+                onClick={async () => {
+                  // If already paid (persisted or this session), just reveal.
+                  if (hintTaken) {
+                    setShowHint(true);
+                    return;
+                  }
+                  setHintLoading(true);
+                  try {
+                    const r = await store.takeExerciseHint(exerciseId);
+                    if (r && "error" in r && r.error === "INSUFFICIENT") {
+                      setInsufficientModal({ open: true, shortfall: r.shortfall });
+                    } else if (r && "points" in r) {
+                      setShowHint(true);
+                      setHintTaken(true);
+                      store.syncUserSnapshot({
+                        points: r.points,
+                        level: currentUser?.level ?? 0,
+                      });
+                    }
+                  } finally {
+                    setHintLoading(false);
+                  }
+                }}
                 className="gap-1.5"
               >
-                <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
-                Take Hint
-                <span className="font-bold text-[#a87900]">−{hintCost} XP</span>
+                {hintLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Lightbulb className="h-3.5 w-3.5 text-[#caa000]" />
+                )}
+                {hintTaken ? "Show Hint" : `Take Hint`}
+                {!hintTaken && (
+                  <span className="font-bold text-[#a87900]">−{hintCost} MB</span>
+                )}
               </Button>
             )}
           </div>
@@ -609,6 +855,12 @@ export function PathExerciseIde({
           )}
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <InsufficientMbModal
+        open={insufficientModal.open}
+        shortfall={insufficientModal.shortfall}
+        onClose={() => setInsufficientModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }

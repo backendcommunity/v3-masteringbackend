@@ -2,19 +2,25 @@
 
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
-import socket from "@/lib/socketIo";
-import { useUser } from "@/hooks/use-user";
-import { TerminalSquare, Trash2, HelpCircle, RefreshCw } from "lucide-react";
+import { SandboxAddon } from "@cloudflare/sandbox/xterm";
+import {
+  getWorkerToken,
+  pgTerminalUrl,
+  type PgCtx,
+} from "@/lib/playground-client";
+import { TerminalSquare, Trash2, HelpCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 import "xterm/css/xterm.css";
 
 interface TerminalProps {
-  slug: string;
+  ctx: PgCtx | null;
   output?: string[];
   onClose: (open: boolean) => void;
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Per-project terminal sandbox jail. Defaults ON; only `false` disables it. */
+  jail?: boolean;
 }
 
 // Mock-matched dark theme (navy/cyan/teal palette).
@@ -78,24 +84,33 @@ const ansi = (line: string) => {
 };
 
 export function Terminal({
-  slug,
+  ctx,
   onClose,
   output,
   collapsed,
   onToggle,
+  jail = true,
 }: TerminalProps) {
-  const user = useUser();
   const { theme } = useTheme();
   const isDark = !theme || theme.includes("dark");
   const hostRef = useRef<HTMLDivElement>(null);
   const xtRef = useRef<any>(null);
   const fitRef = useRef<any>(null);
-  const sessionRef = useRef<string | null>(null);
+  const addonRef = useRef<SandboxAddon | null>(null);
   const writtenRef = useRef(0); // run-log lines already written
 
-  // ── boot a real xterm + wire the PTY socket ──
+  // ── boot a real xterm + attach the Cloudflare Sandbox PTY addon ──
+  //
+  // The worker serves the terminal via the Sandbox SDK (`sandbox.terminal()`),
+  // which speaks its own PTY framing over the WS (binary frames for data, JSON
+  // control messages for ready/error/exit). `@cloudflare/sandbox/xterm`'s
+  // `SandboxAddon` speaks that exact framing — so we hand it a URL builder and
+  // let it own keystrokes↔PTY, output, and resize. We never touch a raw socket.
+  //
+  // Effect is keyed on `ctx`: until the worker context exists we render the pane
+  // but don't connect; once `ctx` is non-null we boot the terminal and connect.
   useEffect(() => {
-    if (!hostRef.current || xtRef.current) return;
+    if (!ctx || !hostRef.current || xtRef.current) return;
     // client-only deps
     const XTerm = require("xterm").Terminal;
     const FitAddon = require("xterm-addon-fit").FitAddon;
@@ -117,90 +132,81 @@ export function Terminal({
 
     const host = hostRef.current;
     let opened = false;
+    let disposed = false;
     const safeFit = () => {
       if (!host || !host.offsetWidth || !host.offsetHeight) return;
       try {
         fit.fit();
       } catch {}
     };
+
+    // Build the Sandbox PTY addon. `getWebSocketUrl` runs on every (re)connect,
+    // so the freshly-minted token is read at call-time. `sessionId` from the
+    // addon is unused by our worker (identity rides the token); we only need a
+    // truthy `sandboxId` for the addon's internal connect guard. Token + ids
+    // travel in the query string because a browser WS can't set headers.
+    const buildAddon = (token: string) =>
+      new SandboxAddon({
+        reconnect: true,
+        getWebSocketUrl: () =>
+          pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
+        onStateChange: (state, error) => {
+          if (state === "disconnected" && error) {
+            xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);
+          }
+        },
+      });
+
     // Defer open()/fit() until the host actually has a size. Opening xterm on a
-    // zero-size element (collapsed terminal panel, or before layout settles)
-    // leaves the renderer without dimensions, and the next refresh throws
-    // "Cannot read properties of undefined (reading 'dimensions')". The
+    // zero-size element (collapsed panel, or before layout settles) leaves the
+    // renderer without dimensions, and the next refresh throws. The
     // ResizeObserver below opens it the moment the host gets a real size.
-    const openTerminal = () => {
-      if (opened || !host || !host.offsetWidth || !host.offsetHeight) return;
+    const openTerminal = async () => {
+      if (opened || disposed || !host || !host.offsetWidth || !host.offsetHeight)
+        return;
       opened = true;
       xt.open(host);
       safeFit();
-      // seed any run-log lines collected before the terminal opened
+      // seed any run-log lines collected before the terminal opened (BEFORE the
+      // PTY attaches, so they sit above the live shell output)
       const out = output ?? [];
       for (let i = writtenRef.current; i < out.length; i++)
         xt.writeln(ansi(out[i]));
       writtenRef.current = out.length;
-      // start the interactive PTY (cols/rows now reflect the fitted size)
-      socket.emit("term:start", {
-        userId: user?.id,
-        projectName: slug,
-        cols: xt.cols,
-        rows: xt.rows,
-      });
+
+      // mint a worker token, then attach the PTY addon (cols/rows reflect the
+      // fitted size). The addon takes over keystrokes/output/resize from here.
+      try {
+        const token = await getWorkerToken(ctx.slug);
+        if (disposed) return;
+        const addon = buildAddon(token);
+        addonRef.current = addon;
+        xt.loadAddon(addon as any);
+        addon.connect({ sandboxId: ctx.projectId });
+      } catch (e: any) {
+        xt.writeln(
+          `\r\n\x1b[31m${e?.message ?? "failed to start terminal"}\x1b[0m`,
+        );
+      }
     };
     requestAnimationFrame(openTerminal);
 
-    // forward every keystroke to the PTY (raw — the shell echoes back)
-    const dataDisp = xt.onData((d: string) => {
-      if (sessionRef.current)
-        socket.emit("term:stdin", {
-          sessionId: sessionRef.current,
-          userId: user?.id,
-          projectName: slug,
-          data: d,
-        });
-    });
-
-    const onTermData = ({ sessionId, data }: any) => {
-      if (opened && (!sessionRef.current || sessionId === sessionRef.current))
-        xt.write(data);
-    };
-    const onStarted = ({ sessionId }: { sessionId: string }) => {
-      sessionRef.current = sessionId;
-    };
-    const onExit = () => {
-      xt.writeln("\r\n\x1b[38;5;244m[session ended — restart to reconnect]\x1b[0m");
-      sessionRef.current = null;
-    };
-    const onError = ({ message }: any) => {
-      if (message) xt.writeln(`\x1b[31m${message}\x1b[0m`);
-    };
-
-    socket.on("term:data", onTermData);
-    socket.on("term:started", onStarted);
-    socket.on("term:restarted", onStarted);
-    socket.on("term:exit", onExit);
-    socket.on("term:error", onError);
-
     const ro = new ResizeObserver(() => {
       if (!opened) openTerminal();
-      else safeFit();
+      else safeFit(); // fit() fires xterm.onResize → addon sends a resize frame
     });
-    ro.observe(hostRef.current);
+    ro.observe(host);
 
     return () => {
-      dataDisp.dispose();
+      disposed = true;
       ro.disconnect();
-      socket.off("term:data", onTermData);
-      socket.off("term:started", onStarted);
-      socket.off("term:restarted", onStarted);
-      socket.off("term:exit", onExit);
-      socket.off("term:error", onError);
-      if (sessionRef.current)
-        socket.emit("term:stop", { sessionId: sessionRef.current });
+      addonRef.current?.dispose();
+      addonRef.current = null;
       xt.dispose();
       xtRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ctx]);
 
   // stream new run-log lines into xterm as the playground appends them
   useEffect(() => {
@@ -213,12 +219,20 @@ export function Terminal({
 
   // live-switch the xterm palette when the app theme flips
   useEffect(() => {
-    if (xtRef.current) xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
+    if (xtRef.current)
+      xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
   }, [isDark]);
 
-  const clearTerm = () => xtRef.current?.clear();
-  const restartTerm = () =>
-    socket.emit("term:start", { userId: user?.id, projectName: slug });
+  // Run the shell `clear` command in the live PTY so the session itself is
+  // cleared (not just the local xterm buffer). Falls back to a local clear when
+  // the PTY isn't attached yet.
+  const clearTerm = () => {
+    const xt = xtRef.current;
+    if (!xt) return;
+    if (addonRef.current) xt.input("clear\r");
+    else xt.clear();
+  };
+
   const showHelp = () => {
     const xt = xtRef.current;
     if (!xt) return;
@@ -257,15 +271,6 @@ export function Terminal({
           onClick={clearTerm}
         >
           <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Restart terminal"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-          onClick={restartTerm}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="ghost"

@@ -155,15 +155,26 @@
 
 /* Theme utilities with #13AECE consistency for both light and dark */
 @layer utilities {
-  /* Blueprint dot grid — lives INSIDE navy heroes only (brand identity),
-     never on the working canvas. See docs/DESIGN_SYSTEM.md */
+  /* Linework watermark — diamond tessellation, same as the /auth pages.
+     Lives INSIDE navy heroes only (brand identity), never on the working
+     canvas. See docs/DESIGN_SYSTEM.md */
   .hero-grid {
-    background-image: radial-gradient(
-      circle at 1px 1px,
-      rgba(255, 255, 255, 0.14) 1px,
-      transparent 0
+    background-image: url("/hero-linework.svg");
+    background-size: 80px 80px;
+    background-repeat: repeat;
+    /* Bloom toward the brand glyph (right); keep the headline side (left) clean. */
+    -webkit-mask-image: linear-gradient(
+      100deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.45) 40%,
+      #000 82%
     );
-    background-size: 22px 22px;
+    mask-image: linear-gradient(
+      100deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.45) 40%,
+      #000 82%
+    );
   }
 
   /* Eyebrow label — small tracked-caps section markers on heroes (Satoshi) */

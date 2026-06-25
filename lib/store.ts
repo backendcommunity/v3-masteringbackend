@@ -361,6 +361,18 @@ interface AppState {
 
   markCourseCompleted: (id: string) => any;
   markProjectTaskAsCompleted: (slug: string, id: string) => any;
+  gradeProjectTask: (
+    slug: string,
+    id: string,
+  ) => Promise<{
+    passed: boolean;
+    checks: Array<{ kind: string; passed: boolean; detail: string }>;
+    statusCode: number | null;
+    latencyMs: number;
+    pointsAwarded: number;
+    projectCompleted: boolean;
+    error?: string;
+  }>;
   markRoadmapVideoCompleted: (
     slug: string,
     topicId: string,
@@ -377,6 +389,13 @@ interface AppState {
   ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
+
+  // Return-Recap
+  returnRecap: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null;
+  setReturnRecap: (r: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null) => void;
+  getJourneyRecap: (itemType: import("./data").RecapItemType, itemId: string) => Promise<import("./data").RecapPayload | null>;
+  getWelcomeBack: () => Promise<import("./data").WelcomeBackPayload | null>;
+  sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
 
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
@@ -438,9 +457,21 @@ interface AppState {
   getProjectGithub: (
     slug: string,
   ) => Promise<{
+    installed: boolean;
     connected: boolean;
     installUrl: string;
-    repo: { fullName: string; htmlUrl: string } | null;
+    repoFullName?: string;
+    owner?: string;
+    repo?: string;
+  }>;
+  connectProjectGithub: (
+    slug: string,
+    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+  ) => Promise<{
+    connected: true;
+    repoFullName: string;
+    owner: string;
+    repo: string;
   }>;
   listGithubOwners: () => Promise<
     { login: string; type: "user" | "org"; avatarUrl?: string }[]
@@ -491,6 +522,12 @@ interface AppState {
     stepId: string,
     payload: { duration: number },
   ) => Promise<{ stepId: string; currentDuration?: number }>;
+  takeExerciseHint: (
+    exerciseId: string,
+  ) => Promise<
+    | { hint: string; points: number; charged: boolean; cost: number }
+    | { error: "INSUFFICIENT"; shortfall: number }
+  >;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -659,6 +696,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   getSubmissionStatus: async (exerciseId: string, submissionId: string) => {
     const { data } = await api.get(`/exercises/${exerciseId}/submissions/${submissionId}`);
     return data?.data;
+  },
+  takeExerciseHint: async (exerciseId: string) => {
+    try {
+      const { data } = await api.post(`/exercises/${exerciseId}/hint`);
+      return data?.data;
+    } catch (e: any) {
+      if (e?.response?.status === 402)
+        return { error: "INSUFFICIENT", shortfall: e.response.data?.shortfall ?? 0 };
+      throw e;
+    }
   },
   getMilestone: async (slug: string, topicId: string) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
@@ -1177,6 +1224,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.post(`/projects/${slug}/tasks/${id}`);
     return data?.data;
   },
+  gradeProjectTask: async (slug: string, id: string) => {
+    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`);
+    return data?.data;
+  },
   cancelSubscription: async (id: string) => {
     const { data } = await api.post(`/payments/subscriptions/${id}/cancel`);
     return data?.data;
@@ -1390,6 +1441,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCoursesFilters: async (): Promise<CourseFiltersData> => {
     const res = await fetchCoursesFilters();
     return res.data as CourseFiltersData;
+  },
+
+  // Return-Recap
+  returnRecap: null,
+  setReturnRecap: (r) => set({ returnRecap: r }),
+  getJourneyRecap: async (itemType, itemId) => {
+    const { data } = await api.get(`/journey/recap`, { params: { itemType, itemId } });
+    return data?.data ?? null;
+  },
+  getWelcomeBack: async () => {
+    const { data } = await api.get(`/journey/welcome-back`);
+    return data?.data ?? null;
+  },
+  sendRecapFeedback: async (eventId, useful) => {
+    await api.post(`/journey/recap/${eventId}/feedback`, { useful });
   },
 
   // Epic 5: Engagement features
@@ -1632,13 +1698,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(`/projects/${slug}/github`);
     return data?.data;
   },
+  // One-click connect (auto-provision) or link an existing repo. On a 409 the
+  // axios error is rethrown so the caller can read response.data.{installUrl,
+  // authUrl,message} to drive the install / re-authorize redirect.
+  connectProjectGithub: async (
+    slug: string,
+    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+  ) => {
+    const { data } = await api.post(`/projects/${slug}/github`, body);
+    return data?.data;
+  },
   listGithubOwners: async () => {
+    // Backend proxies the executor and returns the owners array as `data`
+    // directly (no `.owners` envelope), so unwrap `data.data`.
     const { data } = await api.get(`/github/owners`);
-    return data?.data?.owners ?? [];
+    return data?.data ?? [];
   },
   listGithubRepos: async (owner: string, q = "") => {
+    // Same bare-array shape as owners — `data.data` is the repos array.
     const { data } = await api.get(`/github/repos`, { params: { owner, q } });
-    return data?.data?.repos ?? [];
+    return data?.data ?? [];
   },
   createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
     const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });

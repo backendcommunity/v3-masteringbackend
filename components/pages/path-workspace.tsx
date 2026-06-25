@@ -16,6 +16,7 @@ import {
   CelebrationEvent,
   PathCertificate as PathCertificateType,
 } from "@/lib/path-types";
+import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import { Loader } from "@/components/ui/loader";
 import { StepStage } from "@/components/pages/path/step-stage";
 import { PathTopBar } from "@/components/pages/path/path-top-bar";
@@ -52,6 +53,8 @@ export interface PathWorkspaceProps {
   // with "Course Outline" + "Chapter".
   outlineTitle?: string;
   groupLabel?: string;
+  // "PATH" (default) or "COURSE" — controls which backend resolver the return-recap trigger calls.
+  recapItemType?: import("@/lib/data").RecapItemType;
   // Whether this workspace issues a certificate. Both paths and courses do; set
   // false to suppress the cert landing + outline button entirely.
   hasCertificate?: boolean;
@@ -76,6 +79,7 @@ export function PathWorkspace({
   stepRoute,
   outlineTitle,
   groupLabel,
+  recapItemType,
   hasCertificate = true,
   certificateFetcher,
   showAlumniLounge = true,
@@ -105,6 +109,12 @@ export function PathWorkspace({
   );
   // Path-branded certificate landing takes over the stage when true.
   const [showCertificate, setShowCertificate] = useState(false);
+  // Exercise steps defer navigation: completion is recorded immediately but the
+  // advance waits for an explicit Continue click (Task 4 adds the button).
+  const [pendingNextStepId, setPendingNextStepId] = useState<string | null>(
+    null,
+  );
+  const [pendingCertUnlocked, setPendingCertUnlocked] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -114,9 +124,13 @@ export function PathWorkspace({
       setCurrentStepId(
         (prev) => prev ?? data?.cursor?.resumeStepId ?? data?.steps?.[0]?.id,
       );
+      setLoading(false);
+      // Return-recap: defer to next tick so the workspace paints first.
+      setTimeout(() => {
+        void triggerItemRecap(recapItemType ?? "PATH", pathId);
+      }, 0);
     } catch {
       toast.error("Failed to load this path.");
-    } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,6 +145,34 @@ export function PathWorkspace({
     () => session?.steps.find((s) => s.id === currentStepId),
     [session, currentStepId],
   );
+
+  const premiumStepCount = useMemo(
+    () => session?.steps.filter((s) => s.access?.allowed === false).length ?? 0,
+    [session],
+  );
+  const freeDoneCount = useMemo(
+    () =>
+      session?.steps.filter(
+        (s) => s.access?.allowed !== false && s.status === "DONE",
+      ).length ?? 0,
+    [session],
+  );
+  const paywallCtx = useMemo(
+    () =>
+      session
+        ? {
+            payment: session.path.payment,
+            pathTitle: session.path.title,
+            premiumStepCount,
+            freeDoneCount,
+            onUnlock: load,
+          }
+        : undefined,
+    [session, premiumStepCount, freeDoneCount, load],
+  );
+  // Current step gated behind the paywall → the only action is "Go Pro" (in the
+  // overlay), so suppress the bottom-bar Next entirely.
+  const currentLocked = currentStep?.access?.allowed === false && !!paywallCtx;
 
   const selectStep = useCallback(
     (stepId: string) => {
@@ -215,6 +257,53 @@ export function PathWorkspace({
     [pathId, completeStepFn, loadSessionFn, applyDelta],
   );
 
+  // Exercise-specific: records completion (applies delta + celebrations) but
+  // does NOT navigate. The learner clicks Continue (Task 4) to call advance().
+  const recordStepComplete = useCallback(
+    async (stepId: string, payload?: Record<string, unknown>) => {
+      try {
+        const delta = await completeStepFn(pathId, stepId, payload);
+        applyDelta(delta);
+        const fresh = await loadSessionFn(pathId);
+        setSession(fresh);
+
+        const cel = delta.celebrations ?? [];
+        const certUnlocked = cel.some((c) => c.kind === "certUnlocked");
+        // Surface all meaningful celebrations (same filter as completeStep).
+        setCelebrationQueue(
+          cel.filter(
+            (c) => c.kind !== "certUnlocked" && c.kind !== "stepUnlocked",
+          ),
+        );
+        // Stash next step + cert flag so advance() can replicate completeStep routing.
+        setPendingNextStepId(delta.cursor?.nextStepId ?? null);
+        setPendingCertUnlocked(certUnlocked);
+        return delta;
+      } catch {
+        toast.error("Could not mark this step complete.");
+      }
+    },
+    [pathId, completeStepFn, loadSessionFn, applyDelta],
+  );
+
+  // Navigate to the pending next step (set by recordStepComplete). Falls back to
+  // the cursor's nextStepId if pendingNextStepId was cleared between calls.
+  // Mirrors completeStep's certificate-routing branch so the final exercise step
+  // of a certificate-bearing path shows the certificate screen instead of the
+  // end-of-course toast.
+  const advance = useCallback(() => {
+    const nextId = pendingNextStepId ?? session?.cursor?.nextStepId ?? null;
+    if (hasCertificate && (pendingCertUnlocked || !nextId)) {
+      setShowCertificate(true);
+    } else if (nextId) {
+      setCurrentStepId(nextId);
+    } else {
+      toast.success("You've completed this course! 🎉");
+    }
+    setPendingNextStepId(null);
+    setPendingCertUnlocked(false);
+  }, [pendingNextStepId, pendingCertUnlocked, hasCertificate, session?.cursor?.nextStepId]);
+
   const ordered = useMemo(
     () => (session ? [...session.steps].sort((a, b) => a.order - b.order) : []),
     [session],
@@ -249,7 +338,8 @@ export function PathWorkspace({
   const listHref = entityKind === "course" ? "/courses" : "/paths";
   const detailHref =
     entityKind === "course" ? `/courses/${pathId}` : `/paths/${pathId}`;
-  const hasContext = !!currentStep && !fullBleed;
+  // Locked steps show only the paywall — no Kap context panel / transcript.
+  const hasContext = !!currentStep && !fullBleed && !currentLocked;
 
   const milestoneSteps = ordered.filter(
     (s) => s.topicId === currentStep?.topicId,
@@ -398,6 +488,9 @@ export function PathWorkspace({
             onSelectStep={selectStep}
             onNavigate={onNavigate}
             updateProgress={updateProgressFn}
+            onPassed={recordStepComplete}
+            onContinue={advance}
+            paywall={paywallCtx}
           />
         </div>
         {outlineDrawer}
@@ -475,6 +568,9 @@ export function PathWorkspace({
               onSelectStep={selectStep}
               onNavigate={onNavigate}
               updateProgress={updateProgressFn}
+              onPassed={recordStepComplete}
+              onContinue={advance}
+              paywall={paywallCtx}
             />
           </PathStage>
 
@@ -509,7 +605,7 @@ export function PathWorkspace({
             onPrev={() => prev && selectStep(prev.id)}
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
-            hideNext={fullBleed}
+            hideNext={fullBleed || currentLocked}
           />
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +78,9 @@ export function ProjectDetailPage({
       setProject(project);
       setUserProject(project?.userProject);
       setLoading(false);
+      if (project?.id) {
+        setTimeout(() => { void triggerItemRecap("PROJECT", project.id); }, 0);
+      }
       if (project) {
         analytics.track("project_viewed", {
           projectId: project.id,
@@ -580,7 +584,7 @@ export function ProjectDetailPage({
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
           {showPaymentDialog && (
             <PaymentDialog
-              disableMB={true}
+              disableMB={false}
               disableOnetime={true}
               onClose={() => setShowPaymentDialog(false)}
               open={showPaymentDialog}
@@ -699,7 +703,7 @@ export function ProjectDetailPage({
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 {!project?.isPremium || user?.isPremium
                   ? "Build at your own pace · Earn a verified certificate"
-                  : "30-day money-back guarantee"}
+                  : "Cancel anytime · Earn a verified certificate"}
               </p>
 
               {(project?.PRDLink || project?.frontendURL) && (

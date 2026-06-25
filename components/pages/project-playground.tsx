@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,15 +21,15 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
 import Image from "next/image";
 import { PathFeedbackDialog } from "./path/path-feedback-dialog";
-import { GithubConnectDialog } from "./path/github-connect-dialog";
+import { GithubConnect } from "./playground/github-connect";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
-import { Loader } from "../ui/loader";
 import { languages } from "@/lib/languages";
 import {
   Dialog,
@@ -41,7 +41,22 @@ import {
 } from "../ui/dialog";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import socket from "@/lib/socketIo";
+import {
+  pgFs,
+  pgRun,
+  pgStop,
+  pgStatus,
+  pgReload,
+  pgSeed,
+  pgDownload,
+  pgRestart,
+  type PgCtx,
+} from "@/lib/playground-client";
+import {
+  createPlaygroundSync,
+  type PlaygroundSync,
+  type SyncState,
+} from "@/lib/playground-sync";
 import { cn, getLanguageFromFileName, terminalSample } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { ContextMenu } from "./../ContextMenu";
@@ -90,6 +105,99 @@ interface FileNode {
 // absolute leading "/". Convert tree paths to project-relative before emitting.
 const toRel = (p?: string) => (p || "").replace(/^\/+/, "");
 
+// ── worker `/fs list` shape (Cloudflare SDK `listFiles`) ──
+// `pgFs(ctx,{op:"list"})` returns `{ ok, files }` where `files` is the SDK
+// `ListFilesResult`: { success, path, files: FileInfo[], count, timestamp }.
+// Each FileInfo is FLAT (relativePath, type:'file'|'directory', name); the worker
+// lists a single directory level (NON-recursive), so nested folders come back as
+// `directory` entries with no children until the worker exposes sub-path listing.
+interface WorkerFileInfo {
+  name: string;
+  relativePath: string;
+  type: "file" | "directory" | "symlink" | "other";
+}
+interface WorkerListResult {
+  files?: WorkerFileInfo[];
+}
+
+// Adapt the SDK list shape into the nested FileNode[] the renderer expects.
+// The renderer assumes `fileTree[0]` is a single root folder whose `children`
+// are the project's entries (see lines using `fileTree[0]` / `depth === 0`), so
+// we wrap everything under one synthetic root keyed off the project slug.
+//
+// `result` is the unwrapped SDK ListFilesResult (i.e. `r.files`, NOT `r`).
+// We split each `relativePath` on "/" so the adapter also builds a real nested
+// tree if the worker ever returns a recursive listing — today it's top-level only.
+const toFileTree = (
+  result: WorkerListResult | undefined | null,
+  rootName: string,
+): FileNode[] => {
+  const root: FileNode = {
+    name: rootName,
+    type: "folder",
+    icon: "",
+    path: "",
+    isOpen: true,
+    children: [],
+  };
+
+  const entries = result?.files ?? [];
+  for (const entry of entries) {
+    const rel = (entry.relativePath || entry.name || "").replace(/^\/+/, "");
+    if (!rel) continue;
+    const segments = rel.split("/").filter(Boolean);
+    let cursor = root;
+    segments.forEach((seg, i) => {
+      const isLeaf = i === segments.length - 1;
+      const segPath = segments.slice(0, i + 1).join("/");
+      const children = (cursor.children ??= []);
+      let node = children.find((c) => c.name === seg);
+      if (!node) {
+        const isFolder = isLeaf ? entry.type === "directory" : true;
+        node = {
+          name: seg,
+          type: isFolder ? "folder" : "file",
+          icon: isFolder ? "" : "📄",
+          path: segPath,
+          ...(isFolder
+            ? { isOpen: false, children: [] }
+            : { language: getLanguageFromFileName(seg) }),
+        };
+        children.push(node);
+      }
+      cursor = node;
+    });
+  }
+
+  // Folders first, then files; each group alphabetical — stable, predictable tree.
+  const sortTree = (nodes: FileNode[]): FileNode[] => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const n of nodes) if (n.children) sortTree(n.children);
+    return nodes;
+  };
+  sortTree(root.children!);
+
+  return [root];
+};
+
+// Relative time for the sync chip ("just now", "2 min ago"). Native Intl —
+// no date-fns. `at` is an epoch ms; falsy → "just now".
+const relTime = (at?: number): string => {
+  if (!at) return "just now";
+  const diffMs = Date.now() - at;
+  const sec = Math.round(diffMs / 1000);
+  if (sec < 10) return "just now";
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (sec < 60) return rtf.format(-sec, "second");
+  const min = Math.round(sec / 60);
+  if (min < 60) return rtf.format(-min, "minute");
+  const hr = Math.round(min / 60);
+  return rtf.format(-hr, "hour");
+};
+
 // Render a task description: turn `backtick` spans into <code>, preserve
 // newlines via white-space:pre-wrap on the container. Plain text in → JSX out.
 const fmtInstr = (raw?: string) => {
@@ -110,6 +218,7 @@ export function ProjectPlaygroundPage({
   const idleTimer = useRef(null);
   // Latest run/preview handlers — published to the path top bar when embedded.
   const runServerRef = useRef<() => void>(() => {});
+  const stopServerRef = useRef<() => void>(() => {});
   const togglePreviewRef = useRef<() => void>(() => {});
   const setPgControls = usePlaygroundControls((s) => s.setControls);
   const store = useAppStore();
@@ -133,6 +242,11 @@ export function ProjectPlaygroundPage({
   const [previewUrl, setPreviewUrl] = useState(
     process.env.NEXT_PUBLIC_EXECUTOR_URL ?? "http://localhost:3000",
   );
+  const frontendEnabled = !!(project as any)?.playgroundConfig?.frontendPreview;
+  const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
+  useEffect(() => {
+    if (frontendEnabled) setPreviewMode("app");
+  }, [frontendEnabled]);
   const [showTerminal, setShowTerminal] = useState(false); // collapsed to header by default
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -159,10 +273,22 @@ export function ProjectPlaygroundPage({
   const [currentLanguage, setCurrentLanguage] = useState("javascript");
   const [showPayment, setShowPayment] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  // In-flight guards so a double-click / two-tab can't fire overlapping
+  // run/stop requests (which race the sandbox into an indeterminate state).
+  const runInFlightRef = useRef(false);
+  const stopInFlightRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [language, setLanguage] = useState("");
   const [restart, setRestart] = useState(false);
+  // Welcome/start page: technology tags collapse past the first 8.
+  const [tagsExpanded, setTagsExpanded] = useState(false);
+  // Apply playgroundConfig.showPreviewOnLoad exactly once, when the project loads.
+  const previewDefaultApplied = useRef(false);
+  // Auto-open the first file once when the learner has already started — so a
+  // returning learner lands straight in the editor (no start page at all).
+  const autoOpenedRef = useRef(false);
   const [fileMenu, setFileMenu] = useState({
     visible: false,
     x: 0,
@@ -185,7 +311,16 @@ export function ProjectPlaygroundPage({
   const rightRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<HTMLDivElement>(null);
   const lastTermH = useRef("150px"); // remembers expanded height across collapse
-  const fileBuffer: Record<string, NodeJS.Timeout> = {};
+  // Per-path debounce timers for autosave. MUST be a ref: a plain `{}` in the
+  // component body is recreated every render, so clearTimeout never finds the
+  // previous timer → the debounce never coalesces → a write per keystroke
+  // (write storm + out-of-order writes → content loss).
+  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Debounces hot-reload (/reload) after edits while the server is running.
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Live mirror of `baseURL` so timer callbacks read the current value (not a
+  // stale closure) when deciding whether to hot-reload.
+  const baseURLRef = useRef("");
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -206,6 +341,69 @@ export function ProjectPlaygroundPage({
 
   const AUTO_COMMIT_INTERVAL = 1 * 60 * 1000; // 2 minutes
 
+  // Per-call worker context — built once project + user are known. Every worker
+  // call is guarded by `if (!pgCtx) return;`. `projectName = project.slug` (it's
+  // worker-safe `[A-Za-z0-9_-]{1,64}` and becomes the sandbox workdir name).
+  const pgCtx: PgCtx | null = useMemo(() => {
+    if (!project?.id || !user?.id) return null;
+    return {
+      slug: project.slug,
+      userId: user.id,
+      projectId: project.id,
+      projectName: project.slug,
+    };
+  }, [project?.id, project?.slug, user?.id]);
+
+  // ── GitHub autosync wiring ──────────────────────────────────────────────
+  // GitHub is the source of truth ONLY when the project has a linked repo AND
+  // the user installed the App. Until then the sandbox is ephemeral (unchanged
+  // pre-existing behaviour) — no engine, no autosave, no indicator.
+  const repoFullName: string | undefined =
+    project?.userProject?.githubRepoFullName ?? undefined;
+  const installationId = user?.githubInstallationId ?? undefined;
+  const ghConnected = !!repoFullName && !!installationId;
+  const [owner, repo] = repoFullName
+    ? repoFullName.split("/")
+    : [undefined, undefined];
+  // Surfaced by GithubConnect only when there's an actionable problem. Drives the
+  // error-only banner — there is no persistent "connect GitHub" nudge.
+  const [ghError, setGhError] = useState<
+    { message: string; retry: () => void } | null
+  >(null);
+
+  // The sync engine instance (rebuilt when the connection identity changes).
+  const syncRef = useRef<PlaygroundSync | null>(null);
+  // Latest `refreshTree` (defined below, after the early returns) — the engine's
+  // onReloaded callback reaches it via this ref so the effect can live up here
+  // with the other hooks without a TDZ / stale-closure hazard.
+  const refreshTreeRef = useRef<() => Promise<void> | void>(() => {});
+  // `lastSha` mirrored into a ref so the engine reads the latest value without
+  // being torn down/rebuilt on every commit.
+  const [lastSha, setLastSha] = useState<string | null>(
+    project?.userProject?.lastSyncedSha ?? null,
+  );
+  const lastShaRef = useRef<string | null>(lastSha);
+  useEffect(() => {
+    lastShaRef.current = lastSha;
+  }, [lastSha]);
+  // Keep the seed from the freshly-loaded project in sync (e.g. after a refetch).
+  useEffect(() => {
+    const seeded = project?.userProject?.lastSyncedSha ?? null;
+    setLastSha(seeded);
+    lastShaRef.current = seeded;
+  }, [project?.userProject?.lastSyncedSha]);
+
+  const [syncStatus, setSyncStatus] = useState<{
+    state: SyncState;
+    at?: number;
+  } | null>(null);
+  const [conflict, setConflict] = useState<{
+    open: boolean;
+    remoteSha?: string;
+  }>({ open: false });
+  // Resolving-in-progress guard so the conflict dialog buttons can't double-fire.
+  const [resolvingConflict, setResolvingConflict] = useState(false);
+
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
       if (node.path === filePath && node.type === "file") {
@@ -219,6 +417,11 @@ export function ProjectPlaygroundPage({
     return null;
   };
 
+  // Load the project. Keyed on `slug` ONLY. Connecting GitHub mid-session flips
+  // user.github / user.githubInstallationId — if those were deps here, this effect
+  // would re-run, setLoading(true), and tear down the whole playground (editor +
+  // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
+  // refetches the project (without setLoading) so connected state still updates.
   useEffect(() => {
     setLoading(true);
     async function findProject(slug: string) {
@@ -226,21 +429,14 @@ export function ProjectPlaygroundPage({
       setProject(project);
       setLoading(false);
     }
-    setConnected(!!user?.githubInstallationId || !!user?.github);
     findProject(slug);
-  }, [slug, user?.github, user?.githubInstallationId]);
+  }, [slug]);
 
-  // The socket auto-connects at import — before the user is known — so its
-  // handshake has no userId and mb-executor rejects it. Once the user loads,
-  // force a fresh handshake so the auth callback re-sends the real userId.
-  // Buffered emits (e.g. folder:read) flush automatically on (re)connect.
+  // Track GitHub-connected state separately — a cheap flag update with no loading
+  // churn, so it can react to user changes without remounting the page.
   useEffect(() => {
-    if (!user?.id) return;
-    if (!socket.connected) {
-      socket.disconnect();
-      socket.connect();
-    }
-  }, [user?.id]);
+    setConnected(!!user?.githubInstallationId || !!user?.github);
+  }, [user?.github, user?.githubInstallationId]);
 
   // Embedded in a path step → publish Run/Preview state + handlers so the path
   // top bar can render them (this component's own header is hidden).
@@ -250,14 +446,19 @@ export function ProjectPlaygroundPage({
       active: true,
       connected,
       isRunning,
+      isStopping,
+      sandboxLive: !!baseURL,
       previewVisible: isRightPanelVisible,
       runServer: () => runServerRef.current?.(),
+      stopServer: () => stopServerRef.current?.(),
       togglePreview: () => togglePreviewRef.current?.(),
     });
   }, [
     embedded,
     connected,
     isRunning,
+    isStopping,
+    baseURL,
     isRightPanelVisible,
     setPgControls,
   ]);
@@ -303,105 +504,271 @@ export function ProjectPlaygroundPage({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  // Single definition of the autosync engine factory, shared by the engine
+  // effect (mount / repo-identity change) and `handleGhConnected` (connect
+  // mid-session). `pgCtx` and the various setters/refs are read from closure;
+  // the caller supplies the repo identity so the connect handler can build the
+  // engine inline before the project refetch propagates into the effect.
+  const buildSyncEngine = useCallback(
+    (
+      o: string,
+      r: string,
+      instId: string | number,
+    ): PlaygroundSync => {
+      if (!pgCtx) throw new Error("buildSyncEngine called without a worker ctx");
+      return createPlaygroundSync({
+        ctx: pgCtx,
+        owner: o,
+        repo: r,
+        installationId: instId,
+        getLastSha: () => lastShaRef.current,
+        setLastSha: (s) => {
+          lastShaRef.current = s;
+          setLastSha(s);
+        },
+        onStatus: (state, at) => setSyncStatus({ state, at }),
+        onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
+        onReloaded: () => {
+          void refreshTreeRef.current?.();
+        },
+      });
+    },
+    [pgCtx],
+  );
+
+  // Build (and tear down) the GitHub autosync engine when the project is linked
+  // to a repo and the user has the App installed. Rebuilt only when the repo
+  // identity changes — the engine reads the latest sha through `lastShaRef`, so
+  // a per-commit sha update never re-creates it.
+  //
+  // IMPORTANT: this effect MUST be declared ABOVE the seed-on-open effect so it
+  // runs first within a commit (React flushes sibling effects in declaration
+  // order). That guarantees `syncRef.current` is populated before the seed
+  // effect's first `await`, so a connected user's repo is hydrated on first
+  // open instead of silently falling back to the ephemeral seed path.
   useEffect(() => {
-    socket.emit("folder:read", {
-      userId: user?.id,
-      projectName: slug,
-      // Project-root, relative to the sandbox dir. The executor's
-      // safeResolvePath rejects an absolute "/", so root must be "".
-      path: "",
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
+    if (!pgCtx || !ghConnected || !owner || !repo || !installationId) {
+      syncRef.current?.dispose();
+      syncRef.current = null;
+      return;
+    }
+    // Dispose any engine built ahead of this effect (e.g. inline by
+    // handleGhConnected) so we never double-build / leak before reassigning.
+    syncRef.current?.dispose();
+    const engine = buildSyncEngine(owner, repo, installationId);
+    syncRef.current = engine;
+    return () => {
+      engine.dispose();
+      if (syncRef.current === engine) syncRef.current = null;
+    };
+  }, [pgCtx, ghConnected, owner, repo, installationId, buildSyncEngine]);
 
-    socket.on("folder:response", (data) => {
+  // Initial tree load + best-effort seed (replaces the socket folder:read +
+  // project:start/clone flow). Runs once the worker ctx is ready.
+  useEffect(() => {
+    if (!pgCtx) return;
+    let cancelled = false;
+
+    // The first worker call on a cold sandbox can transiently fail while the
+    // container boots. Retry the listing a few times with backoff so a boot blip
+    // never surfaces as "Failed to load project files".
+    const listWithRetry = async () => {
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          return await pgFs(pgCtx, { op: "list" });
+        } catch (e) {
+          lastErr = e;
+          await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        }
+      }
+      throw lastErr;
+    };
+
+    const loadTree = async () => {
       setLoadingFiles(true);
-      // Do NOT auto-open a file — land on the welcome/get-started card (matches
-      // the design). The user opens a file from Files or starts a task.
-      setFileTree(data.files);
-      setLoadingFiles(false);
-    });
+      try {
+        // CONNECTED → GitHub is the source of truth: hydrate the repo into the
+        // sandbox. If the repo is empty (first connect), seed the starter then
+        // push it as the initial commit so the repo isn't left blank. A hydrate
+        // failure falls back to the ephemeral seed path (best-effort) so the IDE
+        // still opens with something runnable.
+        // The engine effect above is declared first, so it flushes earlier in
+        // the same commit and `syncRef.current` is populated before this first
+        // `await`. We still guard on it and fall back if it isn't ready.
+        if (ghConnected && syncRef.current) {
+          try {
+            const r = await syncRef.current.hydrate();
+            if (cancelled) return;
+            if (r?.empty) {
+              // Empty repo (first connect): seed the base AND push it to the
+              // user's repo in ONE atomic worker call (rule 2). A single request
+              // either initialises the repo or no-ops — it can't leave the repo
+              // empty the way a separate seed-then-push could if the push was
+              // missed (tab closed, network drop).
+              await syncRef.current.seedAndPush({
+                baseRepository: project?.baseRepository,
+                language: project?.languages?.[0],
+                frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+                previewDir: (project as any)?.playgroundConfig?.previewDir,
+                showcaseSlug: slug,
+                showcaseVersion: project?.updatedAt
+                  ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+                  : undefined,
+              });
+              if (cancelled) return;
+            } else if (!!(project as any)?.playgroundConfig?.frontendPreview) {
+              // Non-empty connected repo: the learner's repo carries no preview
+              // folder, so the predefined frontend (<workdir>.frontend) is missing
+              // and /__app/ would 404. Seed is idempotent for a populated workspace
+              // — it leaves the backend untouched and only rebuilds .frontend from
+              // the base repo's previewDir. Best-effort; must not block the IDE.
+              try {
+                await pgSeed(pgCtx, {
+                  baseRepository: project?.baseRepository,
+                  language: project?.languages?.[0],
+                  frontendPreview: true,
+                  previewDir: (project as any)?.playgroundConfig?.previewDir,
+                  showcaseSlug: slug,
+                  showcaseVersion: project?.updatedAt
+                    ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+                    : undefined,
+                });
+              } catch {
+                /* frontend-preview rebuild failed — IDE still opens normally */
+              }
+              if (cancelled) return;
+            }
+            const list = await listWithRetry();
+            if (cancelled) return;
+            setFileTree(toFileTree(list?.files, project?.title || slug));
+            return;
+          } catch {
+            // Hydrate FAILED for a connected project. Do NOT seed the base
+            // template (that would overwrite the learner's repo on the next
+            // autosave) and BLOCK autosave entirely — pushing from an
+            // un-hydrated sandbox could clobber their GitHub repo. Show what's
+            // already in the sandbox; the engine rebuilds + retries on reopen.
+            if (!cancelled) {
+              toast.error(
+                "Couldn't sync from GitHub. Reopen to retry — your work on GitHub is safe.",
+              );
+              try {
+                syncRef.current?.dispose();
+              } catch {
+                /* ignore */
+              }
+              syncRef.current = null;
+              try {
+                const list = await listWithRetry();
+                if (!cancelled)
+                  setFileTree(toFileTree(list?.files, project?.title || slug));
+              } catch {
+                /* leave tree as-is */
+              }
+            }
+            return; // never fall through to seed-base for a connected project
+          }
+        }
 
-    socket.on("folder:restart", (data) => {
-      setLoadingFiles(true);
-      setRestart(true);
-      setLoadingFiles(false);
-    });
+        // NOT CONNECTED — ephemeral path:
+        // Best-effort seed: ask the worker for a runnable baseline. The worker is
+        // idempotent (skips a non-empty workdir), clones `baseRepository` when set,
+        // else scaffolds a Node.js starter. Strictly best-effort — must NOT block
+        // the IDE — so it's wrapped in its own try/catch.
+        try {
+          await pgSeed(pgCtx, {
+            baseRepository: project?.baseRepository,
+            language: project?.languages?.[0],
+            frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+            previewDir: (project as any)?.playgroundConfig?.previewDir,
+            showcaseSlug: slug,
+            showcaseVersion: project?.updatedAt
+              ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+              : undefined,
+          });
+        } catch {
+          // Seed unavailable — start with an empty tree, learner codes.
+        }
 
-    socket.on("project:commit:result", (data) => {
-      setIsSaving(false);
-    });
+        // Re-list so the freshly-seeded files show in the tree.
+        const r = await listWithRetry();
+        if (cancelled) return;
+        // Do NOT auto-open a file — land on the welcome/get-started card (matches
+        // the design). The user opens a file from Files or starts a task.
+        setFileTree(toFileTree(r?.files, project?.title || slug));
+      } catch {
+        if (!cancelled) toast.error("Failed to load project files");
+      } finally {
+        if (!cancelled) setLoadingFiles(false);
+      }
+    };
 
-    socket.on("project:run:error", (data) => {
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-      setIsRunning(false);
-    });
+    loadTree();
+    return () => {
+      cancelled = true;
+    };
+    // NOTE: ghConnected is deliberately NOT a dep. Re-running this effect on a
+    // mid-session connect flips `loadingFiles` → the full-screen <Loader> →
+    // the whole playground unmounts/remounts (reads as a page reload). The
+    // connect path is handled by `handleGhConnected` instead, which hydrates +
+    // refreshes the tree in place without the loading teardown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pgCtx, project?.baseRepository, project?.languages, project?.title, slug]);
 
-    socket.on("project:running", (data) => {
-      setBaseURL(data?.url);
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, `[BASE_URL]: ${data?.url}`];
-      });
-      setProgressValue(100);
-      setIsRunning(false);
-    });
-
-    let chunks: any = [];
-    let downloadFilename = "download.zip";
-    socket.on("project:download:start", ({ filename }) => {
-      chunks = [];
-      downloadFilename = filename;
-      setDownloadProgress(0);
-    });
-
-    socket.on("project:download:chunk", (chunk) => {
-      chunks.push(chunk);
-    });
-
-    socket.on("project:download:progress", ({ percent }) => {
-      setProgressText(`Downloading your project... ${percent}%`);
-      setTerminalOutput((prev) => {
-        return [...prev, `Downloading your project... ${percent}%`];
-      });
-      setDownloadProgress(percent);
-    });
-
-    socket.on("project:download:end", () => {
-      const blob = new Blob(chunks, { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = downloadFilename;
-      a.click();
-
-      URL.revokeObjectURL(url);
-      setDownloadProgress(100);
-      setProgressText(`Project downloaded successfull... ${100}%`);
-      setTerminalOutput((prev) => {
-        return [...prev, `Project downloaded successfull... ${100}%`];
-      });
-    });
-
-    socket.on("project:download:error", (data) => {
-      toast.error(data.message);
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-    });
-
-    socket.on("project:run:status", (data) => {
-      setTerminalOutput((prev) => {
-        if (prev === data?.message) return prev;
-        return [...prev, data?.message];
-      });
-    });
+  // Best-effort final save when the tab/window closes (connected only — the
+  // guard lives in the engine ref being null when not connected).
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      syncRef.current?.flushOnClose();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
+
+  // When there's nothing to load (project resolved but not enrolled, or no
+  // worker ctx), clear the file-loading state so the early-return reaches the
+  // "Not enrolled" card instead of spinning forever.
+  useEffect(() => {
+    if (loading) return; // project still resolving
+    if (!pgCtx) setLoadingFiles(false);
+  }, [loading, pgCtx]);
+
+  // Item 12: the preview pane's initial visibility is controlled per-project by
+  // playgroundConfig.showPreviewOnLoad (default false). Applied once on first
+  // project load so it never fights the user's later manual toggles.
+  useEffect(() => {
+    if (!project || previewDefaultApplied.current) return;
+    previewDefaultApplied.current = true;
+    setIsRightPanelVisible(
+      !!(project as any)?.playgroundConfig?.showPreviewOnLoad,
+    );
+  }, [project]);
+
+  // Item 10: a returning learner (started ≥1 task OR synced to GitHub) skips the
+  // start page entirely — auto-open the first file so they land in the editor.
+  // The `loading || loadingFiles` guard runs FIRST so this never touches
+  // `openFile` on a render that early-returned before it's defined.
+  useEffect(() => {
+    if (loading || loadingFiles) return;
+    if (autoOpenedRef.current || openFiles.length > 0) return;
+    const startedNow =
+      ((project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
+        (t: any) => t?.userTask?.isCompleted,
+      ).length > 0) ||
+      lastSha != null;
+    if (!startedNow) return;
+    const first =
+      fileTree[0]?.children?.find(
+        (f) => f.type === "file" && !f.isBlocked,
+      ) || fileTree.find((f) => f.type === "file");
+    if (first) {
+      autoOpenedRef.current = true;
+      openFile(first);
+      setRailTab("explorer");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, loadingFiles, fileTree, openFiles.length, project, lastSha]);
 
   useEffect(() => {
     const file = findFile(fileTree, activeFile);
@@ -455,7 +822,38 @@ export function ProjectPlaygroundPage({
     [],
   );
 
-  if (loading || loadingFiles) return <Loader isLoader={false} />;
+  // Heartbeat: while we believe the server is up, confirm with the worker so the
+  // UI can't keep showing "live" after the sandbox slept (10-min idle) or the
+  // process died. On a real stop, clear the URL and tell the learner to re-Run.
+  // (Declared before the early returns below to satisfy rules-of-hooks.)
+  useEffect(() => {
+    if (!pgCtx || !baseURL) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      if (cancelled || runInFlightRef.current || stopInFlightRef.current) return;
+      try {
+        const s = await pgStatus(pgCtx);
+        if (!cancelled && s?.ok && !s.running) {
+          setBaseURL("");
+          toast.message("Server stopped (sandbox went idle). Click Run to restart.");
+        }
+      } catch {
+        /* transient worker hiccup — keep current state */
+      }
+    }, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [pgCtx, baseURL]);
+
+  if (loading || loadingFiles)
+    return (
+      <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm">Loading your project…</span>
+      </div>
+    );
   if (!project?.enrolled)
     return (
       <div className="container max-w-4xl py-12">
@@ -492,6 +890,25 @@ export function ProjectPlaygroundPage({
   const currentTaskId = tasks?.find(
     (t: any) => !t?.userTask?.isCompleted,
   )?.id;
+
+  // Item 10: "has the learner started this project?" — completed ≥1 task OR
+  // pushed work to GitHub (lastSyncedSha). When true, the big start/welcome page
+  // is skipped; the learner lands straight in the workspace.
+  const hasStarted = doneCount > 0 || lastSha != null;
+  // The big start page shows only before they've started AND with no file open.
+  const onStartPage = openFiles.length === 0 && !hasStarted;
+
+  // Item 2: "Start building"/"Continue building" opens the first editable file AND
+  // switches the left rail to the Files tab, so the learner lands in the editor
+  // with the file tree visible.
+  const startBuilding = () => {
+    const firstFile =
+      fileTree[0]?.children?.find(
+        (f) => f.type === "file" && !f.isBlocked,
+      ) || fileTree.find((f) => f.type === "file");
+    if (firstFile) openFile(firstFile);
+    setRailTab("explorer");
+  };
   // group-based numbering keyed by task id → "1.1", "2.3" …
   const taskNumber: Record<string, string> = {};
   project?.projectTasks?.forEach((g: any, gi: number) =>
@@ -511,40 +928,34 @@ export function ProjectPlaygroundPage({
     )[(m || "").toUpperCase()] || "m-post";
 
   // ====================================
-  const handleProjectSetup = () => {
-    socket.emit("project:start", {
-      userId: user?.id,
-      template: language,
-      projectName: slug,
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
-
-    socket.on("clone:progress", (data) => {
-      setShowProgress(true);
-      setProgressText(data.message);
-      setProgressValue(Math.min(Math.max(data.percent, 0), 100));
-    });
-
-    socket.on("project:error", (data) => {
-    });
-
-    socket.on("clone:done", (data) => {
-      // Update userproject if cloned successfully
-      setShowProgress(true);
-      setProgressText(data.message);
+  // Project (re)setup: best-effort hydrate the template into the sandbox, then
+  // re-list the tree. Replaces the socket project:start/clone:progress/clone:done
+  // flow. Hydrate is Phase 5 (no owner/repo on the project yet) → best-effort.
+  const handleProjectSetup = async () => {
+    if (!pgCtx) return;
+    setShowProgress(true);
+    setProgressText("Setting up your project");
+    setProgressValue(40);
+    try {
+      // When linked to GitHub, hydrate from the repo via the sync engine so the
+      // reset pulls the canonical remote. Otherwise proceed with whatever the
+      // worker seeded into the sandbox (ephemeral path).
+      if (ghConnected && syncRef.current) {
+        try {
+          await syncRef.current.hydrate();
+        } catch {
+          // Hydrate unavailable — proceed with whatever is in the sandbox.
+        }
+      }
+      const r = await pgFs(pgCtx, { op: "list" });
+      setFileTree(toFileTree(r?.files, project?.title || slug));
+      setProgressText("Project ready");
       setProgressValue(100);
       setRestart(false);
-
-      // Read file again
-      socket.emit("folder:read", {
-        userId: user?.id,
-        projectName: slug,
-        path: "",
-        installationId: user?.githubInstallationId,
-        github: user?.github,
-      });
-    });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to set up project");
+      setProgressValue(100);
+    }
   };
 
   const handleEnrollNow = async () => {
@@ -585,14 +996,51 @@ export function ProjectPlaygroundPage({
   };
 
   // ── explorer toolbar actions (new file / new folder / refresh / collapse) ──
-  const refreshTree = () => {
-    socket.emit("folder:read", {
-      userId: user?.id,
-      projectName: slug,
-      path: "",
-      installationId: user?.githubInstallationId,
-      github: user?.github,
-    });
+  const refreshTree = async () => {
+    if (!pgCtx) return;
+    try {
+      const r = await pgFs(pgCtx, { op: "list" });
+      setFileTree(toFileTree(r?.files, project?.title || slug));
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to refresh files");
+    }
+  };
+  // Keep the engine's onReloaded callback pointed at the latest refreshTree.
+  refreshTreeRef.current = refreshTree;
+
+  // Called by GithubConnect when the project becomes linked mid-session. Refetch
+  // the project so `userProject.githubRepoFullName` is populated (which rebuilds
+  // the engine via the sibling effect), then hydrate. If the new repo is empty,
+  // push the current sandbox work so connecting preserves what they've done.
+  const handleGhConnected = async (newRepoFullName: string) => {
+    try {
+      const fresh = await store.getProject(slug);
+      if (fresh) setProject(fresh);
+      toast.success(`Connected ${newRepoFullName}`);
+
+      // Build the engine inline (instead of waiting a microtask for the engine
+      // effect to rebuild off the refetched project) so we hydrate
+      // deterministically. The effect will re-run when the refetched project's
+      // repo identity propagates; it disposes this engine first, so there's no
+      // double-build / leak.
+      const [newOwner, newRepo] = newRepoFullName.split("/");
+      if (!pgCtx || !newOwner || !newRepo || !installationId) return;
+      syncRef.current?.dispose();
+      const engine = buildSyncEngine(newOwner, newRepo, installationId);
+      syncRef.current = engine;
+      try {
+        const r = await engine.hydrate();
+        if (r?.empty) {
+          // New empty repo → push what the learner has already built.
+          await engine.saveNow("manual");
+        }
+        await refreshTree();
+      } catch {
+        toast.error("Connected, but couldn't sync from GitHub yet.");
+      }
+    } catch {
+      toast.error("Couldn't finish connecting GitHub. Try again.");
+    }
   };
 
   const collapseAll = () => {
@@ -618,41 +1066,22 @@ export function ProjectPlaygroundPage({
     setCreatingItem({ parentPath: root.path, type });
   };
 
+  // GitHub commit/persistence is Phase 5; the sandbox is the live store for now —
+  // each keystroke is debounced-flushed to the sandbox via pgFs write, so there's
+  // nothing extra to persist here. These remain as no-ops so existing idle/manual
+  // save triggers keep working without a socket round-trip.
   const autoSaveAndCommit = () => {
     const now = Date.now();
-
-    // Throttle commits: only every 2 min
     if (now - lastAutoCommit.current < AUTO_COMMIT_INTERVAL) return;
-
-    if (!fileTree || fileTree.length === 0) return;
-
-    setIsSaving(true);
     lastAutoCommit.current = now;
-
-    socket.emit("project:save", {
-      userId: user?.id,
-      projectSlug: project?.slug,
-      token: user?.github,
-      installationId: user?.githubInstallationId,
-      files: fileTree,
-    });
+    // No remote commit — files already live in the sandbox.
   };
 
   const manualSave = () => {
     clearTimeout(idleTimer?.current!); // cancel pending autosave
-
-    if (!fileTree || fileTree.length === 0) return;
-
-    setIsSaving(true);
     lastAutoCommit.current = Date.now();
-
-    socket.emit("project:save", {
-      userId: user?.id,
-      projectSlug: project?.slug,
-      token: user?.github,
-      installationId: user?.githubInstallationId,
-      files: fileTree,
-    });
+    // Files already persist to the sandbox on each debounced flush.
+    toast.success("Saved");
   };
 
   const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
@@ -682,66 +1111,52 @@ export function ProjectPlaygroundPage({
       return node;
     });
 
-  const addItem = (name: string) => {
-    if (!creatingItem?.parentPath || !creatingItem.type) return;
+  const addItem = async (name: string) => {
+    // `parentPath` may legitimately be "" (the synthetic root), so guard on
+    // undefined — not falsiness — and require a type + a non-empty name.
+    if (creatingItem?.parentPath === undefined || !creatingItem.type || !name) {
+      setCreatingItem(null);
+      return;
+    }
+    if (!pgCtx) {
+      setCreatingItem(null);
+      return;
+    }
 
+    const parentPath = creatingItem.parentPath ?? "";
+    const isFolder = creatingItem.type === "folder";
     const language = getLanguageFromFileName(name);
+    // `path` is relative to the synthetic root (root.path === ""). Strip the
+    // leading slash for the worker, which resolves paths under the workdir.
+    const fullPath = [parentPath, name].filter(Boolean).join("/");
+    const rel = toRel(fullPath);
 
-    let newItem: FileNode | any = {
+    const newItem: FileNode = {
       name,
       type: creatingItem.type,
-      icon: creatingItem.type === "folder" ? "" : "📄",
-      path: `${creatingItem.parentPath}/${name}`,
+      icon: isFolder ? "" : "📄",
+      path: fullPath,
+      ...(isFolder ? { isOpen: false, children: [] } : { language }),
     };
 
-    if (creatingItem.type.includes("file"))
-      socket.emit("file:create", {
-        userId: user?.id,
-        name,
-        path: toRel(`${creatingItem.parentPath}/${name}`),
-      });
-    else
-      socket.emit("folder:create", {
-        userId: user?.id,
-        path: toRel(`${creatingItem.parentPath}/${name}`),
-      });
-
-    socket.on("file:created", (data) => {
-      setLoadingFiles(true);
-
-      newItem = {
-        ...data,
-        name,
-        type: creatingItem.type,
-        language,
-      };
-
-      setFileTree((prev) => addToTree(prev, newItem));
-      if (creatingItem?.type?.includes("file")) openFile(newItem);
-
-      setActiveFile(newItem.path);
-      setOpenFiles([newItem.path]);
-      setLoadingFiles(false);
-    });
-
-    socket.on("folder:created", (data) => {
-      setLoadingFiles(true);
-
-      newItem = {
-        ...data,
-      };
-
-      setFileTree((prev) => addToTree(prev, newItem));
-      setLoadingFiles(false);
-    });
-
-    socket.on("file:error", (data) => {
-      setLoadingFiles(true);
-      toast.error(data);
-      setLoadingFiles(false);
-    });
-
+    // Optimistic insert so the tree updates instantly; re-list after the write
+    // to reconcile with the sandbox (source of truth).
+    setFileTree((prev) => addToTree(prev, newItem));
     setCreatingItem(null);
+
+    try {
+      if (isFolder) {
+        await pgFs(pgCtx, { op: "mkdir", path: rel });
+      } else {
+        await pgFs(pgCtx, { op: "write", path: rel, content: "" });
+        await openFile(newItem);
+      }
+      await refreshTree();
+    } catch (error: any) {
+      toast.error(error?.message || `Failed to create ${creatingItem.type}`);
+      // Reconcile back to the real sandbox state.
+      await refreshTree();
+    }
   };
 
   const handleMenuAction = (action: string) => {
@@ -767,21 +1182,22 @@ export function ProjectPlaygroundPage({
     }
   };
 
-  const openFile = (file: FileNode) => {
+  const openFile = async (file: FileNode) => {
+    if (!pgCtx) return;
     const filePath = file.path;
-    socket.emit("file:open", { userId: user?.id, path: toRel(filePath) });
-    socket.once("file:opened", ({ content }) => {
-      const fileName = file.name;
-      const _file = findFile(fileTree, filePath);
-      if (_file) {
-        setActiveFile(filePath);
-        setCode(content);
-        setCurrentLanguage(_file.language || getLanguageFromFileName(fileName));
-        if (!openFiles.includes(filePath)) {
-          setOpenFiles([...openFiles, filePath]);
-        }
-      }
-    });
+    const fileName = file.name;
+    // Optimistically focus the tab so the editor responds instantly.
+    setActiveFile(filePath);
+    setCurrentLanguage(file.language || getLanguageFromFileName(fileName));
+    setOpenFiles((prev) =>
+      prev.includes(filePath) ? prev : [...prev, filePath],
+    );
+    try {
+      const r = await pgFs(pgCtx, { op: "read", path: toRel(filePath) });
+      setCode(r?.content ?? "");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to open file");
+    }
   };
 
   const getFileName = (fileName: string) => {
@@ -837,14 +1253,70 @@ export function ProjectPlaygroundPage({
     }
   };
 
-  const handleDownloadProject = () => {
-    if (!user?.isPremium) return;
-    socket.emit("project:download:stream", {
-      projectName: slug,
-      userId: user?.id,
-    });
+  // Item 6: download the project as an archive. The worker zips the workdir
+  // (excluding node_modules/.git) and returns it base64-encoded; we decode it
+  // into a Blob and trigger a browser download.
+  const handleDownloadProject = async () => {
+    if (!pgCtx) return;
+    try {
+      toast.message("Preparing your download…");
+      const res = await pgDownload(pgCtx);
+      const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: res.mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Couldn't prepare the download. Try again.");
+    }
+  };
 
+  // Item 7: Restart wipes the sandbox back to the base template (destructive) and
+  // force-pushes the fresh base to the linked GitHub repo so the remote matches.
+  // Task progress is server-side and is left intact — only the code is reset.
+  const handleRestart = async () => {
+    if (!pgCtx) return;
+    setRestart(false);
     setShowLoader(true);
+    try {
+      if (ghConnected && syncRef.current) {
+        // Connected → GitHub is the source of truth. "Restart" = reset the
+        // sandbox to the USER's repo (discard local sandbox changes, pull their
+        // latest). It must NEVER force-push the base template over their repo —
+        // that destroyed the learner's pushed work (the "restart not picking
+        // from github" bug). resolveReload() runs the worker `resetToRemote`.
+        await syncRef.current.resolveReload();
+      } else {
+        // Ephemeral (not connected) → wipe back to the base template / scaffold.
+        await pgRestart(pgCtx, {
+          baseRepository: project?.baseRepository,
+          language: project?.languages?.[0],
+          frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+          previewDir: (project as any)?.playgroundConfig?.previewDir,
+          showcaseSlug: slug,
+          showcaseVersion: project?.updatedAt
+            ? Math.floor(new Date(project.updatedAt).getTime() / 1000)
+            : undefined,
+        });
+      }
+      await refreshTree();
+      setOpenFiles([]);
+      setActiveFile("");
+      toast.success(
+        ghConnected
+          ? "Reset to your GitHub repo."
+          : "Project reset to the base template.",
+      );
+    } catch {
+      toast.error("Couldn't reset the project. Try again.");
+    } finally {
+      setShowLoader(false);
+    }
   };
 
   const handleEditorDidMount = (editor: any) => {
@@ -872,14 +1344,31 @@ export function ProjectPlaygroundPage({
   };
 
   const handleTyping: OnChange = (value, v) => {
-    clearTimeout(fileBuffer[activeFile]);
+    const path = activeFile;
+    clearTimeout(fileBufferRef.current[path]);
 
-    fileBuffer[activeFile] = setTimeout(async () => {
-      socket.emit("file:flush", {
-        userId: user?.id,
-        path: toRel(activeFile),
-        content: value,
-      });
+    fileBufferRef.current[path] = setTimeout(async () => {
+      if (!pgCtx) return;
+      try {
+        await pgFs(pgCtx, {
+          op: "write",
+          path: toRel(path),
+          content: value ?? "",
+        });
+        // Connected → nudge the GitHub autosave (trailing-debounced in the
+        // engine, so rapid edits collapse into a single commit on idle).
+        syncRef.current?.nudgeSave();
+        // Hot-reload: if the server is running, restart it ~1s after the last
+        // edit so the change takes effect (debounced; the URL stays the same).
+        if (baseURLRef.current) {
+          if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+          reloadTimerRef.current = setTimeout(() => {
+            if (pgCtx && baseURLRef.current) void pgReload(pgCtx).catch(() => {});
+          }, 1000);
+        }
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to save changes");
+      }
     }, 300); // Wait 300ms after last change
 
     // clearTimeout(idleTimer?.current!);
@@ -890,16 +1379,10 @@ export function ProjectPlaygroundPage({
     setCode(value ?? "");
   };
 
-  const handleDeleteFile = (file: FileNode) => {
-    if (!file) return;
+  const handleDeleteFile = async (file: FileNode) => {
+    if (!file || !pgCtx) return;
 
-    const event = file.type === "file" ? "file:delete" : "folder:delete";
-    socket.emit(event, {
-      userId: user?.id,
-      path: toRel(file.path),
-    });
-
-    // Recursively remove deleted file/folder from the tree
+    // Recursively remove the deleted file/folder from the tree.
     const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
       return nodes
         .filter((node) => node.path !== targetPath)
@@ -910,17 +1393,20 @@ export function ProjectPlaygroundPage({
         );
     };
 
-    socket.on("file:deleted", (data) => {
-      if (!data.success) return;
-      setFileTree((prevTree) => removeNode(prevTree, file.path));
-      setDeleteFile(null);
-    });
+    // Optimistic remove + close any open tab for the deleted path.
+    setFileTree((prevTree) => removeNode(prevTree, file.path));
+    setOpenFiles((prev) => prev.filter((p) => p !== file.path));
+    if (activeFile === file.path) setActiveFile("");
+    setDeleteFile(null);
 
-    socket.on("folder:deleted", (data) => {
-      if (!data.success) return;
-      setFileTree((prevTree) => removeNode(prevTree, file.path));
-      setDeleteFile(null);
-    });
+    try {
+      await pgFs(pgCtx, { op: "delete", path: toRel(file.path) });
+      await refreshTree();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete");
+      // Reconcile back to the real sandbox state.
+      refreshTree();
+    }
   };
 
   const renderFileTree = (nodes: FileNode[], depth = 0) => {
@@ -1170,15 +1656,125 @@ export function ProjectPlaygroundPage({
     return rows;
   }
 
-  // Run the task's test: hits the (manual, for now) completion endpoint, shows a
-  // running state, then renders the pass/fail assertion rows. Keeps the drawer
-  // open so the learner sees the result.
+  // Marks a task complete in local state (project tree + active task reference).
+  const markTaskCompleteInState = (taskId: string) => {
+    setProject((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            projectTasks: prev.projectTasks.map((pt: any) => ({
+              ...pt,
+              tasks: pt.tasks.map((task: any) =>
+                task?.id === taskId
+                  ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
+                  : task,
+              ),
+            })),
+          }
+        : prev,
+    );
+    setActiveTask((p: any) =>
+      p ? { ...p, userTask: { ...p.userTask, isCompleted: true } } : p,
+    );
+  };
+
+  // Advances the path step once every task in the project is done.
+  const maybeAdvance = (t: any) => {
+    const allTasks = (project?.projectTasks ?? []).flatMap(
+      (pt: any) => pt.tasks ?? [],
+    );
+    const allDone = allTasks.every(
+      (task: any) => task?.userTask?.isCompleted || task?.id === t.id,
+    );
+    if (allDone) onComplete?.();
+  };
+
+  // Run the task's test: for endpoint tasks (apiSpec present) this calls the
+  // real backend grader which probes the learner's running server and returns
+  // per-assertion verdicts. Non-endpoint tasks use the legacy self-certify path.
   const runTaskTest = async (t: any) => {
     if (!t) return;
+
+    // Run Test grades endpoint tasks only (those with an apiSpec). Non-endpoint
+    // tasks complete via "Mark as complete" (markTaskManually) — this path never
+    // auto-passes a task.
+    if (!t.apiSpec) return;
+
+    // Endpoint tasks need a live sandbox — catch before the network round-trip
+    // so the learner gets instant, clear feedback.
+    if (!baseURL) {
+      toast.error("Start your server first — click Run Server.");
+      setTestRun({
+        status: "fail",
+        checks: [{ label: "Server not running — click Run Server", ok: false }],
+      });
+      return;
+    }
+
     setTestRun({ status: "running", checks: [] });
     try {
-      // Ensure the learner is enrolled (path steps may land here un-enrolled),
-      // then mark/verify the task.
+      // Real grading: the backend probes the endpoint and returns per-assertion results.
+      let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
+      try {
+        verdict = await store.gradeProjectTask(slug, t.id);
+      } catch (e: any) {
+        if (e?.response?.status === 409) {
+          toast.error("Start your server first — click Run Server.");
+          setTestRun({
+            status: "fail",
+            checks: [{ label: "Server not running — click Run Server", ok: false }],
+          });
+          return;
+        }
+        throw e;
+      }
+
+      const checks = Array.isArray(verdict?.checks)
+        ? verdict.checks.map((c) => ({ label: c.detail || c.kind, ok: !!c.passed }))
+        : [];
+
+      if (verdict?.passed) {
+        markTaskCompleteInState(t.id);
+        setTestRun({
+          status: "pass",
+          checks: checks.length ? checks : [{ label: "All assertions passed", ok: true }],
+        });
+        setCelebration(true);
+        toast.success(
+          verdict.pointsAwarded > 0
+            ? `Passed — +${verdict.pointsAwarded} MB`
+            : "Passed",
+        );
+        maybeAdvance(t);
+      } else {
+        setTestRun({
+          status: "fail",
+          checks: checks.length
+            ? checks
+            : [
+                {
+                  label: verdict?.error || "Endpoint did not match the expected response",
+                  ok: false,
+                },
+              ],
+        });
+        toast.error("Not passing yet — check the failing assertions.");
+      }
+    } catch {
+      setTestRun({
+        status: "fail",
+        checks: [{ label: "Could not verify — try again", ok: false }],
+      });
+      toast.error("Test run failed. Try again.");
+    }
+  };
+
+  // Manual completion for tasks with no automated test (design/spec tasks).
+  // Explicit learner action — NOT framed as a passing test, so it can't read as
+  // a false "all assertions passed".
+  const markTaskManually = async (t: any) => {
+    if (!t || t?.userTask?.isCompleted) return;
+    try {
       let completed;
       try {
         completed = await store.markProjectTaskAsCompleted(slug, t.id);
@@ -1186,41 +1782,11 @@ export function ProjectPlaygroundPage({
         await store.handleProjectEnrollment(slug);
         completed = await store.markProjectTaskAsCompleted(slug, t.id);
       }
-      setProject((prev: any) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          projectTasks: prev.projectTasks.map((pt: any) => ({
-            ...pt,
-            tasks: pt.tasks.map((task: any) =>
-              task?.id === completed.taskId
-                ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
-                : task,
-            ),
-          })),
-        };
-      });
-      setActiveTask((p: any) =>
-        p ? { ...p, userTask: { ...p.userTask, isCompleted: true } } : p,
-      );
-      setTestRun({ status: "pass", checks: synthChecks(t) });
-      setCelebration(true);
-      toast.success("All assertions passed — task complete");
-      // Only advance the path step once EVERY task in the project is done —
-      // a single task passing keeps the drawer + results on screen.
-      const allTasks = (project?.projectTasks ?? []).flatMap(
-        (pt: any) => pt.tasks ?? [],
-      );
-      const allDone = allTasks.every(
-        (task: any) => task?.userTask?.isCompleted || task?.id === t.id,
-      );
-      if (allDone) onComplete?.();
+      markTaskCompleteInState(completed?.taskId ?? t.id);
+      toast.success("Task marked complete");
+      maybeAdvance(t);
     } catch {
-      setTestRun({
-        status: "fail",
-        checks: [{ label: "Could not verify — try again", ok: false }],
-      });
-      toast.error("Test run failed. Try again.");
+      toast.error("Couldn't mark complete. Try again.");
     }
   };
 
@@ -1234,21 +1800,67 @@ export function ProjectPlaygroundPage({
     );
   };
 
-  const handleRunProject = () => {
+  const handleRunProject = async () => {
+    if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+    runInFlightRef.current = true;
     setIsRunning(true);
-    socket.emit("project:run", {
-      language: project?.template ?? "node",
-      projectName: slug,
-      userId: user?.id,
-      installationId: user?.githubInstallationId,
-    });
-
     setTerminalOutput(terminalSample);
+    try {
+      // installCmd/startCmd default on the worker (npm ci / npm run dev) — pass
+      // through any project-level overrides if the model ever carries them.
+      const r = await pgRun(pgCtx, {});
+      // Single message only. Unhealthy is the failure case; healthy-with-url is
+      // the deployed case; healthy-without-url is the local case (info, not error).
+      if (r?.status !== "healthy") {
+        toast.error(r?.error || "Server did not become healthy");
+        return;
+      }
+      // Checkpoint the current work to GitHub on a healthy run (connected only).
+      syncRef.current?.saveNow("run");
+      if (r?.serverUrl) {
+        setBaseURL(r.serverUrl);
+        // Surface the URL in the terminal so it's visible + copyable (the `$`
+        // prefix renders cyan via the run-log colouriser).
+        setTerminalOutput((prev) => [
+          ...prev,
+          "",
+          `$ Server running at: ${r.serverUrl}`,
+          "$ Use this as your base URL in Postman or your frontend.",
+        ]);
+      } else {
+        // Locally (wrangler dev) a public URL needs the playground custom domain,
+        // so serverUrl can be null — the server still started.
+        toast.message("Server started (public URL needs the playground domain)");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Run failed");
+    } finally {
+      setIsRunning(false);
+      runInFlightRef.current = false;
+    }
+  };
+
+  const handleStopProject = async () => {
+    if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+    stopInFlightRef.current = true;
+    setIsStopping(true);
+    try {
+      await pgStop(pgCtx);
+      setBaseURL("");
+      toast.message("Server stopped");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to stop server");
+    } finally {
+      setIsStopping(false);
+      stopInFlightRef.current = false;
+    }
   };
 
   // Keep the refs the path top bar calls pointed at the live handlers.
   runServerRef.current = handleRunProject;
+  stopServerRef.current = handleStopProject;
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
+  baseURLRef.current = baseURL; // live mirror for timer callbacks
 
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
@@ -1288,11 +1900,6 @@ export function ProjectPlaygroundPage({
       {
         label: "Restart Project",
         action: () => setRestart(true),
-      },
-      { label: "separator", action: () => {} },
-      {
-        label: "Open in new tab",
-        action: () => baseURL && window.open(baseURL, "_blank"),
       },
     ];
 
@@ -1357,17 +1964,17 @@ export function ProjectPlaygroundPage({
 
     return (
       <div
-        className="absolute top-5 left-1 bg-secondary text-white shadow-lg rounded-lg py-1 w-40 z-50"
+        className="absolute top-5 left-1 bg-popover text-popover-foreground border border-border shadow-lg rounded-lg py-1 w-44 z-50"
         onClick={(e) => e.stopPropagation()}
       >
         {menuItems?.map((item: any, i: number) => {
           return item.label === "separator" ? (
-            <div key={i} className="my-0.5 bg-gray-700 h-[1px]"></div>
+            <div key={i} className="my-0.5 bg-border h-[1px]"></div>
           ) : (
             <div
               key={i}
               onClick={() => item.action()}
-              className="px-3 my- py-2 hover:bg-primary cursor-pointer text-sm"
+              className="px-3 py-2 text-sm cursor-pointer text-foreground hover:bg-primary hover:text-primary-foreground"
             >
               {item.label}
             </div>
@@ -1379,7 +1986,11 @@ export function ProjectPlaygroundPage({
 
   // ── mock's makeResize: flex-basis drag with capture-phase listeners so the
   // editor/terminal can't swallow the drag; text-selection disabled mid-drag. ──
-  const resolvedPreviewUrl = baseURL || previewUrl;
+  const apiBase = baseURL || previewUrl;
+  const resolvedPreviewUrl =
+    frontendEnabled && previewMode === "app" && baseURL
+      ? baseURL.replace(/\/+$/, "") + "/__app/"
+      : apiBase;
 
   // ── inline SVG icons ported verbatim from the mock (exact paths) ──
   const I = {
@@ -1392,12 +2003,6 @@ export function ProjectPlaygroundPage({
       <svg className="i" viewBox="0 0 24 24">
         <rect x="3" y="4" width="18" height="16" rx="2" />
         <path d="M14 4v16" />
-      </svg>
-    ),
-    restart: (
-      <svg className="i" viewBox="0 0 24 24">
-        <path d="M3 12a9 9 0 1 0 2.6-6.3" />
-        <path d="M3 4v4h4" />
       </svg>
     ),
     link: (
@@ -1544,6 +2149,12 @@ export function ProjectPlaygroundPage({
         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
       </svg>
     ),
+    copy: (
+      <svg className="i" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+    ),
   } as const;
 
   const railBtns = [
@@ -1590,8 +2201,66 @@ export function ProjectPlaygroundPage({
   const tSpec = activeTask?.apiSpec || {};
   const tMethod = tSpec.method || activeTask?.method;
   const tUrl = tSpec.url || activeTask?.url;
-  const tReq = tSpec.request || activeTask?.request;
-  const tRes = tSpec.response || activeTask?.response;
+
+  // ── GitHub sync status chip (connected only) ──
+  const renderSyncChip = () => {
+    if (!ghConnected) return null;
+    const state = syncStatus?.state ?? "synced";
+    const at = syncStatus?.at;
+    const base =
+      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap";
+    if (state === "syncing") {
+      return (
+        <span
+          className={cn(base, "border-border bg-card text-muted-foreground")}
+          aria-live="polite"
+        >
+          <svg className="i spin" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+            <path d="M21 12a9 9 0 1 1-6.2-8.6" />
+          </svg>
+          Syncing…
+        </span>
+      );
+    }
+    if (state === "conflict") {
+      return (
+        <button
+          type="button"
+          onClick={() => setConflict((c) => ({ ...c, open: true }))}
+          className={cn(
+            base,
+            "border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
+          )}
+          title="Resolve sync conflict"
+        >
+          <AlertTriangle style={{ width: 12, height: 12 }} />
+          Conflict
+        </button>
+      );
+    }
+    if (state === "error") {
+      return (
+        <span
+          className={cn(base, "border-destructive/40 bg-destructive/10 text-destructive")}
+          aria-live="polite"
+          title="Couldn't reach GitHub — the next change will retry"
+        >
+          <AlertTriangle style={{ width: 12, height: 12 }} />
+          Offline · will retry
+        </span>
+      );
+    }
+    // synced
+    return (
+      <span
+        className={cn(base, "border-border bg-card text-muted-foreground")}
+        aria-live="polite"
+      >
+        <Check style={{ width: 12, height: 12 }} className="text-primary" />
+        Synced · {relTime(at)}
+      </span>
+    );
+  };
 
   return (
     <div className="pg-root">
@@ -1638,13 +2307,25 @@ export function ProjectPlaygroundPage({
               {sandboxLive ? "sandbox live · :3000" : "sandbox idle"}
             </span>
           </div>
-          <button
-            className="btn run"
-            onClick={handleRunProject}
-            disabled={isSaving || isRunning || !connected}
-          >
-            {I.play} {isRunning ? "Running…" : "Run server"}
-          </button>
+          {sandboxLive ? (
+            <button
+              className="btn stop"
+              onClick={handleStopProject}
+              disabled={isStopping}
+              title="Stop server"
+              aria-label="Stop server"
+            >
+              {I.x} {isStopping ? "Stopping…" : "Stop"}
+            </button>
+          ) : (
+            <button
+              className="btn run"
+              onClick={handleRunProject}
+              disabled={isSaving || isRunning}
+            >
+              {I.play} {isRunning ? "Running…" : "Run server"}
+            </button>
+          )}
           <button
             className={cn("btn", isRightPanelVisible && "on")}
             onClick={() => setIsRightPanelVisible((p) => !p)}
@@ -1652,14 +2333,6 @@ export function ProjectPlaygroundPage({
             aria-pressed={isRightPanelVisible}
           >
             {I.preview} Preview
-          </button>
-          <button
-            className="btn ghost"
-            onClick={() => setRestart(true)}
-            title="Restart project"
-            aria-label="Restart project"
-          >
-            {I.restart}
           </button>
           <button
             className="btn ghost"
@@ -1679,13 +2352,34 @@ export function ProjectPlaygroundPage({
             )}
           </button>
           <PathFeedbackDialog />
-          <GithubConnectDialog
+          {/* GitHub icon stays in the top nav next to the other icons in every
+              state; the sync chip sits alongside it once connected. */}
+          <GithubConnect
             slug={slug}
-            triggerClassName="btn ghost"
-            onConnected={() => setConnected(true)}
+            projectName={project?.title}
+            onConnected={handleGhConnected}
+            onError={setGhError}
           />
+          {ghConnected && renderSyncChip()}
         </div>
       )}
+
+      {/* ── GitHub error strip ──
+          No persistent "connect GitHub" nudge — the nav icon + slide-in own all
+          the actions and provisioning is automatic. This strip appears ONLY when
+          GithubConnect reports an actionable error (load failed, auto-provision
+          failed), with a Retry that re-runs the failed step. */}
+      {ghError ? (
+        <div className="gh-nudge gh-nudge-error">
+          <span className="gh-nudge-msg gh-nudge-msg-error">
+            <AlertTriangle style={{ width: 14, height: 14 }} />
+            {ghError.message}
+          </span>
+          <button className="btn ghost gh-retry" onClick={ghError.retry}>
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {/* ── WORKSPACE ── */}
       <div className="ws" data-mp={mobilePane}>
@@ -1868,7 +2562,7 @@ export function ProjectPlaygroundPage({
                 projectId={project?.id}
                 taskId={activeTask?.id}
                 title={project?.title}
-                intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you — that's your build. Ask about the task, an error, or what's failing."
+                intro="Hi — I'm Kap. I'll point you in the right direction, but I won't write the code for you. Ask about the task, an error, or what's failing."
                 starterPrompts={[
                   "Why is my test failing?",
                   "How do I return 201?",
@@ -1936,8 +2630,9 @@ export function ProjectPlaygroundPage({
           </div>
           )}
 
-          {/* editor OR welcome */}
-          {openFiles.length === 0 ? (
+          {/* editor OR welcome. Item 10: once started, no start page at all —
+              the auto-open effect lands the learner straight in the editor. */}
+          {openFiles.length === 0 && !hasStarted ? (
             <div className="welcome">
               <div className="wcard">
                 <div className="weyebrow">
@@ -1970,11 +2665,25 @@ export function ProjectPlaygroundPage({
                 </div>
                 {project?.technologies?.length > 0 && (
                   <div className="wtags">
-                    {project.technologies.map((t: string) => (
+                    {(tagsExpanded
+                      ? project.technologies
+                      : project.technologies.slice(0, 8)
+                    ).map((t: string) => (
                       <span className="wtag" key={t}>
                         {t}
                       </span>
                     ))}
+                    {project.technologies.length > 8 && (
+                      <button
+                        type="button"
+                        className="wtag wtag-more"
+                        onClick={() => setTagsExpanded((v) => !v)}
+                      >
+                        {tagsExpanded
+                          ? "Show less"
+                          : `+${project.technologies.length - 8} more`}
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -2009,17 +2718,7 @@ export function ProjectPlaygroundPage({
                 </div>
 
                 <div className="wcta">
-                  <button
-                    className="btn run"
-                    onClick={() => {
-                      const firstFile =
-                        fileTree[0]?.children?.find(
-                          (f) => f.type === "file" && !f.isBlocked,
-                        ) || fileTree.find((f) => f.type === "file");
-                      if (firstFile) openFile(firstFile);
-                      else setRailTab("explorer");
-                    }}
-                  >
+                  <button className="btn run" onClick={startBuilding}>
                     {I.play} Start building
                   </button>
                   <button className="btn" onClick={() => setRailTab("tasks")}>
@@ -2097,31 +2796,38 @@ export function ProjectPlaygroundPage({
             </div>
           )}
 
-          {showTerminal && (
-            <div
-              className="resizer row"
-              onMouseDown={startResize("term")}
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="Resize terminal"
-            />
+          {/* Item 11: no terminal on the start page — only once the learner is
+              actually in the workspace. */}
+          {!onStartPage && (
+            <>
+              {showTerminal && (
+                <div
+                  className="resizer row"
+                  onMouseDown={startResize("term")}
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label="Resize terminal"
+                />
+              )}
+              <div
+                className={cn(
+                  "term border-t border-border",
+                  !showTerminal && "collapsed",
+                )}
+                ref={termRef}
+                style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
+              >
+                <Terminal
+                  collapsed={!showTerminal}
+                  onToggle={toggleTerminal}
+                  onClose={() => toggleTerminal()}
+                  ctx={pgCtx}
+                  jail={project?.playgroundConfig?.terminalJail !== false}
+                  output={terminalOutput}
+                />
+              </div>
+            </>
           )}
-          <div
-            className={cn(
-              "term border-t border-border",
-              !showTerminal && "collapsed",
-            )}
-            ref={termRef}
-            style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
-          >
-            <Terminal
-              collapsed={!showTerminal}
-              onToggle={toggleTerminal}
-              onClose={() => toggleTerminal()}
-              slug={slug}
-              output={terminalOutput}
-            />
-          </div>
         </div>
 
         {/* RIGHT — Preview / Tests (toggleable) */}
@@ -2171,6 +2877,30 @@ export function ProjectPlaygroundPage({
                       aria-label="Preview URL"
                       readOnly={!baseURL}
                     />
+                    {frontendEnabled && (
+                      <div
+                        className="pv-seg"
+                        role="tablist"
+                        aria-label="Preview mode"
+                      >
+                        <button
+                          role="tab"
+                          aria-selected={previewMode === "app"}
+                          className={cn("pvbtn", previewMode === "app" && "on")}
+                          onClick={() => setPreviewMode("app")}
+                        >
+                          App
+                        </button>
+                        <button
+                          role="tab"
+                          aria-selected={previewMode === "api"}
+                          className={cn("pvbtn", previewMode === "api" && "on")}
+                          onClick={() => setPreviewMode("api")}
+                        >
+                          API
+                        </button>
+                      </div>
+                    )}
                     <button
                       className="pvbtn"
                       title="Refresh preview"
@@ -2185,6 +2915,21 @@ export function ProjectPlaygroundPage({
                       }}
                     >
                       {I.refresh}
+                    </button>
+                    <button
+                      className="pvbtn"
+                      title="Copy server URL"
+                      aria-label="Copy server URL"
+                      disabled={!baseURL}
+                      onClick={() => {
+                        if (!baseURL) return;
+                        navigator.clipboard
+                          ?.writeText(baseURL)
+                          .then(() => toast.success("Server URL copied"))
+                          .catch(() => toast.error("Couldn't copy"));
+                      }}
+                    >
+                      {I.copy}
                     </button>
                     <a
                       className="pvbtn"
@@ -2202,6 +2947,12 @@ export function ProjectPlaygroundPage({
                       <iframe
                         src={resolvedPreviewUrl}
                         title="Project preview"
+                        // Defense-in-depth: the preview serves learner-authored
+                        // code from the sandbox. Sandbox the frame so a misbehaving
+                        // app can't reach the parent. allow-same-origin is kept so
+                        // the previewed API can use its own cookies/storage; the
+                        // preview is a distinct origin from academy regardless.
+                        sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
                       />
                     ) : (
                       <div className="empty pv-empty">
@@ -2349,19 +3100,6 @@ export function ProjectPlaygroundPage({
                   </div>
                 </div>
 
-                {(tReq || tRes) && (
-                  <div className="two">
-                    <div className="sec">
-                      <h4>Request we send</h4>
-                      <div className="spec">{tReq || "—"}</div>
-                    </div>
-                    <div className="sec">
-                      <h4>Expected response</h4>
-                      <div className="spec">{tRes || "—"}</div>
-                    </div>
-                  </div>
-                )}
-
                 <div className="sec">
                   <h4>Test results</h4>
                   <div className="checks">
@@ -2404,24 +3142,48 @@ export function ProjectPlaygroundPage({
               </div>
 
               <div className="df">
-                <span className="hint">
-                  Runs your endpoint in the sandbox and checks each assertion.
-                </span>
-                <button
-                  className="btn run"
-                  onClick={() => runTaskTest(activeTask)}
-                  disabled={
-                    testRun.status === "running" ||
-                    activeTask?.userTask?.isCompleted
-                  }
-                >
-                  {I.play}{" "}
-                  {activeTask?.userTask?.isCompleted
-                    ? "Passed"
-                    : testRun.status === "running"
-                      ? "Running…"
-                      : "Run test"}
-                </button>
+                {activeTask?.apiSpec ? (
+                  <>
+                    <span className="hint">
+                      {!baseURL
+                        ? "Run your server first to test this endpoint."
+                        : "Runs your endpoint in the sandbox and checks each assertion."}
+                    </span>
+                    <button
+                      className="btn run"
+                      onClick={() => runTaskTest(activeTask)}
+                      disabled={
+                        testRun.status === "running" ||
+                        activeTask?.userTask?.isCompleted ||
+                        !baseURL
+                      }
+                    >
+                      {I.play}{" "}
+                      {activeTask?.userTask?.isCompleted
+                        ? "Passed"
+                        : testRun.status === "running"
+                          ? "Running…"
+                          : "Run test"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="hint">
+                      This task has no automated test — mark it complete when
+                      you&apos;ve finished it.
+                    </span>
+                    <button
+                      className="btn run"
+                      onClick={() => markTaskManually(activeTask)}
+                      disabled={activeTask?.userTask?.isCompleted}
+                    >
+                      {I.check}{" "}
+                      {activeTask?.userTask?.isCompleted
+                        ? "Completed"
+                        : "Mark as complete"}
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -2530,6 +3292,70 @@ export function ProjectPlaygroundPage({
         </DialogContent>
       </Dialog>
 
+      {/* ── GitHub sync conflict resolver ── */}
+      <Dialog
+        open={conflict.open}
+        onOpenChange={(open) =>
+          setConflict((c) => ({ ...c, open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[480px] w-[95vw]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Sync conflict
+            </DialogTitle>
+            <DialogDescription>
+              This project changed on GitHub since your last sync — likely from
+              another device or tab. Choose which version to keep. This can&apos;t
+              be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resolvingConflict}
+              onClick={async () => {
+                if (!syncRef.current) return;
+                setResolvingConflict(true);
+                try {
+                  await syncRef.current.resolveReload();
+                  toast.success("Reloaded the latest version from GitHub");
+                } catch {
+                  toast.error("Couldn't reload from GitHub. Try again.");
+                } finally {
+                  setResolvingConflict(false);
+                  setConflict({ open: false });
+                }
+              }}
+            >
+              Reload from GitHub (discard local)
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full"
+              disabled={resolvingConflict}
+              onClick={async () => {
+                if (!syncRef.current) return;
+                setResolvingConflict(true);
+                try {
+                  await syncRef.current.resolveOverwrite();
+                  toast.success("Overwrote GitHub with your version");
+                } catch {
+                  toast.error("Couldn't overwrite GitHub. Try again.");
+                } finally {
+                  setResolvingConflict(false);
+                  setConflict({ open: false });
+                }
+              }}
+            >
+              Overwrite GitHub with my version
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ConfettiCelebration
         onComplete={() => setCelebration(false)}
         isVisible={celebration}
@@ -2541,45 +3367,40 @@ export function ProjectPlaygroundPage({
         <DialogContent className="sm:max-w-[500px] w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-amber-400" />
-              Restart your Project...
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Restart this project?
             </DialogTitle>
             <DialogDescription>
-              Relax! Let Kap AI do the hard work.
+              This wipes your sandbox back to the base template — all your code is
+              deleted and cannot be recovered.
             </DialogDescription>
           </DialogHeader>
-          <div className="pt-3">
-            <Label>Choose your preferred language</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                {languages
-                  .filter((l) => l.supported)
-                  .map((l) => (
-                    <SelectItem key={l.code} value={l.code}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {!language && (
-              <p className="text-red-700 italic text-xs">
-                This field is required
-              </p>
-            )}
+          <div className="pt-1 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">This will:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Delete everything in your sandbox and reset to the starter.</li>
+              {ghConnected ? (
+                <li>
+                  Overwrite your connected GitHub repo
+                  {repoFullName ? (
+                    <>
+                      {" "}
+                      (<b>{repoFullName}</b>)
+                    </>
+                  ) : null}{" "}
+                  with the base template.
+                </li>
+              ) : null}
+            </ul>
+            <p className="mt-3">Your task progress is kept. This can’t be undone.</p>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onNavigate(`/projects/${project.slug}`)}
-            >
-              Back
+            <Button variant="outline" onClick={() => setRestart(false)}>
+              Cancel
             </Button>
-            <Button variant="destructive" onClick={() => handleEnrollNow()}>
-              Restart
+            <Button variant="destructive" onClick={() => handleRestart()}>
+              Wipe & restart
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2645,13 +3466,21 @@ export function ProjectPlaygroundPage({
       </Dialog>
 
       <PaymentDialog
-        disableMB={true}
+        disableMB={false}
         disableOnetime={true}
         onClose={() => setShowPayment(false)}
         open={showPayment}
         data={{ ...project, type: "project" }}
         onHandlePreview={() => {}}
-        onHandlePurchase={(id: string, type: any, success: boolean) => {}}
+        onHandlePurchase={async (_id: string, _type: any, success: boolean) => {
+          setShowPayment(false);
+          if (!success) return;
+          // Entitlement was granted server-side (MB redeem / subscription) —
+          // re-fetch so the playground reflects unlocked access without a reload.
+          const fresh = await store.getProject(slug);
+          if (fresh) setProject(fresh);
+          toast.success("Unlocked — enjoy the full project.");
+        }}
       />
 
       <style jsx global>{`
@@ -2720,6 +3549,51 @@ export function ProjectPlaygroundPage({
         .pg-root .topbar.embedded-bar {
           height: 44px;
           flex: 0 0 44px;
+        }
+        /* GitHub connect nudge / sync strip — sits under the top bar (or stands
+           in for it in embedded mode). */
+        .pg-root .gh-nudge {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex: 0 0 auto;
+          padding: 8px 14px;
+          border-bottom: 1px solid var(--line);
+          background: var(--panel-2);
+        }
+        .pg-root .gh-nudge.gh-nudge-synced {
+          justify-content: flex-end;
+        }
+        .pg-root .gh-nudge-msg {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--muted);
+        }
+        .pg-root .gh-nudge-msg svg {
+          color: var(--gold);
+          flex: 0 0 auto;
+        }
+        /* Error variant — the strip only ever renders on a real problem. */
+        .pg-root .gh-nudge.gh-nudge-error {
+          background: rgba(220, 38, 38, 0.08);
+          border-bottom-color: rgba(220, 38, 38, 0.35);
+        }
+        .pg-root .gh-nudge-msg-error {
+          color: #dc2626;
+        }
+        .pg-root .gh-nudge-msg-error svg {
+          color: #dc2626;
+        }
+        .pg-root .gh-retry {
+          width: auto;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 600;
         }
         .pg-root .logo {
           width: 28px;
@@ -2823,6 +3697,19 @@ export function ProjectPlaygroundPage({
           width: 32px;
           justify-content: center;
           padding: 0;
+        }
+        /* Labeled stop button — same footprint as Run (icon + text), red accent. */
+        .pg-root .btn.stop {
+          background: var(--panel);
+          border-color: var(--line);
+          color: #ef5d6b;
+        }
+        .pg-root .btn.stop:hover {
+          border-color: #ef5d6b;
+          background: rgba(239, 93, 107, 0.08);
+        }
+        .pg-root .btn.stop svg.i {
+          color: currentColor;
         }
         .pg-root .btn.ghost:hover {
           color: var(--text);
@@ -3294,11 +4181,6 @@ export function ProjectPlaygroundPage({
           border-color: var(--teal);
           color: #fff;
         }
-        .pg-root .st.doing {
-          border-color: rgba(19, 174, 206, 0.28);
-          border-top-color: var(--cyan);
-          animation: pg-spin 0.7s linear infinite;
-        }
         @keyframes pg-spin {
           to {
             transform: rotate(360deg);
@@ -3536,6 +4418,13 @@ export function ProjectPlaygroundPage({
           border-radius: 6px;
           padding: 3px 8px;
         }
+        .pg-root .wtag-more {
+          cursor: pointer;
+          font-weight: 700;
+        }
+        .pg-root .wtag-more:hover {
+          background: rgba(95, 176, 176, 0.2);
+        }
         .pg-root .wh {
           font-size: 11px;
           letter-spacing: 0.14em;
@@ -3707,6 +4596,14 @@ export function ProjectPlaygroundPage({
         .pg-root .pvbtn:hover {
           color: var(--text);
         }
+        .pg-root .pv-seg { display: inline-flex; gap: 2px; }
+        .pg-root .pv-seg .pvbtn {
+          width: auto;
+          padding: 0 8px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        .pg-root .pvbtn.on { color: var(--teal); background: rgba(95,176,176,0.12); }
         .pg-root .pvbtn svg.i {
           width: 14px;
           height: 14px;
@@ -3954,6 +4851,7 @@ export function ProjectPlaygroundPage({
           font-weight: 700;
         }
         .pg-root .spec {
+          margin: 0;
           background: var(--bg);
           border: 1px solid var(--line);
           border-radius: 10px;
@@ -3964,6 +4862,7 @@ export function ProjectPlaygroundPage({
           color: var(--text);
           overflow: auto;
           white-space: pre-wrap;
+          word-break: break-word;
         }
         .pg-root .task-desc {
           color: var(--text);

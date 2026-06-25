@@ -697,6 +697,16 @@ export interface Exercise {
   completed: boolean;
   attempts: number;
   instructions?: string;
+  hintCost?: number;
+  hintTaken?: boolean;
+  userSubmission?: {
+    code: string;
+    language: string;
+    status: "PASSED" | "FAILED" | "ERROR";
+    score: number;
+    bestScore: number;
+    passed: boolean;
+  };
 }
 
 export interface CaseResult {
@@ -752,6 +762,9 @@ export interface Project {
   slug: string;
   description: string;
   template?: string;
+  baseRepository?: string;         // optional git repo the worker clones as the project baseline
+  languages?: string[];            // project language codes; languages[0] seeds the starter
+  playgroundConfig?: { terminalJail?: boolean } & Record<string, unknown>; // per-project playground settings; terminalJail defaults true (only false disables the worker jail)
   summary: string;
   difficulty: "Easy" | "Medium" | "Hard";
   level: string;
@@ -776,6 +789,7 @@ export interface Project {
   cloned?: boolean;
   requirements: string[];
   resources: Resource[];
+  updatedAt?: string;              // last-modified timestamp; used to version the showcase bundle
 }
 
 export interface Resource {
@@ -2443,7 +2457,8 @@ export type LearningGoal =
   | "fundamentals"
   | "projects"
   | "interviews"
-  | "advanced";
+  | "advanced"
+  | "ai";
 export type WeeklyCommitment = "casual" | "steady" | "intensive";
 export type ProgrammingLanguage =
   | "PYTHON"
@@ -2513,3 +2528,18 @@ export interface OnboardingInput {
   preferredLanguage?: ProgrammingLanguage;
   skipped: boolean;
 }
+
+// Return-Recap types
+export type RecapItemType = "COURSE" | "PATH" | "PROJECT" | "MOCK_INTERVIEW";
+export type RecapTier = "DAY" | "WEEK" | "MONTH";
+export interface RecapKeyPoint { heading: string; body: string }
+export interface RecapPayload {
+  eventId: string; surface: "ITEM"; itemType: RecapItemType; itemId: string; tier: RecapTier;
+  awayText: string;
+  recap: { courseTitle: string; chapterTitle: string; intro: string; keyPoints: RecapKeyPoint[]; source: "INSIGHT" | "BODY" };
+  bridge: string;
+  nextStep: { title: string; type: string; goal: string };
+  stats: { xpEarned: number; currentStreak: number; isStreakActive: boolean };
+}
+export interface WelcomeBackItem { itemType: RecapItemType; itemId: string; title: string; progressPct: number; nextStepTitle: string; deeplink: string }
+export interface WelcomeBackPayload { eventId: string; surface: "DASHBOARD"; tier: RecapTier; headline: string; items: WelcomeBackItem[] }
