@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Pin the SSR Lambda function runtime too — NODE_VERSION only sets the build
+  # node. Node <20.19 cannot require() ESM (@exodus/bytes via jsdom) -> ERR_REQUIRE_ESM.
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
 
 # Cache the .next directory between builds
 [[redirects]]
