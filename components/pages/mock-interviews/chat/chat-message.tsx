@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeSvg } from "@/lib/sanitize";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
@@ -128,9 +128,7 @@ export function ChatMessageBubble({ message, analysis, isStreaming, sessionId, u
                           isExpanded ? "" : "max-h-[200px]",
                         )}
                         dangerouslySetInnerHTML={{
-                          __html: DOMPurify.sanitize(artifact.svg, {
-                            USE_PROFILES: { svg: true, svgFilters: true },
-                          }),
+                          __html: sanitizeSvg(artifact.svg),
                         }}
                       />
                     </div>

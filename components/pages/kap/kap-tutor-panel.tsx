@@ -2,7 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { marked } from "marked";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Send, Sparkles } from "lucide-react";
 import { useAppStore, KapTutorMessage } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 marked.setOptions({ gfm: true, breaks: true });
 function mdToHtml(raw: string): string {
   if (!raw) return "";
-  return DOMPurify.sanitize(marked.parse(raw, { async: false }) as string);
+  return sanitizeHtml(marked.parse(raw, { async: false }) as string);
 }
 
 function uid(): string {

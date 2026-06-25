@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { sanitizeHtml } from "@/lib/sanitize";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeHtml, sanitizeText } from "@/lib/sanitize";
 import { marked } from "marked";
 import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,12 +42,12 @@ interface ArticleItem {
 marked.setOptions({ gfm: true, breaks: true });
 function mdToHtml(raw: string): string {
   if (!raw) return "";
-  return DOMPurify.sanitize(marked.parse(raw, { async: false }) as string);
+  return sanitizeHtml(marked.parse(raw, { async: false }) as string);
 }
 
 // Strip tags to estimate reading time and to fall back to a description.
 function plain(raw: string): string {
-  return DOMPurify.sanitize(raw, { ALLOWED_TAGS: [] })
+  return sanitizeText(raw)
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeText } from "@/lib/sanitize";
 import { Sparkles } from "lucide-react";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
@@ -21,7 +21,7 @@ interface PanelItem {
 }
 
 function stripHtml(raw: string): string {
-  const clean = DOMPurify.sanitize(raw, { ALLOWED_TAGS: [] });
+  const clean = sanitizeText(raw);
   return clean.replace(/\s+/g, " ").trim();
 }
 

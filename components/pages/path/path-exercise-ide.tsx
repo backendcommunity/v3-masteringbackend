@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
-import DOMPurify from "isomorphic-dompurify";
 import { toast } from "sonner";
 import {
   PanelLeftClose,
@@ -453,7 +452,7 @@ export function PathExerciseIde({
   };
 
   const instructionsHtml = exercise?.instructions
-    ? DOMPurify.sanitize(String(exercise.instructions))
+    ? sanitizeHtml(String(exercise.instructions))
     : "";
 
   const editor = (
@@ -763,7 +762,7 @@ export function PathExerciseIde({
             {showHint ? (
               <div
                 className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(DOMPurify.sanitize(hintHtml),) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(hintHtml) }}
               />
             ) : (
               <Button

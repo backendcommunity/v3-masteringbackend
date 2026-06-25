@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useId, KeyboardEvent } from "react";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeSvg } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Mic, MicOff, Code2, PenTool, X } from "lucide-react";
 
@@ -128,9 +128,7 @@ export function ChatInput({
                     className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-sm bg-white [&_svg]:h-full [&_svg]:w-full"
                     aria-hidden="true"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(attachment.svg, {
-                        USE_PROFILES: { svg: true, svgFilters: true },
-                      }),
+                      __html: sanitizeSvg(attachment.svg),
                     }}
                   />
                 ) : (

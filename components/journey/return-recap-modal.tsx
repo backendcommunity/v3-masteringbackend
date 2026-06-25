@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { marked } from "marked";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import type { RecapPayload, WelcomeBackPayload, RecapKeyPoint } from "@/lib/data
 import { recapShown, recapFeedback, recapCta, recapDismissed, welcomeBackShown } from "@/lib/journey-analytics";
 
 marked.setOptions({ gfm: true, breaks: true });
-const md = (raw: string) => DOMPurify.sanitize(marked.parse(raw || "", { async: false }) as string);
+const md = (raw: string) => sanitizeHtml(marked.parse(raw || "", { async: false }) as string);
 const PROSE = "prose prose-invert max-w-none min-w-0 text-sm [&_pre]:bg-[#0d1019] [&_pre_code]:text-slate-200 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre_code]:break-words";
 
 function isItem(r: RecapPayload | WelcomeBackPayload): r is RecapPayload {

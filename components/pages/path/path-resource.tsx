@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import Image from "next/image";
-import DOMPurify from "isomorphic-dompurify";
 import {
   ExternalLink,
   Globe,
@@ -108,7 +107,7 @@ export function PathResource({
     c.toUpperCase(),
   );
   const contentHtml = useMemo(
-    () => (item?.content ? DOMPurify.sanitize(item.content) : ""),
+    () => (item?.content ? sanitizeHtml(item.content) : ""),
     [item?.content],
   );
 
