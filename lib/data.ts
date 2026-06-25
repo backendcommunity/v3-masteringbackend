@@ -2457,7 +2457,8 @@ export type LearningGoal =
   | "fundamentals"
   | "projects"
   | "interviews"
-  | "advanced";
+  | "advanced"
+  | "ai";
 export type WeeklyCommitment = "casual" | "steady" | "intensive";
 export type ProgrammingLanguage =
   | "PYTHON"
