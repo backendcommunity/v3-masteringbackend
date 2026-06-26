@@ -198,11 +198,15 @@ const relTime = (at?: number): string => {
   return rtf.format(-hr, "hour");
 };
 
-// Render a task description: turn `backtick` spans into <code>, preserve
-// newlines via white-space:pre-wrap on the container. Plain text in → JSX out.
+// Render a task description. Rich-editor (Quill) tasks arrive as HTML — sanitize
+// and render it as markup. Legacy plain-text tasks fall back to turning
+// `backtick` spans into <code>, with newlines preserved via white-space:pre-wrap.
 const fmtInstr = (raw?: string) => {
   const s = (raw || "").trim();
   if (!s) return "No description yet.";
+  if (/<\/?[a-z][\s\S]*>/i.test(s)) {
+    return <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(s) }} />;
+  }
   return s.split("`").map((seg, i) =>
     i % 2 === 1 ? <code key={i}>{seg}</code> : <span key={i}>{seg}</span>,
   );
@@ -368,7 +372,7 @@ export function ProjectPlaygroundPage({
   // Surfaced by GithubConnect only when there's an actionable problem. Drives the
   // error-only banner — there is no persistent "connect GitHub" nudge.
   const [ghError, setGhError] = useState<
-    { message: string; retry: () => void } | null
+    { message: string; retry: () => void; actionLabel?: string } | null
   >(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
@@ -2376,7 +2380,7 @@ export function ProjectPlaygroundPage({
             {ghError.message}
           </span>
           <button className="btn ghost gh-retry" onClick={ghError.retry}>
-            Retry
+            {ghError.actionLabel ?? "Retry"}
           </button>
         </div>
       ) : null}
@@ -4890,6 +4894,32 @@ export function ProjectPlaygroundPage({
         }
         .pg-root .task-desc a {
           color: var(--gold);
+        }
+        .pg-root .task-desc h3,
+        .pg-root .task-desc h4 {
+          margin: 14px 0 6px;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text);
+        }
+        .pg-root .task-desc ul,
+        .pg-root .task-desc ol {
+          margin: 0 0 8px;
+          padding-left: 20px;
+        }
+        .pg-root .task-desc ul {
+          list-style: disc;
+        }
+        .pg-root .task-desc ol {
+          list-style: decimal;
+        }
+        .pg-root .task-desc li {
+          margin: 2px 0;
+        }
+        .pg-root .task-desc pre code {
+          background: none;
+          padding: 0;
+          font-size: inherit;
         }
         .pg-root .df {
           display: flex;
