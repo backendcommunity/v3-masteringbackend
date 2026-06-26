@@ -368,7 +368,7 @@ export function ProjectPlaygroundPage({
   // Surfaced by GithubConnect only when there's an actionable problem. Drives the
   // error-only banner — there is no persistent "connect GitHub" nudge.
   const [ghError, setGhError] = useState<
-    { message: string; retry: () => void } | null
+    { message: string; retry: () => void; actionLabel?: string } | null
   >(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
@@ -2376,7 +2376,7 @@ export function ProjectPlaygroundPage({
             {ghError.message}
           </span>
           <button className="btn ghost gh-retry" onClick={ghError.retry}>
-            Retry
+            {ghError.actionLabel ?? "Retry"}
           </button>
         </div>
       ) : null}
