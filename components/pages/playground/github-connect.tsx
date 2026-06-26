@@ -255,7 +255,10 @@ function AdvancedDrawer({
         if (!active) return;
         setOwners(o);
         setOwner((prev) => prev || o[0]?.login || "");
-      } catch {
+      } catch (e) {
+        // A 409 means the GitHub connection is no longer usable — redirect to
+        // reconnect (re-install/re-authorize) instead of a dead error toast.
+        if (handle409Redirect(e)) return;
         if (active) toast.error("Couldn't load your GitHub owners.");
       } finally {
         if (active) setOwnersLoading(false);
@@ -272,7 +275,8 @@ function AdvancedDrawer({
     setReposLoading(true);
     try {
       setRepos(await store.listGithubRepos(ownerLogin, query));
-    } catch {
+    } catch (e) {
+      if (handle409Redirect(e)) return;
       toast.error("Couldn't list repositories.");
     } finally {
       setReposLoading(false);
