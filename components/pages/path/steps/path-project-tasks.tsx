@@ -163,7 +163,7 @@ export function PathProjectTasks({
     }
   };
 
-  if (loading) return <Loader isFull={false} />;
+  if (loading) return <Loader />;
   if (!project) {
     return (
       <div className="flex h-full w-full items-center justify-center p-10 text-center text-muted-foreground">

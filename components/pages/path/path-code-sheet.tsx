@@ -67,7 +67,7 @@ export function PathCodeSheet({ step }: { step?: PathSessionStep }) {
           {loaded ? (
             <SimpleEditor playground={playground} />
           ) : (
-            <Loader isFull={false} />
+            <Loader />
           )}
         </div>
       </SheetContent>

@@ -125,7 +125,7 @@ export function PathMockInterview({
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader isFull={false} />
+        <Loader />
       </div>
     );
   }
@@ -220,7 +220,7 @@ export function PathMockInterview({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <Loader isFull={false} />
+            <Loader />
           </div>
         )}
       </div>
