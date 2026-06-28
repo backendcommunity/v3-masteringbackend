@@ -64,4 +64,43 @@ describe("usePlaygroundTour", () => {
     expect(driveMock).toHaveBeenCalledTimes(1);
     expect(track).toHaveBeenCalledWith("playground_tour_started");
   });
+
+  it("autoStart drives once (after the mount delay) when offered, and sets the flag", () => {
+    vi.useFakeTimers();
+    setSearch("?tour=offer");
+    const track = vi.fn();
+    renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track, autoStart: true }));
+    expect(driveMock).not.toHaveBeenCalled(); // delayed, not synchronous
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(driveMock).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith("playground_tour_started");
+    expect(localStorage.getItem(TOUR_FLAG)).toBe("1");
+    vi.useRealTimers();
+  });
+
+  it("autoStart does NOT drive when the tour would not be offered (flag set)", () => {
+    vi.useFakeTimers();
+    setSearch("?tour=offer");
+    localStorage.setItem(TOUR_FLAG, "1");
+    const track = vi.fn();
+    renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track, autoStart: true }));
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(driveMock).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("alwaysOffer auto-drives even without ?tour=offer and even if the flag is set", () => {
+    vi.useFakeTimers();
+    setSearch(""); // no opt-in param
+    localStorage.setItem(TOUR_FLAG, "1"); // already seen — must be ignored
+    const track = vi.fn();
+    const { result } = renderHook(() =>
+      usePlaygroundTour({ ready: true, theme: "dark", track, autoStart: true, alwaysOffer: true }),
+    );
+    expect(result.current.shouldOffer).toBe(true);
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(driveMock).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith("playground_tour_started");
+    vi.useRealTimers();
+  });
 });

@@ -81,6 +81,7 @@ import { analytics } from "@/lib/analytics";
 import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
 import { makeEditDebouncer } from "@/lib/playground-track";
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
+import type { TourAction } from "@/lib/playground-tour";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -207,9 +208,11 @@ const relTime = (at?: number): string => {
 const fmtInstr = (raw?: string) => {
   const s = (raw || "").trim();
   if (!s) return "No description yet.";
-  return s.split("`").map((seg, i) =>
-    i % 2 === 1 ? <code key={i}>{seg}</code> : <span key={i}>{seg}</span>,
-  );
+  return s
+    .split("`")
+    .map((seg, i) =>
+      i % 2 === 1 ? <code key={i}>{seg}</code> : <span key={i}>{seg}</span>,
+    );
 };
 
 export function ProjectPlaygroundPage({
@@ -319,7 +322,9 @@ export function ProjectPlaygroundPage({
   // component body is recreated every render, so clearTimeout never finds the
   // previous timer → the debounce never coalesces → a write per keystroke
   // (write storm + out-of-order writes → content loss).
-  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {},
+  );
   // Debounces hot-reload (/reload) after edits while the server is running.
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live mirror of `baseURL` so timer callbacks read the current value (not a
@@ -371,9 +376,10 @@ export function ProjectPlaygroundPage({
     : [undefined, undefined];
   // Surfaced by GithubConnect only when there's an actionable problem. Drives the
   // error-only banner — there is no persistent "connect GitHub" nudge.
-  const [ghError, setGhError] = useState<
-    { message: string; retry: () => void } | null
-  >(null);
+  const [ghError, setGhError] = useState<{
+    message: string;
+    retry: () => void;
+  } | null>(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
   const syncRef = useRef<PlaygroundSync | null>(null);
@@ -424,16 +430,95 @@ export function ProjectPlaygroundPage({
   );
 
   // ── Guided tour ──
-  const [offerDismissed, setOfferDismissed] = useState(false);
+  // Auto-starts once on first visit via ?tour=offer; the top-bar "Take a tour"
+  // button re-launches it anytime. Readiness = "all loaders done" so the tour
+  // only appears once the playground (and its data-tour anchors) is rendered —
+  // never over the "Loading your project…" screen. It does NOT wait on baseURL
+  // (sandbox boot), since the welcome/file/editor steps don't need a server.
+  const tourReady = !loading && !loadingFiles;
   const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
-  const { shouldOffer, start, skip, relaunch } = usePlaygroundTour({
-    ready: !!baseURL,
+  // Detect the demo sample from EVERY available signal so a single stale/missing
+  // one can't silently disable the demo: the route slug, the loaded project's
+  // slug, the backend isSample flag, or an explicit `?demo=1` force switch (so
+  // the demo can be triggered on any enrolled project for testing). The sample
+  // auto-runs the tour + real actions on every visit; real projects get the
+  // highlight-only tour and are never mutated unless `?demo=1` is set.
+  const demoForced =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("demo");
+  const isSampleProject =
+    slug === "hello-api-sample" ||
+    project?.slug === "hello-api-sample" ||
+    !!project?.isSample ||
+    demoForced;
+
+  // The real demo actions (create file, run server, …) need handlers defined
+  // lower in this component, so they're wired into tourActionsRef below. The
+  // tour reads them through this stable delegating map. Populated only for the
+  // sample project — the demo never mutates a real user's project.
+  const tourActionsRef = useRef<Record<string, TourAction>>({});
+  const tourActions = useMemo<Record<string, TourAction>>(() => {
+    const ids = ["file-tree", "run-server", "run-test"];
+    const map: Record<string, TourAction> = {};
+    for (const id of ids) map[id] = () => tourActionsRef.current[id]?.();
+    return map;
+  }, []);
+  // Reveals open each step's panel/tab/drawer BEFORE it is highlighted, so every
+  // step shows on its real target even when that panel isn't open by default.
+  // Always provided (opening a panel is safe on any project); only the real
+  // mutating ACTIONS are gated to the sample.
+  const tourRevealsRef = useRef<Record<string, () => void>>({});
+  const tourReveals = useMemo<Record<string, () => void>>(() => {
+    const ids = ["file-tree", "kap", "terminal", "run-test", "preview"];
+    const map: Record<string, () => void> = {};
+    for (const id of ids) map[id] = () => tourRevealsRef.current[id]?.();
+    return map;
+  }, []);
+  const { shouldOffer, relaunch } = usePlaygroundTour({
+    ready: tourReady,
     theme: tourTheme,
     track,
+    autoStart: true,
+    actions: tourActions,
+    reveals: tourReveals,
+    alwaysOffer: isSampleProject,
   });
   useEffect(() => {
     if (shouldOffer) track(TOUR_EVENTS.offered);
   }, [shouldOffer, track]);
+
+  // Loud, one-time diagnostic so "nothing happens" is never a mystery — prints
+  // every gate that controls whether the demo runs and whether its actions can
+  // fire. Check this first in devtools if the demo doesn't start.
+  const tourDiagLogged = useRef(false);
+  useEffect(() => {
+    if (!tourReady || tourDiagLogged.current) return;
+    tourDiagLogged.current = true;
+    // eslint-disable-next-line no-console
+    console.log("[playground-tour] gates", {
+      routeSlug: slug,
+      projectSlug: project?.slug,
+      isSample: project?.isSample,
+      isSampleProject,
+      demoForced,
+      hasPgCtx: !!pgCtx,
+      loggedIn: !!user?.id,
+      enrolled: project?.enrolled,
+      shouldOffer,
+      actionKeys: Object.keys(tourActionsRef.current),
+    });
+  }, [
+    tourReady,
+    slug,
+    project?.slug,
+    project?.isSample,
+    isSampleProject,
+    demoForced,
+    pgCtx,
+    user?.id,
+    project?.enrolled,
+    shouldOffer,
+  ]);
 
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
@@ -551,12 +636,9 @@ export function ProjectPlaygroundPage({
   // the caller supplies the repo identity so the connect handler can build the
   // engine inline before the project refetch propagates into the effect.
   const buildSyncEngine = useCallback(
-    (
-      o: string,
-      r: string,
-      instId: string | number,
-    ): PlaygroundSync => {
-      if (!pgCtx) throw new Error("buildSyncEngine called without a worker ctx");
+    (o: string, r: string, instId: string | number): PlaygroundSync => {
+      if (!pgCtx)
+        throw new Error("buildSyncEngine called without a worker ctx");
       return createPlaygroundSync({
         ctx: pgCtx,
         owner: o,
@@ -653,7 +735,8 @@ export function ProjectPlaygroundPage({
               await syncRef.current.seedAndPush({
                 baseRepository: project?.baseRepository,
                 language: project?.languages?.[0],
-                frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+                frontendPreview: !!(project as any)?.playgroundConfig
+                  ?.frontendPreview,
                 previewDir: (project as any)?.playgroundConfig?.previewDir,
                 showcaseSlug: slug,
                 showcaseVersion: project?.updatedAt
@@ -724,7 +807,8 @@ export function ProjectPlaygroundPage({
           await pgSeed(pgCtx, {
             baseRepository: project?.baseRepository,
             language: project?.languages?.[0],
-            frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+            frontendPreview: !!(project as any)?.playgroundConfig
+              ?.frontendPreview,
             previewDir: (project as any)?.playgroundConfig?.previewDir,
             showcaseSlug: slug,
             showcaseVersion: project?.updatedAt
@@ -758,7 +842,13 @@ export function ProjectPlaygroundPage({
     // connect path is handled by `handleGhConnected` instead, which hydrates +
     // refreshes the tree in place without the loading teardown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pgCtx, project?.baseRepository, project?.languages, project?.title, slug]);
+  }, [
+    pgCtx,
+    project?.baseRepository,
+    project?.languages,
+    project?.title,
+    slug,
+  ]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
@@ -797,15 +887,13 @@ export function ProjectPlaygroundPage({
     if (loading || loadingFiles) return;
     if (autoOpenedRef.current || openFiles.length > 0) return;
     const startedNow =
-      ((project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
+      (project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
         (t: any) => t?.userTask?.isCompleted,
-      ).length > 0) ||
-      lastSha != null;
+      ).length > 0 || lastSha != null;
     if (!startedNow) return;
     const first =
-      fileTree[0]?.children?.find(
-        (f) => f.type === "file" && !f.isBlocked,
-      ) || fileTree.find((f) => f.type === "file");
+      fileTree[0]?.children?.find((f) => f.type === "file" && !f.isBlocked) ||
+      fileTree.find((f) => f.type === "file");
     if (first) {
       autoOpenedRef.current = true;
       openFile(first);
@@ -824,45 +912,43 @@ export function ProjectPlaygroundPage({
   // Drag-resize for rail / right pane / terminal (ported from the mock).
   // MUST stay above the early returns below — hooks run unconditionally.
   const startResize = useCallback(
-    (kind: "rail" | "right" | "term") =>
-      (e: React.MouseEvent) => {
-        e.preventDefault();
-        const target =
-          kind === "rail"
-            ? railRef.current
-            : kind === "right"
-              ? rightRef.current
-              : termRef.current;
-        if (!target) return;
-        const sx = e.clientX;
-        const sy = e.clientY;
-        const start =
-          kind === "term" ? target.offsetHeight : target.offsetWidth;
-        document.body.style.cursor =
-          kind === "term" ? "row-resize" : "col-resize";
-        document.body.style.userSelect = "none";
+    (kind: "rail" | "right" | "term") => (e: React.MouseEvent) => {
+      e.preventDefault();
+      const target =
+        kind === "rail"
+          ? railRef.current
+          : kind === "right"
+            ? rightRef.current
+            : termRef.current;
+      if (!target) return;
+      const sx = e.clientX;
+      const sy = e.clientY;
+      const start = kind === "term" ? target.offsetHeight : target.offsetWidth;
+      document.body.style.cursor =
+        kind === "term" ? "row-resize" : "col-resize";
+      document.body.style.userSelect = "none";
 
-        const move = (ev: MouseEvent) => {
-          if (kind === "term") {
-            let h = start - (ev.clientY - sy);
-            h = Math.max(40, Math.min(window.innerHeight - 160, h));
-            target.style.flexBasis = h + "px";
-          } else {
-            let w = start + (ev.clientX - sx) * (kind === "right" ? -1 : 1);
-            w = Math.max(160, Math.min(680, w));
-            target.style.flexBasis = w + "px";
-          }
-        };
-        const up = () => {
-          document.removeEventListener("mousemove", move, true);
-          document.removeEventListener("mouseup", up, true);
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-        };
-        // capture phase — xterm stops propagation, so listen on capture
-        document.addEventListener("mousemove", move, true);
-        document.addEventListener("mouseup", up, true);
-      },
+      const move = (ev: MouseEvent) => {
+        if (kind === "term") {
+          let h = start - (ev.clientY - sy);
+          h = Math.max(40, Math.min(window.innerHeight - 160, h));
+          target.style.flexBasis = h + "px";
+        } else {
+          let w = start + (ev.clientX - sx) * (kind === "right" ? -1 : 1);
+          w = Math.max(160, Math.min(680, w));
+          target.style.flexBasis = w + "px";
+        }
+      };
+      const up = () => {
+        document.removeEventListener("mousemove", move, true);
+        document.removeEventListener("mouseup", up, true);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      // capture phase — xterm stops propagation, so listen on capture
+      document.addEventListener("mousemove", move, true);
+      document.addEventListener("mouseup", up, true);
+    },
     [],
   );
 
@@ -874,12 +960,15 @@ export function ProjectPlaygroundPage({
     if (!pgCtx || !baseURL) return;
     let cancelled = false;
     const id = setInterval(async () => {
-      if (cancelled || runInFlightRef.current || stopInFlightRef.current) return;
+      if (cancelled || runInFlightRef.current || stopInFlightRef.current)
+        return;
       try {
         const s = await pgStatus(pgCtx);
         if (!cancelled && s?.ok && !s.running) {
           setBaseURL("");
-          toast.message("Server stopped (sandbox went idle). Click Run to restart.");
+          toast.message(
+            "Server stopped (sandbox went idle). Click Run to restart.",
+          );
         }
       } catch {
         /* transient worker hiccup — keep current state */
@@ -931,9 +1020,7 @@ export function ProjectPlaygroundPage({
     tasks?.reduce((s: number, t: any) => s + (t?.mb ?? 0), 0) ?? 0;
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
   // The first not-yet-completed task is the "in progress" one (spinner ring).
-  const currentTaskId = tasks?.find(
-    (t: any) => !t?.userTask?.isCompleted,
-  )?.id;
+  const currentTaskId = tasks?.find((t: any) => !t?.userTask?.isCompleted)?.id;
 
   // Item 10: "has the learner started this project?" — completed ≥1 task OR
   // pushed work to GitHub (lastSyncedSha). When true, the big start/welcome page
@@ -947,9 +1034,8 @@ export function ProjectPlaygroundPage({
   // with the file tree visible.
   const startBuilding = () => {
     const firstFile =
-      fileTree[0]?.children?.find(
-        (f) => f.type === "file" && !f.isBlocked,
-      ) || fileTree.find((f) => f.type === "file");
+      fileTree[0]?.children?.find((f) => f.type === "file" && !f.isBlocked) ||
+      fileTree.find((f) => f.type === "file");
     if (firstFile) openFile(firstFile);
     setRailTab("explorer");
   };
@@ -1350,7 +1436,8 @@ export function ProjectPlaygroundPage({
         await pgRestart(pgCtx, {
           baseRepository: project?.baseRepository,
           language: project?.languages?.[0],
-          frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+          frontendPreview: !!(project as any)?.playgroundConfig
+            ?.frontendPreview,
           previewDir: (project as any)?.playgroundConfig?.previewDir,
           showcaseSlug: slug,
           showcaseVersion: project?.updatedAt
@@ -1418,7 +1505,8 @@ export function ProjectPlaygroundPage({
         if (baseURLRef.current) {
           if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
           reloadTimerRef.current = setTimeout(() => {
-            if (pgCtx && baseURLRef.current) void pgReload(pgCtx).catch(() => {});
+            if (pgCtx && baseURLRef.current)
+              void pgReload(pgCtx).catch(() => {});
           }, 1000);
         }
       } catch (error: any) {
@@ -1729,7 +1817,10 @@ export function ProjectPlaygroundPage({
               ...pt,
               tasks: pt.tasks.map((task: any) =>
                 task?.id === taskId
-                  ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
+                  ? {
+                      ...task,
+                      userTask: { ...task.userTask, isCompleted: true },
+                    }
                   : task,
               ),
             })),
@@ -1786,7 +1877,9 @@ export function ProjectPlaygroundPage({
           toast.error("Start your server first — click Run Server.");
           setTestRun({
             status: "fail",
-            checks: [{ label: "Server not running — click Run Server", ok: false }],
+            checks: [
+              { label: "Server not running — click Run Server", ok: false },
+            ],
           });
           return;
         }
@@ -1794,7 +1887,10 @@ export function ProjectPlaygroundPage({
       }
 
       const checks = Array.isArray(verdict?.checks)
-        ? verdict.checks.map((c) => ({ label: c.detail || c.kind, ok: !!c.passed }))
+        ? verdict.checks.map((c) => ({
+            label: c.detail || c.kind,
+            ok: !!c.passed,
+          }))
         : [];
       const checksPassed = checks.filter((c) => c.ok).length;
       track(PLAYGROUND_EVENTS.taskTestRun, {
@@ -1817,7 +1913,9 @@ export function ProjectPlaygroundPage({
         markTaskCompleteInState(t.id);
         setTestRun({
           status: "pass",
-          checks: checks.length ? checks : [{ label: "All assertions passed", ok: true }],
+          checks: checks.length
+            ? checks
+            : [{ label: "All assertions passed", ok: true }],
         });
         setCelebration(true);
         toast.success(
@@ -1833,7 +1931,9 @@ export function ProjectPlaygroundPage({
             ? checks
             : [
                 {
-                  label: verdict?.error || "Endpoint did not match the expected response",
+                  label:
+                    verdict?.error ||
+                    "Endpoint did not match the expected response",
                   ok: false,
                 },
               ],
@@ -1871,7 +1971,10 @@ export function ProjectPlaygroundPage({
   };
 
   const openTaskDrawer = (task: any) => {
-    track(PLAYGROUND_EVENTS.taskOpened, { task_id: task?.id, task_title: task?.title });
+    track(PLAYGROUND_EVENTS.taskOpened, {
+      task_id: task?.id,
+      task_title: task?.title,
+    });
     setActiveTask(task);
     setShowTask(true);
     setTestRun(
@@ -1912,7 +2015,9 @@ export function ProjectPlaygroundPage({
       } else {
         // Locally (wrangler dev) a public URL needs the playground custom domain,
         // so serverUrl can be null — the server still started.
-        toast.message("Server started (public URL needs the playground domain)");
+        toast.message(
+          "Server started (public URL needs the playground domain)",
+        );
       }
     } catch (e: any) {
       toast.error(e?.message || "Run failed");
@@ -1945,6 +2050,90 @@ export function ProjectPlaygroundPage({
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
   baseURLRef.current = baseURL; // live mirror for timer callbacks
 
+  // Programmatically create + open a small file for the guided demo (bypasses
+  // the inline create-input flow); the sandbox is the source of truth so we
+  // write then re-list the tree.
+  const demoCreateFile = async () => {
+    if (!pgCtx) {
+      console.warn(
+        "[playground-tour] demoCreateFile skipped: no pgCtx — log in and let the project finish loading.",
+      );
+      return;
+    }
+    setRailTab("explorer");
+    const name = "demo.js";
+    const content =
+      "// Created by the Playground demo.\n" +
+      'module.exports = (req, res) => res.json({ hello: "world" });\n';
+    try {
+      await pgFs(pgCtx, { op: "write", path: toRel(name), content });
+      await refreshTree();
+      await openFile({
+        name,
+        type: "file",
+        icon: "📄",
+        path: name,
+        language: getLanguageFromFileName(name),
+      });
+    } catch (e) {
+      // Don't break the tour, but surface WHY — usually the playground worker
+      // (NEXT_PUBLIC_PLAYGROUND_WORKER_URL) being unreachable.
+      console.warn("[playground-tour] demoCreateFile failed:", e);
+    }
+  };
+
+  const firstGradableTask = () =>
+    (project?.projectTasks ?? [])
+      .flatMap((p: any) => p.tasks)
+      .find((t: any) => t?.apiSpec);
+
+  // REVEALS — always wired. Open each step's panel/tab/drawer so the step is
+  // shown on its real target even when that panel isn't open by default. These
+  // only change UI state; they never mutate the project, so they run on any
+  // project (the highlight-only tour included).
+  tourRevealsRef.current = {
+    "file-tree": () => setRailTab("explorer"),
+    kap: () => setRailTab("kap"),
+    terminal: () => {
+      setShowTerminal(true);
+      if (termRef.current)
+        termRef.current.style.flexBasis = lastTermH.current;
+    },
+    "run-test": () => {
+      const gradable = firstGradableTask();
+      if (gradable) openTaskDrawer(gradable);
+    },
+    preview: () => {
+      setIsRightPanelVisible(true);
+      setRightTab("preview");
+    },
+  };
+
+  // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
+  // real user's project). Panel-opening lives in reveals above; these do the
+  // actual work the demo shows off.
+  tourActionsRef.current = isSampleProject
+    ? {
+        "file-tree": demoCreateFile,
+        "run-server": async () => {
+          if (!pgCtx) {
+            console.warn("[playground-tour] run-server skipped: no pgCtx");
+            return;
+          }
+          await handleRunProject();
+        },
+        "run-test": async () => {
+          const gradable = firstGradableTask();
+          if (!gradable) {
+            console.warn(
+              "[playground-tour] run-test skipped: no gradable task (apiSpec).",
+            );
+            return;
+          }
+          await runTaskTest(gradable);
+        },
+      }
+    : {};
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
@@ -1990,8 +2179,7 @@ export function ProjectPlaygroundPage({
       },
     ];
 
-    const close = () =>
-      setEditorContextMenu((p) => ({ ...p, visible: false }));
+    const close = () => setEditorContextMenu((p) => ({ ...p, visible: false }));
 
     if (typeof document === "undefined") return null;
 
@@ -2303,7 +2491,11 @@ export function ProjectPlaygroundPage({
           className={cn(base, "border-border bg-card text-muted-foreground")}
           aria-live="polite"
         >
-          <svg className="i spin" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+          <svg
+            className="i spin"
+            viewBox="0 0 24 24"
+            style={{ width: 12, height: 12 }}
+          >
             <path d="M21 12a9 9 0 1 1-6.2-8.6" />
           </svg>
           Syncing…
@@ -2331,7 +2523,10 @@ export function ProjectPlaygroundPage({
       return (
         <span
           data-tour="github-sync"
-          className={cn(base, "border-destructive/40 bg-destructive/10 text-destructive")}
+          className={cn(
+            base,
+            "border-destructive/40 bg-destructive/10 text-destructive",
+          )}
           aria-live="polite"
           title="Couldn't reach GitHub — the next change will retry"
         >
@@ -2358,7 +2553,7 @@ export function ProjectPlaygroundPage({
       {/* ── TOP BAR (standalone only — in the path step the controls move to
           the PathTopBar and this header is hidden) ── */}
       {!embedded && (
-      <div className="topbar">
+        <div className="topbar">
           <button
             type="button"
             aria-label="Go to dashboard"
@@ -2394,9 +2589,7 @@ export function ProjectPlaygroundPage({
           <div className="spacer" />
           <div className="status" aria-live="polite">
             <span className={cn("dot", !sandboxLive && "off")} />
-            <span>
-              {sandboxLive ? "sandbox live · :3000" : "sandbox idle"}
-            </span>
+            <span>{sandboxLive ? "sandbox live · :3000" : "sandbox idle"}</span>
           </div>
           {sandboxLive ? (
             <button
@@ -2422,7 +2615,9 @@ export function ProjectPlaygroundPage({
           <button
             className={cn("btn", isRightPanelVisible && "on")}
             onClick={() => {
-              track(PLAYGROUND_EVENTS.previewToggled, { visible: !isRightPanelVisible });
+              track(PLAYGROUND_EVENTS.previewToggled, {
+                visible: !isRightPanelVisible,
+              });
               setIsRightPanelVisible((p) => !p);
             }}
             title="Toggle preview & tests"
@@ -2447,43 +2642,59 @@ export function ProjectPlaygroundPage({
               </svg>
             )}
           </button>
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              margin: "6px 6px",
+              background: "var(--border, #e2e8f0)",
+              opacity: 0.7,
+            }}
+          />
           <button
             className="btn ghost"
             onClick={relaunch}
-            title="Take a tour"
-            aria-label="Take a tour"
+            title="Take a guided tour"
+            aria-label="Take a guided tour"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              color: "#13aece",
+              border: "none",
+              fontWeight: 600,
+            }}
           >
+            <svg className="i" viewBox="0 0 24 24" aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" />
+            </svg>
             Take a tour
           </button>
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              margin: "6px 6px",
+              background: "var(--border, #e2e8f0)",
+              opacity: 0.7,
+            }}
+          />
           <PathFeedbackDialog />
           {/* GitHub icon stays in the top nav next to the other icons in every
-              state; the sync chip sits alongside it once connected. */}
-          <GithubConnect
-            slug={slug}
-            projectName={project?.title}
-            onConnected={handleGhConnected}
-            onError={setGhError}
-          />
+              state; the sync chip sits alongside it once connected. The tour
+              anchors on this always-present button (the sync chip is conditional). */}
+          <span data-tour="github-sync" style={{ display: "inline-flex" }}>
+            <GithubConnect
+              slug={slug}
+              projectName={project?.title}
+              onConnected={handleGhConnected}
+              onError={setGhError}
+            />
+          </span>
           {ghConnected && renderSyncChip()}
-        </div>
-      )}
-
-      {/* ── Tour offer banner (standalone only) ── */}
-      {!embedded && shouldOffer && !offerDismissed && (
-        <div className="gh-nudge" style={{ gap: "0.75rem" }}>
-          <span className="gh-nudge-msg">New here? Take a 60-second tour.</span>
-          <button
-            className="btn run"
-            onClick={() => { start(); setOfferDismissed(true); }}
-          >
-            Start tour
-          </button>
-          <button
-            className="btn ghost"
-            onClick={() => { skip(); setOfferDismissed(true); }}
-          >
-            Skip
-          </button>
         </div>
       )}
 
@@ -2507,7 +2718,11 @@ export function ProjectPlaygroundPage({
       {/* ── WORKSPACE ── */}
       <div className="ws" data-mp={mobilePane}>
         {/* LEFT RAIL */}
-        <div className="rail col border-r border-border" ref={railRef} style={{ boxShadow: "inset -1px 0 0 var(--line)" }}>
+        <div
+          className="rail col border-r border-border"
+          ref={railRef}
+          style={{ boxShadow: "inset -1px 0 0 var(--line)" }}
+        >
           <div
             className="seg"
             role="tablist"
@@ -2617,7 +2832,11 @@ export function ProjectPlaygroundPage({
           {/* FILES rail (explorer) */}
           {railTab === "explorer" && (
             <div data-tour="file-tree" className="explorer-pane">
-              <div className="exhead border-b border-border" ref={fileMenuRef} style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+              <div
+                className="exhead border-b border-border"
+                ref={fileMenuRef}
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <span className="exttl">Explorer</span>
                 <div className="exacts">
                   <button
@@ -2679,7 +2898,11 @@ export function ProjectPlaygroundPage({
 
           {/* KAP AI rail */}
           {railTab === "kap" && (
-            <div data-tour="kap" className="railKap" style={{ height: "100%", minHeight: 0 }}>
+            <div
+              data-tour="kap"
+              className="railKap"
+              style={{ height: "100%", minHeight: 0 }}
+            >
               <KapTutorPanel
                 scope="project"
                 projectId={project?.id}
@@ -2708,50 +2931,54 @@ export function ProjectPlaygroundPage({
         <div className="center col">
           {/* file tabs — only when a file is open (welcome screen stays clean) */}
           {openFiles.length > 0 && (
-          <div className="tabs border-b border-border" ref={editorMenuRef} style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
-            {openFiles.map((filePath) => (
-              <div
-                key={filePath}
-                className={cn("tab", activeFile === filePath && "on")}
-                onClick={() => {
-                  const file = findFile(fileTree, filePath);
-                  if (file) openFile(file);
-                }}
-              >
-                {getFileName(filePath)}
-                <span
-                  className="x"
-                  role="button"
-                  aria-label={`Close ${getFileName(filePath)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeFile(filePath);
+            <div
+              className="tabs border-b border-border"
+              ref={editorMenuRef}
+              style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+            >
+              {openFiles.map((filePath) => (
+                <div
+                  key={filePath}
+                  className={cn("tab", activeFile === filePath && "on")}
+                  onClick={() => {
+                    const file = findFile(fileTree, filePath);
+                    if (file) openFile(file);
                   }}
                 >
-                  {I.x}
-                </span>
-              </div>
-            ))}
-            <div className="spacer" />
-            <button
-              className="btn ghost tab-opts"
-              aria-label="Editor options"
-              onClick={(e) =>
-                setEditorContextMenu((prev) => ({
-                  visible: !prev.visible,
-                  x: e.clientX,
-                  y: e.clientY,
-                }))
-              }
-            >
-              <svg className="i" viewBox="0 0 24 24">
-                <circle cx="12" cy="5" r="1" />
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="12" cy="19" r="1" />
-              </svg>
-            </button>
-            {editorContextMenu.visible && editorMenu()}
-          </div>
+                  {getFileName(filePath)}
+                  <span
+                    className="x"
+                    role="button"
+                    aria-label={`Close ${getFileName(filePath)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeFile(filePath);
+                    }}
+                  >
+                    {I.x}
+                  </span>
+                </div>
+              ))}
+              <div className="spacer" />
+              <button
+                className="btn ghost tab-opts"
+                aria-label="Editor options"
+                onClick={(e) =>
+                  setEditorContextMenu((prev) => ({
+                    visible: !prev.visible,
+                    x: e.clientX,
+                    y: e.clientY,
+                  }))
+                }
+              >
+                <svg className="i" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="1" />
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="12" cy="19" r="1" />
+                </svg>
+              </button>
+              {editorContextMenu.visible && editorMenu()}
+            </div>
           )}
 
           {/* editor OR welcome. Item 10: once started, no start page at all —
@@ -2766,7 +2993,9 @@ export function ProjectPlaygroundPage({
                 {project?.summary && (
                   <p
                     className="wsum"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.summary) }}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(project.summary),
+                    }}
                   />
                 )}
 
@@ -2907,7 +3136,10 @@ export function ProjectPlaygroundPage({
                   smoothScrolling: true,
                   cursorBlinking: "smooth",
                   renderLineHighlight: "all",
-                  scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
+                  scrollbar: {
+                    verticalScrollbarSize: 9,
+                    horizontalScrollbarSize: 9,
+                  },
                   renderWhitespace: "selection",
                   bracketPairColorization: { enabled: true },
                   suggestOnTriggerCharacters: true,
@@ -2965,8 +3197,16 @@ export function ProjectPlaygroundPage({
               aria-orientation="vertical"
               aria-label="Resize preview panel"
             />
-            <div data-tour="preview" className="right col border-l border-border" ref={rightRef} style={{ boxShadow: "inset 1px 0 0 var(--line)" }}>
-              <div className="rtabs border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+            <div
+              data-tour="preview"
+              className="right col border-l border-border"
+              ref={rightRef}
+              style={{ boxShadow: "inset 1px 0 0 var(--line)" }}
+            >
+              <div
+                className="rtabs border-b border-border"
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <button
                   className={cn("seg-b", rightTab === "preview" && "on")}
                   onClick={() => setRightTab("preview")}
@@ -2992,7 +3232,10 @@ export function ProjectPlaygroundPage({
               {/* preview */}
               {rightTab === "preview" && (
                 <div className="rbody pv-pane">
-                  <div className="pv-bar border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+                  <div
+                    className="pv-bar border-b border-border"
+                    style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+                  >
                     <input
                       className="pv-url"
                       type="text"
@@ -3013,7 +3256,9 @@ export function ProjectPlaygroundPage({
                           aria-selected={previewMode === "app"}
                           className={cn("pvbtn", previewMode === "app" && "on")}
                           onClick={() => {
-                            track(PLAYGROUND_EVENTS.previewModeSwitched, { mode: "app" });
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, {
+                              mode: "app",
+                            });
                             setPreviewMode("app");
                           }}
                         >
@@ -3024,7 +3269,9 @@ export function ProjectPlaygroundPage({
                           aria-selected={previewMode === "api"}
                           className={cn("pvbtn", previewMode === "api" && "on")}
                           onClick={() => {
-                            track(PLAYGROUND_EVENTS.previewModeSwitched, { mode: "api" });
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, {
+                              mode: "api",
+                            });
                             setPreviewMode("api");
                           }}
                         >
@@ -3131,7 +3378,9 @@ export function ProjectPlaygroundPage({
                             {isDone && I.check}
                           </div>
                           <span className="ttl" style={{ flex: 1 }}>
-                            <span className="tnum">{taskNumber[task.id]} ·</span>{" "}
+                            <span className="tnum">
+                              {taskNumber[task.id]} ·
+                            </span>{" "}
                             {task?.title}
                           </span>
                           {task?.method && (
@@ -3175,7 +3424,10 @@ export function ProjectPlaygroundPage({
         <div className={cn("drawer", showTask && "open")}>
           {activeTask && (
             <>
-              <div className="dh border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+              <div
+                className="dh border-b border-border"
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {tMethod && tUrl && (
                     <div className="endpoint">
@@ -3254,13 +3506,9 @@ export function ProjectPlaygroundPage({
                         </span>
                       </div>
                     )}
-                    {(testRun.status === "pass" ||
-                      testRun.status === "fail") &&
+                    {(testRun.status === "pass" || testRun.status === "fail") &&
                       testRun.checks.map((c, i) => (
-                        <div
-                          key={i}
-                          className={cn("chk", c.ok ? "ok" : "no")}
-                        >
+                        <div key={i} className={cn("chk", c.ok ? "ok" : "no")}>
                           <div className="ci">{c.ok ? I.check : I.x}</div>
                           <span className="lab">{c.label}</span>
                           <span className="ex">
@@ -3356,7 +3604,6 @@ export function ProjectPlaygroundPage({
         </button>
       </div>
 
-
       <Dialog
         open={markAsCompleted}
         onOpenChange={() => setMarkAsCompleted(false)}
@@ -3427,9 +3674,7 @@ export function ProjectPlaygroundPage({
       {/* ── GitHub sync conflict resolver ── */}
       <Dialog
         open={conflict.open}
-        onOpenChange={(open) =>
-          setConflict((c) => ({ ...c, open }))
-        }
+        onOpenChange={(open) => setConflict((c) => ({ ...c, open }))}
       >
         <DialogContent className="sm:max-w-[480px] w-[95vw]">
           <DialogHeader>
@@ -3439,8 +3684,8 @@ export function ProjectPlaygroundPage({
             </DialogTitle>
             <DialogDescription>
               This project changed on GitHub since your last sync — likely from
-              another device or tab. Choose which version to keep. This can&apos;t
-              be undone.
+              another device or tab. Choose which version to keep. This
+              can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
@@ -3450,7 +3695,9 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
-                track(PLAYGROUND_EVENTS.githubConflictResolved, { resolution: "reload" });
+                track(PLAYGROUND_EVENTS.githubConflictResolved, {
+                  resolution: "reload",
+                });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveReload();
@@ -3471,7 +3718,9 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
-                track(PLAYGROUND_EVENTS.githubConflictResolved, { resolution: "overwrite" });
+                track(PLAYGROUND_EVENTS.githubConflictResolved, {
+                  resolution: "overwrite",
+                });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveOverwrite();
@@ -3505,14 +3754,16 @@ export function ProjectPlaygroundPage({
               Restart this project?
             </DialogTitle>
             <DialogDescription>
-              This wipes your sandbox back to the base template — all your code is
-              deleted and cannot be recovered.
+              This wipes your sandbox back to the base template — all your code
+              is deleted and cannot be recovered.
             </DialogDescription>
           </DialogHeader>
           <div className="pt-1 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">This will:</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Delete everything in your sandbox and reset to the starter.</li>
+              <li>
+                Delete everything in your sandbox and reset to the starter.
+              </li>
               {ghConnected ? (
                 <li>
                   Overwrite your connected GitHub repo
@@ -3526,7 +3777,9 @@ export function ProjectPlaygroundPage({
                 </li>
               ) : null}
             </ul>
-            <p className="mt-3">Your task progress is kept. This can’t be undone.</p>
+            <p className="mt-3">
+              Your task progress is kept. This can’t be undone.
+            </p>
           </div>
 
           <DialogFooter>
@@ -3858,7 +4111,14 @@ export function ProjectPlaygroundPage({
           border-color: rgba(19, 174, 206, 0.4);
           color: var(--cyan);
         }
-        .pg-root .btn:focus-visible, .pg-root .seg button:focus-visible, .pg-root .exact:focus-visible, .pg-root .seg-b:focus-visible, .pg-root .task:focus-visible, .pg-root .tline:focus-visible, .pg-root .pvbtn:focus-visible, .pg-root .sugg button:focus-visible {
+        .pg-root .btn:focus-visible,
+        .pg-root .seg button:focus-visible,
+        .pg-root .exact:focus-visible,
+        .pg-root .seg-b:focus-visible,
+        .pg-root .task:focus-visible,
+        .pg-root .tline:focus-visible,
+        .pg-root .pvbtn:focus-visible,
+        .pg-root .sugg button:focus-visible {
           outline: 2px solid var(--cyan);
           outline-offset: 1px;
         }
@@ -4446,7 +4706,8 @@ export function ProjectPlaygroundPage({
           overflow: auto;
           display: flex;
           justify-content: center;
-          background: radial-gradient(
+          background:
+            radial-gradient(
               900px 400px at 50% -10%,
               rgba(19, 174, 206, 0.1),
               transparent 60%
@@ -4730,14 +4991,20 @@ export function ProjectPlaygroundPage({
         .pg-root .pvbtn:hover {
           color: var(--text);
         }
-        .pg-root .pv-seg { display: inline-flex; gap: 2px; }
+        .pg-root .pv-seg {
+          display: inline-flex;
+          gap: 2px;
+        }
         .pg-root .pv-seg .pvbtn {
           width: auto;
           padding: 0 8px;
           font-size: 11px;
           font-weight: 600;
         }
-        .pg-root .pvbtn.on { color: var(--teal); background: rgba(95,176,176,0.12); }
+        .pg-root .pvbtn.on {
+          color: var(--teal);
+          background: rgba(95, 176, 176, 0.12);
+        }
         .pg-root .pvbtn svg.i {
           width: 14px;
           height: 14px;
