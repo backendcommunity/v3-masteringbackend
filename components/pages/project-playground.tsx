@@ -21,13 +21,13 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
 import Image from "next/image";
 import { PathFeedbackDialog } from "./path/path-feedback-dialog";
 import { GithubConnect } from "./playground/github-connect";
+import { Loader } from "@/components/ui/loader";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { languages } from "@/lib/languages";
@@ -207,9 +207,11 @@ const fmtInstr = (raw?: string) => {
   if (/<\/?[a-z][\s\S]*>/i.test(s)) {
     return <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(s) }} />;
   }
-  return s.split("`").map((seg, i) =>
-    i % 2 === 1 ? <code key={i}>{seg}</code> : <span key={i}>{seg}</span>,
-  );
+  return s
+    .split("`")
+    .map((seg, i) =>
+      i % 2 === 1 ? <code key={i}>{seg}</code> : <span key={i}>{seg}</span>,
+    );
 };
 
 export function ProjectPlaygroundPage({
@@ -319,7 +321,9 @@ export function ProjectPlaygroundPage({
   // component body is recreated every render, so clearTimeout never finds the
   // previous timer → the debounce never coalesces → a write per keystroke
   // (write storm + out-of-order writes → content loss).
-  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const fileBufferRef = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {},
+  );
   // Debounces hot-reload (/reload) after edits while the server is running.
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live mirror of `baseURL` so timer callbacks read the current value (not a
@@ -371,9 +375,11 @@ export function ProjectPlaygroundPage({
     : [undefined, undefined];
   // Surfaced by GithubConnect only when there's an actionable problem. Drives the
   // error-only banner — there is no persistent "connect GitHub" nudge.
-  const [ghError, setGhError] = useState<
-    { message: string; retry: () => void; actionLabel?: string } | null
-  >(null);
+  const [ghError, setGhError] = useState<{
+    message: string;
+    retry: () => void;
+    actionLabel?: string;
+  } | null>(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
   const syncRef = useRef<PlaygroundSync | null>(null);
@@ -427,11 +433,11 @@ export function ProjectPlaygroundPage({
   // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
   // refetches the project (without setLoading) so connected state still updates.
   useEffect(() => {
-    setLoading(true);
+    // setLoading(true);
     async function findProject(slug: string) {
       const project = await store.getProject(slug);
       setProject(project);
-      setLoading(false);
+      // setLoading(false);
     }
     findProject(slug);
   }, [slug]);
@@ -514,12 +520,9 @@ export function ProjectPlaygroundPage({
   // the caller supplies the repo identity so the connect handler can build the
   // engine inline before the project refetch propagates into the effect.
   const buildSyncEngine = useCallback(
-    (
-      o: string,
-      r: string,
-      instId: string | number,
-    ): PlaygroundSync => {
-      if (!pgCtx) throw new Error("buildSyncEngine called without a worker ctx");
+    (o: string, r: string, instId: string | number): PlaygroundSync => {
+      if (!pgCtx)
+        throw new Error("buildSyncEngine called without a worker ctx");
       return createPlaygroundSync({
         ctx: pgCtx,
         owner: o,
@@ -613,7 +616,8 @@ export function ProjectPlaygroundPage({
               await syncRef.current.seedAndPush({
                 baseRepository: project?.baseRepository,
                 language: project?.languages?.[0],
-                frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+                frontendPreview: !!(project as any)?.playgroundConfig
+                  ?.frontendPreview,
                 previewDir: (project as any)?.playgroundConfig?.previewDir,
                 showcaseSlug: slug,
                 showcaseVersion: project?.updatedAt
@@ -684,7 +688,8 @@ export function ProjectPlaygroundPage({
           await pgSeed(pgCtx, {
             baseRepository: project?.baseRepository,
             language: project?.languages?.[0],
-            frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+            frontendPreview: !!(project as any)?.playgroundConfig
+              ?.frontendPreview,
             previewDir: (project as any)?.playgroundConfig?.previewDir,
             showcaseSlug: slug,
             showcaseVersion: project?.updatedAt
@@ -718,7 +723,13 @@ export function ProjectPlaygroundPage({
     // connect path is handled by `handleGhConnected` instead, which hydrates +
     // refreshes the tree in place without the loading teardown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pgCtx, project?.baseRepository, project?.languages, project?.title, slug]);
+  }, [
+    pgCtx,
+    project?.baseRepository,
+    project?.languages,
+    project?.title,
+    slug,
+  ]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
@@ -757,15 +768,13 @@ export function ProjectPlaygroundPage({
     if (loading || loadingFiles) return;
     if (autoOpenedRef.current || openFiles.length > 0) return;
     const startedNow =
-      ((project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
+      (project?.projectTasks?.flatMap((p: any) => p.tasks) ?? []).filter(
         (t: any) => t?.userTask?.isCompleted,
-      ).length > 0) ||
-      lastSha != null;
+      ).length > 0 || lastSha != null;
     if (!startedNow) return;
     const first =
-      fileTree[0]?.children?.find(
-        (f) => f.type === "file" && !f.isBlocked,
-      ) || fileTree.find((f) => f.type === "file");
+      fileTree[0]?.children?.find((f) => f.type === "file" && !f.isBlocked) ||
+      fileTree.find((f) => f.type === "file");
     if (first) {
       autoOpenedRef.current = true;
       openFile(first);
@@ -784,45 +793,43 @@ export function ProjectPlaygroundPage({
   // Drag-resize for rail / right pane / terminal (ported from the mock).
   // MUST stay above the early returns below — hooks run unconditionally.
   const startResize = useCallback(
-    (kind: "rail" | "right" | "term") =>
-      (e: React.MouseEvent) => {
-        e.preventDefault();
-        const target =
-          kind === "rail"
-            ? railRef.current
-            : kind === "right"
-              ? rightRef.current
-              : termRef.current;
-        if (!target) return;
-        const sx = e.clientX;
-        const sy = e.clientY;
-        const start =
-          kind === "term" ? target.offsetHeight : target.offsetWidth;
-        document.body.style.cursor =
-          kind === "term" ? "row-resize" : "col-resize";
-        document.body.style.userSelect = "none";
+    (kind: "rail" | "right" | "term") => (e: React.MouseEvent) => {
+      e.preventDefault();
+      const target =
+        kind === "rail"
+          ? railRef.current
+          : kind === "right"
+            ? rightRef.current
+            : termRef.current;
+      if (!target) return;
+      const sx = e.clientX;
+      const sy = e.clientY;
+      const start = kind === "term" ? target.offsetHeight : target.offsetWidth;
+      document.body.style.cursor =
+        kind === "term" ? "row-resize" : "col-resize";
+      document.body.style.userSelect = "none";
 
-        const move = (ev: MouseEvent) => {
-          if (kind === "term") {
-            let h = start - (ev.clientY - sy);
-            h = Math.max(40, Math.min(window.innerHeight - 160, h));
-            target.style.flexBasis = h + "px";
-          } else {
-            let w = start + (ev.clientX - sx) * (kind === "right" ? -1 : 1);
-            w = Math.max(160, Math.min(680, w));
-            target.style.flexBasis = w + "px";
-          }
-        };
-        const up = () => {
-          document.removeEventListener("mousemove", move, true);
-          document.removeEventListener("mouseup", up, true);
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-        };
-        // capture phase — xterm stops propagation, so listen on capture
-        document.addEventListener("mousemove", move, true);
-        document.addEventListener("mouseup", up, true);
-      },
+      const move = (ev: MouseEvent) => {
+        if (kind === "term") {
+          let h = start - (ev.clientY - sy);
+          h = Math.max(40, Math.min(window.innerHeight - 160, h));
+          target.style.flexBasis = h + "px";
+        } else {
+          let w = start + (ev.clientX - sx) * (kind === "right" ? -1 : 1);
+          w = Math.max(160, Math.min(680, w));
+          target.style.flexBasis = w + "px";
+        }
+      };
+      const up = () => {
+        document.removeEventListener("mousemove", move, true);
+        document.removeEventListener("mouseup", up, true);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      // capture phase — xterm stops propagation, so listen on capture
+      document.addEventListener("mousemove", move, true);
+      document.addEventListener("mouseup", up, true);
+    },
     [],
   );
 
@@ -834,12 +841,15 @@ export function ProjectPlaygroundPage({
     if (!pgCtx || !baseURL) return;
     let cancelled = false;
     const id = setInterval(async () => {
-      if (cancelled || runInFlightRef.current || stopInFlightRef.current) return;
+      if (cancelled || runInFlightRef.current || stopInFlightRef.current)
+        return;
       try {
         const s = await pgStatus(pgCtx);
         if (!cancelled && s?.ok && !s.running) {
           setBaseURL("");
-          toast.message("Server stopped (sandbox went idle). Click Run to restart.");
+          toast.message(
+            "Server stopped (sandbox went idle). Click Run to restart.",
+          );
         }
       } catch {
         /* transient worker hiccup — keep current state */
@@ -851,13 +861,64 @@ export function ProjectPlaygroundPage({
     };
   }, [pgCtx, baseURL]);
 
-  if (loading || loadingFiles)
+  if (loading || loadingFiles) {
+    // Boot progress derived purely from existing values — no new logic/state.
+    const bootSteps = [
+      { key: "fetch", label: "Fetching project", active: loading, done: !loading },
+      {
+        key: "boot",
+        label: "Booting workspace",
+        active: !loading && !pgCtx,
+        done: !loading && !!pgCtx,
+      },
+      {
+        key: "files",
+        label: "Loading files",
+        active: !loading && !!pgCtx && loadingFiles,
+        done: false,
+      },
+    ];
     return (
-      <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="text-sm">Loading your project…</span>
-      </div>
+      <Loader
+        label={
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm font-medium text-foreground">
+              {project?.title
+                ? `Setting up ${project.title}`
+                : "Setting up your workspace"}
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {bootSteps.map((s) => (
+                <li key={s.key} className="flex items-center gap-2 text-xs">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      s.done
+                        ? "bg-primary"
+                        : s.active
+                          ? "bg-primary motion-safe:animate-pulse"
+                          : "bg-muted-foreground/30"
+                    }`}
+                  />
+                  <span
+                    className={
+                      s.active
+                        ? "text-foreground"
+                        : s.done
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/50"
+                    }
+                  >
+                    {s.label}
+                    {s.active ? "…" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+      />
     );
+  }
   if (!project?.enrolled)
     return (
       <div className="container max-w-4xl py-12">
@@ -891,9 +952,7 @@ export function ProjectPlaygroundPage({
     tasks?.reduce((s: number, t: any) => s + (t?.mb ?? 0), 0) ?? 0;
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
   // The first not-yet-completed task is the "in progress" one (spinner ring).
-  const currentTaskId = tasks?.find(
-    (t: any) => !t?.userTask?.isCompleted,
-  )?.id;
+  const currentTaskId = tasks?.find((t: any) => !t?.userTask?.isCompleted)?.id;
 
   // Item 10: "has the learner started this project?" — completed ≥1 task OR
   // pushed work to GitHub (lastSyncedSha). When true, the big start/welcome page
@@ -907,9 +966,8 @@ export function ProjectPlaygroundPage({
   // with the file tree visible.
   const startBuilding = () => {
     const firstFile =
-      fileTree[0]?.children?.find(
-        (f) => f.type === "file" && !f.isBlocked,
-      ) || fileTree.find((f) => f.type === "file");
+      fileTree[0]?.children?.find((f) => f.type === "file" && !f.isBlocked) ||
+      fileTree.find((f) => f.type === "file");
     if (firstFile) openFile(firstFile);
     setRailTab("explorer");
   };
@@ -1300,7 +1358,8 @@ export function ProjectPlaygroundPage({
         await pgRestart(pgCtx, {
           baseRepository: project?.baseRepository,
           language: project?.languages?.[0],
-          frontendPreview: !!(project as any)?.playgroundConfig?.frontendPreview,
+          frontendPreview: !!(project as any)?.playgroundConfig
+            ?.frontendPreview,
           previewDir: (project as any)?.playgroundConfig?.previewDir,
           showcaseSlug: slug,
           showcaseVersion: project?.updatedAt
@@ -1367,7 +1426,8 @@ export function ProjectPlaygroundPage({
         if (baseURLRef.current) {
           if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
           reloadTimerRef.current = setTimeout(() => {
-            if (pgCtx && baseURLRef.current) void pgReload(pgCtx).catch(() => {});
+            if (pgCtx && baseURLRef.current)
+              void pgReload(pgCtx).catch(() => {});
           }, 1000);
         }
       } catch (error: any) {
@@ -1670,7 +1730,10 @@ export function ProjectPlaygroundPage({
               ...pt,
               tasks: pt.tasks.map((task: any) =>
                 task?.id === taskId
-                  ? { ...task, userTask: { ...task.userTask, isCompleted: true } }
+                  ? {
+                      ...task,
+                      userTask: { ...task.userTask, isCompleted: true },
+                    }
                   : task,
               ),
             })),
@@ -1726,7 +1789,9 @@ export function ProjectPlaygroundPage({
           toast.error("Start your server first — click Run Server.");
           setTestRun({
             status: "fail",
-            checks: [{ label: "Server not running — click Run Server", ok: false }],
+            checks: [
+              { label: "Server not running — click Run Server", ok: false },
+            ],
           });
           return;
         }
@@ -1734,14 +1799,19 @@ export function ProjectPlaygroundPage({
       }
 
       const checks = Array.isArray(verdict?.checks)
-        ? verdict.checks.map((c) => ({ label: c.detail || c.kind, ok: !!c.passed }))
+        ? verdict.checks.map((c) => ({
+            label: c.detail || c.kind,
+            ok: !!c.passed,
+          }))
         : [];
 
       if (verdict?.passed) {
         markTaskCompleteInState(t.id);
         setTestRun({
           status: "pass",
-          checks: checks.length ? checks : [{ label: "All assertions passed", ok: true }],
+          checks: checks.length
+            ? checks
+            : [{ label: "All assertions passed", ok: true }],
         });
         setCelebration(true);
         toast.success(
@@ -1757,7 +1827,9 @@ export function ProjectPlaygroundPage({
             ? checks
             : [
                 {
-                  label: verdict?.error || "Endpoint did not match the expected response",
+                  label:
+                    verdict?.error ||
+                    "Endpoint did not match the expected response",
                   ok: false,
                 },
               ],
@@ -1834,7 +1906,9 @@ export function ProjectPlaygroundPage({
       } else {
         // Locally (wrangler dev) a public URL needs the playground custom domain,
         // so serverUrl can be null — the server still started.
-        toast.message("Server started (public URL needs the playground domain)");
+        toast.message(
+          "Server started (public URL needs the playground domain)",
+        );
       }
     } catch (e: any) {
       toast.error(e?.message || "Run failed");
@@ -1865,7 +1939,6 @@ export function ProjectPlaygroundPage({
   stopServerRef.current = handleStopProject;
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
   baseURLRef.current = baseURL; // live mirror for timer callbacks
-
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
@@ -1907,8 +1980,7 @@ export function ProjectPlaygroundPage({
       },
     ];
 
-    const close = () =>
-      setEditorContextMenu((p) => ({ ...p, visible: false }));
+    const close = () => setEditorContextMenu((p) => ({ ...p, visible: false }));
 
     if (typeof document === "undefined") return null;
 
@@ -2219,7 +2291,11 @@ export function ProjectPlaygroundPage({
           className={cn(base, "border-border bg-card text-muted-foreground")}
           aria-live="polite"
         >
-          <svg className="i spin" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+          <svg
+            className="i spin"
+            viewBox="0 0 24 24"
+            style={{ width: 12, height: 12 }}
+          >
             <path d="M21 12a9 9 0 1 1-6.2-8.6" />
           </svg>
           Syncing…
@@ -2245,7 +2321,10 @@ export function ProjectPlaygroundPage({
     if (state === "error") {
       return (
         <span
-          className={cn(base, "border-destructive/40 bg-destructive/10 text-destructive")}
+          className={cn(
+            base,
+            "border-destructive/40 bg-destructive/10 text-destructive",
+          )}
           aria-live="polite"
           title="Couldn't reach GitHub — the next change will retry"
         >
@@ -2271,7 +2350,7 @@ export function ProjectPlaygroundPage({
       {/* ── TOP BAR (standalone only — in the path step the controls move to
           the PathTopBar and this header is hidden) ── */}
       {!embedded && (
-      <div className="topbar">
+        <div className="topbar">
           <button
             type="button"
             aria-label="Go to dashboard"
@@ -2307,9 +2386,7 @@ export function ProjectPlaygroundPage({
           <div className="spacer" />
           <div className="status" aria-live="polite">
             <span className={cn("dot", !sandboxLive && "off")} />
-            <span>
-              {sandboxLive ? "sandbox live · :3000" : "sandbox idle"}
-            </span>
+            <span>{sandboxLive ? "sandbox live · :3000" : "sandbox idle"}</span>
           </div>
           {sandboxLive ? (
             <button
@@ -2388,7 +2465,11 @@ export function ProjectPlaygroundPage({
       {/* ── WORKSPACE ── */}
       <div className="ws" data-mp={mobilePane}>
         {/* LEFT RAIL */}
-        <div className="rail col border-r border-border" ref={railRef} style={{ boxShadow: "inset -1px 0 0 var(--line)" }}>
+        <div
+          className="rail col border-r border-border"
+          ref={railRef}
+          style={{ boxShadow: "inset -1px 0 0 var(--line)" }}
+        >
           <div
             className="seg"
             role="tablist"
@@ -2498,7 +2579,11 @@ export function ProjectPlaygroundPage({
           {/* FILES rail (explorer) */}
           {railTab === "explorer" && (
             <div className="explorer-pane">
-              <div className="exhead border-b border-border" ref={fileMenuRef} style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+              <div
+                className="exhead border-b border-border"
+                ref={fileMenuRef}
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <span className="exttl">Explorer</span>
                 <div className="exacts">
                   <button
@@ -2588,50 +2673,54 @@ export function ProjectPlaygroundPage({
         <div className="center col">
           {/* file tabs — only when a file is open (welcome screen stays clean) */}
           {openFiles.length > 0 && (
-          <div className="tabs border-b border-border" ref={editorMenuRef} style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
-            {openFiles.map((filePath) => (
-              <div
-                key={filePath}
-                className={cn("tab", activeFile === filePath && "on")}
-                onClick={() => {
-                  const file = findFile(fileTree, filePath);
-                  if (file) openFile(file);
-                }}
-              >
-                {getFileName(filePath)}
-                <span
-                  className="x"
-                  role="button"
-                  aria-label={`Close ${getFileName(filePath)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeFile(filePath);
+            <div
+              className="tabs border-b border-border"
+              ref={editorMenuRef}
+              style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+            >
+              {openFiles.map((filePath) => (
+                <div
+                  key={filePath}
+                  className={cn("tab", activeFile === filePath && "on")}
+                  onClick={() => {
+                    const file = findFile(fileTree, filePath);
+                    if (file) openFile(file);
                   }}
                 >
-                  {I.x}
-                </span>
-              </div>
-            ))}
-            <div className="spacer" />
-            <button
-              className="btn ghost tab-opts"
-              aria-label="Editor options"
-              onClick={(e) =>
-                setEditorContextMenu((prev) => ({
-                  visible: !prev.visible,
-                  x: e.clientX,
-                  y: e.clientY,
-                }))
-              }
-            >
-              <svg className="i" viewBox="0 0 24 24">
-                <circle cx="12" cy="5" r="1" />
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="12" cy="19" r="1" />
-              </svg>
-            </button>
-            {editorContextMenu.visible && editorMenu()}
-          </div>
+                  {getFileName(filePath)}
+                  <span
+                    className="x"
+                    role="button"
+                    aria-label={`Close ${getFileName(filePath)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeFile(filePath);
+                    }}
+                  >
+                    {I.x}
+                  </span>
+                </div>
+              ))}
+              <div className="spacer" />
+              <button
+                className="btn ghost tab-opts"
+                aria-label="Editor options"
+                onClick={(e) =>
+                  setEditorContextMenu((prev) => ({
+                    visible: !prev.visible,
+                    x: e.clientX,
+                    y: e.clientY,
+                  }))
+                }
+              >
+                <svg className="i" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="1" />
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="12" cy="19" r="1" />
+                </svg>
+              </button>
+              {editorContextMenu.visible && editorMenu()}
+            </div>
           )}
 
           {/* editor OR welcome. Item 10: once started, no start page at all —
@@ -2646,7 +2735,9 @@ export function ProjectPlaygroundPage({
                 {project?.summary && (
                   <p
                     className="wsum"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.summary) }}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(project.summary),
+                    }}
                   />
                 )}
 
@@ -2787,7 +2878,10 @@ export function ProjectPlaygroundPage({
                   smoothScrolling: true,
                   cursorBlinking: "smooth",
                   renderLineHighlight: "all",
-                  scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
+                  scrollbar: {
+                    verticalScrollbarSize: 9,
+                    horizontalScrollbarSize: 9,
+                  },
                   renderWhitespace: "selection",
                   bracketPairColorization: { enabled: true },
                   suggestOnTriggerCharacters: true,
@@ -2844,8 +2938,15 @@ export function ProjectPlaygroundPage({
               aria-orientation="vertical"
               aria-label="Resize preview panel"
             />
-            <div className="right col border-l border-border" ref={rightRef} style={{ boxShadow: "inset 1px 0 0 var(--line)" }}>
-              <div className="rtabs border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+            <div
+              className="right col border-l border-border"
+              ref={rightRef}
+              style={{ boxShadow: "inset 1px 0 0 var(--line)" }}
+            >
+              <div
+                className="rtabs border-b border-border"
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <button
                   className={cn("seg-b", rightTab === "preview" && "on")}
                   onClick={() => setRightTab("preview")}
@@ -2871,7 +2972,10 @@ export function ProjectPlaygroundPage({
               {/* preview */}
               {rightTab === "preview" && (
                 <div className="rbody pv-pane">
-                  <div className="pv-bar border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+                  <div
+                    className="pv-bar border-b border-border"
+                    style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+                  >
                     <input
                       className="pv-url"
                       type="text"
@@ -3004,7 +3108,9 @@ export function ProjectPlaygroundPage({
                             {isDone && I.check}
                           </div>
                           <span className="ttl" style={{ flex: 1 }}>
-                            <span className="tnum">{taskNumber[task.id]} ·</span>{" "}
+                            <span className="tnum">
+                              {taskNumber[task.id]} ·
+                            </span>{" "}
                             {task?.title}
                           </span>
                           {task?.method && (
@@ -3048,7 +3154,10 @@ export function ProjectPlaygroundPage({
         <div className={cn("drawer", showTask && "open")}>
           {activeTask && (
             <>
-              <div className="dh border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
+              <div
+                className="dh border-b border-border"
+                style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {tMethod && tUrl && (
                     <div className="endpoint">
@@ -3127,13 +3236,9 @@ export function ProjectPlaygroundPage({
                         </span>
                       </div>
                     )}
-                    {(testRun.status === "pass" ||
-                      testRun.status === "fail") &&
+                    {(testRun.status === "pass" || testRun.status === "fail") &&
                       testRun.checks.map((c, i) => (
-                        <div
-                          key={i}
-                          className={cn("chk", c.ok ? "ok" : "no")}
-                        >
+                        <div key={i} className={cn("chk", c.ok ? "ok" : "no")}>
                           <div className="ci">{c.ok ? I.check : I.x}</div>
                           <span className="lab">{c.label}</span>
                           <span className="ex">
@@ -3228,7 +3333,6 @@ export function ProjectPlaygroundPage({
         </button>
       </div>
 
-
       <Dialog
         open={markAsCompleted}
         onOpenChange={() => setMarkAsCompleted(false)}
@@ -3299,9 +3403,7 @@ export function ProjectPlaygroundPage({
       {/* ── GitHub sync conflict resolver ── */}
       <Dialog
         open={conflict.open}
-        onOpenChange={(open) =>
-          setConflict((c) => ({ ...c, open }))
-        }
+        onOpenChange={(open) => setConflict((c) => ({ ...c, open }))}
       >
         <DialogContent className="sm:max-w-[480px] w-[95vw]">
           <DialogHeader>
@@ -3311,8 +3413,8 @@ export function ProjectPlaygroundPage({
             </DialogTitle>
             <DialogDescription>
               This project changed on GitHub since your last sync — likely from
-              another device or tab. Choose which version to keep. This can&apos;t
-              be undone.
+              another device or tab. Choose which version to keep. This
+              can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
@@ -3375,14 +3477,16 @@ export function ProjectPlaygroundPage({
               Restart this project?
             </DialogTitle>
             <DialogDescription>
-              This wipes your sandbox back to the base template — all your code is
-              deleted and cannot be recovered.
+              This wipes your sandbox back to the base template — all your code
+              is deleted and cannot be recovered.
             </DialogDescription>
           </DialogHeader>
           <div className="pt-1 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">This will:</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Delete everything in your sandbox and reset to the starter.</li>
+              <li>
+                Delete everything in your sandbox and reset to the starter.
+              </li>
               {ghConnected ? (
                 <li>
                   Overwrite your connected GitHub repo
@@ -3396,7 +3500,9 @@ export function ProjectPlaygroundPage({
                 </li>
               ) : null}
             </ul>
-            <p className="mt-3">Your task progress is kept. This can’t be undone.</p>
+            <p className="mt-3">
+              Your task progress is kept. This can’t be undone.
+            </p>
           </div>
 
           <DialogFooter>
@@ -3728,7 +3834,14 @@ export function ProjectPlaygroundPage({
           border-color: rgba(19, 174, 206, 0.4);
           color: var(--cyan);
         }
-        .pg-root .btn:focus-visible, .pg-root .seg button:focus-visible, .pg-root .exact:focus-visible, .pg-root .seg-b:focus-visible, .pg-root .task:focus-visible, .pg-root .tline:focus-visible, .pg-root .pvbtn:focus-visible, .pg-root .sugg button:focus-visible {
+        .pg-root .btn:focus-visible,
+        .pg-root .seg button:focus-visible,
+        .pg-root .exact:focus-visible,
+        .pg-root .seg-b:focus-visible,
+        .pg-root .task:focus-visible,
+        .pg-root .tline:focus-visible,
+        .pg-root .pvbtn:focus-visible,
+        .pg-root .sugg button:focus-visible {
           outline: 2px solid var(--cyan);
           outline-offset: 1px;
         }
@@ -4316,7 +4429,8 @@ export function ProjectPlaygroundPage({
           overflow: auto;
           display: flex;
           justify-content: center;
-          background: radial-gradient(
+          background:
+            radial-gradient(
               900px 400px at 50% -10%,
               rgba(19, 174, 206, 0.1),
               transparent 60%
@@ -4600,14 +4714,20 @@ export function ProjectPlaygroundPage({
         .pg-root .pvbtn:hover {
           color: var(--text);
         }
-        .pg-root .pv-seg { display: inline-flex; gap: 2px; }
+        .pg-root .pv-seg {
+          display: inline-flex;
+          gap: 2px;
+        }
         .pg-root .pv-seg .pvbtn {
           width: auto;
           padding: 0 8px;
           font-size: 11px;
           font-weight: 600;
         }
-        .pg-root .pvbtn.on { color: var(--teal); background: rgba(95,176,176,0.12); }
+        .pg-root .pvbtn.on {
+          color: var(--teal);
+          background: rgba(95, 176, 176, 0.12);
+        }
         .pg-root .pvbtn svg.i {
           width: 14px;
           height: 14px;

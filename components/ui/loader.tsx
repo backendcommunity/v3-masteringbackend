@@ -1,5 +1,6 @@
 // components/RingLoader.tsx
 
+import { ReactNode } from "react";
 import { BrandLogo } from "../brand-logo";
 import { Skeleton } from "./skeleton";
 
@@ -9,18 +10,22 @@ export const Loader = ({
   size = "w-28 h-28",
   color = "border-primary",
   thickness = "border-4",
+  label,
 }: {
   isLoader?: boolean;
   size?: string;
   color?: string;
   isFull?: boolean;
   thickness?: string;
+  // Optional progress content rendered beneath the ring (e.g. staged boot
+  // status). Backward-compatible — omit it and the loader is unchanged.
+  label?: ReactNode;
 }) => {
   return (
     <div>
       {isLoader && (
         <div
-          className={`flex justify-center items-center ${
+          className={`flex flex-col gap-5 justify-center items-center ${
             isFull ? "h-screen" : ""
           }`}
         >
@@ -35,6 +40,12 @@ export const Loader = ({
               <BrandLogo size="sm" showText={false} variant="default" />
             </div>
           </div>
+
+          {label && (
+            <div role="status" aria-live="polite" className="text-center">
+              {label}
+            </div>
+          )}
         </div>
       )}
 
