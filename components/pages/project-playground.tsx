@@ -77,6 +77,10 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
 import { Label } from "../ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { analytics } from "@/lib/analytics";
+import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
+import { makeEditDebouncer } from "@/lib/playground-track";
+import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -404,6 +408,33 @@ export function ProjectPlaygroundPage({
   // Resolving-in-progress guard so the conflict dialog buttons can't double-fire.
   const [resolvingConflict, setResolvingConflict] = useState(false);
 
+  const track = useCallback(
+    (event: string, extra?: Record<string, any>) =>
+      analytics.track(event, {
+        project_slug: slug,
+        project_title: project?.title,
+        is_sample: !!project?.isSample,
+        ...extra,
+      }),
+    [slug, project?.title, project?.isSample],
+  );
+  const trackEdit = useMemo(
+    () => makeEditDebouncer((e) => track(PLAYGROUND_EVENTS.fileEdited, e)),
+    [track],
+  );
+
+  // ── Guided tour ──
+  const [offerDismissed, setOfferDismissed] = useState(false);
+  const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
+  const { shouldOffer, start, skip, relaunch } = usePlaygroundTour({
+    ready: !!baseURL,
+    theme: tourTheme,
+    track,
+  });
+  useEffect(() => {
+    if (shouldOffer) track(TOUR_EVENTS.offered);
+  }, [shouldOffer, track]);
+
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
       if (node.path === filePath && node.type === "file") {
@@ -428,6 +459,16 @@ export function ProjectPlaygroundPage({
       const project = await store.getProject(slug);
       setProject(project);
       setLoading(false);
+      const source =
+        new URLSearchParams(window.location.search).get("tour") === "offer"
+          ? "try_playground"
+          : "direct";
+      analytics.track(PLAYGROUND_EVENTS.opened, {
+        project_slug: slug,
+        project_title: project?.title,
+        is_sample: !!project?.isSample,
+        source,
+      });
     }
     findProject(slug);
   }, [slug]);
@@ -527,7 +568,10 @@ export function ProjectPlaygroundPage({
           setLastSha(s);
         },
         onStatus: (state, at) => setSyncStatus({ state, at }),
-        onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
+        onConflict: (remoteSha) => {
+          track(PLAYGROUND_EVENTS.githubConflict);
+          setConflict({ open: true, remoteSha });
+        },
         onReloaded: () => {
           void refreshTreeRef.current?.();
         },
@@ -1013,6 +1057,7 @@ export function ProjectPlaygroundPage({
   // the engine via the sibling effect), then hydrate. If the new repo is empty,
   // push the current sandbox work so connecting preserves what they've done.
   const handleGhConnected = async (newRepoFullName: string) => {
+    track(PLAYGROUND_EVENTS.githubConnected, { repo: newRepoFullName });
     try {
       const fresh = await store.getProject(slug);
       if (fresh) setProject(fresh);
@@ -1118,6 +1163,10 @@ export function ProjectPlaygroundPage({
       setCreatingItem(null);
       return;
     }
+    track(PLAYGROUND_EVENTS.fileCreated, {
+      kind: creatingItem.type,
+      file_ext: name?.includes(".") ? name.split(".").pop() : "",
+    });
     if (!pgCtx) {
       setCreatingItem(null);
       return;
@@ -1183,6 +1232,9 @@ export function ProjectPlaygroundPage({
   };
 
   const openFile = async (file: FileNode) => {
+    track(PLAYGROUND_EVENTS.fileOpened, {
+      file_ext: file.name.includes(".") ? file.name.split(".").pop() : "",
+    });
     if (!pgCtx) return;
     const filePath = file.path;
     const fileName = file.name;
@@ -1258,6 +1310,7 @@ export function ProjectPlaygroundPage({
   // into a Blob and trigger a browser download.
   const handleDownloadProject = async () => {
     if (!pgCtx) return;
+    track(PLAYGROUND_EVENTS.projectDownloaded);
     try {
       toast.message("Preparing your download…");
       const res = await pgDownload(pgCtx);
@@ -1281,6 +1334,7 @@ export function ProjectPlaygroundPage({
   // Task progress is server-side and is left intact — only the code is reset.
   const handleRestart = async () => {
     if (!pgCtx) return;
+    track(PLAYGROUND_EVENTS.projectRestarted);
     setRestart(false);
     setShowLoader(true);
     try {
@@ -1345,6 +1399,7 @@ export function ProjectPlaygroundPage({
 
   const handleTyping: OnChange = (value, v) => {
     const path = activeFile;
+    trackEdit(path);
     clearTimeout(fileBufferRef.current[path]);
 
     fileBufferRef.current[path] = setTimeout(async () => {
@@ -1381,6 +1436,9 @@ export function ProjectPlaygroundPage({
 
   const handleDeleteFile = async (file: FileNode) => {
     if (!file || !pgCtx) return;
+    track(PLAYGROUND_EVENTS.fileDeleted, {
+      file_ext: file?.name?.split(".").pop() ?? "",
+    });
 
     // Recursively remove the deleted file/folder from the tree.
     const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
@@ -1579,6 +1637,11 @@ export function ProjectPlaygroundPage({
     try {
       setMarking(true);
       const completed = await store.markProjectTaskAsCompleted(slug, id);
+      track(PLAYGROUND_EVENTS.taskCompleted, {
+        task_id: id,
+        points: activeTask?.mb,
+        via: "manual",
+      });
 
       setProject((prev) => {
         if (!prev) return prev;
@@ -1712,6 +1775,7 @@ export function ProjectPlaygroundPage({
     }
 
     setTestRun({ status: "running", checks: [] });
+    const testStart = Date.now();
     try {
       // Real grading: the backend probes the endpoint and returns per-assertion results.
       let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
@@ -1732,8 +1796,24 @@ export function ProjectPlaygroundPage({
       const checks = Array.isArray(verdict?.checks)
         ? verdict.checks.map((c) => ({ label: c.detail || c.kind, ok: !!c.passed }))
         : [];
+      const checksPassed = checks.filter((c) => c.ok).length;
+      track(PLAYGROUND_EVENTS.taskTestRun, {
+        task_id: t?.id,
+        passed: !!verdict?.passed,
+        duration_ms: Date.now() - testStart,
+        checks_passed: checksPassed,
+        checks_total: checks.length,
+      });
 
       if (verdict?.passed) {
+        // Fire taskCompleted only on the transition (task was not already complete).
+        if (!t.userTask?.isCompleted) {
+          track(PLAYGROUND_EVENTS.taskCompleted, {
+            task_id: t.id,
+            points: t.mb,
+            via: "test",
+          });
+        }
         markTaskCompleteInState(t.id);
         setTestRun({
           status: "pass",
@@ -1791,6 +1871,7 @@ export function ProjectPlaygroundPage({
   };
 
   const openTaskDrawer = (task: any) => {
+    track(PLAYGROUND_EVENTS.taskOpened, { task_id: task?.id, task_title: task?.title });
     setActiveTask(task);
     setShowTask(true);
     setTestRun(
@@ -1802,6 +1883,7 @@ export function ProjectPlaygroundPage({
 
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+    track(PLAYGROUND_EVENTS.runServer);
     runInFlightRef.current = true;
     setIsRunning(true);
     setTerminalOutput(terminalSample);
@@ -1842,6 +1924,7 @@ export function ProjectPlaygroundPage({
 
   const handleStopProject = async () => {
     if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+    track(PLAYGROUND_EVENTS.stopServer);
     stopInFlightRef.current = true;
     setIsStopping(true);
     try {
@@ -1867,6 +1950,7 @@ export function ProjectPlaygroundPage({
   // back to the last height. The .term panel is shrunk via flex-basis; its
   // overflow:hidden clips the body so only the header shows.
   const toggleTerminal = () => {
+    track(PLAYGROUND_EVENTS.terminalToggled, { open: !showTerminal });
     setShowTerminal((open) => {
       const next = !open;
       if (termRef.current) {
@@ -1888,8 +1972,11 @@ export function ProjectPlaygroundPage({
           editorTheme === "mb-dark"
             ? "Switch editor to light"
             : "Switch editor to dark",
-        action: () =>
-          setEditorTheme((t) => (t === "mb-dark" ? "mb-light" : "mb-dark")),
+        action: () => {
+          const nextTheme = editorTheme === "mb-dark" ? "mb-light" : "mb-dark";
+          track(PLAYGROUND_EVENTS.editorThemeSwitched, { theme: nextTheme });
+          setEditorTheme(nextTheme);
+        },
       },
       { label: "separator", action: () => {} },
       {
@@ -2212,6 +2299,7 @@ export function ProjectPlaygroundPage({
     if (state === "syncing") {
       return (
         <span
+          data-tour="github-sync"
           className={cn(base, "border-border bg-card text-muted-foreground")}
           aria-live="polite"
         >
@@ -2225,6 +2313,7 @@ export function ProjectPlaygroundPage({
     if (state === "conflict") {
       return (
         <button
+          data-tour="github-sync"
           type="button"
           onClick={() => setConflict((c) => ({ ...c, open: true }))}
           className={cn(
@@ -2241,6 +2330,7 @@ export function ProjectPlaygroundPage({
     if (state === "error") {
       return (
         <span
+          data-tour="github-sync"
           className={cn(base, "border-destructive/40 bg-destructive/10 text-destructive")}
           aria-live="polite"
           title="Couldn't reach GitHub — the next change will retry"
@@ -2253,6 +2343,7 @@ export function ProjectPlaygroundPage({
     // synced
     return (
       <span
+        data-tour="github-sync"
         className={cn(base, "border-border bg-card text-muted-foreground")}
         aria-live="polite"
       >
@@ -2309,6 +2400,7 @@ export function ProjectPlaygroundPage({
           </div>
           {sandboxLive ? (
             <button
+              data-tour="run-server"
               className="btn stop"
               onClick={handleStopProject}
               disabled={isStopping}
@@ -2319,6 +2411,7 @@ export function ProjectPlaygroundPage({
             </button>
           ) : (
             <button
+              data-tour="run-server"
               className="btn run"
               onClick={handleRunProject}
               disabled={isSaving || isRunning}
@@ -2328,7 +2421,10 @@ export function ProjectPlaygroundPage({
           )}
           <button
             className={cn("btn", isRightPanelVisible && "on")}
-            onClick={() => setIsRightPanelVisible((p) => !p)}
+            onClick={() => {
+              track(PLAYGROUND_EVENTS.previewToggled, { visible: !isRightPanelVisible });
+              setIsRightPanelVisible((p) => !p);
+            }}
             title="Toggle preview & tests"
             aria-pressed={isRightPanelVisible}
           >
@@ -2351,6 +2447,14 @@ export function ProjectPlaygroundPage({
               </svg>
             )}
           </button>
+          <button
+            className="btn ghost"
+            onClick={relaunch}
+            title="Take a tour"
+            aria-label="Take a tour"
+          >
+            Take a tour
+          </button>
           <PathFeedbackDialog />
           {/* GitHub icon stays in the top nav next to the other icons in every
               state; the sync chip sits alongside it once connected. */}
@@ -2361,6 +2465,25 @@ export function ProjectPlaygroundPage({
             onError={setGhError}
           />
           {ghConnected && renderSyncChip()}
+        </div>
+      )}
+
+      {/* ── Tour offer banner (standalone only) ── */}
+      {!embedded && shouldOffer && !offerDismissed && (
+        <div className="gh-nudge" style={{ gap: "0.75rem" }}>
+          <span className="gh-nudge-msg">New here? Take a 60-second tour.</span>
+          <button
+            className="btn run"
+            onClick={() => { start(); setOfferDismissed(true); }}
+          >
+            Start tour
+          </button>
+          <button
+            className="btn ghost"
+            onClick={() => { skip(); setOfferDismissed(true); }}
+          >
+            Skip
+          </button>
         </div>
       )}
 
@@ -2493,7 +2616,7 @@ export function ProjectPlaygroundPage({
 
           {/* FILES rail (explorer) */}
           {railTab === "explorer" && (
-            <div className="explorer-pane">
+            <div data-tour="file-tree" className="explorer-pane">
               <div className="exhead border-b border-border" ref={fileMenuRef} style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
                 <span className="exttl">Explorer</span>
                 <div className="exacts">
@@ -2556,7 +2679,7 @@ export function ProjectPlaygroundPage({
 
           {/* KAP AI rail */}
           {railTab === "kap" && (
-            <div className="railKap" style={{ height: "100%", minHeight: 0 }}>
+            <div data-tour="kap" className="railKap" style={{ height: "100%", minHeight: 0 }}>
               <KapTutorPanel
                 scope="project"
                 projectId={project?.id}
@@ -2568,6 +2691,7 @@ export function ProjectPlaygroundPage({
                   "How do I return 201?",
                   "Give me a hint",
                 ]}
+                onMessageSent={() => track(PLAYGROUND_EVENTS.kapMessageSent)}
               />
             </div>
           )}
@@ -2734,7 +2858,7 @@ export function ProjectPlaygroundPage({
           ) : isBlocked ? (
             <div className="blocked-view">Preview not supported</div>
           ) : (
-            <div className="editor-host">
+            <div data-tour="editor" className="editor-host">
               <Editor
                 height="100%"
                 language={currentLanguage}
@@ -2810,6 +2934,7 @@ export function ProjectPlaygroundPage({
                 />
               )}
               <div
+                data-tour="terminal"
                 className={cn(
                   "term border-t border-border",
                   !showTerminal && "collapsed",
@@ -2840,7 +2965,7 @@ export function ProjectPlaygroundPage({
               aria-orientation="vertical"
               aria-label="Resize preview panel"
             />
-            <div className="right col border-l border-border" ref={rightRef} style={{ boxShadow: "inset 1px 0 0 var(--line)" }}>
+            <div data-tour="preview" className="right col border-l border-border" ref={rightRef} style={{ boxShadow: "inset 1px 0 0 var(--line)" }}>
               <div className="rtabs border-b border-border" style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}>
                 <button
                   className={cn("seg-b", rightTab === "preview" && "on")}
@@ -2887,7 +3012,10 @@ export function ProjectPlaygroundPage({
                           role="tab"
                           aria-selected={previewMode === "app"}
                           className={cn("pvbtn", previewMode === "app" && "on")}
-                          onClick={() => setPreviewMode("app")}
+                          onClick={() => {
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, { mode: "app" });
+                            setPreviewMode("app");
+                          }}
                         >
                           App
                         </button>
@@ -2895,7 +3023,10 @@ export function ProjectPlaygroundPage({
                           role="tab"
                           aria-selected={previewMode === "api"}
                           className={cn("pvbtn", previewMode === "api" && "on")}
-                          onClick={() => setPreviewMode("api")}
+                          onClick={() => {
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, { mode: "api" });
+                            setPreviewMode("api");
+                          }}
                         >
                           API
                         </button>
@@ -3150,6 +3281,7 @@ export function ProjectPlaygroundPage({
                         : "Runs your endpoint in the sandbox and checks each assertion."}
                     </span>
                     <button
+                      data-tour="run-test"
                       className="btn run"
                       onClick={() => runTaskTest(activeTask)}
                       disabled={
@@ -3318,6 +3450,7 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
+                track(PLAYGROUND_EVENTS.githubConflictResolved, { resolution: "reload" });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveReload();
@@ -3338,6 +3471,7 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
+                track(PLAYGROUND_EVENTS.githubConflictResolved, { resolution: "overwrite" });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveOverwrite();

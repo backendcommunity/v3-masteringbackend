@@ -900,3 +900,59 @@ article ul li {
   --color-primary-light: rgba(19, 174, 206, 0.12);
   --color-primary-contrast-offset: rgba(19, 174, 206, 0.08);
 }
+
+/* ── driver.js tour theming ── */
+.mb-tour-dark .driver-popover {
+  background-color: #1e2533;
+  color: #e2e8f0;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+.mb-tour-dark .driver-popover-title {
+  color: #f1f5f9;
+}
+.mb-tour-dark .driver-popover-description {
+  color: #94a3b8;
+}
+.mb-tour-dark .driver-popover-close-btn {
+  color: #64748b;
+}
+.mb-tour-dark .driver-popover-close-btn:hover,
+.mb-tour-dark .driver-popover-close-btn:focus {
+  color: #e2e8f0;
+}
+.mb-tour-dark .driver-popover-footer-btn {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+.mb-tour-dark .driver-popover-footer-btn:hover,
+.mb-tour-dark .driver-popover-footer-btn:focus {
+  background-color: #1e293b;
+}
+.mb-tour-dark .driver-popover-progress-text {
+  color: #64748b;
+}
+.mb-tour-dark .driver-popover-arrow {
+  border-color: #1e2533;
+}
+
+.mb-tour-light .driver-popover {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.mb-tour-light .driver-popover-title {
+  color: #0f172a;
+}
+.mb-tour-light .driver-popover-description {
+  color: #475569;
+}
+.mb-tour-light .driver-popover-footer-btn {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.mb-tour-light .driver-popover-footer-btn:hover,
+.mb-tour-light .driver-popover-footer-btn:focus {
+  background-color: #f1f5f9;
+}
