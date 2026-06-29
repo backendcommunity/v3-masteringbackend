@@ -23,7 +23,11 @@ export function TryMockInterviewButton({ source, className }: TryMockInterviewBu
 
   const variant = source === "listing" ? "default" : "ghost";
   const surfaceClass =
-    source === "nav" ? "text-primary hover:bg-primary/10" : "shadow-sm shadow-primary/25";
+    source === "nav"
+      ? // keep brand text/icon on hover — the ghost variant's
+        // hover:text-accent-foreground would otherwise recolor it
+        "text-primary hover:bg-primary/10 hover:text-primary"
+      : "shadow-sm shadow-primary/25";
   const badgeClass =
     source === "listing"
       ? "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20"
