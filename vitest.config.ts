@@ -32,6 +32,7 @@ export default defineConfig({
       "components/__tests__/streaming-output.test.tsx",
       "components/__tests__/return-recap-modal.test.tsx",
       "components/__tests__/mock-interview-anchors.test.tsx",
+      "components/__tests__/demo-chat-interview-room.test.tsx",
     ],
   },
   resolve: {
