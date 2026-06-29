@@ -208,7 +208,7 @@ export function PathArticle({
     <div className="flex h-full w-full justify-center overflow-y-auto">
       <div className="w-full max-w-[760px] px-5 py-8 sm:px-8 sm:py-10">
         {loading ? (
-          <Loader isFull={false} />
+          <Loader />
         ) : (
           <>
             {/* Lesson header */}

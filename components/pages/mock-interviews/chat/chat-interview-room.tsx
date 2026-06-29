@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useAppStore,
@@ -27,6 +27,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { useGuidedTour } from "@/hooks/use-guided-tour";
+import { MOCK_INTERVIEW_GUIDE_STEPS, mockInterviewGuideControls } from "@/lib/mock-interview-tour";
 
 interface ChatInterviewRoomProps {
   userInterviewId: string;
@@ -217,6 +219,22 @@ export function ChatInterviewRoom({
   useEffect(() => {
     let cancelled = false;
     async function loadPreview() {
+      // Fast path: a "Start Now" navigation primed the preview from the create
+      // response, so render the welcome screen immediately — no round-trip.
+      // Mirrors the fetch path below, including the completed-session redirect.
+      const primed = store.consumeChatPreview(userInterviewId);
+      if (primed) {
+        setPreview(primed);
+        if (
+          primed.sessionStatus === "COMPLETED" ||
+          primed.sessionStatus === "ENDED"
+        ) {
+          beginInterview(); // keeps the spinner, lands on results
+        } else {
+          setIsInitializing(false);
+        }
+        return;
+      }
       try {
         const data = await store.getChatInterviewPreview(userInterviewId);
         if (cancelled) return;
@@ -558,6 +576,52 @@ export function ChatInterviewRoom({
     else setPendingDiagram(null);
   }, []);
 
+  // First-interview onboarding: auto-run the highlight guide ONCE per user, when
+  // their first real interview starts (i.e. once `hasStarted` flips after the
+  // user clicks "Start Interview"). Persisted in localStorage so returning users
+  // go straight to practice; the welcome "How it works" button replays it anytime.
+  const [autoGuide, setAutoGuide] = useState(false);
+  useEffect(() => {
+    try {
+      setAutoGuide(window.localStorage.getItem("mb_mi_guide_seen") !== "1");
+    } catch {
+      setAutoGuide(false);
+    }
+  }, []);
+
+  const guideControls = useMemo(
+    () =>
+      mockInterviewGuideControls({
+        showCode: () => { setActivePanel("code"); setMobileTab("workspace"); },
+        showWhiteboard: () => { setActivePanel("whiteboard"); setMobileTab("workspace"); },
+      }),
+    [],
+  );
+
+  const { relaunch: relaunchGuide } = useGuidedTour({
+    ready: hasStarted && !isInitializing,
+    theme: "light",
+    track: (event, extra) => {
+      analytics.track(event, extra);
+      // Mark the guide as seen the moment it starts, so it never auto-runs again
+      // even if the user dismisses it midway. Replays via the button are fine.
+      if (event.endsWith("_tour_started")) {
+        try {
+          window.localStorage.setItem("mb_mi_guide_seen", "1");
+        } catch {
+          /* private mode — the guide simply auto-runs again next time */
+        }
+      }
+    },
+    steps: MOCK_INTERVIEW_GUIDE_STEPS,
+    eventPrefix: "mock_interview",
+    // Auto-start only on the user's first real interview; the button still
+    // replays on demand regardless (relaunch ignores shouldOffer/autoStart).
+    autoStart: autoGuide,
+    alwaysOffer: autoGuide,
+    ...guideControls,
+  });
+
   // Load user profile for avatar/initials
   useEffect(() => {
     store
@@ -638,6 +702,7 @@ export function ChatInterviewRoom({
           starting={isStartingSession}
           onStart={beginInterview}
           onBack={embedded ? undefined : () => router.push("/mock-interviews")}
+          onHowItWorks={relaunchGuide}
         />
       </div>
     );

@@ -195,7 +195,7 @@ export function ChatInterviewHeader({
 
       {/* Center: timer */}
       {!isComplete && (
-        <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
+        <div data-tour="mi-timer" className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
           <Clock className={cn("w-3.5 h-3.5", timerColor)} />
           <span
             className={cn(
@@ -286,6 +286,7 @@ export function ChatInterviewHeader({
           <AlertDialog onOpenChange={(open) => { if (open) analytics.track("chat_interview_end_clicked", { template_id: template.id }); }}>
             <AlertDialogTrigger asChild>
               <Button
+                data-tour="mi-end"
                 variant="destructive"
                 size="sm"
                 className="h-8 text-xs px-3"

@@ -31,6 +31,8 @@ interface KapTutorPanelProps {
   starterPrompts?: string[];
   className?: string;
   header?: ReactNode;
+  /** Called after the user dispatches a message (no message text — analytics use only). */
+  onMessageSent?: () => void;
 }
 
 interface Msg extends KapTutorMessage {
@@ -50,6 +52,7 @@ export function KapTutorPanel({
   starterPrompts,
   className,
   header,
+  onMessageSent,
 }: KapTutorPanelProps) {
   const streamKapTutor = useAppStore((s) => s.streamKapTutor);
   const getKapHistory = useAppStore((s) => s.getKapHistory);
@@ -100,6 +103,7 @@ export function KapTutorPanel({
       if (!message || isStreaming || !refId) return;
       setNotice(null);
       setInput("");
+      onMessageSent?.();
 
       const safeSet = (u: Parameters<typeof setMessages>[0]) => {
         if (mountedRef.current) setMessages(u);
@@ -150,7 +154,7 @@ export function KapTutorPanel({
         }
       }
     },
-    [isStreaming, refId, scope, videoId, projectId, taskId, streamKapTutor],
+    [isStreaming, refId, scope, videoId, projectId, taskId, streamKapTutor, onMessageSent],
   );
 
   const introText = intro ?? DEFAULT_VIDEO_INTRO;

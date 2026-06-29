@@ -63,7 +63,7 @@ export function PathResourceSheet({ step }: { step?: PathSessionStep }) {
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-4">
           {!loaded ? (
-            <Loader isFull={false} />
+            <Loader />
           ) : resources.length ? (
             <ul className="space-y-2">
               {resources.map((r, i) => (

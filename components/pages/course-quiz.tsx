@@ -196,7 +196,7 @@ export function CourseQuizPage({
     return (
       <div className="flex items-center p-6 h-[400px]">
         <div className="max-w-2xl mx-auto space-y-6">
-          <Loader isFull={false} isLoader={true} />
+          <Loader />
         </div>
       </div>
     );

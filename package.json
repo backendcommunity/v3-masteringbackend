@@ -69,6 +69,7 @@
     "date-fns": "4.1.0",
     "disqus-react": "^1.1.6",
     "dompurify": "^3.4.11",
+    "driver.js": "^1.6.0",
     "embla-carousel-react": "8.5.1",
     "html2canvas": "^1.4.1",
     "immer": "latest",

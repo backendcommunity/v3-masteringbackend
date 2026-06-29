@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
+import { TryPlaygroundButton } from "@/components/projects/try-playground-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
+import { PROJECT_EVENTS } from "@/lib/analytics-events";
 import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
@@ -82,10 +84,10 @@ export function ProjectDetailPage({
         setTimeout(() => { void triggerItemRecap("PROJECT", project.id); }, 0);
       }
       if (project) {
-        analytics.track("project_viewed", {
+        analytics.track(PROJECT_EVENTS.viewed, {
           projectId: project.id,
-          projectTitle: project.title,
-          isStarted: !!project.userProject,
+          slug,
+          isPremium: project.isPremium,
         });
       }
     }
@@ -121,7 +123,7 @@ export function ProjectDetailPage({
 
   const handleEnrollNow = async () => {
     try {
-      analytics.track("project_start_clicked", {
+      analytics.track(PROJECT_EVENTS.startClicked, {
         projectId: project?.id,
         projectTitle: project?.title,
         isPremium: !user?.isPremium,
@@ -232,12 +234,15 @@ export function ProjectDetailPage({
 
             <div className="mt-4">
               {project?.enrolled ? (
-                <button
-                  onClick={() => handleContinueLearning(project!.slug)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
-                >
-                  <Play className="w-4 h-4" /> Continue Building
-                </button>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <button
+                    onClick={() => handleContinueLearning(project!.slug)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
+                  >
+                    <Play className="w-4 h-4" /> Continue Building
+                  </button>
+                  <TryPlaygroundButton source="detail" slug={slug} />
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <button
@@ -252,6 +257,7 @@ export function ProjectDetailPage({
                     )}
                     {enrolling ? "Starting…" : "Start Building"}
                   </button>
+                  <TryPlaygroundButton source="detail" slug={slug} />
                   <span className="text-sm text-white/[.65]">
                     {!project?.isPremium || user?.isPremium ? (
                       <>
