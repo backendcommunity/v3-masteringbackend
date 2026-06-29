@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { HabitStrip } from "@/components/dashboard/habit-strip";
@@ -8,7 +7,6 @@ import { ResumeHero } from "@/components/dashboard/resume-hero";
 import { UpNextPanel } from "@/components/dashboard/up-next-panel";
 import { LeaguePanel } from "@/components/dashboard/league-panel";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
-import { triggerWelcomeBack } from "@/lib/use-journey-recap-trigger";
 
 /** Single-panel skeleton — each slow slice shows its own placeholder so the
  *  rest of the dashboard paints immediately. */
@@ -20,9 +18,9 @@ export function DashboardContent() {
   const user = useUser();
   const data = useDashboardData();
 
-  useEffect(() => {
-    setTimeout(() => { void triggerWelcomeBack(); }, 0);
-  }, []);
+  // The welcome-back recap pop-out is disabled on the dashboard. The recap
+  // modal/store/backend remain in place (dormant) — re-enable by triggering
+  // triggerWelcomeBack() on mount again.
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
