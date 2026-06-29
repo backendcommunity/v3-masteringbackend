@@ -49,7 +49,16 @@ const sameDay = (a: Date, b: Date) =>
   startOfDay(a).getTime() === startOfDay(b).getTime();
 
 export function useDashboardData(): DashboardData {
-  const store = useAppStore();
+  // Select the specific store ACTIONS (stable references) rather than the whole
+  // store. Subscribing to the whole store (`useAppStore()`) returns a new
+  // snapshot on every unrelated mutation — e.g. closing the welcome-back recap
+  // calls setReturnRecap(null) — which would re-run the load effect below and
+  // refetch the entire dashboard (the "refresh on close" bug). Action refs are
+  // created once, so the effect's deps stay stable and it loads once on mount.
+  const getContinueLearning = useAppStore((s) => s.getContinueLearning);
+  const getLeague = useAppStore((s) => s.getLeague);
+  const getActivities = useAppStore((s) => s.getActivities);
+  const getPathSession = useAppStore((s) => s.getPathSession);
   const user = useUser();
 
   const [loading, setLoading] = useState(true);
@@ -66,9 +75,9 @@ export function useDashboardData(): DashboardData {
       setLoading(true);
       // Each slice degrades independently — a failure never blanks the page.
       const [cl, lg, acts] = await Promise.all([
-        store.getContinueLearning().catch(() => null),
-        store.getLeague().catch(() => null),
-        store.getActivities({ size: 50 }).catch(() => []),
+        getContinueLearning().catch(() => null),
+        getLeague().catch(() => null),
+        getActivities({ size: 50 }).catch(() => []),
       ]);
 
       if (cancelled) return;
@@ -78,7 +87,7 @@ export function useDashboardData(): DashboardData {
 
       // Up-next + path-gate come from the active path's session.
       if (cl?.slug) {
-        const ps = await store.getPathSession(cl.slug).catch(() => null);
+        const ps = await getPathSession(cl.slug).catch(() => null);
         if (!cancelled) setPathSession(ps ?? null);
       } else {
         setPathSession(null);
@@ -91,7 +100,7 @@ export function useDashboardData(): DashboardData {
     return () => {
       cancelled = true;
     };
-  }, [store]);
+  }, [getContinueLearning, getLeague, getActivities, getPathSession]);
 
   // ---- derived: today's MB + week dots ----
   const now = new Date();
