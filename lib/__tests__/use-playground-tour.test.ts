@@ -3,10 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
 const driveMock = vi.fn();
-vi.mock("@/lib/playground-tour", () => ({
-  buildPlaygroundTour: () => ({ drive: driveMock }),
-  TOUR_STEPS: [],
+vi.mock("@/lib/guided-tour", () => ({
+  buildGuidedTour: () => ({ drive: driveMock }),
 }));
+vi.mock("@/lib/playground-tour", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/playground-tour")>();
+  return { ...actual };
+});
 
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 
