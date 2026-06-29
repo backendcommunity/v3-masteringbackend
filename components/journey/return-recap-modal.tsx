@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { marked } from "marked";
+import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
@@ -26,6 +27,9 @@ export function ReturnRecapModal() {
   const { returnRecap, setReturnRecap, sendRecapFeedback } = useAppStore();
   const openedAt = useRef<number>(0);
   const open = !!returnRecap;
+  // Which item is currently navigating away (hard nav has a perceptible delay,
+  // so we show a spinner on its Resume button to keep the user oriented).
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!returnRecap) return;
@@ -67,7 +71,23 @@ export function ReturnRecapModal() {
                     <p className="font-medium">{it.title}</p>
                     <p className="text-xs text-muted-foreground">{it.progressPct}% in · Up next: {it.nextStepTitle}</p>
                   </div>
-                  <Button size="sm" onClick={() => { window.location.href = it.deeplink; }}>Resume →</Button>
+                  <Button
+                    size="sm"
+                    disabled={!!navigatingId}
+                    onClick={() => {
+                      setNavigatingId(it.itemId);
+                      window.location.href = it.deeplink;
+                    }}
+                  >
+                    {navigatingId === it.itemId ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        Resuming…
+                      </>
+                    ) : (
+                      "Resume →"
+                    )}
+                  </Button>
                 </li>
               ))}
             </ul>

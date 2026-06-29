@@ -61,6 +61,11 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
       fromDashboard: true,
     });
 
+    // Show the loading state for EVERY resume path (not just the milestone walk).
+    // The button navigates via router.push, so the spinner stays until this
+    // component unmounts on the new route — feedback the moment the user clicks.
+    setNavigating(true);
+
     // Exact resume: the path session knows the precise step the learner stopped
     // on (any type — video, quiz, exercise, project…), not just the next video.
     const resumeStepId =
@@ -78,7 +83,6 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
       return;
     }
 
-    setNavigating(true);
     try {
       const milestone =
         milestoneCache.current[currentTopicId] ??
@@ -130,9 +134,9 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
       }
     } catch {
       router.push(routes.pathContinue(slug));
-    } finally {
-      setNavigating(false);
     }
+    // No finally reset: every branch above navigates, so the spinner should
+    // stay until this component unmounts on the new route.
   };
 
   const pathPct = pathSession?.path.progressPct ?? item.progress;
