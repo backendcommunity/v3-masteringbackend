@@ -26,10 +26,16 @@ export default defineConfig({
     setupFiles: ["@testing-library/jest-dom/vitest"],
     include: [
       "lib/__tests__/**/*.test.ts",
+      "lib/__tests__/**/*.test.tsx",
       "components/__tests__/path-exercise-ide-continue.test.tsx",
       "components/__tests__/take-hint-ide.test.tsx",
       "components/__tests__/streaming-output.test.tsx",
       "components/__tests__/return-recap-modal.test.tsx",
+      "components/__tests__/mock-interview-anchors.test.tsx",
+      "components/__tests__/demo-chat-interview-room.test.tsx",
+      "components/__tests__/announcement-banner.test.tsx",
+      "components/__tests__/try-mock-interview-button.test.tsx",
+      "components/__tests__/interview-completion-dialog-cta.test.tsx",
     ],
   },
   resolve: {

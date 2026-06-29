@@ -35,7 +35,6 @@ import {
   Building2,
   Briefcase,
   FileText,
-  Sparkles,
   Layout,
   Play,
   Search,
@@ -50,6 +49,7 @@ import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-temp
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
 import { JourneyGlyph } from "@/components/journey-glyph";
+import { TryMockInterviewButton } from "@/components/projects/try-mock-interview-button";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
@@ -595,6 +595,21 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadBookmarks(0);
   }, []);
 
+  // If the active tab gets hidden because its count dropped to 0 (e.g. the last
+  // bookmark was removed or the last custom template deleted), fall back to the
+  // always-visible "templates" tab so the user is never stranded on a tab whose
+  // chip no longer renders.
+  useEffect(() => {
+    if (activeTab === "templates") return;
+    const counts: Record<string, number> = {
+      saved: savedIds.size,
+      "my-templates": myTemplates.length,
+      booked: bookedInterviews.length,
+      completed: completedTotal,
+    };
+    if ((counts[activeTab] ?? 1) === 0) setActiveTab("templates");
+  }, [activeTab, savedIds, myTemplates, bookedInterviews, completedTotal]);
+
   const handleToggleSave = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -702,7 +717,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       Fullstack: "Stand out as a fullstack engineer",
                     } as Record<string, string>
                   )[filters.category] ??
-                    "Rehearse real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
+                    "Practice real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
                 </p>
 
                 <div className="mt-4">
@@ -717,7 +732,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                     >
-                      <Sparkles className="w-4 h-4" />
                       Practice for a real job
                     </button>
                   ) : (
@@ -731,7 +745,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                     >
-                      <Sparkles className="w-4 h-4" />
                       Practice for a real job
                     </button>
                   )}
@@ -764,6 +777,38 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
       <div className="pt-6">
+        {/* Demo on-ramp — a conversion banner for the free guided walkthrough.
+            Distinct from the hero's "Practice for a real job" (the real/paid
+            path): this sells the zero-friction taste that ends in a real score. */}
+        <div className="relative mb-6 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4 sm:items-center">
+              {/* Score chip — the demo's real payoff, shown up front */}
+              <div className="hidden h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl border-2 border-primary/30 bg-primary/10 sm:flex">
+                <span className="text-lg font-extrabold leading-none text-primary">
+                  82
+                </span>
+                <span className="text-[9px] font-medium text-primary/70">
+                  / 100
+                </span>
+              </div>
+              <div className="min-w-0">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                  Free · 60 seconds · no setup
+                </span>
+                <h3 className="mt-1 text-base font-bold text-foreground sm:text-[17px]">
+                  See if you&apos;re interview-ready
+                </h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Take a guided mock interview and get an instant score with a
+                  personalized debrief — exactly what the real thing feels like.
+                </p>
+              </div>
+            </div>
+            <TryMockInterviewButton source="listing" className="shrink-0" />
+          </div>
+        </div>
+
         {/* Session limit banner */}
         {interviewAccess && !interviewAccess.hasAccess && (
           <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 mb-4">
@@ -829,7 +874,13 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 count: completedTotal,
               },
             ] as { value: string; label: string; count: number }[]
-          ).map((chip) => (
+          )
+            // Hide a tab until it has at least one item. The main "All
+            // templates" tab always shows. Saved/My Templates/Booked/Completed
+            // counts all load on mount, so this never deadlocks (no tab is
+            // unreachable waiting for its own activation to populate a count).
+            .filter((chip) => chip.value === "templates" || chip.count > 0)
+            .map((chip) => (
             <button
               key={chip.value}
               onClick={() => {
@@ -940,7 +991,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {(activeTab === "templates" || activeTab === "saved") &&
           categories.length > 0 && (
             <div className="flex flex-wrap gap-2 py-2 mb-4">
-              {categories.map((cat) => (
+              {/* Show the first 15 categories as quick-pick chips; every
+                  category (including the overflow) stays reachable via the
+                  "All categories" select beside them. */}
+              {categories.slice(0, 15).map((cat) => (
                 <button
                   key={cat}
                   onClick={() =>
@@ -1258,7 +1312,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   onClick={() => onNavigate("/mock-interviews/prepare")}
                   className="gap-2"
                 >
-                  <Sparkles className="h-4 w-4" />
                   Practice for a real job
                 </Button>
               </div>
