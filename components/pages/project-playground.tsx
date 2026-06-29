@@ -249,6 +249,9 @@ export function ProjectPlaygroundPage({
   const [previewUrl, setPreviewUrl] = useState(
     process.env.NEXT_PUBLIC_EXECUTOR_URL ?? "http://localhost:3000",
   );
+  // Bumped by the preview Refresh button; appended to the iframe URL to force a
+  // real reload (the iframe src is derived from baseURL, not previewUrl).
+  const [previewNonce, setPreviewNonce] = useState(0);
   const frontendEnabled = !!(project as any)?.playgroundConfig?.frontendPreview;
   const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
   useEffect(() => {
@@ -486,39 +489,6 @@ export function ProjectPlaygroundPage({
   useEffect(() => {
     if (shouldOffer) track(TOUR_EVENTS.offered);
   }, [shouldOffer, track]);
-
-  // Loud, one-time diagnostic so "nothing happens" is never a mystery — prints
-  // every gate that controls whether the demo runs and whether its actions can
-  // fire. Check this first in devtools if the demo doesn't start.
-  const tourDiagLogged = useRef(false);
-  useEffect(() => {
-    if (!tourReady || tourDiagLogged.current) return;
-    tourDiagLogged.current = true;
-    // eslint-disable-next-line no-console
-    console.log("[playground-tour] gates", {
-      routeSlug: slug,
-      projectSlug: project?.slug,
-      isSample: project?.isSample,
-      isSampleProject,
-      demoForced,
-      hasPgCtx: !!pgCtx,
-      loggedIn: !!user?.id,
-      enrolled: project?.enrolled,
-      shouldOffer,
-      actionKeys: Object.keys(tourActionsRef.current),
-    });
-  }, [
-    tourReady,
-    slug,
-    project?.slug,
-    project?.isSample,
-    isSampleProject,
-    demoForced,
-    pgCtx,
-    user?.id,
-    project?.enrolled,
-    shouldOffer,
-  ]);
 
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
@@ -2050,9 +2020,63 @@ export function ProjectPlaygroundPage({
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
   baseURLRef.current = baseURL; // live mirror for timer callbacks
 
-  // Programmatically create + open a small file for the guided demo (bypasses
-  // the inline create-input flow); the sandbox is the source of truth so we
-  // write then re-list the tree.
+  // Build the demo app for the guided walkthrough. Writes (1) an API the test
+  // grades and (2) a real HTML frontend into the preview dir, then asks the
+  // worker to relocate that dir into <workdir>.frontend so it is served at
+  // <baseURL>/__app/ (App-mode preview). Serving the frontend statically via
+  // the worker means it renders regardless of the app server's restart state.
+  const DEMO_API = `const express = require("express");
+const app = express();
+const port = process.env.PORT || 8080;
+
+app.use(express.json());
+
+// API endpoint (the demo's "Run a test" step grades this)
+app.get("/api/hello", (req, res) => {
+  res.json({ ok: true, message: "Hello from your API 🎉" });
+});
+
+app.get("/", (req, res) => {
+  res.json({ ok: true, message: "API is running. Frontend at /__app/" });
+});
+
+app.listen(port, () => console.log("Server listening on port " + port));
+`;
+  const DEMO_FRONTEND = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hello API</title>
+    <style>
+      *{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:radial-gradient(1200px 600px at 50% -10%,#e8fbff,#f5f7fa);color:#0a1f2e}
+      .card{width:min(520px,92vw);background:#fff;border-radius:18px;padding:32px;text-align:center;
+      box-shadow:0 24px 60px rgba(10,107,133,.16),0 0 0 1px rgba(19,174,206,.08)}
+      .badge{display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(19,174,206,.12);
+      color:#0f8ba8;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+      h1{margin:14px 0 6px;font-size:26px;letter-spacing:-.02em} p{margin:0 0 18px;color:#475569}
+      pre{text-align:left;background:#0e1f33;color:#cdddea;border-radius:12px;padding:16px;overflow:auto;font-size:13px;margin:0}
+      .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#13aece;margin-right:6px}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <span class="badge">Live preview</span>
+      <h1>🎉 Your app is running</h1>
+      <p><span class="dot"></span><span id="status">Calling your API…</span></p>
+      <pre id="out">…</pre>
+    </main>
+    <script>
+      fetch("/api/hello").then(function(r){return r.json()}).then(function(d){
+        document.getElementById("status").textContent="API responded \\u2713";
+        document.getElementById("out").textContent=JSON.stringify(d,null,2);
+      }).catch(function(){document.getElementById("status").textContent="API not reachable";});
+    </script>
+  </body>
+</html>
+`;
   const demoCreateFile = async () => {
     if (!pgCtx) {
       console.warn(
@@ -2061,19 +2085,27 @@ export function ProjectPlaygroundPage({
       return;
     }
     setRailTab("explorer");
-    const name = "demo.js";
-    const content =
-      "// Created by the Playground demo.\n" +
-      'module.exports = (req, res) => res.json({ hello: "world" });\n';
     try {
-      await pgFs(pgCtx, { op: "write", path: toRel(name), content });
+      await pgFs(pgCtx, { op: "write", path: toRel("index.js"), content: DEMO_API });
+      await pgFs(pgCtx, {
+        op: "write",
+        path: toRel("public/index.html"),
+        content: DEMO_FRONTEND,
+      });
+      // Relocate <workdir>/public -> <workdir>.frontend so the worker serves it
+      // at /__app/. Best-effort: the API + preview still work without it.
+      try {
+        await pgSeed(pgCtx, { frontendPreview: true, previewDir: "public" });
+      } catch (e) {
+        console.warn("[playground-tour] frontend relocate (pgSeed) failed:", e);
+      }
       await refreshTree();
       await openFile({
-        name,
+        name: "index.js",
         type: "file",
         icon: "📄",
-        path: name,
-        language: getLanguageFromFileName(name),
+        path: "index.js",
+        language: getLanguageFromFileName("index.js"),
       });
     } catch (e) {
       // Don't break the tour, but surface WHY — usually the playground worker
@@ -2104,8 +2136,15 @@ export function ProjectPlaygroundPage({
       if (gradable) openTaskDrawer(gradable);
     },
     preview: () => {
+      // Close the Run-test drawer (opened by the run-test step) so the live
+      // preview — the finale — is fully visible and unobstructed.
+      setShowTask(false);
       setIsRightPanelVisible(true);
       setRightTab("preview");
+      // App mode points the iframe at <baseURL>/__app/, where the worker serves
+      // the relocated frontend. Only takes effect when the project enables it
+      // (frontendEnabled); harmless otherwise (the toggle is hidden).
+      setPreviewMode("app");
     },
   };
 
@@ -2261,11 +2300,18 @@ export function ProjectPlaygroundPage({
 
   // ── mock's makeResize: flex-basis drag with capture-phase listeners so the
   // editor/terminal can't swallow the drag; text-selection disabled mid-drag. ──
-  const apiBase = baseURL || previewUrl;
-  const resolvedPreviewUrl =
+  // A browser iframe can't load a bind address like 0.0.0.0; map it (and
+  // 127.0.0.1) to localhost so the local preview actually renders.
+  const browsable = (u: string) =>
+    (u || "").replace(/\/\/(0\.0\.0\.0|127\.0\.0\.1)(:|\/|$)/, "//localhost$2");
+  const withNonce = (u: string) =>
+    !u || !previewNonce ? u : u + (u.includes("?") ? "&" : "?") + "_t=" + previewNonce;
+  const apiBase = browsable(baseURL || previewUrl);
+  const resolvedPreviewUrl = withNonce(
     frontendEnabled && previewMode === "app" && baseURL
-      ? baseURL.replace(/\/+$/, "") + "/__app/"
-      : apiBase;
+      ? browsable(baseURL.replace(/\/+$/, "")) + "/__app/"
+      : apiBase,
+  );
 
   // ── inline SVG icons ported verbatim from the mock (exact paths) ──
   const I = {
@@ -3283,14 +3329,8 @@ export function ProjectPlaygroundPage({
                       className="pvbtn"
                       title="Refresh preview"
                       aria-label="Refresh preview"
-                      onClick={() => {
-                        setPreviewUrl((prev) => {
-                          const base = baseURL || prev;
-                          const url = new URL(base, window.location.origin);
-                          url.searchParams.set("_t", Date.now() + "");
-                          return url.toString();
-                        });
-                      }}
+                      disabled={!baseURL}
+                      onClick={() => setPreviewNonce((n) => n + 1)}
                     >
                       {I.refresh}
                     </button>

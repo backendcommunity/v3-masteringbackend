@@ -11,15 +11,17 @@ export type TourStep = {
 
 export const TOUR_STEPS: TourStep[] = [
   { id: "welcome", title: "Welcome to the Playground", body: "A quick guided demo — each step actually happens as you go. Click Next to begin." },
-  { id: "file-tree", title: "Creating a file", body: "We just created a file for you — see it appear in the explorer and open in the editor.", anchor: "file-tree" },
+  { id: "file-tree", title: "Build your app", body: "We just added the project files for you — see them appear in the explorer and open in the editor.", anchor: "file-tree" },
   { id: "editor", title: "Write code", body: "This is where you write your code. The file we created is open right here.", anchor: "editor" },
   { id: "kap", title: "Ask Kap", body: "Stuck on a task? Kap, your AI tutor, explains and unblocks you right here.", anchor: "kap" },
   { id: "run-server", title: "Booting your server", body: "We're starting the dev server for real — give it a few seconds to go live.", anchor: "run-server" },
   { id: "terminal", title: "Terminal", body: "Server logs and output stream here — we just opened it for you.", anchor: "terminal" },
   { id: "run-test", title: "Running a test", body: "We're grading a task against its real test — watch the result come back.", anchor: "run-test" },
-  { id: "preview", title: "Preview", body: "Your running app/API shows here — we just opened the preview panel.", anchor: "preview" },
   { id: "github-sync", title: "Sync to GitHub", body: "When you're ready, connect GitHub to push your work. (We won't connect during the demo.)", anchor: "github-sync" },
-  { id: "done", title: "You're all set!", body: "That's the whole loop — build, run, test, preview. Now it's your turn." },
+  // THE finale — a real, running frontend preview. This is the payoff: the
+  // learner sees their app actually live in the browser, end to end.
+  { id: "preview", title: "🎉 Your app is live", body: "And there it is — your running app, live in the preview. You built it, started it, and it works. This is what you ship.", anchor: "preview" },
+  { id: "done", title: "That's the whole loop", body: "Build → run → test → ship a live app. Now it's your turn — start building for real." },
 ];
 
 /** A real action a step performs when it becomes active. */

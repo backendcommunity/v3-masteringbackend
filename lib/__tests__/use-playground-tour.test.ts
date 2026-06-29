@@ -8,55 +8,34 @@ vi.mock("@/lib/playground-tour", () => ({
   TOUR_STEPS: [],
 }));
 
-import { usePlaygroundTour, TOUR_FLAG } from "@/hooks/use-playground-tour";
+import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 
 function setSearch(search: string) {
   Object.defineProperty(window, "location", { value: { search }, writable: true });
 }
 
 describe("usePlaygroundTour", () => {
-  beforeEach(() => { localStorage.clear(); driveMock.mockClear(); });
+  beforeEach(() => { driveMock.mockClear(); });
 
-  it("offers only when ready, ?tour=offer, and flag unset", () => {
+  it("offers when ready and ?tour=offer is present", () => {
     setSearch("?tour=offer");
     const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track: vi.fn() }));
     expect(result.current.shouldOffer).toBe(true);
   });
 
-  it("does not offer when the flag is already set", () => {
-    setSearch("?tour=offer");
-    localStorage.setItem(TOUR_FLAG, "1");
-    const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track: vi.fn() }));
-    expect(result.current.shouldOffer).toBe(false);
-  });
-
-  it("does not offer without ?tour=offer", () => {
+  it("does not offer without ?tour=offer and not alwaysOffer", () => {
     setSearch("");
     const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track: vi.fn() }));
     expect(result.current.shouldOffer).toBe(false);
   });
 
-  it("start() drives the tour, fires started, and sets the flag", () => {
+  it("does not offer until ready", () => {
     setSearch("?tour=offer");
-    const track = vi.fn();
-    const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track }));
-    act(() => result.current.start());
-    expect(driveMock).toHaveBeenCalledTimes(1);
-    expect(track).toHaveBeenCalledWith("playground_tour_started");
-    expect(localStorage.getItem(TOUR_FLAG)).toBe("1");
+    const { result } = renderHook(() => usePlaygroundTour({ ready: false, theme: "dark", track: vi.fn() }));
+    expect(result.current.shouldOffer).toBe(false);
   });
 
-  it("skip() fires skipped and sets the flag without driving", () => {
-    setSearch("?tour=offer");
-    const track = vi.fn();
-    const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track }));
-    act(() => result.current.skip());
-    expect(driveMock).not.toHaveBeenCalled();
-    expect(track).toHaveBeenCalledWith("playground_tour_skipped");
-    expect(localStorage.getItem(TOUR_FLAG)).toBe("1");
-  });
-
-  it("relaunch() drives without requiring the flag", () => {
+  it("relaunch() drives the tour and fires started", () => {
     setSearch("");
     const track = vi.fn();
     const { result } = renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track }));
@@ -65,7 +44,7 @@ describe("usePlaygroundTour", () => {
     expect(track).toHaveBeenCalledWith("playground_tour_started");
   });
 
-  it("autoStart drives once (after the mount delay) when offered, and sets the flag", () => {
+  it("autoStart drives once (after the mount delay) when offered", () => {
     vi.useFakeTimers();
     setSearch("?tour=offer");
     const track = vi.fn();
@@ -74,14 +53,12 @@ describe("usePlaygroundTour", () => {
     act(() => { vi.advanceTimersByTime(500); });
     expect(driveMock).toHaveBeenCalledTimes(1);
     expect(track).toHaveBeenCalledWith("playground_tour_started");
-    expect(localStorage.getItem(TOUR_FLAG)).toBe("1");
     vi.useRealTimers();
   });
 
-  it("autoStart does NOT drive when the tour would not be offered (flag set)", () => {
+  it("autoStart does NOT drive without ?tour=offer and not alwaysOffer", () => {
     vi.useFakeTimers();
-    setSearch("?tour=offer");
-    localStorage.setItem(TOUR_FLAG, "1");
+    setSearch("");
     const track = vi.fn();
     renderHook(() => usePlaygroundTour({ ready: true, theme: "dark", track, autoStart: true }));
     act(() => { vi.advanceTimersByTime(1000); });
@@ -89,10 +66,9 @@ describe("usePlaygroundTour", () => {
     vi.useRealTimers();
   });
 
-  it("alwaysOffer auto-drives even without ?tour=offer and even if the flag is set", () => {
+  it("alwaysOffer auto-drives even without ?tour=offer", () => {
     vi.useFakeTimers();
-    setSearch(""); // no opt-in param
-    localStorage.setItem(TOUR_FLAG, "1"); // already seen — must be ignored
+    setSearch("");
     const track = vi.fn();
     const { result } = renderHook(() =>
       usePlaygroundTour({ ready: true, theme: "dark", track, autoStart: true, alwaysOffer: true }),

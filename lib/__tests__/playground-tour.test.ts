@@ -6,7 +6,7 @@ describe("playground tour", () => {
   it("defines steps in the documented order", () => {
     expect(TOUR_STEPS.map((s) => s.id)).toEqual([
       "welcome", "file-tree", "editor", "kap", "run-server",
-      "terminal", "run-test", "preview", "github-sync", "done",
+      "terminal", "run-test", "github-sync", "preview", "done",
     ]);
   });
   it("anchors every non-centered step to a data-tour id", () => {

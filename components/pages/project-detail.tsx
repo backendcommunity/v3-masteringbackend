@@ -241,7 +241,7 @@ export function ProjectDetailPage({
                   >
                     <Play className="w-4 h-4" /> Continue Building
                   </button>
-                  <TryPlaygroundButton source="detail" />
+                  <TryPlaygroundButton source="detail" slug={slug} />
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -257,7 +257,7 @@ export function ProjectDetailPage({
                     )}
                     {enrolling ? "Starting…" : "Start Building"}
                   </button>
-                  <TryPlaygroundButton source="detail" />
+                  <TryPlaygroundButton source="detail" slug={slug} />
                   <span className="text-sm text-white/[.65]">
                     {!project?.isPremium || user?.isPremium ? (
                       <>

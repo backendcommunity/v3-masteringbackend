@@ -16,11 +16,19 @@ const SAMPLE_SLUG = "hello-api-sample";
 
 interface TryPlaygroundButtonProps {
   source: "detail" | "listing" | "nav";
+  /**
+   * Target project to open. When omitted (listing/nav) the seeded SAMPLE is
+   * used and the full auto-driven demo runs. On the project DETAIL page, pass
+   * the current project's slug — the tour then runs as a GUIDE (highlight-only,
+   * strict) on that real project, not the sample.
+   */
+  slug?: string;
   className?: string;
 }
 
 export function TryPlaygroundButton({
   source,
+  slug,
   className,
 }: TryPlaygroundButtonProps) {
   const router = useRouter();
@@ -30,17 +38,19 @@ export function TryPlaygroundButton({
     (s) => s.handleProjectEnrollment,
   );
 
+  const targetSlug = slug ?? SAMPLE_SLUG;
+
   const onClick = async () => {
     if (inFlight.current) return;
     inFlight.current = true;
     setLoading(true);
-    analytics.track(PROJECT_EVENTS.tryPlaygroundClicked, { source });
+    analytics.track(PROJECT_EVENTS.tryPlaygroundClicked, { source, slug: targetSlug });
 
     // Enrollment POSTs to the backend. For an already-enrolled user the backend
     // is expected to be idempotent, but if it surfaces an "already enrolled"
     // error we still want to drop the learner straight into the playground.
     try {
-      await handleProjectEnrollment(SAMPLE_SLUG);
+      await handleProjectEnrollment(targetSlug);
     } catch (error: any) {
       const message: string = String(
         error?.response?.data?.message ?? "",
@@ -56,16 +66,38 @@ export function TryPlaygroundButton({
     }
 
     setLoading(false);
-    router.push(`${routes.projectPlayground(SAMPLE_SLUG)}?tour=offer`);
+    router.push(`${routes.projectPlayground(targetSlug)}?tour=offer`);
   };
+
+  // Visual hierarchy by surface:
+  // - listing: the primary brand CTA (solid) — this is the marketing entry point
+  // - detail:  SECONDARY to "Start/Continue Building"; outline on the navy hero
+  // - nav:     compact, low-emphasis ghost
+  const variant =
+    source === "listing" ? "default" : source === "detail" ? "outline" : "ghost";
+  const surfaceClass =
+    source === "detail"
+      ? "border-white/30 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+      : source === "nav"
+        ? "text-primary hover:bg-primary/10"
+        : "shadow-sm shadow-primary/25"; // listing (solid brand)
+  const badgeClass =
+    source === "listing"
+      ? "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20"
+      : "bg-primary/15 text-primary hover:bg-primary/15 border-transparent";
+  const ariaLabel =
+    source === "detail"
+      ? "Open this project's playground and take a guided tour"
+      : "Try the playground with a sample project";
 
   return (
     <Button
       type="button"
+      variant={variant}
       onClick={onClick}
       disabled={loading}
-      aria-label="Try the playground with a sample project"
-      className={cn("gap-2", className)}
+      aria-label={ariaLabel}
+      className={cn("gap-2 font-semibold", surfaceClass, className)}
     >
       {loading ? (
         <Loader2 className="animate-spin" aria-hidden="true" />
@@ -73,10 +105,7 @@ export function TryPlaygroundButton({
         <Play aria-hidden="true" />
       )}
       <span>{loading ? "Starting…" : "Try Playground"}</span>
-      <Badge
-        variant="secondary"
-        className="bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20"
-      >
+      <Badge variant="secondary" className={cn("ml-0.5", badgeClass)}>
         NEW
       </Badge>
     </Button>
