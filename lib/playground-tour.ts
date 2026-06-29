@@ -6,16 +6,16 @@ import { buildGuidedTour, type TourStep, type TourAction } from "@/lib/guided-to
 export type { TourStep, TourAction };
 
 export const TOUR_STEPS: TourStep[] = [
-  { id: "welcome", title: "Welcome to the Playground", body: "A quick guided demo — each step actually happens as you go. Click Next to begin." },
-  { id: "file-tree", title: "Build your app", body: "We just added the project files for you — see them appear in the explorer and open in the editor.", anchor: "file-tree" },
-  { id: "editor", title: "Write code", body: "This is where you write your code. The file we created is open right here.", anchor: "editor" },
-  { id: "kap", title: "Ask Kap", body: "Stuck on a task? Kap, your AI tutor, explains and unblocks you right here.", anchor: "kap" },
-  { id: "run-server", title: "Booting your server", body: "We're starting the dev server for real — give it a few seconds to go live.", anchor: "run-server" },
-  { id: "terminal", title: "Terminal", body: "Server logs and output stream here — we just opened it for you.", anchor: "terminal" },
-  { id: "run-test", title: "Running a test", body: "We're grading a task against its real test — watch the result come back.", anchor: "run-test" },
-  { id: "github-sync", title: "Sync to GitHub", body: "When you're ready, connect GitHub to push your work. (We won't connect during the demo.)", anchor: "github-sync" },
-  { id: "preview", title: "🎉 Your app is live", body: "And there it is — your running app, live in the preview. You built it, started it, and it works. This is what you ship.", anchor: "preview" },
-  { id: "done", title: "That's the whole loop", body: "Build → run → test → ship a live app. Now it's your turn — start building for real." },
+  { id: "welcome", title: "Build a real backend, right here", body: "This is the actual playground, not a video. Everything you are about to see really runs. Hit Next." },
+  { id: "file-tree", title: "Your starter files are ready", body: "We scaffolded the project so you skip the boring setup. Open a file and read along.", anchor: "file-tree" },
+  { id: "editor", title: "Write real code", body: "A full editor with the file open and ready. Edit anything you want as you go.", anchor: "editor" },
+  { id: "kap", title: "Stuck? Ask Kap", body: "Kap is your AI mentor. Ask it anything about the task and get unblocked in seconds.", anchor: "kap" },
+  { id: "run-server", title: "Your server is starting", body: "We are booting it live right now. Give it a few seconds to come online.", anchor: "run-server" },
+  { id: "terminal", title: "Watch it happen", body: "Your logs and output stream right here, just like your own terminal.", anchor: "terminal" },
+  { id: "run-test", title: "Run the real test", body: "We check your code against the actual test and show the result. Pass it to score points.", anchor: "run-test" },
+  { id: "github-sync", title: "Ship it to GitHub", body: "Push your work to a real repo whenever you are ready. We will skip that for the demo.", anchor: "github-sync" },
+  { id: "preview", title: "Your app is live", body: "There it is, running in the browser. You built it, ran it, and shipped it. That is the job.", anchor: "preview" },
+  { id: "done", title: "Your turn to build", body: "You just shipped a working backend in minutes. Pick a real project and build something worth putting on your portfolio." },
 ];
 
 /** Back-compat builder: drives the engine with the playground steps. */
