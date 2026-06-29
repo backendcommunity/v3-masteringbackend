@@ -30,11 +30,32 @@ export const PLAYGROUND_EVENTS = {
   editorThemeSwitched: "playground_editor_theme_switched",
 } as const;
 
-export const TOUR_EVENTS = {
-  offered: "playground_tour_offered",
-  started: "playground_tour_started",
-  skipped: "playground_tour_skipped",
-  stepViewed: "playground_tour_step_viewed",
-  completed: "playground_tour_completed",
-  dismissed: "playground_tour_dismissed",
+/** Build a feature-namespaced tour event map, e.g. tourEvents("playground"). */
+export const tourEvents = (prefix: string) =>
+  ({
+    offered: `${prefix}_tour_offered`,
+    started: `${prefix}_tour_started`,
+    skipped: `${prefix}_tour_skipped`,
+    stepViewed: `${prefix}_tour_step_viewed`,
+    completed: `${prefix}_tour_completed`,
+    dismissed: `${prefix}_tour_dismissed`,
+  }) as const;
+
+// Back-compat: existing playground call sites + tests import TOUR_EVENTS.
+export const TOUR_EVENTS = tourEvents("playground");
+export const PLAYGROUND_TOUR_EVENTS = TOUR_EVENTS;
+
+export const MOCK_INTERVIEW_EVENTS = {
+  templateViewed: "mock_interview_template_viewed",
+  bookingOpened: "mock_interview_booking_opened",
+  formatSelected: "mock_interview_format_selected",
+  demoStarted: "mock_interview_demo_started",
+  demoCompleted: "mock_interview_demo_completed",
+  sessionStarted: "mock_interview_session_started",
+  messageSent: "mock_interview_message_sent",
+  completed: "mock_interview_completed",
+  reportViewed: "mock_interview_report_viewed",
+  bannerViewed: "mock_interview_banner_viewed",
+  bannerCtaClicked: "mock_interview_banner_cta_clicked",
+  bannerDismissed: "mock_interview_banner_dismissed",
 } as const;
