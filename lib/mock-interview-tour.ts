@@ -6,17 +6,17 @@ import type { TourStep, TourAction } from "@/lib/guided-tour";
 // is honest on the demo page AND a real interview (where those screens are
 // already behind the user).
 export const MOCK_INTERVIEW_STEPS: TourStep[] = [
-  { id: "welcome", title: "Meet Mock Interviews", body: "Practice real interviews with Kap AI and get scored like the real thing. Here's a 60-second taste - click Next." },
-  { id: "templates", title: "Pick a role", body: "Normally you'd choose a template - a company + role like \"Backend Engineer at a fintech.\" We've set one up for you here." },
-  { id: "format", title: "Choose a format", body: "Every interview runs as Chat, Audio, or Video. This walkthrough uses Chat so you can see the whole loop fast." },
-  { id: "chat", title: "Your live interview", body: "Kap asks real questions and you answer in the conversation - exactly like a human interviewer.", anchor: "mi-chat" },
-  { id: "input", title: "Answer your way", body: "Type your answer here - or attach code and diagrams for technical and system-design rounds.", anchor: "mi-input" },
-  { id: "code", title: "Write code", body: "Switch to the Code editor to write and share your solution in real time - just like a live coding round.", anchor: "mi-code" },
-  { id: "whiteboard", title: "Sketch the design", body: "Or open the Whiteboard to diagram architecture and data flow for system-design interviews.", anchor: "mi-whiteboard" },
-  { id: "timer", title: "Stay on the clock", body: "A real countdown keeps the pressure realistic - just like an onsite.", anchor: "mi-timer" },
-  { id: "end", title: "Finish anytime", body: "Wrap up when you're done, or let the timer end it. Then Kap scores your performance.", anchor: "mi-end" },
-  { id: "result", title: "Get scored", body: "An overall score plus technical, communication, and problem-solving breakdowns - with strengths, weaknesses, and recommended next steps to fix.", anchor: "mi-result-score" },
-  { id: "done", title: "Your turn", body: "That's the full loop: pick a role -> interview -> get scored -> improve. Start a real one whenever you're ready." },
+  { id: "welcome", title: "See if you're interview-ready", body: "Real questions, a real score, honest feedback. Here's the 60-second tour. Tap Next." },
+  { id: "templates", title: "Pick your target role", body: "You choose the company and role, like Backend Engineer at a fintech. We lined one up for you here." },
+  { id: "format", title: "Chat, audio, or video", body: "Run it however you interview best. This walkthrough uses chat so you see the full loop fast." },
+  { id: "chat", title: "A real conversation", body: "Kap asks real questions and you answer back, exactly like a human interviewer.", anchor: "mi-chat" },
+  { id: "input", title: "Answer your way", body: "Type your reply, or attach code and diagrams when the round calls for it.", anchor: "mi-input" },
+  { id: "code", title: "Write code, live", body: "Open the code editor and share your solution in real time, like a live coding round.", anchor: "mi-code" },
+  { id: "whiteboard", title: "Sketch the system", body: "Switch to the whiteboard to diagram architecture and data flow for system-design rounds.", anchor: "mi-whiteboard" },
+  { id: "timer", title: "On the clock", body: "A real countdown keeps the pressure honest, just like the real thing.", anchor: "mi-timer" },
+  { id: "end", title: "Wrap up anytime", body: "Finish when you're done, or let the clock run out. Then Kap scores you.", anchor: "mi-end" },
+  { id: "result", title: "Get a real score", body: "An overall score plus technical, communication, and problem-solving breakdowns, with your strengths, gaps, and exactly what to fix next.", anchor: "mi-result-score" },
+  { id: "done", title: "Now do it for real", body: "Pick a role, run a full interview, and walk in ready. Your first one is one click away." },
 ];
 
 // Real-interview guide: the user already picked a role + format to get here, so
