@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TryPlaygroundButton } from "@/components/projects/try-playground-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -828,6 +829,12 @@ export function NavigationBar({
           {/* Right Section — CSS-responsive (never gated on the isMobile JS
               flag, which caused SSR/hydration overflow on real accounts). */}
           <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
+            {/* Try Playground — compact, desktop-only on-ramp */}
+            <TryPlaygroundButton
+              source="nav"
+              className="hidden h-9 shrink-0 md:inline-flex"
+            />
+
             {user?.isPremium ? (
               <Button
                 variant="outline"

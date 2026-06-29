@@ -18,6 +18,7 @@ import { useAppStore } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
 import { startItem } from "@/lib/start-flow";
 import { analytics } from "@/lib/analytics";
+import { PROJECT_EVENTS } from "@/lib/analytics-events";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
 import { Pager } from "@/components/ui/pager";
@@ -25,6 +26,7 @@ import { Project, StarterKitItem } from "@/lib/data";
 import { FreeStarterSection } from "@/components/free-starter-section";
 import { JourneyGlyph } from "@/components/journey-glyph";
 import { ProjectCard, ProjectCardData } from "@/components/pages/projects/project-card";
+import { TryPlaygroundButton } from "@/components/projects/try-playground-button";
 
 interface ProjectsPageProps {
   onNavigate: (path: string) => void;
@@ -178,7 +180,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
     levelFilter === "all";
 
   const goToProject = (p: ProjectItem) => {
-    analytics.track("project_card_clicked", {
+    analytics.track(PROJECT_EVENTS.cardClicked, {
       slug: p.slug,
       enrolled: p.enrolled,
       level: p.level,
@@ -217,7 +219,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
           projectId: p.id,
         });
       }
-      analytics.track("project_bookmark_toggled", {
+      analytics.track(PROJECT_EVENTS.bookmarkToggled, {
         slug: p.slug,
         saved: !isSaved,
       });
@@ -269,6 +271,17 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
 
       {/* ── Content ── */}
       <div>
+        {/* Playground banner — quick on-ramp for new learners */}
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-foreground">
+            New here?{" "}
+            <span className="text-muted-foreground">
+              Try the playground in 60 seconds.
+            </span>
+          </p>
+          <TryPlaygroundButton source="listing" className="shrink-0" />
+        </div>
+
         {/* Filter row */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap mb-6">
           <div className="relative w-full sm:w-auto">
@@ -309,7 +322,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
               value={levelFilter}
               onValueChange={(v) => {
                 setLevelFilter(v);
-                analytics.track("project_filter_applied", {
+                analytics.track(PROJECT_EVENTS.filterApplied, {
                   filter_type: "level",
                   value: v,
                 });
@@ -337,7 +350,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
                 onClick={() => {
                   const next = categoryFilter === cat ? "" : cat;
                   setCategoryFilter(next);
-                  analytics.track("project_filter_applied", {
+                  analytics.track(PROJECT_EVENTS.filterApplied, {
                     filter_type: "category",
                     value: next || "all",
                   });

@@ -773,6 +773,7 @@ export interface Project {
   timeframe: string;
   totalTasks: number;
   isPremium: boolean;
+  isSample?: boolean;              // seeded sample project surfaced via "Try Playground" (no manual enrollment)
   prerequisites: Array<string>;
   skills: Array<string>;
   instructor: any;

@@ -77,6 +77,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
 import { Label } from "../ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { analytics } from "@/lib/analytics";
+import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
+import { makeEditDebouncer } from "@/lib/playground-track";
+import { usePlaygroundTour } from "@/hooks/use-playground-tour";
+import type { TourAction } from "@/lib/playground-tour";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -248,6 +253,9 @@ export function ProjectPlaygroundPage({
   const [previewUrl, setPreviewUrl] = useState(
     process.env.NEXT_PUBLIC_EXECUTOR_URL ?? "http://localhost:3000",
   );
+  // Bumped by the preview Refresh button; appended to the iframe URL to force a
+  // real reload (the iframe src is derived from baseURL, not previewUrl).
+  const [previewNonce, setPreviewNonce] = useState(0);
   const frontendEnabled = !!(project as any)?.playgroundConfig?.frontendPreview;
   const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
   useEffect(() => {
@@ -414,6 +422,79 @@ export function ProjectPlaygroundPage({
   // Resolving-in-progress guard so the conflict dialog buttons can't double-fire.
   const [resolvingConflict, setResolvingConflict] = useState(false);
 
+  const track = useCallback(
+    (event: string, extra?: Record<string, any>) =>
+      analytics.track(event, {
+        project_slug: slug,
+        project_title: project?.title,
+        is_sample: !!project?.isSample,
+        ...extra,
+      }),
+    [slug, project?.title, project?.isSample],
+  );
+  const trackEdit = useMemo(
+    () => makeEditDebouncer((e) => track(PLAYGROUND_EVENTS.fileEdited, e)),
+    [track],
+  );
+
+  // ── Guided tour ──
+  // Auto-starts once on first visit via ?tour=offer; the top-bar "Take a tour"
+  // button re-launches it anytime. Readiness = "all loaders done" so the tour
+  // only appears once the playground (and its data-tour anchors) is rendered —
+  // never over the "Loading your project…" screen. It does NOT wait on baseURL
+  // (sandbox boot), since the welcome/file/editor steps don't need a server.
+  const tourReady = !loading && !loadingFiles;
+  const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
+  // Detect the demo sample from EVERY available signal so a single stale/missing
+  // one can't silently disable the demo: the route slug, the loaded project's
+  // slug, the backend isSample flag, or an explicit `?demo=1` force switch (so
+  // the demo can be triggered on any enrolled project for testing). The sample
+  // auto-runs the tour + real actions on every visit; real projects get the
+  // highlight-only tour and are never mutated unless `?demo=1` is set.
+  const demoForced =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("demo");
+  const isSampleProject =
+    slug === "hello-api-sample" ||
+    project?.slug === "hello-api-sample" ||
+    !!project?.isSample ||
+    demoForced;
+
+  // The real demo actions (create file, run server, …) need handlers defined
+  // lower in this component, so they're wired into tourActionsRef below. The
+  // tour reads them through this stable delegating map. Populated only for the
+  // sample project — the demo never mutates a real user's project.
+  const tourActionsRef = useRef<Record<string, TourAction>>({});
+  const tourActions = useMemo<Record<string, TourAction>>(() => {
+    const ids = ["file-tree", "run-server", "run-test"];
+    const map: Record<string, TourAction> = {};
+    for (const id of ids) map[id] = () => tourActionsRef.current[id]?.();
+    return map;
+  }, []);
+  // Reveals open each step's panel/tab/drawer BEFORE it is highlighted, so every
+  // step shows on its real target even when that panel isn't open by default.
+  // Always provided (opening a panel is safe on any project); only the real
+  // mutating ACTIONS are gated to the sample.
+  const tourRevealsRef = useRef<Record<string, () => void>>({});
+  const tourReveals = useMemo<Record<string, () => void>>(() => {
+    const ids = ["file-tree", "kap", "terminal", "run-test", "preview"];
+    const map: Record<string, () => void> = {};
+    for (const id of ids) map[id] = () => tourRevealsRef.current[id]?.();
+    return map;
+  }, []);
+  const { shouldOffer, relaunch } = usePlaygroundTour({
+    ready: tourReady,
+    theme: tourTheme,
+    track,
+    autoStart: true,
+    actions: tourActions,
+    reveals: tourReveals,
+    alwaysOffer: isSampleProject,
+  });
+  useEffect(() => {
+    if (shouldOffer) track(TOUR_EVENTS.offered);
+  }, [shouldOffer, track]);
+
   const findFile = (nodes: FileNode[], filePath: string): FileNode | null => {
     for (const node of nodes) {
       if (node.path === filePath && node.type === "file") {
@@ -437,7 +518,17 @@ export function ProjectPlaygroundPage({
     async function findProject(slug: string) {
       const project = await store.getProject(slug);
       setProject(project);
-      // setLoading(false);
+      setLoading(false);
+      const source =
+        new URLSearchParams(window.location.search).get("tour") === "offer"
+          ? "try_playground"
+          : "direct";
+      analytics.track(PLAYGROUND_EVENTS.opened, {
+        project_slug: slug,
+        project_title: project?.title,
+        is_sample: !!project?.isSample,
+        source,
+      });
     }
     findProject(slug);
   }, [slug]);
@@ -534,7 +625,10 @@ export function ProjectPlaygroundPage({
           setLastSha(s);
         },
         onStatus: (state, at) => setSyncStatus({ state, at }),
-        onConflict: (remoteSha) => setConflict({ open: true, remoteSha }),
+        onConflict: (remoteSha) => {
+          track(PLAYGROUND_EVENTS.githubConflict);
+          setConflict({ open: true, remoteSha });
+        },
         onReloaded: () => {
           void refreshTreeRef.current?.();
         },
@@ -1075,6 +1169,7 @@ export function ProjectPlaygroundPage({
   // the engine via the sibling effect), then hydrate. If the new repo is empty,
   // push the current sandbox work so connecting preserves what they've done.
   const handleGhConnected = async (newRepoFullName: string) => {
+    track(PLAYGROUND_EVENTS.githubConnected, { repo: newRepoFullName });
     try {
       const fresh = await store.getProject(slug);
       if (fresh) setProject(fresh);
@@ -1180,6 +1275,10 @@ export function ProjectPlaygroundPage({
       setCreatingItem(null);
       return;
     }
+    track(PLAYGROUND_EVENTS.fileCreated, {
+      kind: creatingItem.type,
+      file_ext: name?.includes(".") ? name.split(".").pop() : "",
+    });
     if (!pgCtx) {
       setCreatingItem(null);
       return;
@@ -1245,6 +1344,9 @@ export function ProjectPlaygroundPage({
   };
 
   const openFile = async (file: FileNode) => {
+    track(PLAYGROUND_EVENTS.fileOpened, {
+      file_ext: file.name.includes(".") ? file.name.split(".").pop() : "",
+    });
     if (!pgCtx) return;
     const filePath = file.path;
     const fileName = file.name;
@@ -1320,6 +1422,7 @@ export function ProjectPlaygroundPage({
   // into a Blob and trigger a browser download.
   const handleDownloadProject = async () => {
     if (!pgCtx) return;
+    track(PLAYGROUND_EVENTS.projectDownloaded);
     try {
       toast.message("Preparing your download…");
       const res = await pgDownload(pgCtx);
@@ -1343,6 +1446,7 @@ export function ProjectPlaygroundPage({
   // Task progress is server-side and is left intact — only the code is reset.
   const handleRestart = async () => {
     if (!pgCtx) return;
+    track(PLAYGROUND_EVENTS.projectRestarted);
     setRestart(false);
     setShowLoader(true);
     try {
@@ -1408,6 +1512,7 @@ export function ProjectPlaygroundPage({
 
   const handleTyping: OnChange = (value, v) => {
     const path = activeFile;
+    trackEdit(path);
     clearTimeout(fileBufferRef.current[path]);
 
     fileBufferRef.current[path] = setTimeout(async () => {
@@ -1445,6 +1550,9 @@ export function ProjectPlaygroundPage({
 
   const handleDeleteFile = async (file: FileNode) => {
     if (!file || !pgCtx) return;
+    track(PLAYGROUND_EVENTS.fileDeleted, {
+      file_ext: file?.name?.split(".").pop() ?? "",
+    });
 
     // Recursively remove the deleted file/folder from the tree.
     const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
@@ -1643,6 +1751,11 @@ export function ProjectPlaygroundPage({
     try {
       setMarking(true);
       const completed = await store.markProjectTaskAsCompleted(slug, id);
+      track(PLAYGROUND_EVENTS.taskCompleted, {
+        task_id: id,
+        points: activeTask?.mb,
+        via: "manual",
+      });
 
       setProject((prev) => {
         if (!prev) return prev;
@@ -1779,6 +1892,7 @@ export function ProjectPlaygroundPage({
     }
 
     setTestRun({ status: "running", checks: [] });
+    const testStart = Date.now();
     try {
       // Real grading: the backend probes the endpoint and returns per-assertion results.
       let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
@@ -1804,8 +1918,24 @@ export function ProjectPlaygroundPage({
             ok: !!c.passed,
           }))
         : [];
+      const checksPassed = checks.filter((c) => c.ok).length;
+      track(PLAYGROUND_EVENTS.taskTestRun, {
+        task_id: t?.id,
+        passed: !!verdict?.passed,
+        duration_ms: Date.now() - testStart,
+        checks_passed: checksPassed,
+        checks_total: checks.length,
+      });
 
       if (verdict?.passed) {
+        // Fire taskCompleted only on the transition (task was not already complete).
+        if (!t.userTask?.isCompleted) {
+          track(PLAYGROUND_EVENTS.taskCompleted, {
+            task_id: t.id,
+            points: t.mb,
+            via: "test",
+          });
+        }
         markTaskCompleteInState(t.id);
         setTestRun({
           status: "pass",
@@ -1867,6 +1997,10 @@ export function ProjectPlaygroundPage({
   };
 
   const openTaskDrawer = (task: any) => {
+    track(PLAYGROUND_EVENTS.taskOpened, {
+      task_id: task?.id,
+      task_title: task?.title,
+    });
     setActiveTask(task);
     setShowTask(true);
     setTestRun(
@@ -1878,6 +2012,7 @@ export function ProjectPlaygroundPage({
 
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+    track(PLAYGROUND_EVENTS.runServer);
     runInFlightRef.current = true;
     setIsRunning(true);
     setTerminalOutput(terminalSample);
@@ -1920,6 +2055,7 @@ export function ProjectPlaygroundPage({
 
   const handleStopProject = async () => {
     if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+    track(PLAYGROUND_EVENTS.stopServer);
     stopInFlightRef.current = true;
     setIsStopping(true);
     try {
@@ -1940,10 +2076,165 @@ export function ProjectPlaygroundPage({
   togglePreviewRef.current = () => setIsRightPanelVisible((p) => !p);
   baseURLRef.current = baseURL; // live mirror for timer callbacks
 
+  // Build the demo app for the guided walkthrough. Writes (1) an API the test
+  // grades and (2) a real HTML frontend into the preview dir, then asks the
+  // worker to relocate that dir into <workdir>.frontend so it is served at
+  // <baseURL>/__app/ (App-mode preview). Serving the frontend statically via
+  // the worker means it renders regardless of the app server's restart state.
+  const DEMO_API = `const express = require("express");
+const app = express();
+const port = process.env.PORT || 8080;
+
+app.use(express.json());
+
+// API endpoint (the demo's "Run a test" step grades this)
+app.get("/api/hello", (req, res) => {
+  res.json({ ok: true, message: "Hello from your API 🎉" });
+});
+
+app.get("/", (req, res) => {
+  res.json({ ok: true, message: "API is running. Frontend at /__app/" });
+});
+
+app.listen(port, () => console.log("Server listening on port " + port));
+`;
+  const DEMO_FRONTEND = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hello API</title>
+    <style>
+      *{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:radial-gradient(1200px 600px at 50% -10%,#e8fbff,#f5f7fa);color:#0a1f2e}
+      .card{width:min(520px,92vw);background:#fff;border-radius:18px;padding:32px;text-align:center;
+      box-shadow:0 24px 60px rgba(10,107,133,.16),0 0 0 1px rgba(19,174,206,.08)}
+      .badge{display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(19,174,206,.12);
+      color:#0f8ba8;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+      h1{margin:14px 0 6px;font-size:26px;letter-spacing:-.02em} p{margin:0 0 18px;color:#475569}
+      pre{text-align:left;background:#0e1f33;color:#cdddea;border-radius:12px;padding:16px;overflow:auto;font-size:13px;margin:0}
+      .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#13aece;margin-right:6px}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <span class="badge">Live preview</span>
+      <h1>🎉 Your app is running</h1>
+      <p><span class="dot"></span><span id="status">Calling your API…</span></p>
+      <pre id="out">…</pre>
+    </main>
+    <script>
+      fetch("/api/hello").then(function(r){return r.json()}).then(function(d){
+        document.getElementById("status").textContent="API responded \\u2713";
+        document.getElementById("out").textContent=JSON.stringify(d,null,2);
+      }).catch(function(){document.getElementById("status").textContent="API not reachable";});
+    </script>
+  </body>
+</html>
+`;
+  const demoCreateFile = async () => {
+    if (!pgCtx) {
+      console.warn(
+        "[playground-tour] demoCreateFile skipped: no pgCtx — log in and let the project finish loading.",
+      );
+      return;
+    }
+    setRailTab("explorer");
+    try {
+      await pgFs(pgCtx, { op: "write", path: toRel("index.js"), content: DEMO_API });
+      await pgFs(pgCtx, {
+        op: "write",
+        path: toRel("public/index.html"),
+        content: DEMO_FRONTEND,
+      });
+      // Relocate <workdir>/public -> <workdir>.frontend so the worker serves it
+      // at /__app/. Best-effort: the API + preview still work without it.
+      try {
+        await pgSeed(pgCtx, { frontendPreview: true, previewDir: "public" });
+      } catch (e) {
+        console.warn("[playground-tour] frontend relocate (pgSeed) failed:", e);
+      }
+      await refreshTree();
+      await openFile({
+        name: "index.js",
+        type: "file",
+        icon: "📄",
+        path: "index.js",
+        language: getLanguageFromFileName("index.js"),
+      });
+    } catch (e) {
+      // Don't break the tour, but surface WHY — usually the playground worker
+      // (NEXT_PUBLIC_PLAYGROUND_WORKER_URL) being unreachable.
+      console.warn("[playground-tour] demoCreateFile failed:", e);
+    }
+  };
+
+  const firstGradableTask = () =>
+    (project?.projectTasks ?? [])
+      .flatMap((p: any) => p.tasks)
+      .find((t: any) => t?.apiSpec);
+
+  // REVEALS — always wired. Open each step's panel/tab/drawer so the step is
+  // shown on its real target even when that panel isn't open by default. These
+  // only change UI state; they never mutate the project, so they run on any
+  // project (the highlight-only tour included).
+  tourRevealsRef.current = {
+    "file-tree": () => setRailTab("explorer"),
+    kap: () => setRailTab("kap"),
+    terminal: () => {
+      setShowTerminal(true);
+      if (termRef.current)
+        termRef.current.style.flexBasis = lastTermH.current;
+    },
+    "run-test": () => {
+      const gradable = firstGradableTask();
+      if (gradable) openTaskDrawer(gradable);
+    },
+    preview: () => {
+      // Close the Run-test drawer (opened by the run-test step) so the live
+      // preview — the finale — is fully visible and unobstructed.
+      setShowTask(false);
+      setIsRightPanelVisible(true);
+      setRightTab("preview");
+      // App mode points the iframe at <baseURL>/__app/, where the worker serves
+      // the relocated frontend. Only takes effect when the project enables it
+      // (frontendEnabled); harmless otherwise (the toggle is hidden).
+      setPreviewMode("app");
+    },
+  };
+
+  // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
+  // real user's project). Panel-opening lives in reveals above; these do the
+  // actual work the demo shows off.
+  tourActionsRef.current = isSampleProject
+    ? {
+        "file-tree": demoCreateFile,
+        "run-server": async () => {
+          if (!pgCtx) {
+            console.warn("[playground-tour] run-server skipped: no pgCtx");
+            return;
+          }
+          await handleRunProject();
+        },
+        "run-test": async () => {
+          const gradable = firstGradableTask();
+          if (!gradable) {
+            console.warn(
+              "[playground-tour] run-test skipped: no gradable task (apiSpec).",
+            );
+            return;
+          }
+          await runTaskTest(gradable);
+        },
+      }
+    : {};
+
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
   // overflow:hidden clips the body so only the header shows.
   const toggleTerminal = () => {
+    track(PLAYGROUND_EVENTS.terminalToggled, { open: !showTerminal });
     setShowTerminal((open) => {
       const next = !open;
       if (termRef.current) {
@@ -1965,8 +2256,11 @@ export function ProjectPlaygroundPage({
           editorTheme === "mb-dark"
             ? "Switch editor to light"
             : "Switch editor to dark",
-        action: () =>
-          setEditorTheme((t) => (t === "mb-dark" ? "mb-light" : "mb-dark")),
+        action: () => {
+          const nextTheme = editorTheme === "mb-dark" ? "mb-light" : "mb-dark";
+          track(PLAYGROUND_EVENTS.editorThemeSwitched, { theme: nextTheme });
+          setEditorTheme(nextTheme);
+        },
       },
       { label: "separator", action: () => {} },
       {
@@ -2062,11 +2356,18 @@ export function ProjectPlaygroundPage({
 
   // ── mock's makeResize: flex-basis drag with capture-phase listeners so the
   // editor/terminal can't swallow the drag; text-selection disabled mid-drag. ──
-  const apiBase = baseURL || previewUrl;
-  const resolvedPreviewUrl =
+  // A browser iframe can't load a bind address like 0.0.0.0; map it (and
+  // 127.0.0.1) to localhost so the local preview actually renders.
+  const browsable = (u: string) =>
+    (u || "").replace(/\/\/(0\.0\.0\.0|127\.0\.0\.1)(:|\/|$)/, "//localhost$2");
+  const withNonce = (u: string) =>
+    !u || !previewNonce ? u : u + (u.includes("?") ? "&" : "?") + "_t=" + previewNonce;
+  const apiBase = browsable(baseURL || previewUrl);
+  const resolvedPreviewUrl = withNonce(
     frontendEnabled && previewMode === "app" && baseURL
-      ? baseURL.replace(/\/+$/, "") + "/__app/"
-      : apiBase;
+      ? browsable(baseURL.replace(/\/+$/, "")) + "/__app/"
+      : apiBase,
+  );
 
   // ── inline SVG icons ported verbatim from the mock (exact paths) ──
   const I = {
@@ -2288,6 +2589,7 @@ export function ProjectPlaygroundPage({
     if (state === "syncing") {
       return (
         <span
+          data-tour="github-sync"
           className={cn(base, "border-border bg-card text-muted-foreground")}
           aria-live="polite"
         >
@@ -2305,6 +2607,7 @@ export function ProjectPlaygroundPage({
     if (state === "conflict") {
       return (
         <button
+          data-tour="github-sync"
           type="button"
           onClick={() => setConflict((c) => ({ ...c, open: true }))}
           className={cn(
@@ -2321,6 +2624,7 @@ export function ProjectPlaygroundPage({
     if (state === "error") {
       return (
         <span
+          data-tour="github-sync"
           className={cn(
             base,
             "border-destructive/40 bg-destructive/10 text-destructive",
@@ -2336,6 +2640,7 @@ export function ProjectPlaygroundPage({
     // synced
     return (
       <span
+        data-tour="github-sync"
         className={cn(base, "border-border bg-card text-muted-foreground")}
         aria-live="polite"
       >
@@ -2390,6 +2695,7 @@ export function ProjectPlaygroundPage({
           </div>
           {sandboxLive ? (
             <button
+              data-tour="run-server"
               className="btn stop"
               onClick={handleStopProject}
               disabled={isStopping}
@@ -2400,6 +2706,7 @@ export function ProjectPlaygroundPage({
             </button>
           ) : (
             <button
+              data-tour="run-server"
               className="btn run"
               onClick={handleRunProject}
               disabled={isSaving || isRunning}
@@ -2409,7 +2716,12 @@ export function ProjectPlaygroundPage({
           )}
           <button
             className={cn("btn", isRightPanelVisible && "on")}
-            onClick={() => setIsRightPanelVisible((p) => !p)}
+            onClick={() => {
+              track(PLAYGROUND_EVENTS.previewToggled, {
+                visible: !isRightPanelVisible,
+              });
+              setIsRightPanelVisible((p) => !p);
+            }}
             title="Toggle preview & tests"
             aria-pressed={isRightPanelVisible}
           >
@@ -2432,15 +2744,58 @@ export function ProjectPlaygroundPage({
               </svg>
             )}
           </button>
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              margin: "6px 6px",
+              background: "var(--border, #e2e8f0)",
+              opacity: 0.7,
+            }}
+          />
+          <button
+            className="btn ghost"
+            onClick={relaunch}
+            title="Take a guided tour"
+            aria-label="Take a guided tour"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              color: "#13aece",
+              border: "none",
+              fontWeight: 600,
+            }}
+          >
+            <svg className="i" viewBox="0 0 24 24" aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" />
+            </svg>
+            Take a tour
+          </button>
+          <span
+            aria-hidden
+            style={{
+              width: 1,
+              alignSelf: "stretch",
+              margin: "6px 6px",
+              background: "var(--border, #e2e8f0)",
+              opacity: 0.7,
+            }}
+          />
           <PathFeedbackDialog />
           {/* GitHub icon stays in the top nav next to the other icons in every
-              state; the sync chip sits alongside it once connected. */}
-          <GithubConnect
-            slug={slug}
-            projectName={project?.title}
-            onConnected={handleGhConnected}
-            onError={setGhError}
-          />
+              state; the sync chip sits alongside it once connected. The tour
+              anchors on this always-present button (the sync chip is conditional). */}
+          <span data-tour="github-sync" style={{ display: "inline-flex" }}>
+            <GithubConnect
+              slug={slug}
+              projectName={project?.title}
+              onConnected={handleGhConnected}
+              onError={setGhError}
+            />
+          </span>
           {ghConnected && renderSyncChip()}
         </div>
       )}
@@ -2578,7 +2933,7 @@ export function ProjectPlaygroundPage({
 
           {/* FILES rail (explorer) */}
           {railTab === "explorer" && (
-            <div className="explorer-pane">
+            <div data-tour="file-tree" className="explorer-pane">
               <div
                 className="exhead border-b border-border"
                 ref={fileMenuRef}
@@ -2645,7 +3000,11 @@ export function ProjectPlaygroundPage({
 
           {/* KAP AI rail */}
           {railTab === "kap" && (
-            <div className="railKap" style={{ height: "100%", minHeight: 0 }}>
+            <div
+              data-tour="kap"
+              className="railKap"
+              style={{ height: "100%", minHeight: 0 }}
+            >
               <KapTutorPanel
                 scope="project"
                 projectId={project?.id}
@@ -2657,6 +3016,7 @@ export function ProjectPlaygroundPage({
                   "How do I return 201?",
                   "Give me a hint",
                 ]}
+                onMessageSent={() => track(PLAYGROUND_EVENTS.kapMessageSent)}
               />
             </div>
           )}
@@ -2829,7 +3189,7 @@ export function ProjectPlaygroundPage({
           ) : isBlocked ? (
             <div className="blocked-view">Preview not supported</div>
           ) : (
-            <div className="editor-host">
+            <div data-tour="editor" className="editor-host">
               <Editor
                 height="100%"
                 language={currentLanguage}
@@ -2908,6 +3268,7 @@ export function ProjectPlaygroundPage({
                 />
               )}
               <div
+                data-tour="terminal"
                 className={cn(
                   "term border-t border-border",
                   !showTerminal && "collapsed",
@@ -2939,6 +3300,7 @@ export function ProjectPlaygroundPage({
               aria-label="Resize preview panel"
             />
             <div
+              data-tour="preview"
               className="right col border-l border-border"
               ref={rightRef}
               style={{ boxShadow: "inset 1px 0 0 var(--line)" }}
@@ -2995,7 +3357,12 @@ export function ProjectPlaygroundPage({
                           role="tab"
                           aria-selected={previewMode === "app"}
                           className={cn("pvbtn", previewMode === "app" && "on")}
-                          onClick={() => setPreviewMode("app")}
+                          onClick={() => {
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, {
+                              mode: "app",
+                            });
+                            setPreviewMode("app");
+                          }}
                         >
                           App
                         </button>
@@ -3003,7 +3370,12 @@ export function ProjectPlaygroundPage({
                           role="tab"
                           aria-selected={previewMode === "api"}
                           className={cn("pvbtn", previewMode === "api" && "on")}
-                          onClick={() => setPreviewMode("api")}
+                          onClick={() => {
+                            track(PLAYGROUND_EVENTS.previewModeSwitched, {
+                              mode: "api",
+                            });
+                            setPreviewMode("api");
+                          }}
                         >
                           API
                         </button>
@@ -3013,14 +3385,8 @@ export function ProjectPlaygroundPage({
                       className="pvbtn"
                       title="Refresh preview"
                       aria-label="Refresh preview"
-                      onClick={() => {
-                        setPreviewUrl((prev) => {
-                          const base = baseURL || prev;
-                          const url = new URL(base, window.location.origin);
-                          url.searchParams.set("_t", Date.now() + "");
-                          return url.toString();
-                        });
-                      }}
+                      disabled={!baseURL}
+                      onClick={() => setPreviewNonce((n) => n + 1)}
                     >
                       {I.refresh}
                     </button>
@@ -3259,6 +3625,7 @@ export function ProjectPlaygroundPage({
                         : "Runs your endpoint in the sandbox and checks each assertion."}
                     </span>
                     <button
+                      data-tour="run-test"
                       className="btn run"
                       onClick={() => runTaskTest(activeTask)}
                       disabled={
@@ -3424,6 +3791,9 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
+                track(PLAYGROUND_EVENTS.githubConflictResolved, {
+                  resolution: "reload",
+                });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveReload();
@@ -3444,6 +3814,9 @@ export function ProjectPlaygroundPage({
               disabled={resolvingConflict}
               onClick={async () => {
                 if (!syncRef.current) return;
+                track(PLAYGROUND_EVENTS.githubConflictResolved, {
+                  resolution: "overwrite",
+                });
                 setResolvingConflict(true);
                 try {
                   await syncRef.current.resolveOverwrite();
