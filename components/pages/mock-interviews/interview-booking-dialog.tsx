@@ -90,15 +90,20 @@ export function InterviewBookingDialog({
 
   const handleStartChatNow = async () => {
     if (!template) return;
+    setCreating(true);
     try {
-      setCreating(true);
       const result = await store.scheduleInterviewFromTemplate(template.id, {});
       if (!result?.interview?.id) {
         toast.error("Failed to start chat interview");
+        setCreating(false);
         return;
       }
       toast.success("Chat interview started!");
-      handleClose(false);
+      // Keep the dialog open and the Start Now spinner running THROUGH the
+      // navigation. The interview page takes a moment to load; closing the
+      // dialog / resetting `creating` here (as before) dropped all feedback and
+      // left the user on a blank screen. The dialog unmounts when the route
+      // changes, so the spinner naturally ends when the new page takes over.
       onNavigate(`/mock-interviews/${result.interview.id}/chat`);
     } catch (error: any) {
       if (error?.response?.status === 402) {
@@ -106,9 +111,8 @@ export function InterviewBookingDialog({
         toast.error("Session limit reached. Upgrade for more access.");
       } else {
         toast.error("Failed to start chat interview");
+        setCreating(false);
       }
-    } finally {
-      setCreating(false);
     }
   };
 
