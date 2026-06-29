@@ -26,6 +26,7 @@ export default defineConfig({
     setupFiles: ["@testing-library/jest-dom/vitest"],
     include: [
       "lib/__tests__/**/*.test.ts",
+      "lib/__tests__/**/*.test.tsx",
       "components/__tests__/path-exercise-ide-continue.test.tsx",
       "components/__tests__/take-hint-ide.test.tsx",
       "components/__tests__/streaming-output.test.tsx",
