@@ -16,13 +16,12 @@ import {
   DEMO_REPORT,
   buildDemoMessage,
 } from "@/lib/mock-interview-demo-script";
-import { Badge } from "@/components/ui/badge";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { Code2, PenTool, MessageSquare } from "lucide-react";
+import { Code2, PenTool, MessageSquare, Sparkles } from "lucide-react";
 
 // Seeded code sample shown in the code editor on the demo workspace panel.
 const DEMO_CODE =
@@ -184,24 +183,20 @@ export function DemoChatInterviewRoom({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="relative">
-        <ChatInterviewHeader
-          template={DEMO_TEMPLATE}
-          onEndInterview={() => {
-            setIsComplete(true);
-            setResultsData(DEMO_REPORT);
-          }}
-          isComplete={isComplete}
-          resultsReady={!!resultsData}
-          startedAt={startedAt}
-        />
-        <Badge
-          variant="secondary"
-          className="absolute right-3 top-3 z-10 bg-primary/15 text-primary"
-        >
-          Demo
-        </Badge>
+      <div className="flex items-center justify-center gap-1.5 border-b border-primary/20 bg-primary/10 py-1 text-[11px] font-semibold text-primary">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        Demo - a guided walkthrough
       </div>
+      <ChatInterviewHeader
+        template={DEMO_TEMPLATE}
+        onEndInterview={() => {
+          setIsComplete(true);
+          setResultsData(DEMO_REPORT);
+        }}
+        isComplete={isComplete}
+        resultsReady={!!resultsData}
+        startedAt={startedAt}
+      />
 
       {lgUp ? (
         // Desktop: chat + resizable workspace side panel.

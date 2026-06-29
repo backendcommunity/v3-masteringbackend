@@ -58,4 +58,6 @@ export const MOCK_INTERVIEW_EVENTS = {
   bannerViewed: "mock_interview_banner_viewed",
   bannerCtaClicked: "mock_interview_banner_cta_clicked",
   bannerDismissed: "mock_interview_banner_dismissed",
+  demoCtaShown: "mock_interview_demo_cta_shown",
+  demoCtaClicked: "mock_interview_demo_cta_clicked",
 } as const;

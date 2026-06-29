@@ -36,6 +36,10 @@ interface InterviewCompletionDialogProps {
   currentTemplateId?: string;
   currentCategory?: string | null;
   overallScore?: number | null;
+  /** When true the user can start a real interview now; footer becomes "Start a real interview". */
+  hasFullAccess?: boolean;
+  /** "demo" tags conversion analytics for the demo-end funnel. */
+  source?: "demo";
 }
 
 export function InterviewCompletionDialog({
@@ -44,6 +48,8 @@ export function InterviewCompletionDialog({
   currentTemplateId,
   currentCategory,
   overallScore,
+  hasFullAccess,
+  source,
 }: InterviewCompletionDialogProps) {
   const router = useRouter();
   const store = useAppStore();
@@ -411,11 +417,22 @@ export function InterviewCompletionDialog({
             <Button
               className="h-9 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm"
               onClick={() => {
-                analytics.track("chat_interview_unlock_full_access_clicked", { from_score: overallScore });
-                router.push("/subscription/plans");
+                const startReal = hasFullAccess === true;
+                if (source === "demo") {
+                  analytics.track("mock_interview_demo_cta_clicked", {
+                    path: startReal ? "start_real" : "upgrade",
+                    from_score: overallScore,
+                  });
+                }
+                if (startReal) {
+                  router.push("/mock-interviews");
+                } else {
+                  analytics.track("chat_interview_unlock_full_access_clicked", { from_score: overallScore });
+                  router.push("/subscription/plans");
+                }
               }}
             >
-              Unlock Full Access
+              {hasFullAccess === true ? "Start a real interview" : "Unlock Full Access"}
             </Button>
           </div>
         </div>

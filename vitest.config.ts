@@ -35,6 +35,7 @@ export default defineConfig({
       "components/__tests__/demo-chat-interview-room.test.tsx",
       "components/__tests__/announcement-banner.test.tsx",
       "components/__tests__/try-mock-interview-button.test.tsx",
+      "components/__tests__/interview-completion-dialog-cta.test.tsx",
     ],
   },
   resolve: {
