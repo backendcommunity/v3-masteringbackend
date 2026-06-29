@@ -35,7 +35,6 @@ import {
   Building2,
   Briefcase,
   FileText,
-  Sparkles,
   Layout,
   Play,
   Search,
@@ -596,6 +595,21 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     loadBookmarks(0);
   }, []);
 
+  // If the active tab gets hidden because its count dropped to 0 (e.g. the last
+  // bookmark was removed or the last custom template deleted), fall back to the
+  // always-visible "templates" tab so the user is never stranded on a tab whose
+  // chip no longer renders.
+  useEffect(() => {
+    if (activeTab === "templates") return;
+    const counts: Record<string, number> = {
+      saved: savedIds.size,
+      "my-templates": myTemplates.length,
+      booked: bookedInterviews.length,
+      completed: completedTotal,
+    };
+    if ((counts[activeTab] ?? 1) === 0) setActiveTab("templates");
+  }, [activeTab, savedIds, myTemplates, bookedInterviews, completedTotal]);
+
   const handleToggleSave = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -703,7 +717,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       Fullstack: "Stand out as a fullstack engineer",
                     } as Record<string, string>
                   )[filters.category] ??
-                    "Rehearse real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
+                    "Practice real interviews with an AI interviewer — get scored, debriefed, and job-ready."}
                 </p>
 
                 <div className="mt-4">
@@ -718,7 +732,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                     >
-                      <Sparkles className="w-4 h-4" />
                       Practice for a real job
                     </button>
                   ) : (
@@ -732,7 +745,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                     >
-                      <Sparkles className="w-4 h-4" />
                       Practice for a real job
                     </button>
                   )}
@@ -862,7 +874,13 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 count: completedTotal,
               },
             ] as { value: string; label: string; count: number }[]
-          ).map((chip) => (
+          )
+            // Hide a tab until it has at least one item. The main "All
+            // templates" tab always shows. Saved/My Templates/Booked/Completed
+            // counts all load on mount, so this never deadlocks (no tab is
+            // unreachable waiting for its own activation to populate a count).
+            .filter((chip) => chip.value === "templates" || chip.count > 0)
+            .map((chip) => (
             <button
               key={chip.value}
               onClick={() => {
@@ -973,7 +991,10 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {(activeTab === "templates" || activeTab === "saved") &&
           categories.length > 0 && (
             <div className="flex flex-wrap gap-2 py-2 mb-4">
-              {categories.map((cat) => (
+              {/* Show the first 15 categories as quick-pick chips; every
+                  category (including the overflow) stays reachable via the
+                  "All categories" select beside them. */}
+              {categories.slice(0, 15).map((cat) => (
                 <button
                   key={cat}
                   onClick={() =>
@@ -1291,7 +1312,6 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   onClick={() => onNavigate("/mock-interviews/prepare")}
                   className="gap-2"
                 >
-                  <Sparkles className="h-4 w-4" />
                   Practice for a real job
                 </Button>
               </div>
