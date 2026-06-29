@@ -34,11 +34,18 @@ describe("DemoChatInterviewRoom", () => {
     render(<Harness onReady={(r) => (ref = r)} />);
     // First AI question shown on mount.
     expect(screen.getByText(/rate limiter/i)).toBeTruthy();
+
+    // C1 regression: timer must be visible on mount (demo is in-progress, not auto-completed).
+    expect(document.querySelector('[data-tour="mi-timer"]')).not.toBeNull();
+    // Score 82 must NOT appear before results are revealed.
+    expect(screen.queryByText(/82/)).toBeNull();
+
     // Advance one Q+A pair.
     act(() => ref.current?.playNextTurn());
     expect(screen.getByText(/token-bucket/i)).toBeTruthy();
     // Reveal results.
     act(() => ref.current?.revealResult());
+    // Score 82 appears only after revealResult().
     expect(screen.getByText(/82/)).toBeTruthy();
   });
 });

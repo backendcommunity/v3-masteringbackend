@@ -26,6 +26,10 @@ export function DemoChatInterviewRoom({
 }: {
   controlsRef: MutableRefObject<DemoControls | null>;
 }) {
+  // Capture the real wall-clock start time so the countdown begins from ~30 min
+  // rather than epoch 1970 (which would make secondsLeft=0 on first render and
+  // immediately fire onEndInterview, defeating the scripted tour).
+  const [startedAt] = useState(() => new Date().toISOString());
   // Start with the first AI question already on screen (count=1).
   const [count, setCount] = useState(1);
   const [isComplete, setIsComplete] = useState(false);
@@ -38,7 +42,9 @@ export function DemoChatInterviewRoom({
 
   const session: ChatInterviewSession = useMemo(
     () => ({
-      sessionId: "demo-session",
+      // Empty string keeps the handleVote guard (`if (newVote && sessionId)`)
+      // false in demo mode — no feedback POST fires against the real backend.
+      sessionId: "",
       sessionMode: "CHAT",
       interviewType: "Technical",
       chatMessages: messages,
@@ -47,11 +53,12 @@ export function DemoChatInterviewRoom({
       codeLanguage: null,
       whiteboardArtifact: null,
       status: isComplete ? "COMPLETED" : "IN_PROGRESS",
-      startedAt: new Date(0).toISOString(),
-      endedAt: isComplete ? new Date(0).toISOString() : null,
+      startedAt,
+      endedAt: isComplete ? new Date().toISOString() : null,
       template: DEMO_TEMPLATE,
     }),
-    [messages, count, isComplete],
+    // startedAt is a stable lazy-init constant; listed to keep exhaustive-deps happy.
+    [messages, count, isComplete, startedAt],
   );
 
   // Imperative controls the tour calls on the matching steps.
@@ -79,7 +86,7 @@ export function DemoChatInterviewRoom({
           }}
           isComplete={isComplete}
           resultsReady={!!resultsData}
-          startedAt={new Date(0).toISOString()}
+          startedAt={startedAt}
         />
         <Badge
           variant="secondary"
