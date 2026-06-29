@@ -16,7 +16,11 @@ export interface WeekDot {
 }
 
 export interface DashboardData {
-  loading: boolean;
+  // Per-slice loading so the page renders progressively instead of blocking the
+  // whole dashboard on the slowest call. The shell + HabitStrip (from `user`)
+  // paint immediately; these gate only their own panels.
+  resumeLoading: boolean; // ResumeHero + Up-next (continue-learning -> path session)
+  leagueLoading: boolean; // League panel
   // raw slices
   continueLearning: ContinueLearningItem | null;
   pathSession: PathSession | null;
@@ -61,7 +65,8 @@ export function useDashboardData(): DashboardData {
   const getPathSession = useAppStore((s) => s.getPathSession);
   const user = useUser();
 
-  const [loading, setLoading] = useState(true);
+  const [resumeLoading, setResumeLoading] = useState(true);
+  const [leagueLoading, setLeagueLoading] = useState(true);
   const [continueLearning, setContinueLearning] =
     useState<ContinueLearningItem | null>(null);
   const [pathSession, setPathSession] = useState<PathSession | null>(null);
@@ -71,32 +76,44 @@ export function useDashboardData(): DashboardData {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      // Each slice degrades independently — a failure never blanks the page.
-      const [cl, lg, acts] = await Promise.all([
-        getContinueLearning().catch(() => null),
-        getLeague().catch(() => null),
-        getActivities({ size: 50 }).catch(() => []),
-      ]);
+    // Each slice loads and settles INDEPENDENTLY so a slow call only delays its
+    // own panel, never the whole page. A failure never blanks the page.
 
+    // League — gates only the league panel.
+    getLeague()
+      .then((lg) => {
+        if (!cancelled) setLeague(lg && typeof lg.joined === "boolean" ? lg : null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLeagueLoading(false);
+      });
+
+    // Activities — feed the habit strip's week dots + today's MB. NOT gated:
+    // HabitStrip paints instantly from `user` (streak/level/xp) and these
+    // activity-derived bits fill in when this resolves.
+    getActivities({ size: 50 })
+      .then((acts: any) => {
+        if (!cancelled) setActivities(Array.isArray(acts) ? acts : []);
+      })
+      .catch(() => {});
+
+    // Resume slice — continue-learning, then its dependent path session. Gates
+    // only ResumeHero + Up-next (this is the slow waterfall; isolating it is the
+    // whole point — it no longer blocks the streak/league/shell from painting).
+    (async () => {
+      const cl = await getContinueLearning().catch(() => null);
       if (cancelled) return;
       setContinueLearning(cl ?? null);
-      setLeague(lg && typeof lg.joined === "boolean" ? lg : null);
-      setActivities(Array.isArray(acts) ? acts : []);
-
-      // Up-next + path-gate come from the active path's session.
       if (cl?.slug) {
         const ps = await getPathSession(cl.slug).catch(() => null);
         if (!cancelled) setPathSession(ps ?? null);
-      } else {
+      } else if (!cancelled) {
         setPathSession(null);
       }
+      if (!cancelled) setResumeLoading(false);
+    })();
 
-      if (!cancelled) setLoading(false);
-    }
-
-    load();
     return () => {
       cancelled = true;
     };
@@ -148,7 +165,8 @@ export function useDashboardData(): DashboardData {
     null;
 
   return {
-    loading,
+    resumeLoading,
+    leagueLoading,
     continueLearning,
     pathSession,
     league,
