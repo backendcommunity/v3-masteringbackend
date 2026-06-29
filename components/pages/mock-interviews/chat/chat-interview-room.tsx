@@ -560,16 +560,40 @@ export function ChatInterviewRoom({
     else setPendingDiagram(null);
   }, []);
 
-  // Guided tour — highlight-only replay for real sessions (autoStart:false).
-  // relaunchGuide is passed to the welcome screen so the learner can trigger it
-  // on demand via the "How it works" button.
+  // First-interview onboarding: auto-run the highlight guide ONCE per user, when
+  // their first real interview starts (i.e. once `hasStarted` flips after the
+  // user clicks "Start Interview"). Persisted in localStorage so returning users
+  // go straight to practice; the welcome "How it works" button replays it anytime.
+  const [autoGuide, setAutoGuide] = useState(false);
+  useEffect(() => {
+    try {
+      setAutoGuide(window.localStorage.getItem("mb_mi_guide_seen") !== "1");
+    } catch {
+      setAutoGuide(false);
+    }
+  }, []);
+
   const { relaunch: relaunchGuide } = useGuidedTour({
     ready: hasStarted && !isInitializing,
     theme: "light",
-    track: (event, extra) => analytics.track(event, extra),
+    track: (event, extra) => {
+      analytics.track(event, extra);
+      // Mark the guide as seen the moment it starts, so it never auto-runs again
+      // even if the user dismisses it midway. Replays via the button are fine.
+      if (event.endsWith("_tour_started")) {
+        try {
+          window.localStorage.setItem("mb_mi_guide_seen", "1");
+        } catch {
+          /* private mode — the guide simply auto-runs again next time */
+        }
+      }
+    },
     steps: MOCK_INTERVIEW_STEPS,
     eventPrefix: "mock_interview",
-    autoStart: false,
+    // Auto-start only on the user's first real interview; the button still
+    // replays on demand regardless (relaunch ignores shouldOffer/autoStart).
+    autoStart: autoGuide,
+    alwaysOffer: autoGuide,
     ...mockInterviewGuideControls(),
   });
 
