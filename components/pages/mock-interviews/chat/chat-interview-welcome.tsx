@@ -26,6 +26,8 @@ interface ChatInterviewWelcomeProps {
   onStart: () => void;
   // Standalone only — render a Back action. Omitted in the embedded Path step.
   onBack?: () => void;
+  // Optional: replay the highlight-only guided tour on demand.
+  onHowItWorks?: () => void;
 }
 
 type Mode = "chat" | "audio" | "video";
@@ -94,6 +96,7 @@ export function ChatInterviewWelcome({
   starting = false,
   onStart,
   onBack,
+  onHowItWorks,
 }: ChatInterviewWelcomeProps) {
   const title = template.name || template.position || "Mock Interview";
   const subtitle = [template.position, template.company]
@@ -228,6 +231,15 @@ export function ChatInterviewWelcome({
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
+          )}
+          {onHowItWorks && (
+            <button
+              type="button"
+              onClick={onHowItWorks}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              How it works
+            </button>
           )}
         </div>
         <p className="mt-4 text-xs text-muted-foreground">{tip}</p>

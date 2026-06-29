@@ -27,6 +27,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { useGuidedTour } from "@/hooks/use-guided-tour";
+import { MOCK_INTERVIEW_STEPS, mockInterviewGuideControls } from "@/lib/mock-interview-tour";
 
 interface ChatInterviewRoomProps {
   userInterviewId: string;
@@ -558,6 +560,19 @@ export function ChatInterviewRoom({
     else setPendingDiagram(null);
   }, []);
 
+  // Guided tour — highlight-only replay for real sessions (autoStart:false).
+  // relaunchGuide is passed to the welcome screen so the learner can trigger it
+  // on demand via the "How it works" button.
+  const { relaunch: relaunchGuide } = useGuidedTour({
+    ready: hasStarted && !isInitializing,
+    theme: "light",
+    track: (event, extra) => analytics.track(event, extra),
+    steps: MOCK_INTERVIEW_STEPS,
+    eventPrefix: "mock_interview",
+    autoStart: false,
+    ...mockInterviewGuideControls(),
+  });
+
   // Load user profile for avatar/initials
   useEffect(() => {
     store
@@ -638,6 +653,7 @@ export function ChatInterviewRoom({
           starting={isStartingSession}
           onStart={beginInterview}
           onBack={embedded ? undefined : () => router.push("/mock-interviews")}
+          onHowItWorks={relaunchGuide}
         />
       </div>
     );
