@@ -10,27 +10,30 @@ export const MOCK_INTERVIEW_STEPS: TourStep[] = [
   { id: "templates", title: "Pick a role", body: "Normally you'd choose a template - a company + role like \"Backend Engineer at a fintech.\" We've set one up for you here." },
   { id: "format", title: "Choose a format", body: "Every interview runs as Chat, Audio, or Video. This walkthrough uses Chat so you can see the whole loop fast." },
   { id: "chat", title: "Your live interview", body: "Kap asks real questions and you answer in the conversation - exactly like a human interviewer.", anchor: "mi-chat" },
-  { id: "input", title: "Answer your way", body: "Type your answer here. You can also attach code or a whiteboard diagram for technical and system-design rounds.", anchor: "mi-input" },
-  { id: "workspace", title: "Show your work", body: "Switch to the Code editor or the Whiteboard to share solutions and system-design diagrams - exactly what technical and system-design interviews ask for.", anchor: "mi-code" },
+  { id: "input", title: "Answer your way", body: "Type your answer here - or attach code and diagrams for technical and system-design rounds.", anchor: "mi-input" },
+  { id: "code", title: "Write code", body: "Switch to the Code editor to write and share your solution in real time - just like a live coding round.", anchor: "mi-code" },
+  { id: "whiteboard", title: "Sketch the design", body: "Or open the Whiteboard to diagram architecture and data flow for system-design interviews.", anchor: "mi-whiteboard" },
   { id: "timer", title: "Stay on the clock", body: "A real countdown keeps the pressure realistic - just like an onsite.", anchor: "mi-timer" },
   { id: "end", title: "Finish anytime", body: "Wrap up when you're done, or let the timer end it. Then Kap scores your performance.", anchor: "mi-end" },
-  { id: "result-score", title: "Get scored", body: "You get an overall score plus technical, communication, and problem-solving breakdowns.", anchor: "mi-result-score" },
-  { id: "result-breakdown", title: "Know exactly what to fix", body: "Strengths, weaknesses, and recommended next steps - turned into an action plan for your next attempt.", anchor: "mi-result-breakdown" },
+  { id: "result", title: "Get scored", body: "An overall score plus technical, communication, and problem-solving breakdowns - with strengths, weaknesses, and recommended next steps to fix.", anchor: "mi-result-score" },
   { id: "done", title: "Your turn", body: "That's the full loop: pick a role -> interview -> get scored -> improve. Start a real one whenever you're ready." },
 ];
+
+// Real-interview guide: the user already picked a role + format to get here, so
+// drop those orientation steps. Same anchors otherwise.
+export const MOCK_INTERVIEW_GUIDE_STEPS: TourStep[] = MOCK_INTERVIEW_STEPS.filter(
+  (s) => s.id !== "templates" && s.id !== "format",
+);
 
 export type DemoControls = {
   playNextTurn: () => void;
   revealResult: () => void;
-  showWorkspace: () => void;
+  showCode: () => void;
+  showWhiteboard: () => void;
 };
 
-/**
- * Sample (demo) controls: drive the scripted demo room. `chat` and `input`
- * play scripted turns; `result-score` reveals the canned report.
- * `workspace` is a highlight-only step - its reveal switches the panel into
- * view so the anchor is visible, but no conversation turn is played.
- */
+/** Sample (demo) controls. chat/input play scripted turns; result reveals the
+ *  canned report; code/whiteboard switch the workspace panel into view. */
 export function mockInterviewSampleControls(demo: { current: DemoControls | null }): {
   actions: Record<string, TourAction>;
   reveals: Record<string, () => void>;
@@ -39,21 +42,27 @@ export function mockInterviewSampleControls(demo: { current: DemoControls | null
     actions: {
       chat: () => demo.current?.playNextTurn(),
       input: () => demo.current?.playNextTurn(),
-      "result-score": () => demo.current?.revealResult(),
+      result: () => demo.current?.revealResult(),
     },
     reveals: {
-      workspace: () => demo.current?.showWorkspace(),
+      code: () => demo.current?.showCode(),
+      whiteboard: () => demo.current?.showWhiteboard(),
     },
   };
 }
 
-/**
- * Guide (real interview) controls: highlight-only. The room is already fully
- * rendered, so there is nothing to reveal and nothing to mutate.
- */
-export function mockInterviewGuideControls(): {
+/** Real-interview guide controls: highlight-only EXCEPT it switches the
+ *  workspace panel so the code/whiteboard anchors are visible when highlighted.
+ *  The room supplies its own panel switchers. */
+export type GuideControls = { showCode: () => void; showWhiteboard: () => void };
+export function mockInterviewGuideControls(ui: GuideControls): {
   actions?: Record<string, TourAction>;
   reveals?: Record<string, () => void>;
 } {
-  return {};
+  return {
+    reveals: {
+      code: ui.showCode,
+      whiteboard: ui.showWhiteboard,
+    },
+  };
 }

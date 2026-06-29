@@ -75,8 +75,8 @@ describe("DemoChatInterviewRoom", () => {
     act(() => ref.current?.playNextTurn());
     expect(screen.getByText(/token-bucket/i)).toBeTruthy();
 
-    // showWorkspace keeps the workspace anchor present.
-    act(() => ref.current?.showWorkspace());
+    // showCode switches to the code editor panel (anchor stays present).
+    act(() => ref.current?.showCode());
     expect(document.querySelector('[data-tour="mi-code"]')).not.toBeNull();
 
     // Reveal results.

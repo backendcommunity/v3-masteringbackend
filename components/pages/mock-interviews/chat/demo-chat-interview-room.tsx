@@ -31,7 +31,7 @@ const DEMO_CODE =
  * Backend-free, deterministic mock-interview room for the walkthrough demo.
  * Reuses the production presentational panels (header + chat panel + workspace)
  * but holds all state locally -- no store, no SSE, no network. The tour drives
- * it through `controlsRef` (playNextTurn / revealResult / showWorkspace).
+ * it through `controlsRef` (playNextTurn / revealResult / showCode / showWhiteboard).
  */
 export function DemoChatInterviewRoom({
   controlsRef,
@@ -96,10 +96,8 @@ export function DemoChatInterviewRoom({
         setIsComplete(true);
         setResultsData(DEMO_REPORT);
       },
-      showWorkspace: () => {
-        setActivePanel("code");
-        setMobileTab("workspace");
-      },
+      showCode: () => { setActivePanel("code"); setMobileTab("workspace"); },
+      showWhiteboard: () => { setActivePanel("whiteboard"); setMobileTab("workspace"); },
     }),
     [],
   );

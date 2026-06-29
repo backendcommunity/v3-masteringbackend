@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useAppStore,
@@ -28,7 +28,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { useGuidedTour } from "@/hooks/use-guided-tour";
-import { MOCK_INTERVIEW_STEPS, mockInterviewGuideControls } from "@/lib/mock-interview-tour";
+import { MOCK_INTERVIEW_GUIDE_STEPS, mockInterviewGuideControls } from "@/lib/mock-interview-tour";
 
 interface ChatInterviewRoomProps {
   userInterviewId: string;
@@ -573,6 +573,15 @@ export function ChatInterviewRoom({
     }
   }, []);
 
+  const guideControls = useMemo(
+    () =>
+      mockInterviewGuideControls({
+        showCode: () => { setActivePanel("code"); setMobileTab("workspace"); },
+        showWhiteboard: () => { setActivePanel("whiteboard"); setMobileTab("workspace"); },
+      }),
+    [],
+  );
+
   const { relaunch: relaunchGuide } = useGuidedTour({
     ready: hasStarted && !isInitializing,
     theme: "light",
@@ -588,13 +597,13 @@ export function ChatInterviewRoom({
         }
       }
     },
-    steps: MOCK_INTERVIEW_STEPS,
+    steps: MOCK_INTERVIEW_GUIDE_STEPS,
     eventPrefix: "mock_interview",
     // Auto-start only on the user's first real interview; the button still
     // replays on demand regardless (relaunch ignores shouldOffer/autoStart).
     autoStart: autoGuide,
     alwaysOffer: autoGuide,
-    ...mockInterviewGuideControls(),
+    ...guideControls,
   });
 
   // Load user profile for avatar/initials
