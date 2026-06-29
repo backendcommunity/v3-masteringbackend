@@ -820,7 +820,12 @@ export function ProjectPlaygroundPage({
   }, [
     pgCtx,
     project?.baseRepository,
-    project?.languages,
+    // Depend on the primitive, not the array reference. store.getProject()
+    // returns a fresh `languages` array on every refetch (e.g. after GitHub
+    // connect), and a new reference here would re-run this effect → flip
+    // loadingFiles → tear the whole playground down into the loader, which
+    // reads as a full page reload. The actual language value is what matters.
+    project?.languages?.[0],
     project?.title,
     slug,
   ]);
@@ -958,7 +963,12 @@ export function ProjectPlaygroundPage({
   if (loading || loadingFiles) {
     // Boot progress derived purely from existing values — no new logic/state.
     const bootSteps = [
-      { key: "fetch", label: "Fetching project", active: loading, done: !loading },
+      {
+        key: "fetch",
+        label: "Fetching project",
+        active: loading,
+        done: !loading,
+      },
       {
         key: "boot",
         label: "Booting workspace",
@@ -1064,6 +1074,10 @@ export function ProjectPlaygroundPage({
       fileTree.find((f) => f.type === "file");
     if (firstFile) openFile(firstFile);
     setRailTab("explorer");
+    // // Kick off the guided highlight tour. On a real project this is the entry
+    // // point (no mutations — actions are sample-only); on the sample it simply
+    // // re-runs the walkthrough.
+    // relaunch();
   };
   // group-based numbering keyed by task id → "1.1", "2.3" …
   const taskNumber: Record<string, string> = {};
@@ -2142,7 +2156,11 @@ app.listen(port, () => console.log("Server listening on port " + port));
     }
     setRailTab("explorer");
     try {
-      await pgFs(pgCtx, { op: "write", path: toRel("index.js"), content: DEMO_API });
+      await pgFs(pgCtx, {
+        op: "write",
+        path: toRel("index.js"),
+        content: DEMO_API,
+      });
       await pgFs(pgCtx, {
         op: "write",
         path: toRel("public/index.html"),
@@ -2184,8 +2202,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
     kap: () => setRailTab("kap"),
     terminal: () => {
       setShowTerminal(true);
-      if (termRef.current)
-        termRef.current.style.flexBasis = lastTermH.current;
+      if (termRef.current) termRef.current.style.flexBasis = lastTermH.current;
     },
     "run-test": () => {
       const gradable = firstGradableTask();
@@ -2361,7 +2378,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
   const browsable = (u: string) =>
     (u || "").replace(/\/\/(0\.0\.0\.0|127\.0\.0\.1)(:|\/|$)/, "//localhost$2");
   const withNonce = (u: string) =>
-    !u || !previewNonce ? u : u + (u.includes("?") ? "&" : "?") + "_t=" + previewNonce;
+    !u || !previewNonce
+      ? u
+      : u + (u.includes("?") ? "&" : "?") + "_t=" + previewNonce;
   const apiBase = browsable(baseURL || previewUrl);
   const resolvedPreviewUrl = withNonce(
     frontendEnabled && previewMode === "app" && baseURL
