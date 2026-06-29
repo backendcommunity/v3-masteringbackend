@@ -219,6 +219,22 @@ export function ChatInterviewRoom({
   useEffect(() => {
     let cancelled = false;
     async function loadPreview() {
+      // Fast path: a "Start Now" navigation primed the preview from the create
+      // response, so render the welcome screen immediately — no round-trip.
+      // Mirrors the fetch path below, including the completed-session redirect.
+      const primed = store.consumeChatPreview(userInterviewId);
+      if (primed) {
+        setPreview(primed);
+        if (
+          primed.sessionStatus === "COMPLETED" ||
+          primed.sessionStatus === "ENDED"
+        ) {
+          beginInterview(); // keeps the spinner, lands on results
+        } else {
+          setIsInitializing(false);
+        }
+        return;
+      }
       try {
         const data = await store.getChatInterviewPreview(userInterviewId);
         if (cancelled) return;

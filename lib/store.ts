@@ -143,6 +143,16 @@ export interface ChatInterviewSession {
 const ROADMAP_RESOLVE_PAGE_SIZE = 200;
 const roadmapSlugCache = new Map<string, string>();
 
+// Chat-interview preview handoff: when an interview is created via "Start Now"
+// we already hold its template, so we stash the preview here keyed by interview
+// id. The chat room consumes it on mount to render the welcome screen instantly,
+// skipping the GET /chat/:id/preview round-trip. One-shot (cleared on consume).
+type ChatPreview = {
+  template: ChatInterviewTemplate;
+  sessionStatus: string | null;
+};
+const chatPreviewCache = new Map<string, ChatPreview>();
+
 const isNumericIdentifier = (value: string) => /^\d+$/.test(value);
 
 const resolveRoadmapSlug = async (identifier: string) => {
@@ -408,6 +418,10 @@ interface AppState {
 
   // Chat-based Mock Interview
   getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
+  /** Stash a just-created interview's preview so the chat room skips the fetch. */
+  primeChatPreview: (id: string, preview: ChatPreview) => void;
+  /** Read + clear a stashed preview (one-shot). Null if none was primed. */
+  consumeChatPreview: (id: string) => ChatPreview | null;
   startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
   streamChatMessage: (sessionId: string, content: string, artifacts?: ChatArtifactRef[]) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
@@ -867,6 +881,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       `/mock-interviews/chat/${userInterviewId}/preview`,
     );
     return data?.data;
+  },
+  primeChatPreview: (id, preview) => {
+    chatPreviewCache.set(id, preview);
+  },
+  consumeChatPreview: (id) => {
+    const p = chatPreviewCache.get(id) ?? null;
+    if (p) chatPreviewCache.delete(id);
+    return p;
   },
 
   startChatInterview: async (userInterviewId: string, interviewType?: string) => {

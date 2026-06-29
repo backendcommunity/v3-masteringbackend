@@ -98,6 +98,11 @@ export function InterviewBookingDialog({
         setCreating(false);
         return;
       }
+      // Hand the chat room the preview we just got from the create call so it
+      // renders the welcome screen instantly, skipping its own preview fetch.
+      if (result.preview) {
+        store.primeChatPreview(result.interview.id, result.preview);
+      }
       toast.success("Chat interview started!");
       // Keep the dialog open and the Start Now spinner running THROUGH the
       // navigation. The interview page takes a moment to load; closing the
