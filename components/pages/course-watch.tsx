@@ -759,7 +759,7 @@ export function CourseWatchPage({
                     </div>
                     <div className="border-t mt-5">
                       {loadingNotes ? (
-                        <Loader isLoader={true} isFull={false} />
+                        <Loader />
                       ) : (
                         <div className="space-y-3  pt-5">
                           {notes?.map((note: Note) => (

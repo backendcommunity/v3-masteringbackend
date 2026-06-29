@@ -40,8 +40,11 @@ interface GithubConnectProps {
    * Surface an actionable error to a parent (e.g. the top banner). Called with
    * the message + a retry handler while an error is live, and `null` once it
    * clears. The icon/slide-in stay silent; the banner only appears on error.
+   * `actionLabel` overrides the banner button text (e.g. "Reconnect").
    */
-  onError?: (err: { message: string; retry: () => void } | null) => void;
+  onError?: (
+    err: { message: string; retry: () => void; actionLabel?: string } | null,
+  ) => void;
 }
 
 // Append the current page as the return target. Academy hands back install URLs
@@ -64,6 +67,18 @@ function handle409Redirect(err: any): boolean {
   return false;
 }
 
+// A reconnect-required 409 (stale/expired/wrong-app GitHub installation). Unlike
+// other 409s we do NOT auto-redirect — a sudden bounce to GitHub during passive
+// auto-provisioning is jarring. The caller instead surfaces a reconnect banner
+// whose button takes the user through the install flow on an explicit click.
+function getReconnectUrl(err: any): string | null {
+  const d = err?.response?.status === 409 ? err.response.data : null;
+  if (d?.reason === "reconnect_required" && typeof d?.installUrl === "string") {
+    return d.installUrl;
+  }
+  return null;
+}
+
 // A single ghost icon button for the playground top nav. Clicking it toggles the
 // options slide-in (`AdvancedDrawer`), which holds every state: not-installed →
 // install CTA; installed → create/connect a repo. Repo provisioning is automatic
@@ -81,6 +96,7 @@ export function GithubConnect({
   const [status, setStatus] = useState<GithubStatus | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reconnectUrl, setReconnectUrl] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -130,12 +146,19 @@ export function GithubConnect({
   const handleSave = async () => {
     setSaving(true);
     setActionError(null);
+    setReconnectUrl(null);
     try {
       const res = await store.connectProjectGithub(slug, { mode: "auto" });
       applyConnected(res.repoFullName, res.owner, res.repo);
     } catch (e) {
-      // A 409 with authUrl/installUrl means the user must (re)authorize or
-      // install — redirect them rather than dead-ending on an error.
+      // Stale/expired GitHub installation → show a reconnect banner (no silent
+      // bounce); the button takes the user through the install flow on click.
+      const reconnect = getReconnectUrl(e);
+      if (reconnect) {
+        setReconnectUrl(reconnect);
+        return;
+      }
+      // Other 409s (re-authorize personal account) — redirect immediately.
       if (handle409Redirect(e)) return;
       const err = e as { response?: { data?: { message?: string } } };
       setActionError(
@@ -168,7 +191,19 @@ export function GithubConnect({
   // banner is the *only* place an error surfaces.
   useEffect(() => {
     if (!onError) return;
-    if (loadError) {
+    if (reconnectUrl) {
+      // Highest priority: the GitHub connection is dead and only a reconnect
+      // fixes it. The button sends the user through the install flow; GitHub's
+      // callback saves the new installationId and redirects back here, where
+      // auto-provision resumes.
+      onError({
+        message: "Your GitHub connection expired. Reconnect to continue.",
+        actionLabel: "Reconnect",
+        retry: () => {
+          window.location.href = withReturn(reconnectUrl);
+        },
+      });
+    } else if (loadError) {
       onError({ message: "Couldn't load GitHub status.", retry: refresh });
     } else if (actionError) {
       onError({
@@ -182,7 +217,7 @@ export function GithubConnect({
       onError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadError, actionError]);
+  }, [reconnectUrl, loadError, actionError]);
 
   return (
     <>
@@ -255,7 +290,10 @@ function AdvancedDrawer({
         if (!active) return;
         setOwners(o);
         setOwner((prev) => prev || o[0]?.login || "");
-      } catch {
+      } catch (e) {
+        // A 409 means the GitHub connection is no longer usable — redirect to
+        // reconnect (re-install/re-authorize) instead of a dead error toast.
+        if (handle409Redirect(e)) return;
         if (active) toast.error("Couldn't load your GitHub owners.");
       } finally {
         if (active) setOwnersLoading(false);
@@ -272,7 +310,8 @@ function AdvancedDrawer({
     setReposLoading(true);
     try {
       setRepos(await store.listGithubRepos(ownerLogin, query));
-    } catch {
+    } catch (e) {
+      if (handle409Redirect(e)) return;
       toast.error("Couldn't list repositories.");
     } finally {
       setReposLoading(false);

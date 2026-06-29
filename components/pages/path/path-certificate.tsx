@@ -220,7 +220,7 @@ export function PathCertificate({
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <Loader isFull={false} />
+        <Loader />
       </div>
     );
   }

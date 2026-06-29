@@ -21,13 +21,13 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
 import Image from "next/image";
 import { PathFeedbackDialog } from "./path/path-feedback-dialog";
 import { GithubConnect } from "./playground/github-connect";
+import { Loader } from "@/components/ui/loader";
 import { useAppStore } from "@/lib/store";
 import { usePlaygroundControls } from "@/lib/playground-controls-store";
 import { languages } from "@/lib/languages";
@@ -203,11 +203,15 @@ const relTime = (at?: number): string => {
   return rtf.format(-hr, "hour");
 };
 
-// Render a task description: turn `backtick` spans into <code>, preserve
-// newlines via white-space:pre-wrap on the container. Plain text in → JSX out.
+// Render a task description. Rich-editor (Quill) tasks arrive as HTML — sanitize
+// and render it as markup. Legacy plain-text tasks fall back to turning
+// `backtick` spans into <code>, with newlines preserved via white-space:pre-wrap.
 const fmtInstr = (raw?: string) => {
   const s = (raw || "").trim();
   if (!s) return "No description yet.";
+  if (/<\/?[a-z][\s\S]*>/i.test(s)) {
+    return <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(s) }} />;
+  }
   return s
     .split("`")
     .map((seg, i) =>
@@ -382,6 +386,7 @@ export function ProjectPlaygroundPage({
   const [ghError, setGhError] = useState<{
     message: string;
     retry: () => void;
+    actionLabel?: string;
   } | null>(null);
 
   // The sync engine instance (rebuilt when the connection identity changes).
@@ -509,7 +514,7 @@ export function ProjectPlaygroundPage({
   // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
   // refetches the project (without setLoading) so connected state still updates.
   useEffect(() => {
-    setLoading(true);
+    // setLoading(true);
     async function findProject(slug: string) {
       const project = await store.getProject(slug);
       setProject(project);
@@ -950,13 +955,64 @@ export function ProjectPlaygroundPage({
     };
   }, [pgCtx, baseURL]);
 
-  if (loading || loadingFiles)
+  if (loading || loadingFiles) {
+    // Boot progress derived purely from existing values — no new logic/state.
+    const bootSteps = [
+      { key: "fetch", label: "Fetching project", active: loading, done: !loading },
+      {
+        key: "boot",
+        label: "Booting workspace",
+        active: !loading && !pgCtx,
+        done: !loading && !!pgCtx,
+      },
+      {
+        key: "files",
+        label: "Loading files",
+        active: !loading && !!pgCtx && loadingFiles,
+        done: false,
+      },
+    ];
     return (
-      <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="text-sm">Loading your project…</span>
-      </div>
+      <Loader
+        label={
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm font-medium text-foreground">
+              {project?.title
+                ? `Setting up ${project.title}`
+                : "Setting up your workspace"}
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {bootSteps.map((s) => (
+                <li key={s.key} className="flex items-center gap-2 text-xs">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      s.done
+                        ? "bg-primary"
+                        : s.active
+                          ? "bg-primary motion-safe:animate-pulse"
+                          : "bg-muted-foreground/30"
+                    }`}
+                  />
+                  <span
+                    className={
+                      s.active
+                        ? "text-foreground"
+                        : s.done
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/50"
+                    }
+                  >
+                    {s.label}
+                    {s.active ? "…" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+      />
     );
+  }
   if (!project?.enrolled)
     return (
       <div className="container max-w-4xl py-12">
@@ -2756,7 +2812,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
             {ghError.message}
           </span>
           <button className="btn ghost gh-retry" onClick={ghError.retry}>
-            Retry
+            {ghError.actionLabel ?? "Retry"}
           </button>
         </div>
       ) : null}
@@ -5331,6 +5387,32 @@ app.listen(port, () => console.log("Server listening on port " + port));
         }
         .pg-root .task-desc a {
           color: var(--gold);
+        }
+        .pg-root .task-desc h3,
+        .pg-root .task-desc h4 {
+          margin: 14px 0 6px;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text);
+        }
+        .pg-root .task-desc ul,
+        .pg-root .task-desc ol {
+          margin: 0 0 8px;
+          padding-left: 20px;
+        }
+        .pg-root .task-desc ul {
+          list-style: disc;
+        }
+        .pg-root .task-desc ol {
+          list-style: decimal;
+        }
+        .pg-root .task-desc li {
+          margin: 2px 0;
+        }
+        .pg-root .task-desc pre code {
+          background: none;
+          padding: 0;
+          font-size: inherit;
         }
         .pg-root .df {
           display: flex;
