@@ -31,6 +31,7 @@ export default defineConfig({
       "components/__tests__/take-hint-ide.test.tsx",
       "components/__tests__/streaming-output.test.tsx",
       "components/__tests__/return-recap-modal.test.tsx",
+      "components/__tests__/mock-interview-anchors.test.tsx",
     ],
   },
   resolve: {

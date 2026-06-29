@@ -98,6 +98,7 @@ export function ChatPanel({
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Messages list */}
       <div
+        data-tour="mi-chat"
         className="flex-1 overflow-y-auto overscroll-contain"
         role="log"
         aria-label="Interview conversation"
@@ -280,7 +281,7 @@ export function ChatPanel({
             </p>
           </div>
         )}
-        <div className="max-w-3xl mx-auto">
+        <div data-tour="mi-input" className="max-w-3xl mx-auto">
           <ChatInput
             onSend={onSend}
             attachments={attachments}

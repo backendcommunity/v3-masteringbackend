@@ -74,7 +74,7 @@ function GradeBadge({ grade, result }: { grade?: string; result: string }) {
 export function ResultCard({ data }: ResultCardProps) {
   return (
     <div className="w-full rounded-xl border border-border bg-card shadow-sm overflow-hidden mt-3">
-      <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
+      <div data-tour="mi-result-score" className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           <div>
@@ -90,7 +90,7 @@ export function ResultCard({ data }: ResultCardProps) {
           <ScoreCircle score={data.overallScore} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 px-4 py-3 border-b border-border">
+      <div data-tour="mi-result-breakdown" className="grid grid-cols-2 gap-3 px-4 py-3 border-b border-border">
         <ScoreBar label="Technical" score={data.technicalScore ?? 0} />
         <ScoreBar label="Communication" score={data.communicationScore ?? 0} />
         <ScoreBar label="Problem Solving" score={data.problemSolvingScore ?? 0} />
