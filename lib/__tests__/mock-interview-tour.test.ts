@@ -9,27 +9,34 @@ describe("mock interview tour", () => {
   it("defines steps in order", () => {
     expect(MOCK_INTERVIEW_STEPS.map((s) => s.id)).toEqual([
       "welcome", "templates", "format", "chat", "input",
-      "timer", "end", "result-score", "result-breakdown", "done",
+      "workspace", "timer", "end", "result-score", "result-breakdown", "done",
     ]);
   });
 
   it("anchors exactly the room/result steps", () => {
     const anchored = MOCK_INTERVIEW_STEPS.filter((s) => s.anchor).map((s) => s.anchor);
     expect(anchored).toEqual([
-      "mi-chat", "mi-input", "mi-timer", "mi-end", "mi-result-score", "mi-result-breakdown",
+      "mi-chat", "mi-input", "mi-code", "mi-timer", "mi-end", "mi-result-score", "mi-result-breakdown",
     ]);
     expect(MOCK_INTERVIEW_STEPS.find((s) => s.id === "welcome")?.anchor).toBeUndefined();
     expect(MOCK_INTERVIEW_STEPS.find((s) => s.id === "templates")?.anchor).toBeUndefined();
   });
 
   it("sample controls drive the demo ref on the right steps", async () => {
-    const demo = { current: { playNextTurn: vi.fn(), revealResult: vi.fn() } };
+    const demo = { current: { playNextTurn: vi.fn(), revealResult: vi.fn(), showWorkspace: vi.fn() } };
     const { actions } = mockInterviewSampleControls(demo);
     await actions["chat"]?.();
     await actions["input"]?.();
     await actions["result-score"]?.();
     expect(demo.current.playNextTurn).toHaveBeenCalledTimes(2);
     expect(demo.current.revealResult).toHaveBeenCalledOnce();
+  });
+
+  it("sample controls expose reveals.workspace that calls showWorkspace", () => {
+    const demo = { current: { playNextTurn: vi.fn(), revealResult: vi.fn(), showWorkspace: vi.fn() } };
+    const { reveals } = mockInterviewSampleControls(demo);
+    reveals["workspace"]?.();
+    expect(demo.current.showWorkspace).toHaveBeenCalledOnce();
   });
 
   it("guide controls perform no mutations", () => {

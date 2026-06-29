@@ -37,7 +37,7 @@ export default function MockInterviewDemoPage() {
   });
 
   return (
-    <div className="mx-auto h-[calc(100vh-4rem)] w-full max-w-4xl p-2 sm:p-4">
+    <div className="mx-auto h-[calc(100vh-4rem)] w-full max-w-6xl p-2 sm:p-4">
       <DemoChatInterviewRoom controlsRef={controlsRef} />
     </div>
   );

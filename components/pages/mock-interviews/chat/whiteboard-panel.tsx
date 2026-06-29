@@ -120,7 +120,7 @@ export function WhiteboardPanel({
     : undefined;
 
   return (
-    <div className="relative h-full w-full bg-background flex flex-col">
+    <div className="relative h-full w-full bg-background flex flex-col" data-tour="mi-whiteboard">
       {/* Full-canvas Excalidraw — leave room for footer */}
       <div className="flex-1 min-h-0 pb-[41px] excal">
         <ExcalidrawWithWelcome

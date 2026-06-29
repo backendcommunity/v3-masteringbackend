@@ -183,7 +183,7 @@ export function CodeEditorPanel({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-tour="mi-code">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-[#1e1e1e]">
         <span className="text-xs text-muted-foreground">Language:</span>
