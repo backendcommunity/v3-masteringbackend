@@ -7,6 +7,7 @@ import { HabitStrip } from "@/components/dashboard/habit-strip";
 import { ResumeHero } from "@/components/dashboard/resume-hero";
 import { UpNextPanel } from "@/components/dashboard/up-next-panel";
 import { LeaguePanel } from "@/components/dashboard/league-panel";
+import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { triggerWelcomeBack } from "@/lib/use-journey-recap-trigger";
 
 function DashboardSkeleton() {
@@ -41,6 +42,8 @@ export function DashboardContent() {
       <h1 className="text-2xl font-extrabold tracking-tight sm:text-[28px]">
         Welcome back, {firstName}
       </h1>
+
+      <AnnouncementBanner />
 
       {data.loading ? (
         <DashboardSkeleton />
