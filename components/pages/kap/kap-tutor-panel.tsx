@@ -28,6 +28,8 @@ interface KapTutorPanelProps {
   taskId?: string;
   title?: string;
   intro?: string;
+  /** Suppress the opening greeting bubble (intro + lesson title). */
+  hideIntro?: boolean;
   starterPrompts?: string[];
   className?: string;
   header?: ReactNode;
@@ -49,6 +51,7 @@ export function KapTutorPanel({
   taskId,
   title,
   intro,
+  hideIntro,
   starterPrompts,
   className,
   header,
@@ -167,35 +170,19 @@ export function KapTutorPanel({
         className="flex-1 min-h-0 overflow-y-auto space-y-4 p-3"
       >
         {header}
-        {messages.length === 0 && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <div className="shrink-0 w-7 h-7 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-bold">
-                K
-              </div>
-              <div className="text-sm text-muted-foreground bg-muted/50 rounded-2xl rounded-tl-sm px-3 py-2">
-                {introText}
-                {title ? (
-                  <span className="block mt-1 text-xs opacity-70">
-                    {scope === "project" ? "Project" : "Lesson"}: {title}
-                  </span>
-                ) : null}
-              </div>
+        {messages.length === 0 && !hideIntro && (
+          <div className="flex gap-2">
+            <div className="shrink-0 w-7 h-7 rounded-full bg-primary/15 text-primary grid place-items-center text-xs font-bold">
+              K
             </div>
-            {!!starterPrompts?.length && (
-              <div className="flex flex-wrap gap-2 pl-9">
-                {starterPrompts.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    disabled={isStreaming}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted disabled:opacity-50"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="text-sm text-muted-foreground bg-muted/50 rounded-2xl rounded-tl-sm px-3 py-2">
+              {introText}
+              {title ? (
+                <span className="block mt-1 text-xs opacity-70">
+                  {scope === "project" ? "Project" : "Lesson"}: {title}
+                </span>
+              ) : null}
+            </div>
           </div>
         )}
 
@@ -257,6 +244,21 @@ export function KapTutorPanel({
           </div>
         )}
       </div>
+
+      {!!starterPrompts?.length && messages.length === 0 && (
+        <div className="flex flex-wrap gap-2 px-2.5 pb-2 pt-1">
+          {starterPrompts.map((s) => (
+            <button
+              key={s}
+              onClick={() => send(s)}
+              disabled={isStreaming}
+              className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {

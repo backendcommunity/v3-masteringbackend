@@ -121,8 +121,10 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
               videoId={videoId}
               title={item?.title}
               className="flex-1 min-h-0"
+              hideIntro
               starterPrompts={[
-                "Generate the key takeaways and real-world uses of this lesson",
+                "Key takeaways of this lesson",
+                "Real-world uses of this lesson",
                 "Explain this lesson simply",
                 "Quiz me on this lesson",
               ]}
