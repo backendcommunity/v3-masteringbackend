@@ -237,6 +237,10 @@ interface AppState {
   getCurrentWeekEvents: (id: string, weekId: string) => any;
   getLesson: (id: string, week: string, lesson: string) => Lesson | any;
   getWeek: (id: string, cohort: string, week: string) => Week | any;
+  getBootcampLeaderboard: (
+    bootcampId: string,
+    cohortId: string,
+  ) => Promise<any>;
   getLearningPaths: () => LearningPath[];
   getRoadmaps: (filters?: { skip?: number; size?: number }) => Roadmap[] | any;
   getUserRoadmaps: (data: UserRoadmapFilters) => any;
@@ -1058,6 +1062,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   getWeek: async (id: string, cohort: string, week: string) => {
     const { data } = await api.get(
       `/bootcamps/${id}/cohorts/${cohort}/weeks/${week}`,
+    );
+    return data?.data;
+  },
+
+  getBootcampLeaderboard: async (bootcampId: string, cohortId: string) => {
+    const { data } = await api.get(
+      `/bootcamps/${bootcampId}/cohorts/${cohortId}/leaderboard`,
     );
     return data?.data;
   },
