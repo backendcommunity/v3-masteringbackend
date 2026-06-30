@@ -394,7 +394,7 @@ interface AppState {
       chapter?: any;
     },
   ) => any;
-  executeCode: (payload: { language: string; code: string }) => any;
+  executeCode: (payload: { language: string; code: string; stdin?: string }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
   ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
@@ -1222,8 +1222,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return await startWithIdentifier(id);
     }
   },
-  executeCode: async (payload: { language: string; code: string }) => {
-    const { data } = await socketAPI.post(`/projects/execute`, payload);
+  executeCode: async (payload: { language: string; code: string; stdin?: string }) => {
+    const { data } = await api.post(`/playgrounds/execute`, payload);
     return data?.data ?? data;
   },
   handleProjectEnrollment: async (slug: string) => {

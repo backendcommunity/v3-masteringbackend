@@ -36,6 +36,7 @@ export default defineConfig({
       "components/__tests__/announcement-banner.test.tsx",
       "components/__tests__/try-mock-interview-button.test.tsx",
       "components/__tests__/interview-completion-dialog-cta.test.tsx",
+      "components/__tests__/simple-editor-run.test.tsx",
     ],
   },
   resolve: {
