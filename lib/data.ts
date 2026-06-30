@@ -586,6 +586,15 @@ export interface Topic {
   summary?: string;
 }
 
+export interface Article {
+  id: string;
+  title: string;
+  type?: string;
+  order?: number;
+  isPremium?: boolean;
+  slug?: string;
+}
+
 export interface Chapter {
   id: string;
   title: string;
@@ -597,6 +606,7 @@ export interface Chapter {
   slug: string;
   quiz?: Quiz;
   videos: Video[];
+  articles?: Article[];
   quizzes?: Quiz[];
   exercise?: Exercise;
   playground?: Playground;
