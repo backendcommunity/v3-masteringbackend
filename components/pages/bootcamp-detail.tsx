@@ -141,7 +141,11 @@ export function BootcampDetailPage({
         enrolled: true,
         userCohort,
       }));
-      toast.success("You have successfully enrolled");
+
+      // Enrollment succeeded → take the learner straight to the cohort
+      // dashboard (the bootcamp's first content surface).
+      onNavigate?.(`/bootcamps/${id}/dashboard`);
+      return;
     } catch (error: any) {
       // Check if payment is required (402 status)
       if (error?.response?.status === 402) {
