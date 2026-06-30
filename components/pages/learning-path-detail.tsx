@@ -22,7 +22,6 @@ import {
   Clock,
   BookOpen,
   Code2,
-  Target,
   CheckCircle2,
   Play,
   Lock,
@@ -49,16 +48,8 @@ import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PathPreviewDialog } from "../path-preview-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
-import ConfettiCelebration from "../confetti-celebration";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 // Type definitions for multi-content timeline
@@ -281,9 +272,7 @@ export function LearningPathDetailPage({
   const [enrolling, setEnrolling] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
-  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
-  const [celebration, setCelebration] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   // Warm the milestone cache on enroll so first workspace load is fast
   const milestoneCache = useRef<Record<string, any>>({});
@@ -393,14 +382,16 @@ export function LearningPathDetailPage({
       setRoadmap(updated);
       setUserRoadmap(updated?.userRoadmap ?? null);
 
-      setCelebration(true);
-      setShowWelcomeDialog(true);
-
       analytics.track("path_enrolled", {
         pathId,
         pathTitle: roadmap?.title,
         method: "direct",
       });
+
+      // Enrollment succeeded → drop the learner straight into the first
+      // content. The workspace resolves the current (first) topic on load.
+      onNavigate?.(routes.pathWorkspace(pathId));
+      return;
     } catch (error: any) {
       const errorMsg =
         error?.response?.data?.message ||
@@ -1699,79 +1690,6 @@ export function LearningPathDetailPage({
         </div>
       )}
 
-      <ConfettiCelebration
-        onComplete={() => setCelebration(false)}
-        isVisible={celebration}
-        celebrationType="enrollment"
-        courseName={roadmap?.title!}
-      />
-
-      {/* Post-enrollment welcome dialog */}
-      <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
-        <DialogContent className="max-w-md text-center">
-          <DialogHeader>
-            <div className="flex justify-center mb-3">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Target className="h-8 w-8 text-primary" />
-              </div>
-            </div>
-            <DialogTitle className="text-xl">You&apos;re in!</DialogTitle>
-            <DialogDescription className="text-base mt-2">
-              Welcome to <strong>{roadmap?.title}</strong>. Your learning
-              journey starts now.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <h3 className="text-base font-semibold text-left">
-              Your first lesson is ready
-            </h3>
-            {topics?.[0] && (
-              <div className="text-left p-3 bg-primary/5 rounded-lg space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                    1
-                  </div>
-                  <p className="text-sm font-medium">{topics[0].title}</p>
-                </div>
-                {topics[0].courses?.[0] && (
-                  <div className="flex items-center gap-2 ml-8">
-                    <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-sm text-muted-foreground">
-                      {topics[0].courses[0].course?.title ||
-                        topics[0].courses[0].title}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 mt-2">
-            <Button
-              className="w-full"
-              onClick={() => {
-                setShowWelcomeDialog(false);
-
-                analytics.track("path_continue_clicked", {
-                  pathId,
-                  topicId: topics[0].id,
-                  topicTitle: topics[0].title,
-                  source: "welcome_dialog",
-                });
-                onNavigate?.(routes.pathWorkspace(pathId));
-              }}
-            >
-              Start Now &rarr;
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setShowWelcomeDialog(false)}
-            >
-              Explore Curriculum
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
