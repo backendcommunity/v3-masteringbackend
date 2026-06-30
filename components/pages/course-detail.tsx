@@ -34,6 +34,7 @@ import {
   Share2,
   Link as LinkIcon,
   Wrench,
+  FileText,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -523,14 +524,32 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                                     icon: any;
                                     label: string;
                                     mb?: number;
+                                    order?: number;
                                   }[] = [];
-                                  (chapter.videos || []).forEach((v) =>
-                                    items.push({
+                                  const videoItems = (chapter.videos || []).map(
+                                    (v) => ({
                                       icon: Play,
                                       label: v.title,
                                       mb: v.mb,
+                                      order: v.order,
                                     }),
                                   );
+                                  const articleItems = (
+                                    chapter.articles || []
+                                  ).map((a) => ({
+                                    icon: FileText,
+                                    label: a.title,
+                                    order: a.order,
+                                  }));
+                                  const merged = [
+                                    ...videoItems,
+                                    ...articleItems,
+                                  ].sort(
+                                    (x, y) =>
+                                      (x.order ?? Infinity) -
+                                      (y.order ?? Infinity),
+                                  );
+                                  merged.forEach((item) => items.push(item));
                                   (chapter.quizzes || []).forEach((q) =>
                                     items.push({ icon: Brain, label: q.title }),
                                   );
