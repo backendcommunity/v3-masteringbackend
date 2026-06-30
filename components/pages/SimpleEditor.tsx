@@ -1,5 +1,4 @@
 import { PanelRightClose, PanelRightOpen, Play, Save } from "lucide-react";
-import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Card,
   CardContent,
@@ -44,7 +43,12 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   const [userInputOpen, setUserInputOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    timedOut: boolean;
+  } | null>(null);
   const [savedCodes, setSavedCodes] = useState<Playground[]>([]);
   const [userInput, setUserInput] = useState("");
   const [isTextRequired, setIsTextRequired] = useState(false);
@@ -106,53 +110,32 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
   async function runCode() {
     setDrawerOpen(true);
 
-    if (!language) {
-      setResult(
-        "<p class='text-red-500'>Please select a programming language</p>",
-      );
+    if (!language?.code) {
+      setResult({ stdout: "", stderr: "Please select a programming language", exitCode: 1, timedOut: false });
       return;
     }
     setIsLoading(true);
     setResult(null);
 
     try {
-      // setIsLoading(true);
-      // const data = await store.executeCode({
-      //   language: language.code,
-      //   code: btoa(code),
-      // });
-
-      // const result = data?.stdout ?? data?.stderr;
-      // setResult(result);
-      // setIsLoading(false);
-
-      // Simulate code execution locally instead of API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mock execution based on language
-      let mockOutput = "";
-
-      if (language.code === "node" || language.code === "javascript") {
-        mockOutput = `Console Output:\n${code}`;
-      } else if (language.code === "python") {
-        mockOutput = `Python Output:\n${code}`;
-      } else if (language.code === "java") {
-        mockOutput = `Java Output:\n${code}`;
-      } else if (language.code === "cpp") {
-        mockOutput = `C++ Output:\n${code}`;
-      } else {
-        mockOutput = `${language?.label} Output:\n${code}`;
-      }
-
-      setResult(mockOutput);
-      toast.success("Code executed successfully!");
+      const data = await store.executeCode({
+        language: language.code,
+        code: btoa(code),
+        stdin: userInputOpen && userInput ? userInput : undefined,
+      });
+      setResult({
+        stdout: data?.stdout ?? "",
+        stderr: data?.stderr ?? "",
+        exitCode: data?.exitCode ?? 0,
+        timedOut: data?.timedOut ?? false,
+      });
+      if (data?.timedOut) toast.error("Execution timed out");
+      else if ((data?.exitCode ?? 0) !== 0) toast.error("Program exited with errors");
+      else toast.success("Code executed");
     } catch (error: any) {
-      console.error("Code execution error:", error);
-
-      const errorMsg = error?.message || "Code execution failed";
-      const htmlError = `<p class='text-red-500'>Error: ${errorMsg}</p>`;
-      setResult(htmlError);
-      toast.error(`Execution failed: ${errorMsg}`);
+      const msg = error?.response?.data?.message || error?.message || "Execution failed";
+      setResult({ stdout: "", stderr: msg, exitCode: 1, timedOut: false });
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -291,17 +274,24 @@ export function SimpleEditor({ playground, full = true }: EditorProps) {
               </p>
               <div className="mt-4">
                 {isLoading ? (
-                  <div className="animate-pulse text-gray-500">
+                  <div className="animate-pulse text-muted-foreground">
                     Running code...
                   </div>
                 ) : result ? (
-                  <pre
-                    className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(result) }}
-                  ></pre>
+                  <div className="space-y-2">
+                    {result.stdout && (
+                      <pre className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap">{result.stdout}</pre>
+                    )}
+                    {result.stderr && (
+                      <pre className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap text-red-500">{result.stderr}</pre>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {result.timedOut ? "Timed out" : `Exit code ${result.exitCode}`}
+                    </p>
+                  </div>
                 ) : (
                   <p className="text-muted-foreground text-sm">
-                    Click "Run" to execute your code
+                    Click &quot;Run&quot; to execute your code
                   </p>
                 )}
               </div>
