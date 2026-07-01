@@ -41,6 +41,24 @@
   position: relative;
   z-index: 2;
 }
+.skip {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--light-blue);
+  padding: 6px 4px;
+  transition: color 0.15s ease;
+}
+.skip:hover:not(:disabled) {
+  color: #fff;
+  text-decoration: underline;
+}
+.skip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .body {
   flex: 1;
   display: flex;
