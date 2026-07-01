@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell backHref="/auth/login">
-      <AuthHeading title="Forgot password?" subtitle="No worries — we'll send you reset instructions." />
+      <AuthHeading title="Forgot password?" subtitle="Forgot it? We'll email you a reset link." />
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -139,7 +139,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <button type="submit" disabled={isLoading || !email} className={authPrimaryBtnClass}>
-          {isLoading ? (<><Loader2 className="w-4 h-4 animate-spin" /><span>Sending Reset Link...</span></>) : (<><Mail className="w-4 h-4" /><span>Send Reset Instructions</span></>)}
+          {isLoading ? (<><Loader2 className="w-4 h-4 animate-spin" /><span>Sending Reset Link...</span></>) : (<><Mail className="w-4 h-4" /><span>Send reset link</span></>)}
         </button>
       </form>
 

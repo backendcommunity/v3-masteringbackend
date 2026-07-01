@@ -71,11 +71,11 @@ export function AnnouncementBanner() {
             <h2 className="font-bold">Mock Interviews</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Practice real interviews with Kap AI — get scored, get hired.
+            Practice a real interview with Kap AI. Get scored, get job-ready.
           </p>
         </div>
         <Button onClick={open} className="shrink-0 font-semibold shadow-sm shadow-primary/25 sm:ml-auto">
-          Try a Mock Interview →
+          Try a Mock Interview
         </Button>
       </div>
     </div>

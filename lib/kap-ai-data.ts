@@ -41,7 +41,7 @@ export const mockConversations: KapConversation[] = [
       {
         id: "2",
         content:
-          "Hello! Welcome to MasteringBackend! 🎉 I'd be happy to help you get started with our Node.js course.\n\nHere's what I recommend:\n\n1. **Start with the Node.js Fundamentals** - This covers the basics\n2. **Complete the hands-on projects** - Practice is key!\n3. **Join our community discussions** - Learn from other developers\n\nWould you like me to navigate you directly to the Node.js course page?",
+          "Hey, I'm Kap. Tell me what you're working on and I'll point you to the right next step.\n\nFor the Node.js course, here's what I recommend:\n\n1. **Start with the Node.js Fundamentals** - This covers the basics\n2. **Complete the hands-on projects** - Practice is where it sticks\n3. **Join our community discussions** - Learn from other developers\n\nWant me to take you to the Node.js course page?",
         sender: "kap",
         timestamp: new Date("2024-01-15T10:01:00"),
       },
@@ -55,7 +55,7 @@ export const mockConversations: KapConversation[] = [
       {
         id: "4",
         content:
-          "Perfect! The Node.js course typically takes 4-6 weeks if you dedicate 2-3 hours per week. Here's the breakdown:\n\n• **Week 1-2**: Fundamentals and Setup\n• **Week 3-4**: Advanced Concepts and APIs\n• **Week 5-6**: Projects and Real-world Applications\n\nI can navigate you to the course now. Just click [here](/courses/nodejs-fundamentals) or I can guide you through the dashboard!",
+          "The Node.js course typically takes 4-6 weeks at 2-3 hours per week. Here's the breakdown:\n\n• **Week 1-2**: Fundamentals and Setup\n• **Week 3-4**: Advanced Concepts and APIs\n• **Week 5-6**: Projects and Real-world Applications\n\nI can take you to the course now. Click [here](/courses/nodejs-fundamentals) or I can walk you through the dashboard.",
         sender: "kap",
         timestamp: new Date("2024-01-15T10:03:00"),
       },
@@ -78,7 +78,7 @@ export const mockConversations: KapConversation[] = [
       {
         id: "6",
         content:
-          "Great question! As a Level 9 Backend Engineer, here are the key database design principles I always follow:\n\n**1. Normalization & Denormalization**\n• Start with 3NF (Third Normal Form)\n• Denormalize strategically for performance\n\n**2. Indexing Strategy**\n• Index frequently queried columns\n• Avoid over-indexing (impacts writes)\n\n**3. Data Types & Constraints**\n• Use appropriate data types\n• Implement proper constraints\n\n**4. Scalability Planning**\n• Consider partitioning strategies\n• Plan for horizontal scaling\n\nWe have an excellent Database Design course that covers all these topics in depth. Would you like me to show you where to find it?",
+          "On database design, focus on these:\n\n**1. Normalization & Denormalization**\n• Start with 3NF (Third Normal Form)\n• Denormalize strategically for performance\n\n**2. Indexing Strategy**\n• Index frequently queried columns\n• Avoid over-indexing (impacts writes)\n\n**3. Data Types & Constraints**\n• Use appropriate data types\n• Implement proper constraints\n\n**4. Scalability Planning**\n• Consider partitioning strategies\n• Plan for horizontal scaling\n\nWe have an excellent Database Design course that covers all these topics in depth. Would you like me to show you where to find it?",
         sender: "kap",
         timestamp: new Date("2024-01-10T14:02:00"),
       },
@@ -101,7 +101,7 @@ export const mockConversations: KapConversation[] = [
       {
         id: "8",
         content:
-          "The interview preparation section is one of my favorite features. Here's how to access it:\n\n**Method 1: Sidebar Navigation**\n• Look for \"Interviews\" in the left sidebar\n• Click on it to see all interview types\n\n**Method 2: Direct Navigation**\n• I can take you there directly: [Interview Section](/interviews)\n\n**What you'll find:**\n• 🧠 Algorithm Challenges\n• 💼 Project-based Interviews\n• 🎯 Mock Interview Sessions\n• 📊 Performance Analytics\n\nWhich type of interview prep are you most interested in?",
+          "Here's how to get to interview prep:\n\n**Method 1: Sidebar Navigation**\n• Look for \"Interviews\" in the left sidebar\n• Click it to see all interview types\n\n**Method 2: Direct Navigation**\n• I can take you there directly: [Interview Section](/interviews)\n\n**What you'll find:**\n• Algorithm Challenges\n• Project-based Interviews\n• Mock Interview Sessions\n• Performance Analytics\n\nWhich type do you want to work on?",
         sender: "kap",
         timestamp: new Date("2024-01-08T16:01:00"),
       },

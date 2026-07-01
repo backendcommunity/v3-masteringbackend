@@ -121,7 +121,7 @@ export function ChallengeDetailPage({
     // Simulate AI response
     setTimeout(() => {
       setKapResponse(
-        `Here's a hint for your question: "${kapQuestion}"\n\nBased on the challenge context, I suggest breaking down the problem into smaller steps. Remember to consider edge cases and test your solution thoroughly. This hint cost you 100 MB, but it should help you move forward!`
+        `Hint: "${kapQuestion}". Check your edge cases. That cost you 100 MB.`
       );
       setIsLoadingKap(false);
       // Deduct MB for using Kap

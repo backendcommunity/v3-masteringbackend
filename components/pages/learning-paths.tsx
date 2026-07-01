@@ -248,7 +248,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
             <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
             <h1 className="text-2xl font-bold mt-1.5">Learning Paths</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
-              Structured, mentor-designed journeys — go from fundamentals to
+              Mentor-designed paths that take you from fundamentals to
               job-ready, one mastered milestone at a time.
             </p>
           </div>
@@ -348,7 +348,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           <EmptyState
             icon={<Route className="h-12 w-12 text-muted-foreground mb-4" />}
             title="No Learning Paths Available"
-            subtitle="Check back soon! We're constantly adding new learning paths to help you grow your skills."
+            subtitle="More paths are on the way. Check back soon."
           />
         ) : filteredPaths.length === 0 ? (
           <EmptyState

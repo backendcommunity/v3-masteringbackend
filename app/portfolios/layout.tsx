@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Developer Portfolio",
   description:
-    "Showcase your backend engineering journey — courses completed, projects built, bootcamps attended, and skills mastered. Your proof of work.",
+    "Show your work: courses completed, projects built, bootcamps done, skills proven. Your backend portfolio.",
   robots: { index: false, follow: false },
 };
 

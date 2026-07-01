@@ -341,7 +341,7 @@ export function PathQuiz({
           <div className="px-8 pb-9 pt-6">
             <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
               Answer all {questions.length} questions, then submit to see your
-              score. You need {passingScore}% to pass — retake anytime.
+              score. You need {passingScore}% to pass. Retake anytime.
             </p>
             <Button
               onClick={begin}
@@ -402,7 +402,7 @@ export function PathQuiz({
             </span>
             <p className="text-sm text-muted-foreground">
               {passed
-                ? "Great work — you've mastered this check."
+                ? "Passed. You've got this one down."
                 : "Review the answers below, then retake to pass."}
             </p>
           </div>

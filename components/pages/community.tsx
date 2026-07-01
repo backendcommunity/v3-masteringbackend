@@ -29,7 +29,7 @@ export function CommunityPage() {
       avatar: "/placeholder.svg?height=40&width=40",
       title: "Just completed my first microservices project!",
       content:
-        "After 3 weeks of hard work, I finally deployed my e-commerce microservices architecture. The journey was challenging but incredibly rewarding. Thanks to everyone who helped me debug the Docker issues! 🚀",
+        "Took me three weeks, but I finally shipped my e-commerce microservices. Hard, but worth it. Thanks to everyone who helped me debug the Docker issues!",
       timestamp: "2 hours ago",
       likes: 24,
       comments: 8,
@@ -105,7 +105,7 @@ export function CommunityPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Community</h1>
           <p className="text-muted-foreground">
-            Connect with fellow backend engineers, share knowledge, and grow
+            Meet other backend engineers, swap what you've learned, and build
             together
           </p>
         </div>
