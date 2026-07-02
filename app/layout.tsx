@@ -120,8 +120,8 @@ export default function RootLayout({
         />
         <script
           async
-          src="https://affiliate-management-web-app.vercel.app/affizy.js"
-          data-affizy="pk_e67f269c44c9c827ac27e274"
+          src="https://affiliates.masteringbackend.com/affizy.js"
+          data-affizy="pk_172f7f7c0fb2d67959652cd2"
         ></script>
       </head>
       <body className={satoshi.className} suppressHydrationWarning>
