@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: "%s | MasteringBackend",
   },
   description:
-    "Master backend development with comprehensive courses, hands-on projects, and structured learning paths. Build real-world applications with modern technologies.",
+    "Learn backend engineering the way it's done on the job: real courses, real-world projects, and guided paths.",
   keywords: [
     "backend development",
     "programming courses",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "MasteringBackend - Learn Backend Engineering Practically",
     description:
-      "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
+      "Learn backend engineering by building real systems: courses, projects, and guided paths.",
     siteName: "MasteringBackend",
     locale: "en_US",
     type: "website",
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MasteringBackend - Learn Backend Engineering Practically",
     description:
-      "Master backend development with comprehensive courses, projects, and hands-on learning paths.",
+      "Learn backend engineering by building real systems: courses, projects, and guided paths.",
     creator: "@masteringbackend",
     site: "@masteringbackend",
   },
@@ -118,6 +118,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={websiteStructuredData}
         />
+        <script
+          async
+          src="https://affiliates.masteringbackend.com/affizy.js"
+          data-affizy="pk_172f7f7c0fb2d67959652cd2"
+        ></script>
       </head>
       <body className={satoshi.className} suppressHydrationWarning>
         <PostHogProviderComponent>

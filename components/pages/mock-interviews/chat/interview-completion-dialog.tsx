@@ -228,10 +228,10 @@ export function InterviewCompletionDialog({
               <h2 className="text-base font-bold text-foreground leading-tight">
                 {overallScore != null
                   ? overallScore >= 70
-                    ? "Great performance!"
+                    ? "Solid run."
                     : overallScore >= 50
-                      ? "Good effort — keep going."
-                      : "Room to grow — keep practising."
+                      ? "Good effort. Keep going."
+                      : "Room to grow. Keep practising."
                   : "Interview Complete!"}
               </h2>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">

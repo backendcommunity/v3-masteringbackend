@@ -22,7 +22,7 @@ const bracketCopy = (
   nounCap: string,
 ): Record<25 | 50 | 75 | 100, { headline: string; subtext: string }> => ({
   25: {
-    headline: "Great start!",
+    headline: "Good start.",
     subtext: "You've laid the foundation. Momentum is on your side now.",
   },
   50: {

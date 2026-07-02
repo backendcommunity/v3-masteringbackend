@@ -211,6 +211,19 @@ export function OnboardingFlow() {
     }
   }, [motivation, technology, isStarting, completeOnboarding, enrollInRoadmap, router, redirect]);
 
+  // Skip onboarding: mark as skipped so we don't re-prompt, then go to the
+  // dashboard. Never block the user on a failed persist.
+  const handleSkip = useCallback(async () => {
+    if (isStarting) return;
+    analytics.track("onboarding_skipped", { step });
+    try {
+      await completeOnboarding({ skipped: true });
+    } catch {
+      /* non-fatal — still let the user through */
+    }
+    router.replace(redirect || routes.dashboard);
+  }, [isStarting, step, completeOnboarding, router, redirect]);
+
   return (
     <div className={styles.wiz}>
       <Watermark />
@@ -224,6 +237,9 @@ export function OnboardingFlow() {
           style={{ height: 28, width: "auto", display: "block", userSelect: "none" }}
           draggable={false}
         />
+        <button type="button" className={styles.skip} disabled={isStarting} onClick={handleSkip}>
+          Skip for now
+        </button>
       </header>
 
       <main className={styles.body}>

@@ -138,13 +138,13 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
       lowerMessage.includes("where")
     ) {
       if (lowerMessage.includes("course")) {
-        return `I can help you navigate to the courses section! 🎓\n\nYou can find all our courses by:\n• Clicking "Courses" in the sidebar\n• Or I can take you there directly: [View Courses](/courses)\n\nWe have courses in Node.js, Python, Database Design, System Architecture, and more. What specific technology are you interested in learning?`;
+        return `Here's how to get to courses:\n\n• Click "Courses" in the sidebar\n• Or go directly: [View Courses](/courses)\n\nWe cover Node.js, Python, Database Design, System Architecture, and more. What are you looking to learn?`;
       }
       if (lowerMessage.includes("interview")) {
-        return `Great! The interview preparation section is one of our most popular features. 💼\n\nHere's how to access it:\n• Click "Interviews" in the left sidebar\n• Or go directly: [Interview Prep](/interviews)\n\nYou'll find:\n🧠 Algorithm challenges\n💼 Project-based interviews\n🎯 Mock interview sessions\n📊 Performance analytics\n\nWhich type of interview prep interests you most?`;
+        return `Here's how to get to interview prep:\n\n• Click "Interviews" in the left sidebar\n• Or go directly: [Interview Prep](/interviews)\n\nYou'll find:\n• Algorithm challenges\n• Project-based interviews\n• Mock interview sessions\n• Performance analytics\n\nWhich type do you want to work on?`;
       }
       if (lowerMessage.includes("project")) {
-        return `I'll help you find the projects section! 🚀\n\nAccess your projects via:\n• "Projects" in the sidebar\n• Direct link: [My Projects](/projects)\n\nOur projects include:\n• Guided real-world applications\n• Portfolio-worthy code\n• Code review and feedback\n• Deployment assistance\n\nAre you looking to start a new project or continue an existing one?`;
+        return `Here's how to get to projects:\n\n• Click "Projects" in the sidebar\n• Or go directly: [My Projects](/projects)\n\nProjects include:\n• Guided real-world applications\n• Portfolio-worthy code\n• Code review and feedback\n• Deployment assistance\n\nStarting a new one or continuing an existing one?`;
       }
     }
 
@@ -154,7 +154,7 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
       lowerMessage.includes("start") ||
       lowerMessage.includes("begin")
     ) {
-      return `Welcome to your learning journey! 🌟\n\nAs a Level 9 Backend Engineer, I recommend this path:\n\n**1. Choose Your Track**\n• Node.js for JavaScript developers\n• Python for versatility\n• Java for enterprise development\n\n**2. Start with Fundamentals**\n• Complete the basics course\n• Practice with hands-on exercises\n\n**3. Build Projects**\n• Apply your knowledge\n• Build a portfolio\n\nWhat's your current experience level? I can create a personalized learning plan for you!`;
+      return `You're at Level 9. Here's the path I'd take next:\n\n**1. Choose Your Track**\n• Node.js for JavaScript developers\n• Python for versatility\n• Java for enterprise development\n\n**2. Start with Fundamentals**\n• Complete the basics course\n• Practice with hands-on exercises\n\n**3. Build Projects**\n• Apply your knowledge\n• Build a portfolio\n\nWhat's your current experience level? I can put together a plan that fits.`;
     }
 
     // Technical questions
@@ -163,7 +163,7 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
       lowerMessage.includes("rest") ||
       lowerMessage.includes("graphql")
     ) {
-      return `Excellent question about APIs! 🔧\n\nHere are the key principles I follow for API design:\n\n**RESTful Design:**\n• Use proper HTTP methods (GET, POST, PUT, DELETE)\n• Implement consistent URL patterns\n• Return appropriate status codes\n\n**Best Practices:**\n• Version your APIs (/v1/, /v2/)\n• Implement proper authentication\n• Add rate limiting and caching\n• Document everything with OpenAPI/Swagger\n\nWe have a comprehensive API Design course that covers all these topics. Would you like me to show you where to find it?`;
+      return `On API design, here's what actually matters:\n\n**RESTful Design:**\n• Use proper HTTP methods (GET, POST, PUT, DELETE)\n• Implement consistent URL patterns\n• Return appropriate status codes\n\n**Best Practices:**\n• Version your APIs (/v1/, /v2/)\n• Implement proper authentication\n• Add rate limiting and caching\n• Document everything with OpenAPI/Swagger\n\nWe have an API Design course that covers all of this. Would you like me to show you where to find it?`;
     }
 
     if (
@@ -171,7 +171,7 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
       lowerMessage.includes("sql") ||
       lowerMessage.includes("nosql")
     ) {
-      return `Database design is one of my specialties! 🗄️\n\n**Key Principles:**\n• Start with proper normalization (3NF)\n• Design for your query patterns\n• Plan for scalability from day one\n\n**Technology Choices:**\n• **SQL**: PostgreSQL, MySQL for ACID compliance\n• **NoSQL**: MongoDB for flexibility, Redis for caching\n• **NewSQL**: For distributed systems\n\n**Performance Tips:**\n• Index strategically\n• Monitor query performance\n• Consider read replicas\n\nOur Database Mastery course covers everything from basics to advanced optimization. Interested?`;
+      return `On database design, focus on these:\n\n**Key Principles:**\n• Start with proper normalization (3NF)\n• Design for your query patterns\n• Plan for scalability from day one\n\n**Technology Choices:**\n• **SQL**: PostgreSQL, MySQL for ACID compliance\n• **NoSQL**: MongoDB for flexibility, Redis for caching\n• **NewSQL**: For distributed systems\n\n**Performance Tips:**\n• Index strategically\n• Monitor query performance\n• Consider read replicas\n\nOur Database Mastery course covers everything from basics to advanced optimization. Interested?`;
     }
 
     // Platform features
@@ -179,11 +179,11 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
       lowerMessage.includes("certificate") ||
       lowerMessage.includes("completion")
     ) {
-      return `Certificates are a great way to showcase your skills! 🏆\n\nHere's how our certification system works:\n\n**Earning Certificates:**\n• Complete all course modules\n• Pass quizzes with 80%+ score\n• Submit required projects\n• Get code reviewed\n\n**Accessing Certificates:**\n• Go to any completed course\n• Click "View Certificate"\n• Download as PDF or share on LinkedIn\n\nYour certificates are also displayed on your profile. Want me to show you your current progress?`;
+      return `Here's how the certification system works:\n\n**Earning Certificates:**\n• Complete all course modules\n• Pass quizzes with 80%+ score\n• Submit required projects\n• Get code reviewed\n\n**Accessing Certificates:**\n• Go to any completed course\n• Click "View Certificate"\n• Download as PDF or share on LinkedIn\n\nYour certificates are also displayed on your profile. Want me to show you your current progress?`;
     }
 
     // Default helpful response
-    return `Thanks for your question! 😊\n\nAs your Level 9 Backend Engineer assistant, I'm here to help with:\n\n🎓 **Learning**: Course recommendations, study plans\n🧭 **Navigation**: Finding features, accessing content\n⚡ **Technical**: Backend development, best practices\n📊 **Platform**: Features, progress tracking\n\nCould you be more specific about what you'd like help with? I'm here to make your MasteringBackend experience amazing!`;
+    return `Here's my take:\n\nI can help with:\n\n**Learning**: Course recommendations, study plans\n**Navigation**: Finding features, accessing content\n**Technical**: Backend development, best practices\n**Platform**: Features, progress tracking\n\nTell me what you're working on and I'll point you to the right next step.`;
   };
 
   const handleSuggestedQuestion = (question: KapSuggestedQuestion) => {
@@ -350,10 +350,10 @@ export function KapAIAssistant({ onNavigate }: KapAIAssistantProps) {
             {currentView === "new" && (
               <div className="flex flex-col h-full">
                 <div className="p-4 border-b">
-                  <h3 className="font-semibold text-lg">Hi! I'm Kap 👋</h3>
+                  <h3 className="font-semibold text-lg">Hey, I'm Kap.</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Your Level 9 Backend Engineer assistant. How can I help you
-                    today?
+                    Tell me what you're working on and I'll point you to the
+                    right next step.
                   </p>
                 </div>
 

@@ -63,7 +63,7 @@ export function LevelUpModal() {
               </h2>
               <p className="text-muted-foreground text-sm mt-2">
                 You advanced from Level {oldLevel} to Level {newLevel}. Keep
-                learning to unlock more perks!
+                going. More rewards ahead.
               </p>
             </div>
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Sign In",
   description:
-    "Welcome back. Sign in to your MasteringBackend account and pick up exactly where you left off on your backend engineering journey.",
+    "Welcome back. Sign in and pick up where you left off.",
   openGraph: {
     title: "Sign In | MasteringBackend",
     description:
