@@ -64,7 +64,7 @@ export function FreeStarterSection({ items, type }: FreeStarterSectionProps) {
       <div>
         <h3 className="font-semibold text-base">Start for Free</h3>
         <p className="text-sm text-muted-foreground">
-          No subscription needed to get started
+          No subscription needed to start.
         </p>
       </div>
 

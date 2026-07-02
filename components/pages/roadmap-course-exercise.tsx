@@ -269,7 +269,7 @@ export function RoadmapCourseExercise({
                           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                             <div className="flex items-center gap-2 text-green-800">
                               <CheckCircle className="h-5 w-5" />
-                              <span className="font-medium">All tests passed! Great job!</span>
+                              <span className="font-medium">All tests passed.</span>
                             </div>
                           </div>
                         )}
@@ -401,7 +401,7 @@ export function RoadmapCourseExercise({
                   <div className="text-center">
                     <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
                     <h3 className="font-semibold text-gray-900 mb-2">Exercise Completed!</h3>
-                    <p className="text-sm text-gray-600 mb-4">Great job! You've successfully solved this exercise.</p>
+                    <p className="text-sm text-gray-600 mb-4">Solved. On to the next one.</p>
                     <Button onClick={onComplete} className="w-full">
                       Continue Learning
                     </Button>

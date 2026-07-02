@@ -85,7 +85,7 @@ export function ReturnRecapModal() {
                         Resuming…
                       </>
                     ) : (
-                      "Resume →"
+                      "Resume"
                     )}
                   </Button>
                 </li>
@@ -133,11 +133,11 @@ export function ReturnRecapModal() {
           )}
 
           <div className="rounded-lg border p-3">
-            <p className="text-sm">Up next: <span className="font-semibold">{r.nextStep.title}</span> — {r.nextStep.goal}</p>
+            <p className="text-sm">Up next: <span className="font-semibold">{r.nextStep.title}</span>. {r.nextStep.goal}</p>
           </div>
 
           {r.stats.isStreakActive && r.stats.currentStreak > 0 && (
-            <p className="text-sm">🔥 You&apos;re on a {r.stats.currentStreak}-day streak — nice.</p>
+            <p className="text-sm">You&apos;re on a {r.stats.currentStreak}-day streak. Keep it going.</p>
           )}
 
           <div className="flex items-center justify-between pt-2">
@@ -146,7 +146,7 @@ export function ReturnRecapModal() {
               <button aria-label="helpful yes" onClick={() => onFeedback(true)} className="hover:text-foreground">✓</button>
               <button aria-label="helpful no" onClick={() => onFeedback(false)} className="hover:text-foreground">✗</button>
             </div>
-            <Button onClick={onCta} autoFocus>Resume learning →</Button>
+            <Button onClick={onCta} autoFocus>Resume learning</Button>
           </div>
         </div>
       </DialogContent>

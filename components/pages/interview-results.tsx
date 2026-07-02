@@ -76,7 +76,7 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
 
   // Mock strengths and areas for improvement
   const strengths = [
-    "Excellent implementation of core functionality",
+    "Core functionality is solid.",
     "Clean and well-structured code organization",
     "Good error handling and edge case management",
     "Responsive UI design with good accessibility",
@@ -85,7 +85,7 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
   const improvements = [
     "Could improve code performance for large datasets",
     "Some functions could be more modular and reusable",
-    "Add more comprehensive unit tests",
+    "Add unit tests for the edge cases.",
     "Documentation could be more detailed",
   ]
 
@@ -352,8 +352,7 @@ export function InterviewResultsPage({ interviewId, onNavigate }: InterviewResul
                 <div>
                   <h3 className="font-semibold mb-2">Documentation</h3>
                   <p className="text-muted-foreground">
-                    Documentation is present but could be more comprehensive. Consider adding more detailed comments for
-                    complex functions and including a README with setup instructions and architecture overview.
+                    Docs are there but thin. Add comments on the tricky functions.
                   </p>
                 </div>
               </CardContent>

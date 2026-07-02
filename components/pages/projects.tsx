@@ -252,7 +252,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
             <div className="eyebrow-mono text-[#4AC5E8]">build</div>
             <h1 className="text-2xl font-bold mt-1.5">Projects</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
-              Build real-world backend projects — ship working code against a
+              Build real-world backend projects. Ship working code against a
               live sandbox and grow a portfolio that proves you can do the job.
             </p>
 
@@ -387,7 +387,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
           <EmptyState
             icon={<Code2 className="h-12 w-12 text-muted-foreground mb-4" />}
             title="No Projects Available"
-            subtitle="Check back soon! We're constantly adding new projects to help you build your portfolio."
+            subtitle="More projects are on the way. Check back soon."
           />
         ) : filteredProjects.length === 0 ? (
           <EmptyState

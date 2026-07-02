@@ -31,7 +31,7 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
           <Compass className="h-6 w-6 text-primary" />
         </div>
-        <h2 className="mt-4 text-lg font-bold">Start your journey</h2>
+        <h2 className="mt-4 text-lg font-bold">Start building</h2>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           Pick a learning path and we&apos;ll keep your spot here every time you
           come back.
@@ -144,9 +144,9 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
 
   const gateLabel =
     gateStep?.type === "QUIZ"
-      ? `Take ${gateStep.title} (≥80%) →`
+      ? `Take ${gateStep.title} (≥80%)`
       : gateStep
-        ? `${gateStep.title} unlocks what's next →`
+        ? `Next: ${gateStep.title}`
         : null;
 
   return (
@@ -233,11 +233,11 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
           You&apos;re <b className="text-foreground">{pathPct}% through {pathTitle}</b>
           {gateLabel ? (
             <>
-              {" "}
-              — <span className="font-semibold text-primary">{gateLabel}</span>
+              {". "}
+              <span className="font-semibold text-primary">{gateLabel}</span>
             </>
           ) : (
-            " — keep going to your next milestone →"
+            ". You're one step from your next milestone"
           )}
         </span>
       </button>

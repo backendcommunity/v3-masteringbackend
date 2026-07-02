@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Create Your Account | MasteringBackend",
     description:
-      "Start your backend engineering journey. Free to get started with courses, projects, and mentorship.",
+      "Create your free account and start building. Courses, projects, and mentorship, free to begin.",
   },
 };
 

@@ -64,7 +64,7 @@ export default function XPayment({
   return (
     <div className="space-y-2">
       <Button className="w-full" onClick={openCheckout}>
-        Click here to proceed with payment
+        Continue to payment
       </Button>
     </div>
   );
