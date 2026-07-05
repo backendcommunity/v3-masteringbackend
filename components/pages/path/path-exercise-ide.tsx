@@ -73,7 +73,7 @@ const labelForCode = (c: string) =>
 // Editor surface matches the chrome (#171B26) so the panel reads as one piece.
 const EDITOR_BG = "#171B26";
 
-type OutTab = "Output" | "Tests";
+type OutTab = "Output" | "Input" | "Tests";
 interface TestResult {
   description?: string;
   passed: boolean;
@@ -113,7 +113,9 @@ export function PathExerciseIde({
   const editorRef = useRef<unknown>(null);
   const pendingId = useRef<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modeRef = useRef<"run" | "submit">("submit");
+  // The in-flight plain-run id (from run:started). Separate from grading's
+  // pendingId so run:result and submission:result never cross-talk.
+  const runIdRef = useRef<string | null>(null);
 
   const [code, setCode] = useState<string>("");
   const [collapsed, setCollapsed] = useState(false);
@@ -164,6 +166,9 @@ export function PathExerciseIde({
   const [outTab, setOutTab] = useState<OutTab>("Output");
   const [output, setOutput] = useState<string>("");
   const [tests, setTests] = useState<TestResult[]>([]);
+  // stdin piped to the program on a plain "Run" (exercise:run). One value per
+  // line; persisted across runs but reset when the exercise changes.
+  const [stdin, setStdin] = useState<string>("");
   // F4 — streaming phase status and per-check stdout blocks.
   // `phaseStatus` is null when no run is in flight; a human-readable string otherwise.
   // `streamChecks` accumulates visible per-check stdout chunks while running.
@@ -229,6 +234,7 @@ export function PathExerciseIde({
     dirtyRef.current = false;
     setOutput("");
     setTests([]);
+    setStdin("");
     setShowHint(false);
     setHintTaken(exercise?.hintTaken === true);
   }, [exercise]);
@@ -260,7 +266,7 @@ export function PathExerciseIde({
       setOutputOpen(true);
       setOutTab("Output");
       setOutput(e.message || "Execution error.");
-      if (modeRef.current === "submit") toast.error(e.message || "Execution error.");
+      toast.error(e.message || "Execution error.");
     };
 
     // F4 — streaming phase marker: update the status line for the in-flight submission.
@@ -306,17 +312,62 @@ export function PathExerciseIde({
       ]);
     };
 
+    // Plain-run path (exercise:run) — ungraded, streams stdout/stderr straight
+    // back. Kept fully separate from grading above so the two never cross-talk.
+    const onRunStarted = (p: { runId: string }) => {
+      runIdRef.current = p.runId;
+    };
+    const onRunResult = (r: {
+      runId: string;
+      stdout: string;
+      stderr: string;
+      exitCode?: number;
+      timedOut?: boolean;
+      timeMs?: number;
+      error?: string;
+    }) => {
+      if (r.runId !== runIdRef.current) return; // ignore stale
+      runIdRef.current = null;
+      setRunning(false);
+      setOutputOpen(true);
+      setOutTab("Output");
+      if (r.error) {
+        setOutput(r.error);
+        return;
+      }
+      const parts: string[] = [];
+      if (r.stdout) parts.push(r.stdout);
+      if (r.stderr) parts.push(`stderr:\n${r.stderr}`);
+      if (r.timedOut) parts.push("— Timed out.");
+      else parts.push(`— Exit ${r.exitCode ?? 0}${r.timeMs != null ? ` · ${r.timeMs}ms` : ""}`);
+      setOutput(parts.filter(Boolean).join("\n\n") || "(no output)");
+    };
+    const onRunError = (e: { message: string }) => {
+      runIdRef.current = null;
+      setRunning(false);
+      setOutputOpen(true);
+      setOutTab("Output");
+      setOutput(e.message || "Execution error.");
+      toast.error(e.message || "Execution error.");
+    };
+
     socket.on("submission:queued", onQueued);
     socket.on("submission:result", onResult);
     socket.on("submission:error", onErr);
     socket.on("exercise:phase", onPhase);
     socket.on("exercise:check", onCheck);
+    socket.on("run:started", onRunStarted);
+    socket.on("run:result", onRunResult);
+    socket.on("run:error", onRunError);
     return () => {
       socket.off("submission:queued", onQueued);
       socket.off("submission:result", onResult);
       socket.off("submission:error", onErr);
       socket.off("exercise:phase", onPhase);
       socket.off("exercise:check", onCheck);
+      socket.off("run:started", onRunStarted);
+      socket.off("run:result", onRunResult);
+      socket.off("run:error", onRunError);
       if (pollTimer.current) clearTimeout(pollTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -367,41 +418,45 @@ export function PathExerciseIde({
             .join("\n\n"),
     );
 
-    if (modeRef.current === "submit") {
-      if (r.status === "PASSED") {
-        toast.success("Nice work — answer accepted!");
-        // Set local passed state (shows Continue button + Passed badge) and
-        // record completion WITHOUT navigating. Navigation happens when the
-        // learner clicks the Continue → button.
-        setPassed(true);
-        setBestScore(r.score);
-        _onPassed?.(step.id);
-      } else if (r.status === "ERROR") {
-        toast.error("Execution error. Check the output and try again.");
-      } else {
-        toast.error("Some tests failed. Check the Tests tab and try again.");
-      }
+    if (r.status === "PASSED") {
+      toast.success("Nice work — answer accepted!");
+      // Set local passed state (shows Continue button + Passed badge) and
+      // record completion WITHOUT navigating. Navigation happens when the
+      // learner clicks the Continue → button.
+      setPassed(true);
+      setBestScore(r.score);
+      _onPassed?.(step.id);
+    } else if (r.status === "ERROR") {
+      toast.error("Execution error. Check the output and try again.");
+    } else {
+      toast.error("Some tests failed. Check the Tests tab and try again.");
     }
   }
 
+  // Run Code — a plain, ungraded execution. Pipes the learner's stdin to their
+  // program and streams stdout/stderr straight back (exercise:run), no grading.
   const run = () => {
     if (!exerciseId || running || submitting) return;
-    modeRef.current = "run";
+    runIdRef.current = null;
     setRunning(true);
     setOutputOpen(true);
     setOutput("");
     setTests([]);
     setOutTab("Output");
-    // F4 — reset streaming state on each new run
+    // Clear any grading-stream leftovers so the plain run reads clean.
     setPhaseStatus(null);
     setStreamChecks([]);
     analytics.track("exercise_run", { exerciseId, language: langCode });
-    getExerciseSocket().emit("exercise:submit", { exerciseId, language: langCode, code, mode: "run" });
+    getExerciseSocket().emit("exercise:run", {
+      exerciseId,
+      language: langCode,
+      code,
+      stdin,
+    });
   };
 
   const submit = () => {
     if (!exerciseId || running || submitting) return;
-    modeRef.current = "submit";
     setSubmitting(true);
     setOutputOpen(true);
     setOutput("");
@@ -618,7 +673,7 @@ export function PathExerciseIde({
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md bg-[#10131d]">
       <div className="flex flex-shrink-0 items-center justify-between bg-[#171B26] px-3 py-2">
         <div className="flex items-center gap-5">
-          {(["Output", "Tests"] as OutTab[]).map((t) => (
+          {(["Output", "Input", "Tests"] as OutTab[]).map((t) => (
             <button
               key={t}
               type="button"
@@ -631,7 +686,11 @@ export function PathExerciseIde({
             >
               {t === "Tests" && tests.length
                 ? `Tests (${tests.filter((x) => x.passed).length}/${tests.length})`
-                : t}
+                : t === "Input"
+                  ? stdin.trim()
+                    ? "Input •"
+                    : "Input"
+                  : t}
             </button>
           ))}
         </div>
@@ -675,6 +734,23 @@ export function PathExerciseIde({
               </span>
             ) : null}
           </>
+        ) : outTab === "Input" ? (
+          <div className="flex h-full flex-col">
+            <label
+              htmlFor="exercise-stdin"
+              className="mb-2 block text-[11px] font-medium text-slate-400"
+            >
+              Standard input (stdin) — piped to your program when you Run.
+            </label>
+            <textarea
+              id="exercise-stdin"
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              spellCheck={false}
+              placeholder="Type input for your program (stdin), one value per line"
+              className="min-h-0 w-full flex-1 resize-none rounded-md border border-white/10 bg-[#171B26] p-3 font-mono text-[12px] leading-relaxed text-slate-200 placeholder:text-slate-600 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/60"
+            />
+          </div>
         ) : tests.length ? (
           <ul className="space-y-1.5">
             {tests.map((t, i) => (
