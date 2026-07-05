@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { routes } from "@/lib/routes";
 import { executeCode } from "@/lib/executor";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface CourseExercisePageProps {
   courseId: string;
@@ -204,9 +205,12 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
                   <CardTitle>Exercise Instructions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre className="whitespace-pre-wrap text-sm">
-                    {exercise.instructions}
-                  </pre>
+                  <div
+                    className="text-sm leading-relaxed [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_li]:ml-4 [&_li]:list-disc [&_ol]:space-y-1 [&_pre]:whitespace-pre-wrap [&_ul]:space-y-1"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(String(exercise.instructions ?? "")),
+                    }}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
