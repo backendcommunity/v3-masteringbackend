@@ -7,6 +7,7 @@ import { NavigationBar } from "@/components/navigation-bar";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useMobile } from "@/hooks/use-mobile";
 import { useUserStore } from "@/lib/user-store";
+import { ForcePasswordChangeModal } from "@/components/force-password-change-modal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -80,6 +81,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
   return (
     <>
+      {user?.mustResetPassword && <ForcePasswordChangeModal />}
       <NavigationBar
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}

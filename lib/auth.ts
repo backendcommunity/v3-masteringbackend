@@ -77,3 +77,8 @@ export const getOnboardingRecommendation = async () => {
   const response = await api.get("/auth/onboarding/recommendation");
   return response.data;
 };
+
+export const changePassword = async (oldPassword: string, newPassword: string) => {
+  const res = await api.post("/auth/password/change", { oldPassword, newPassword });
+  return res.data;
+};

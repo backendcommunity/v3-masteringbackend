@@ -2,24 +2,26 @@
 
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { CourseCertificatePage } from "@/components/pages/course-certificate";
-import { useParams, useRouter } from "next/navigation";
-import React from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import React, { Suspense } from "react";
 
-type CourseCertificatePageRouteProps = {
-  slug: string;
-};
-
-export default function CourseCertificatePageRoute() {
+function CertPageInner() {
   const router = useRouter();
-  const { slug } = useParams() as CourseCertificatePageRouteProps;
-
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
+  const { slug } = useParams() as { slug: string };
+  const searchParams = useSearchParams();
+  const certCode = searchParams?.get("code") ?? undefined;
 
   return (
     <DashboardLayout>
-      <CourseCertificatePage slug={slug} onNavigate={handleNavigate} />
+      <CourseCertificatePage slug={slug} certCode={certCode} onNavigate={(path) => router.push(path)} />
     </DashboardLayout>
+  );
+}
+
+export default function CourseCertificatePageRoute() {
+  return (
+    <Suspense>
+      <CertPageInner />
+    </Suspense>
   );
 }
