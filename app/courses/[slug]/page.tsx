@@ -1,21 +1,51 @@
-"use client";
+import CourseDetailPageClient from "./CourseDetailPageClient";
+import type { Metadata } from "next";
 
-import { useRouter, useParams } from "next/navigation";
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { CourseDetailPage } from "@/components/pages/course-detail";
+// Next 15: `params` and `searchParams` are Promises in server components and
+// `generateMetadata` — they must be awaited (mirrors app/portfolios/[userId]).
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ certificate?: string }>;
+};
 
-export default function CourseDetailPageRoute() {
-  const router = useRouter();
-  const params = useParams();
-  const slug = params?.slug as string;
+export async function generateMetadata({
+  searchParams,
+}: Props): Promise<Metadata> {
+  const { certificate: certCode } = await searchParams;
+  if (certCode) {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+    try {
+      const res = await fetch(`${apiBase}/certifications/verify/${certCode}`, {
+        next: { revalidate: 300 },
+      });
+      const json = await res.json();
+      if (json?.data?.valid) {
+        const cert = json.data.certificate;
+        return {
+          openGraph: {
+            images: [
+              {
+                url: `/api/og/cert?code=${certCode}`,
+                width: 1200,
+                height: 630,
+                alt: `${cert.holderName}'s certificate for ${cert.courseName}`,
+              },
+            ],
+          },
+          twitter: {
+            card: "summary_large_image",
+            images: [`/api/og/cert?code=${certCode}`],
+          },
+        };
+      }
+    } catch {
+      // fall through to default metadata
+    }
+  }
+  return {};
+}
 
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
-
-  return (
-    <DashboardLayout>
-      <CourseDetailPage slug={slug} onNavigate={handleNavigate} />
-    </DashboardLayout>
-  );
+export default async function Page({ params }: Props) {
+  const { slug } = await params;
+  return <CourseDetailPageClient slug={slug} />;
 }
