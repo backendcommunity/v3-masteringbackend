@@ -9,7 +9,7 @@ function CertPageInner() {
   const router = useRouter();
   const { slug } = useParams() as { slug: string };
   const searchParams = useSearchParams();
-  const certCode = searchParams.get("code") ?? undefined;
+  const certCode = searchParams?.get("code") ?? undefined;
 
   return (
     <DashboardLayout>
