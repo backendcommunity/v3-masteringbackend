@@ -71,6 +71,7 @@ export interface User {
   resume?: string;
   // Access control
   role?: "USER" | "ADMIN" | "INSTRUCTOR";
+  mustResetPassword?: boolean;
 }
 
 export interface Reward {

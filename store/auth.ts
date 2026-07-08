@@ -10,6 +10,7 @@ import {
   verifyEmail,
   fetchUser,
   completeOnboarding as completeOnboardingApi,
+  changePassword as changePasswordApi,
 } from "@/lib/auth";
 import { NewUser, updateUser, User, OnboardingInput } from "@/lib/data";
 // interface User {
@@ -36,6 +37,7 @@ interface AuthState {
   verifyCode: (email: string, code: string, type?: string) => Promise<boolean>;
   currentUser: () => Promise<User>;
   completeOnboarding: (input: OnboardingInput) => Promise<any>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<User>;
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -103,6 +105,15 @@ export const useAuth = create<AuthState>((set) => ({
       updateUser(res.data.user);
     }
     return res;
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string) => {
+    const res = await changePasswordApi(oldPassword, newPassword);
+    if (res?.success && res?.data) {
+      set({ user: res.data });
+      updateUser(res.data);
+    }
+    return res?.data;
   },
 
   logout: async () => {
