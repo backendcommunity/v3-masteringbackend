@@ -91,10 +91,18 @@ export function PathCertificate({
         : "Path Completed";
   // "...the {X}."
   const nounLower =
-    kind === "course" ? "course" : kind === "project" ? "project" : "learning path";
+    kind === "course"
+      ? "course"
+      : kind === "project"
+        ? "project"
+        : "learning path";
   // "Learning Path: ..."
   const nounTitle =
-    kind === "course" ? "Course" : kind === "project" ? "Project" : "Learning Path";
+    kind === "course"
+      ? "Course"
+      : kind === "project"
+        ? "Project"
+        : "Learning Path";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<PathCertificateData | null>(null);
@@ -254,7 +262,7 @@ export function PathCertificate({
 
   // ─── UNLOCKED ──────────────────────────────────────────────────────────────
   if (data.unlocked) {
-    const issued = formatIssuedAt(data.issuedAt);
+    const issued = formatIssuedAt(data?.issuedAt);
     return (
       <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
         {/* Hero */}
@@ -278,12 +286,12 @@ export function PathCertificate({
               {completedLabel}
             </Badge>
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-              Congratulations, {data.recipientName.split(" ")[0]}!
+              Congratulations, {data?.recipientName?.split(" ")[0]}!
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
               You&apos;ve earned your certificate for the{" "}
               <span className="font-semibold text-foreground">
-                {data.pathTitle}
+                {data?.pathTitle}
               </span>{" "}
               {nounLower}.
             </p>
@@ -344,13 +352,13 @@ export function PathCertificate({
                 className="inline-block border-b-2 pb-1 text-3xl font-bold text-gray-900 sm:text-4xl"
                 style={{ borderColor: GOLD }}
               >
-                {data.recipientName}
+                {data?.recipientName}
               </h3>
               <p className="pt-2 text-sm text-gray-600">
                 has successfully completed the {nounLower}
               </p>
               <p className="text-xl font-semibold" style={{ color: BRAND }}>
-                {data.pathTitle}
+                {data?.pathTitle}
               </p>
             </div>
 
@@ -364,7 +372,7 @@ export function PathCertificate({
                   className="mt-1 text-lg font-bold"
                   style={{ color: "#27AE60" }}
                 >
-                  {data.finalScore}%
+                  {data?.finalScore}%
                 </p>
               </div>
               <div>
@@ -381,7 +389,7 @@ export function PathCertificate({
                   Certificate ID
                 </p>
                 <p className="mt-1 font-mono text-sm text-gray-700">
-                  {data.certId}
+                  {data?.certId}
                 </p>
               </div>
             </div>
@@ -416,19 +424,19 @@ export function PathCertificate({
           <StatTile
             icon={Sparkles}
             label="Points"
-            value={String(data.stats.points)}
+            value={String(data?.stats?.points)}
             color={BRAND}
           />
           <StatTile
             icon={CheckCircle2}
             label="Items Completed"
-            value={`${data.stats.itemsCompleted}/${data.stats.totalItems}`}
+            value={`${data?.stats?.itemsCompleted}/${data?.stats?.totalItems}`}
             color="#27AE60"
           />
           <StatTile
             icon={Star}
             label="Final Score"
-            value={`${data.finalScore}%`}
+            value={`${data?.finalScore}%`}
             color={GOLD}
           />
         </div>
@@ -478,7 +486,7 @@ export function PathCertificate({
         {showAlumniLounge && (
           <AlumniLoungeCard
             unlocked
-            firstName={data.recipientName.split(" ")[0]}
+            firstName={data?.recipientName?.split(" ")[0]}
           />
         )}
       </div>
@@ -486,7 +494,7 @@ export function PathCertificate({
   }
 
   // ─── LOCKED ────────────────────────────────────────────────────────────────
-  const pct = Math.min(100, Math.max(0, Math.round(data.masteryPct)));
+  const pct = Math.min(100, Math.max(0, Math.round(data?.masteryPct)));
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
       {/* Hero */}
@@ -544,14 +552,15 @@ export function PathCertificate({
                 Progress to certificate
               </p>
               <p className="text-xs text-muted-foreground">
-                {data.earnedPoints} / {data.certThreshold} points earned
+                {data?.earnedPoints} / {data?.certThreshold} points earned
               </p>
             </div>
             <span className="text-2xl font-bold text-primary">{pct}%</span>
           </div>
           <Progress value={pct} className="h-2.5" />
           <p className="text-sm font-medium text-foreground">
-            <span className="text-primary">{data.pointsToGo} points</span> to go
+            <span className="text-primary">{data?.pointsToGo} points</span> to
+            go
           </p>
         </CardContent>
       </Card>
@@ -559,9 +568,9 @@ export function PathCertificate({
       {/* Alumni Lounge — locked elite tier (path only) */}
       {showAlumniLounge && (
         <AlumniLoungeCard
-          certThreshold={data.certThreshold}
+          certThreshold={data?.certThreshold}
           pct={pct}
-          pointsToGo={data.pointsToGo}
+          pointsToGo={data?.pointsToGo}
         />
       )}
     </div>
@@ -599,7 +608,10 @@ function AlumniLoungeCard({
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full blur-3xl"
-        style={{ background: `radial-gradient(closest-side, ${GOLD}, transparent)`, opacity: unlocked ? 0.28 : 0.12 }}
+        style={{
+          background: `radial-gradient(closest-side, ${GOLD}, transparent)`,
+          opacity: unlocked ? 0.28 : 0.12,
+        }}
       />
 
       <div className="relative flex flex-col items-center gap-4 text-center">
@@ -642,9 +654,9 @@ function AlumniLoungeCard({
           </h2>
           {unlocked ? (
             <p className="mx-auto max-w-md text-sm leading-relaxed text-white/70">
-              {firstName ? `${firstName}, you've ` : "You've "}been accepted into
-              the Alumni Lounge — the final, most exclusive stage of this path.
-              Reserved for those who reach true mastery.
+              {firstName ? `${firstName}, you've ` : "You've "}been accepted
+              into the Alumni Lounge — the final, most exclusive stage of this
+              path. Reserved for those who reach true mastery.
             </p>
           ) : (
             <p className="mx-auto max-w-md text-sm leading-relaxed text-white/65">
@@ -658,7 +670,9 @@ function AlumniLoungeCard({
           <>
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#1a1305]"
-              style={{ background: `linear-gradient(135deg, ${GOLD} 0%, #d9a93b 100%)` }}
+              style={{
+                background: `linear-gradient(135deg, ${GOLD} 0%, #d9a93b 100%)`,
+              }}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Accepted
@@ -697,7 +711,9 @@ function AlumniLoungeCard({
               />
             </div>
             <p className="text-xs text-white/60">
-              <span className="font-semibold text-white">{pointsToGo} points</span>{" "}
+              <span className="font-semibold text-white">
+                {pointsToGo} points
+              </span>{" "}
               from your seat in the lounge.
             </p>
           </div>
@@ -713,7 +729,10 @@ function StatTile({
   value,
   color,
 }: {
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  icon: React.ComponentType<{
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
   label: string;
   value: string;
   color: string;
