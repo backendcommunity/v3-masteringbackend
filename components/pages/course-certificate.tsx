@@ -127,8 +127,8 @@ export function CourseCertificatePage({
     }
   };
 
-  // Show certificate if: course completed OR accessed via a valid cert code
-  if (!verifiedCert && course?.progress !== 100) {
+  // Show certificate if: course completed (by progress or isCompleted flag) OR via valid cert code
+  if (!verifiedCert && !course?.isCompleted && course?.progress !== 100) {
     return (
       <div className="flex-1 space-y-6">
         <div className="flex items-center gap-4 mb-6">
