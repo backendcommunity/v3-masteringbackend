@@ -424,19 +424,19 @@ export function PathCertificate({
           <StatTile
             icon={Sparkles}
             label="Points"
-            value={String(data?.stats?.points)}
+            value={String(data?.stats?.points ?? 0)}
             color={BRAND}
           />
           <StatTile
             icon={CheckCircle2}
             label="Items Completed"
-            value={`${data?.stats?.itemsCompleted}/${data?.stats?.totalItems}`}
+            value={`${data?.stats?.itemsCompleted}/${data?.stats?.totalItems ?? 0}`}
             color="#27AE60"
           />
           <StatTile
             icon={Star}
             label="Final Score"
-            value={`${data?.finalScore}%`}
+            value={`${data?.finalScore ?? 0}%`}
             color={GOLD}
           />
         </div>
