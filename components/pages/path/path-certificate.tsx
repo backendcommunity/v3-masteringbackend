@@ -394,36 +394,50 @@ export function PathCertificate({
               </div>
             </div>
 
-            {/* Footer: authority + seal + QR */}
+            {/* Footer: two signatures + seal/QR center */}
             <div className="mt-6 flex items-end justify-between border-t border-gray-200 pt-6">
+              {/* Platform signatory */}
               <div className="text-left">
                 <div
                   className="mb-1.5 h-px w-28"
                   style={{ backgroundColor: "#9ca3af" }}
                 />
-                <p className="text-xs text-gray-500">Platform Authority</p>
                 <p className="text-sm font-medium text-gray-900">
-                  Masteringbackend.com
+                  MasteringBackend
                 </p>
+                <p className="text-xs text-gray-500">Learning Platform</p>
               </div>
-              <div className="flex flex-col items-center">
+
+              {/* Seal + QR center */}
+              <div className="flex flex-col items-center gap-2">
                 <div
                   className="flex h-12 w-12 items-center justify-center rounded-full border-2"
                   style={{ borderColor: GOLD }}
                 >
                   <Award className="h-6 w-6" style={{ color: GOLD }} />
                 </div>
-                <p className="mt-1 text-[10px] text-gray-500">Official Seal</p>
-              </div>
-              <div className="flex flex-col items-center gap-1">
                 <QRCodeCanvas
                   value={`${window.location.origin}/certifications/verify/${data.certId}`}
-                  size={100}
+                  size={80}
                   level="M"
                   bgColor="#ffffff"
                   fgColor="#000000"
                 />
-                <p className="text-[10px] text-gray-500">Scan to verify</p>
+                <p className="text-[10px] text-gray-400">Scan to verify</p>
+              </div>
+
+              {/* CEO signature */}
+              <div className="text-right">
+                <div
+                  className="mb-1.5 ml-auto h-px w-28"
+                  style={{ backgroundColor: "#9ca3af" }}
+                />
+                <p className="text-sm font-medium text-gray-900">
+                  Solomon Eseme
+                </p>
+                <p className="text-xs text-gray-500">
+                  Founder & CEO, MasteringBackend
+                </p>
               </div>
             </div>
           </div>

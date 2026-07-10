@@ -303,33 +303,42 @@ export function Certificate({
           {/* Footer */}
           <div className="pt-8 border-t border-gray-200">
             <div className="flex justify-between items-center">
+              {/* Instructor signature */}
               <div className="text-left">
                 <div className="w-32 h-px bg-gray-400 mb-2"></div>
-                <p className="text-sm text-gray-600">Instructor Signature</p>
                 <p className="text-sm font-medium text-gray-900">
                   {instructorName}
                 </p>
+                <p className="text-xs text-gray-500">Course Instructor</p>
               </div>
 
-              <div className="text-center">
-                <Award className="h-12 w-12 text-yellow-500 mx-auto mb-2" />
+              {/* Seal + QR */}
+              <div className="flex flex-col items-center gap-2">
+                <Award className="h-10 w-10 text-yellow-500" />
+                {qrUrl && (
+                  <>
+                    <QRCodeCanvas
+                      value={qrUrl}
+                      size={80}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                    />
+                    <p className="text-[10px] text-gray-400">Scan to verify</p>
+                  </>
+                )}
+              </div>
+
+              {/* Platform authority signature */}
+              <div className="text-right">
+                <div className="w-32 h-px bg-gray-400 mb-2 ml-auto"></div>
+                <p className="text-sm font-medium text-gray-900">
+                  Solomon Eseme
+                </p>
                 <p className="text-xs text-gray-500">
-                  Verified by Masteringbackend
+                  Founder & CEO, MasteringBackend
                 </p>
               </div>
-
-              {qrUrl && (
-                <div className="flex flex-col items-center gap-1">
-                  <QRCodeCanvas
-                    value={qrUrl}
-                    size={100}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#000000"
-                  />
-                  <p className="text-xs text-gray-500">Scan to verify</p>
-                </div>
-              )}
             </div>
           </div>
         </CardContent>
