@@ -238,7 +238,7 @@ export function Certificate({
                 <img src="/logo.png" alt="logo" />
 
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Masteringbackend
+                  MasteringBackend
                 </h1>
               </div>
             </div>
@@ -294,7 +294,7 @@ export function Certificate({
                   Certificate ID
                 </p>
                 <p className="font-mono text-sm text-gray-600">
-                  MB-{Date.now().toString().slice(-6)}
+                  {certCode ?? "—"}
                 </p>
               </div>
             </div>

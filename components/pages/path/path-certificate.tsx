@@ -338,7 +338,7 @@ export function PathCertificate({
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900">
-                Masteringbackend
+                MasteringBackend
               </h2>
               <p className="text-sm uppercase tracking-[0.2em] text-gray-500">
                 Certificate of Completion
@@ -396,16 +396,16 @@ export function PathCertificate({
 
             {/* Footer: two signatures + seal/QR center */}
             <div className="mt-6 flex items-end justify-between border-t border-gray-200 pt-6">
-              {/* Platform signatory */}
+              {/* Curriculum signatory */}
               <div className="text-left">
                 <div
                   className="mb-1.5 h-px w-28"
                   style={{ backgroundColor: "#9ca3af" }}
                 />
                 <p className="text-sm font-medium text-gray-900">
-                  MasteringBackend
+                  Solomon Eseme
                 </p>
-                <p className="text-xs text-gray-500">Learning Platform</p>
+                <p className="text-xs text-gray-500">Curriculum Director</p>
               </div>
 
               {/* Seal + QR center */}
