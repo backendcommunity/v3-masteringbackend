@@ -430,7 +430,7 @@ export function PathCertificate({
           <StatTile
             icon={CheckCircle2}
             label="Items Completed"
-            value={`${data?.stats?.itemsCompleted}/${data?.stats?.totalItems ?? 0}`}
+            value={`${data?.stats?.itemsCompleted ?? 0}/${data?.stats?.totalItems ?? 0}`}
             color="#27AE60"
           />
           <StatTile
