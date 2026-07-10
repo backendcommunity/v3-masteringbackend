@@ -178,6 +178,7 @@ export function CourseCertificatePage({
         instructorName={course?.instructor ?? "Solomon Eseme"}
         completionDate={completionDate}
         course={course!}
+        certCode={certCode}
         onDownload={handleDownload}
         onShare={handleShare}
       />

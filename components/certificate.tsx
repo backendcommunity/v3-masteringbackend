@@ -18,7 +18,8 @@ import {
   Twitter,
 } from "lucide-react";
 import { Course } from "@/lib/data";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { CompletionShare } from "@/components/week-completion-share";
@@ -31,6 +32,7 @@ interface CertificateProps {
   type: string;
   completionDate: string;
   course: Course | any;
+  certCode?: string;
   onDownload?: () => void;
   onShare?: () => void;
 }
@@ -42,6 +44,7 @@ export function Certificate({
   type = "course",
   instructorName,
   completionDate,
+  certCode,
   onDownload,
   onShare,
 }: CertificateProps) {
@@ -49,6 +52,15 @@ export function Certificate({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [copiedResume, setCopiedResume] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+
+  useEffect(() => {
+    setQrUrl(
+      certCode
+        ? `${window.location.origin}/certifications/verify/${certCode}`
+        : window.location.href,
+    );
+  }, []);
 
   const handleDownload = async () => {
     if (!certificateRef.current) return;
@@ -306,13 +318,18 @@ export function Certificate({
                 </p>
               </div>
 
-              <div className="text-right">
-                <div className="w-32 h-px bg-gray-400 mb-2 ml-auto"></div>
-                <p className="text-sm text-gray-600">Platform Authority</p>
-                <p className="text-sm font-medium text-gray-900">
-                  Masteringbackend.com
-                </p>
-              </div>
+              {qrUrl && (
+                <div className="flex flex-col items-center gap-1">
+                  <QRCodeCanvas
+                    value={qrUrl}
+                    size={100}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                  />
+                  <p className="text-xs text-gray-500">Scan to verify</p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

@@ -20,6 +20,7 @@ export function ForcePasswordChangeModal() {
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +36,7 @@ export function ForcePasswordChangeModal() {
     try {
       await changePassword(oldPassword, newPassword);
       toast.success("Password updated successfully!");
+      setOpen(false);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to update password");
     } finally {
@@ -43,7 +45,7 @@ export function ForcePasswordChangeModal() {
   };
 
   return (
-    <Dialog open modal>
+    <Dialog open={open} modal>
       <DialogContent
         className="sm:max-w-md"
         onInteractOutside={(e) => e.preventDefault()}

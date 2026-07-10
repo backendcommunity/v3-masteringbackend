@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import confetti from "canvas-confetti";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -27,7 +28,6 @@ import {
   MessagesSquare,
   RefreshCw,
   Sparkles,
-  Star,
   Target,
   Trophy,
   Twitter,
@@ -394,7 +394,7 @@ export function PathCertificate({
               </div>
             </div>
 
-            {/* Footer: signature + seal */}
+            {/* Footer: authority + seal + QR */}
             <div className="mt-6 flex items-end justify-between border-t border-gray-200 pt-6">
               <div className="text-left">
                 <div
@@ -415,30 +415,18 @@ export function PathCertificate({
                 </div>
                 <p className="mt-1 text-[10px] text-gray-500">Official Seal</p>
               </div>
+              <div className="flex flex-col items-center gap-1">
+                <QRCodeCanvas
+                  value={`${window.location.origin}/certifications/verify/${data.certId}`}
+                  size={100}
+                  level="M"
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+                <p className="text-[10px] text-gray-500">Scan to verify</p>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile
-            icon={Sparkles}
-            label="Points"
-            value={String(data?.stats?.points ?? 0)}
-            color={BRAND}
-          />
-          <StatTile
-            icon={CheckCircle2}
-            label="Items Completed"
-            value={`${data?.stats?.itemsCompleted ?? 0}/${data?.stats?.totalItems ?? 0}`}
-            color="#27AE60"
-          />
-          <StatTile
-            icon={Star}
-            label="Final Score"
-            value={`${data?.finalScore ?? 0}%`}
-            color={GOLD}
-          />
         </div>
 
         {/* Actions */}
@@ -723,27 +711,3 @@ function AlumniLoungeCard({
   );
 }
 
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ComponentType<{
-    className?: string;
-    style?: React.CSSProperties;
-  }>;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
-        <Icon className="h-5 w-5" style={{ color }} />
-        <span className="text-lg font-bold text-foreground">{value}</span>
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </CardContent>
-    </Card>
-  );
-}

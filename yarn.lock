@@ -2887,6 +2887,11 @@
   resolved "https://registry.npmjs.org/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.60.3.tgz"
   integrity sha512-vo6Y5Qfpx7/5EaamIwi0WqW2+zfiusVihKatLvtN1VFVy3D13uERk/6gZLU1UiHRL6fDXqj/ELIeVRGnvcTE1g==
 
+"@rollup/rollup-darwin-arm64@^4.62.2":
+  version "4.62.2"
+  resolved "https://registry.yarnpkg.com/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.62.2.tgz#8bc52c9d7a3ce8d0533c351a9c935de781daa06f"
+  integrity sha512-v39RCCvj4He82I9sFmk+M1VZ0PLM9sfsLVikjfx2hYBNALhrrOR2D3JjQA6AhlaSOgcR+RzrKY7e1+bT6SUO/A==
+
 "@rollup/rollup-darwin-x64@4.60.3":
   version "4.60.3"
   resolved "https://registry.yarnpkg.com/@rollup/rollup-darwin-x64/-/rollup-darwin-x64-4.60.3.tgz#dfa0236581c55ecc0bcaeb2ea1f2e800c58dc3e2"
@@ -7650,6 +7655,11 @@ pwacompat@2.0.17:
   version "2.0.17"
   resolved "https://registry.npmjs.org/pwacompat/-/pwacompat-2.0.17.tgz"
   integrity sha512-6Du7IZdIy7cHiv7AhtDy4X2QRM8IAD5DII69mt5qWibC2d15ZU8DmBG1WdZKekG11cChSu4zkSUGPF9sweOl6w==
+
+qrcode.react@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/qrcode.react/-/qrcode.react-4.2.0.tgz#1bce8363f348197d145c0da640929a24c83cbca3"
+  integrity sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==
 
 query-selector-shadow-dom@^1.0.1:
   version "1.0.1"
