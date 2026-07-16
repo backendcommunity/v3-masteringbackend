@@ -707,6 +707,8 @@ export interface Exercise {
   passMark?: number;
   completed: boolean;
   attempts: number;
+  maxAttempts?: number;
+  attemptsResetAt?: string | null;
   instructions?: string;
   hintCost?: number;
   hintTaken?: boolean;
