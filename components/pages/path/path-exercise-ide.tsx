@@ -185,8 +185,27 @@ export function PathExerciseIde({
   const [bestScore, setBestScore] = useState<number | undefined>(
     () => exercise?.userSubmission?.bestScore,
   );
+  const [attempts, setAttempts] = useState<number>(() => exercise?.attempts ?? 0);
+  const [maxAttempts, setMaxAttempts] = useState<number>(
+    () => exercise?.maxAttempts ?? Infinity,
+  );
+  const [attemptsResetAt, setAttemptsResetAt] = useState<Date | null>(() =>
+    exercise?.attemptsResetAt ? new Date(exercise.attemptsResetAt) : null,
+  );
 
   const monacoLanguage = monacoForCode(language);
+  const windowExpired = attemptsResetAt ? attemptsResetAt.getTime() <= Date.now() : true;
+  const exhausted = !passed && !windowExpired && attempts >= maxAttempts;
+
+  function formatCountdown(target: Date | null): string {
+    if (!target) return "";
+    const ms = target.getTime() - Date.now();
+    if (ms <= 0) return "now";
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }
   // `dirty` tracks whether the learner has edited the editor beyond the
   // current stub/starter. Switching language clobbers content only when the
   // editor is at a stub (not dirty); otherwise we confirm first.
@@ -231,6 +250,9 @@ export function PathExerciseIde({
       setBestScore(undefined);
       currentStubRef.current = starter;
     }
+    setAttempts(exercise?.attempts ?? 0);
+    setMaxAttempts(exercise?.maxAttempts ?? Infinity);
+    setAttemptsResetAt(exercise?.attemptsResetAt ? new Date(exercise.attemptsResetAt) : null);
     dirtyRef.current = false;
     setOutput("");
     setTests([]);
@@ -258,7 +280,12 @@ export function PathExerciseIde({
       if (r.submissionId !== pendingId.current) return;
       finish(r);
     };
-    const onErr = (e: { message: string }) => {
+    const onErr = (e: {
+      message: string;
+      attempts?: number;
+      maxAttempts?: number;
+      attemptsResetAt?: string | null;
+    }) => {
       if (pollTimer.current) clearTimeout(pollTimer.current);
       pendingId.current = null;
       setRunning(false);
@@ -267,6 +294,23 @@ export function PathExerciseIde({
       setOutTab("Output");
       setOutput(e.message || "Execution error.");
       toast.error(e.message || "Execution error.");
+      if (e.attempts != null) setAttempts(e.attempts);
+      if (e.maxAttempts != null) setMaxAttempts(e.maxAttempts);
+      if (e.attemptsResetAt !== undefined) {
+        setAttemptsResetAt(e.attemptsResetAt ? new Date(e.attemptsResetAt) : null);
+      }
+    };
+
+    const onAttempts = (p: {
+      exerciseId: string;
+      attempts: number;
+      maxAttempts: number;
+      attemptsResetAt: string | null;
+    }) => {
+      if (p.exerciseId !== exerciseId) return;
+      setAttempts(p.attempts);
+      setMaxAttempts(p.maxAttempts);
+      setAttemptsResetAt(p.attemptsResetAt ? new Date(p.attemptsResetAt) : null);
     };
 
     // F4 — streaming phase marker: update the status line for the in-flight submission.
@@ -354,6 +398,7 @@ export function PathExerciseIde({
     socket.on("submission:queued", onQueued);
     socket.on("submission:result", onResult);
     socket.on("submission:error", onErr);
+    socket.on("exercise:attempts", onAttempts);
     socket.on("exercise:phase", onPhase);
     socket.on("exercise:check", onCheck);
     socket.on("run:started", onRunStarted);
@@ -363,6 +408,7 @@ export function PathExerciseIde({
       socket.off("submission:queued", onQueued);
       socket.off("submission:result", onResult);
       socket.off("submission:error", onErr);
+      socket.off("exercise:attempts", onAttempts);
       socket.off("exercise:phase", onPhase);
       socket.off("exercise:check", onCheck);
       socket.off("run:started", onRunStarted);
@@ -650,13 +696,18 @@ export function PathExerciseIde({
           </Button>
           <Button
             onClick={submit}
-            disabled={running || submitting}
+            disabled={running || submitting || exhausted}
             className="h-9 bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
           >
             {submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Submit Answer
           </Button>
-          {passed && (
+          {exhausted && (
+            <span className="text-[11px] text-muted-foreground">
+              Max attempts reached. Try again in {formatCountdown(attemptsResetAt)}.
+            </span>
+          )}
+          {(passed || exhausted) && (
             <Button
               onClick={() => _onContinue?.()}
               className="h-9 bg-emerald-500 font-bold text-white hover:bg-emerald-600"
