@@ -34,3 +34,5 @@ next-env.d.ts
 /app/preview/
 .gstack/
 /docs
+
+.claude/
