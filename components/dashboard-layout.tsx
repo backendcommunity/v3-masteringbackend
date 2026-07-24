@@ -47,6 +47,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  // Routes where content is the point of arrival (deep link, share, bookmark) —
+  // don't interrupt with onboarding. hasFinishedOnboarding stays false, so
+  // onboarding still triggers if they land elsewhere afterwards.
+  const ONBOARDING_EXEMPT_PREFIXES = ["/projects", "/mock-interviews", "/courses", "/paths"];
+  const isOnboardingExempt = ONBOARDING_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+  );
+
   // Lock background scroll while the mobile drawer is open.
   useEffect(() => {
     if (isMobile && sidebarOpen) {
@@ -72,6 +80,11 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
         if (redirect) router.replace(redirect);
         return;
       }
+      if (isOnboardingExempt) {
+        // Deep link into content — let them through, don't force onboarding here
+        if (redirect) router.replace(redirect);
+        return;
+      }
       // Preserve redirect through onboarding for new users
       const existingRedirect = redirect || pathname || "/";
       router.replace(`/onboarding?redirect=${encodeURIComponent(existingRedirect)}`);
@@ -85,11 +98,12 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   }, [user, pathname, router]);
 
   // Prevent flash of dashboard content for new users before redirect fires.
-  // Exception: skip=true (workshop cert flow) — let them through immediately.
+  // Exceptions: skip=true (workshop cert flow) and onboarding-exempt routes
+  // (deep links into content) — let them through immediately.
   const skipOnboarding =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("skip") === "true";
-  if (user?.hasFinishedOnboarding === false && !skipOnboarding) return null;
+  if (user?.hasFinishedOnboarding === false && !skipOnboarding && !isOnboardingExempt) return null;
 
   return (
     <>
