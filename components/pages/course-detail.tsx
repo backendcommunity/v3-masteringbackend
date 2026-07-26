@@ -46,7 +46,7 @@ import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface CourseDetailPageProps {
@@ -215,7 +215,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const isCompleted = course?.progress! >= 100;
   const canEarnCertificate = course?.enrolled && isCompleted;
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if ((course as any)?.isWaiting) {
     return (

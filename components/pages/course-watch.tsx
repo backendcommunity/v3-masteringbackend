@@ -88,7 +88,7 @@ import { handleShare } from "@/lib/utils";
 import { CourseQuizPage } from "./course-quiz";
 import { usePathname } from "next/navigation";
 import { ExercisePage } from "../exercise";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 import { NextContentOverlay } from "../next-content-overlay";
@@ -482,7 +482,7 @@ export function CourseWatchPage({
   };
   const progress = calculateProgress();
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!course || !chapter) {
     return (
@@ -759,7 +759,7 @@ export function CourseWatchPage({
                     </div>
                     <div className="border-t mt-5">
                       {loadingNotes ? (
-                        <Loader />
+                        <PageSkeleton rows={2} />
                       ) : (
                         <div className="space-y-3  pt-5">
                           {notes?.map((note: Note) => (
