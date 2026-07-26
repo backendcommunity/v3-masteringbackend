@@ -44,7 +44,6 @@ import {
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
-import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PathPreviewDialog } from "../path-preview-dialog";
