@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useEffect, useState } from "react";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Bootcamp, Lesson, UserCohort, Week } from "@/lib/data";
 import { formatRelativeDate } from "@/lib/utils";
 
@@ -38,7 +38,6 @@ export function BootcampWeekPage({
   const [loading, setLoading] = useState(false);
   const [currentWeek, setCurrentWeek] = useState<Week & { index: number }>();
   const [weeks, setWeeks] = useState<Week[]>([]);
-  const [eventLoading, setEventLoading] = useState(false);
   const [events, setEvents] = useState<Array<any>>();
 
   useEffect(() => {
@@ -83,20 +82,14 @@ export function BootcampWeekPage({
     const load = async () => {
       if (!currentWeek) return;
       try {
-        setEventLoading(true);
         const events = await store.getCurrentWeekEvents(
           bootcampId,
           currentWeek?.id!,
         );
         if (!cancelled) {
           setEvents(events);
-          setEventLoading(false);
         }
-      } catch (error) {
-        if (!cancelled) {
-          setEventLoading(false);
-        }
-      }
+      } catch (error) {}
     };
 
     load();
@@ -106,7 +99,7 @@ export function BootcampWeekPage({
     };
   }, [bootcampId, currentWeek]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!bootcamp) {
     return (

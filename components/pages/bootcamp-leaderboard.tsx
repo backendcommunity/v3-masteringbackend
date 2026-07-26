@@ -22,7 +22,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { getStoredUser } from "@/lib/user-store";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { routes } from "@/lib/routes";
 
 interface BootcampLeaderboardEntry {
@@ -98,7 +98,7 @@ export function BootcampLeaderboard({
     loadLeaderboard();
   }, [bootcampId, cohortId]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   const getInitials = (name: string | null) => {
     if (!name) return "?";

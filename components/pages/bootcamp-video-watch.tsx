@@ -35,7 +35,7 @@ import { codeSample, handleShare } from "@/lib/utils";
 import { CourseQuizPage } from "./course-quiz";
 import { usePathname } from "next/navigation";
 import { ExercisePage } from "../exercise";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Countdown from "../ui/count-down";
 import { SimpleEditor } from "./SimpleEditor";
 import { WeekCompletionShare } from "../week-completion-share";
@@ -144,7 +144,7 @@ export function BootcampVideoWatchPage({
     }
   }, [weekId, id, currentLesson?.id]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!lesson) {
     return (

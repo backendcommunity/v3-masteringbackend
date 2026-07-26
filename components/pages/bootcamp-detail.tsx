@@ -30,7 +30,7 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { Bootcamp } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
 import Countdown from "../ui/count-down";
 import DisqusCommentBlock from "../ui/comment";
@@ -103,7 +103,7 @@ export function BootcampDetailPage({
     };
   }, [active, bootcamp?.cohort?.id, bootcampId, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!bootcamp) {
     return (
