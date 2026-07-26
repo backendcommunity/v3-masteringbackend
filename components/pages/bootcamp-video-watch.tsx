@@ -271,7 +271,7 @@ export function BootcampVideoWatchPage({
 
       setShowWeekComplete(true);
     } catch (error: any) {
-      toast.error("An error occurred updating your points. Try again");
+      toast.error("An error occurred updating your MB. Try again");
       setCompleted(false);
     }
   };
@@ -318,7 +318,7 @@ export function BootcampVideoWatchPage({
 
       store.markLessonCompleted(id, cohort, weekId, currentLesson.id, payload);
 
-      toast.success("You just earned some points!");
+      toast.success("You just earned some MB!");
       setCelebration(true);
       if (nextVideo) handleVideoClick(nextVideo!);
     } catch (error) {

@@ -1048,7 +1048,7 @@ export const LEVEL_PERKS: Record<number, { perks: string[]; icon: string }> = {
       "Access to all free courses",
       "Basic progress tracking",
       "Public developer profile",
-      "MB points system",
+      "MB system",
     ],
   },
   2: {

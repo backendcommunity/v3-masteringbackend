@@ -465,7 +465,7 @@ export function RoadmapVideoWatchPage({
         courseId: course.slug,
       });
 
-      toast.success("You just earned some points!");
+      toast.success("You just earned some MB!");
       // setCelebration(true);
     } catch (error) {
       toast.error("Unable to update video progress. Please try again.");

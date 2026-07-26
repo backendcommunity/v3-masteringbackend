@@ -114,7 +114,7 @@ export function HabitStrip({
             />
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {xpToNext.toLocaleString()} XP to Level {level + 1}
+            {xpToNext.toLocaleString()} MB to Level {level + 1}
           </p>
         </div>
       </div>

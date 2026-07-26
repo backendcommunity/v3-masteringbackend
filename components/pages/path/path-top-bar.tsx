@@ -274,7 +274,7 @@ export function PathTopBar({
         )}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-xs font-bold">
           <Zap className="w-3.5 h-3.5" />
-          {earnedPoints} pts
+          {earnedPoints} MB
         </span>
         <div className="flex items-center gap-0.5">
           {/* Exercise steps already are a code editor — hide the slide-in one. */}
@@ -320,10 +320,10 @@ export function PathTopBar({
                 </div>
               )}
               <div className="flex items-center justify-between rounded-lg px-2 py-2">
-                <span className="text-xs text-muted-foreground">Points</span>
+                <span className="text-xs text-muted-foreground">MB</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2.5 py-1 text-xs font-bold">
                   <Zap className="w-3.5 h-3.5" />
-                  {earnedPoints} pts
+                  {earnedPoints} MB
                 </span>
               </div>
               {interviewOnEnd && (

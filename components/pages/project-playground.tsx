@@ -2934,7 +2934,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   <div className="prog-l" style={{ marginTop: 12 }}>
                     <span>Progress</span>
                     <span>
-                      {doneCount}/{totalCount} · {earnedPts} pts
+                      {doneCount}/{totalCount} · {earnedPts} MB
                     </span>
                   </div>
                   <div className="prog">
@@ -3134,7 +3134,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     {I.list} {tasks?.length ?? 0} tasks
                   </span>
                   <span className="wchip wchip-xp">
-                    {I.spark} {totalPts} XP
+                    {I.spark} {totalPts} MB
                   </span>
                 </div>
                 {project?.technologies?.length > 0 && (
@@ -3577,7 +3577,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   <span className="pts done">{I.check} Completed</span>
                 ) : activeTask?.mb ? (
                   <span className="pts gold">
-                    {I.spark} {activeTask.mb} XP
+                    {I.spark} {activeTask.mb} MB
                   </span>
                 ) : null}
                 <button

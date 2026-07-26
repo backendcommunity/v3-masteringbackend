@@ -212,7 +212,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-lg mt-2">
-                    {topUsers?.[1]?.score} pts
+                    {topUsers?.[1]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -249,7 +249,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-xl mt-2">
-                    {topUsers?.[0]?.score} pts
+                    {topUsers?.[0]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -286,7 +286,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-lg mt-2">
-                    {topUsers?.[2]?.score} pts
+                    {topUsers?.[2]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -312,7 +312,7 @@ export function BootcampLeaderboard({
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-semibold">{currentUser.score}</div>
-                  <p className="text-xs text-muted-foreground">points total</p>
+                  <p className="text-xs text-muted-foreground">MB total</p>
                 </div>
               </div>
             </CardContent>

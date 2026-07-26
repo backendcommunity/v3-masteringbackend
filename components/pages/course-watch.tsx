@@ -301,7 +301,7 @@ export function CourseWatchPage({
       // Refresh course progress so course-detail stays in sync
       store.getUserCourse(slug).catch(() => {});
 
-      toast.success("+10 XP earned!");
+      toast.success("+10 MB earned!");
 
       // Milestone prompts
       const MILESTONES = [25, 50, 75] as const;
@@ -468,7 +468,7 @@ export function CourseWatchPage({
       );
       // onNavigate?.(routes.courseCertificate(slug));
     } catch (error: any) {
-      toast.error("An error occurred updating your points. Try again");
+      toast.error("An error occurred updating your MB. Try again");
       setCompleted(false);
     }
   };
@@ -931,9 +931,9 @@ export function CourseWatchPage({
                     <div className="pt-2 border-t space-y-1">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>
-                          Level {user.level} · {user.points} pts
+                          Level {user.level} · {user.points} MB
                         </span>
-                        <span>{user.points % 100}/100 XP</span>
+                        <span>{user.points % 100}/100 MB</span>
                       </div>
                       <Progress
                         value={user.points % 100}

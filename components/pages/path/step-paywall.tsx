@@ -121,7 +121,7 @@ export function StepPaywall({
                   variant="outline"
                   className="w-full"
                   onClick={() => setOpen(true)}
-                  aria-label={`Redeem MB points to unlock ${pathTitle}`}
+                  aria-label={`Redeem MB to unlock ${pathTitle}`}
                 >
                   Redeem with MB
                 </Button>

@@ -401,10 +401,10 @@ export function WeekCompletionShare({
           label: "Lessons",
           color: "#13AECE",
         },
-        { icon: Star, value: points, label: "MB Points", color: "#F2C94C" },
+        { icon: Star, value: points, label: "MB", color: "#F2C94C" },
         { icon: Zap, value: "100%", label: "Progress", color: "#27AE60" },
       ]}
-      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on Mastering Backend!\n\n${lessonsCount} lessons done, ${points} MB points earned.\n\nJoin me and level up your backend engineering skills!`}
+      shareText={`I just completed "${weekTitle}" in ${bootcampTitle} on Mastering Backend!\n\n${lessonsCount} lessons done, ${points} MB earned.\n\nJoin me and level up your backend engineering skills!`}
       cta={
         onStartNextWeek
           ? {

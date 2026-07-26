@@ -478,7 +478,7 @@ export function PathQuiz({
             {totalPoints > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#F2C94C]/15 px-2.5 py-1 text-xs font-extrabold text-[#caa000]">
                 <Sparkles className="h-3.5 w-3.5" />
-                {totalPoints} XP
+                {totalPoints} MB
               </span>
             )}
           </div>
@@ -582,7 +582,7 @@ export function PathQuiz({
           {single ? (
             <>
               <span className="text-xs text-muted-foreground">
-                {current?.points ? `${current.points} pts` : ""}
+                {current?.points ? `${current.points} MB` : ""}
               </span>
               {!revealed ? (
                 <Button

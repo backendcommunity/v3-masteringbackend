@@ -192,7 +192,7 @@ export function BootcampDetailPage({
         const updated = await store.getBootcamp(bootcampId);
         if (updated?.enrolled) {
           setBootcamp(updated);
-          toast.success("You have successfully enrolled with MB points");
+          toast.success("You have successfully enrolled with MB");
         } else {
           toast.error("Enrollment failed. Please try again.");
         }

@@ -508,7 +508,7 @@ export function PathCertificate({
           Your certificate is within reach
         </h1>
         <p className="text-sm text-muted-foreground">
-          Keep earning points across the {pathTitle} path to unlock your
+          Keep earning MB across the {pathTitle} path to unlock your
           official certificate.
         </p>
       </div>
@@ -554,14 +554,14 @@ export function PathCertificate({
                 Progress to certificate
               </p>
               <p className="text-xs text-muted-foreground">
-                {data?.earnedPoints} / {data?.certThreshold} points earned
+                {data?.earnedPoints} / {data?.certThreshold} MB earned
               </p>
             </div>
             <span className="text-2xl font-bold text-primary">{pct}%</span>
           </div>
           <Progress value={pct} className="h-2.5" />
           <p className="text-sm font-medium text-foreground">
-            <span className="text-primary">{data?.pointsToGo} points</span> to
+            <span className="text-primary">{data?.pointsToGo} MB</span> to
             go
           </p>
         </CardContent>
@@ -697,7 +697,7 @@ function AlumniLoungeCard({
           <div className="w-full max-w-sm space-y-2.5 pt-1">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-white/70">
-                Acceptance at {certThreshold} pts
+                Acceptance at {certThreshold} MB
               </span>
               <span className="font-bold" style={{ color: GOLD }}>
                 {pct}%
@@ -714,7 +714,7 @@ function AlumniLoungeCard({
             </div>
             <p className="text-xs text-white/60">
               <span className="font-semibold text-white">
-                {pointsToGo} points
+                {pointsToGo} MB
               </span>{" "}
               from your seat in the lounge.
             </p>

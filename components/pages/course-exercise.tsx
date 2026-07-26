@@ -183,7 +183,7 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
           <Badge className={getDifficultyColor(exercise.difficulty)}>
             {exercise.difficulty}
           </Badge>
-          <Badge variant="outline">{exercise.points} pts</Badge>
+          <Badge variant="outline">{exercise.points} MB</Badge>
         </div>
       </div>
 
@@ -371,7 +371,7 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
                   </div>
                   {allTestsPassed && (
                     <Badge className="bg-green-100 text-green-800">
-                      +{exercise.points} pts
+                      +{exercise.points} MB
                     </Badge>
                   )}
                 </div>

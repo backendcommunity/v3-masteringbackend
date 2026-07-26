@@ -266,7 +266,7 @@ export function InterviewDetailPage({ interviewId, onNavigate }: InterviewDetail
                     <span className="text-sm">{criteria.criteria}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">{criteria.weight}%</span>
-                      <Badge variant="outline">{criteria.maxPoints} pts</Badge>
+                      <Badge variant="outline">{criteria.maxPoints} MB</Badge>
                     </div>
                   </div>
                 ))}

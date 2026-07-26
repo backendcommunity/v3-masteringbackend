@@ -91,7 +91,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
       <EmptyStateCard
         icon={Trophy}
         title="Your league is warming up"
-        description="Earn some XP — finish a lesson, ship a project — and you'll join this week's league."
+        description="Earn some MB — finish a lesson, ship a project — and you'll join this week's league."
         primaryCTA={{
           label: "Browse courses",
           onClick: () => onNavigate(routes.courses),
@@ -165,8 +165,8 @@ function LeagueBoard({
     league.zone === "PROMOTE"
       ? "You're in the promotion zone — hold it to climb."
       : league.zone === "DEMOTE"
-        ? "You're in the demotion zone — earn XP to climb out."
-        : "Keep earning XP to reach the promotion zone.";
+        ? "You're in the demotion zone — earn MB to climb out."
+        : "Keep earning MB to reach the promotion zone.";
 
   return (
     <div className="space-y-6">

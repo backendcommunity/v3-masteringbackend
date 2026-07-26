@@ -191,7 +191,7 @@ export function CourseExercisesPage({
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-purple-600" />
               <div>
-                <p className="text-sm text-gray-600">Points Earned</p>
+                <p className="text-sm text-gray-600">MB Earned</p>
                 <p className="text-2xl font-bold">{totalPoints}</p>
               </div>
             </div>
@@ -287,7 +287,7 @@ export function CourseExercisesPage({
                 </div>
                 <div className="flex items-center gap-1">
                   <Star className="h-4 w-4" />
-                  {exercise.points} pts
+                  {exercise.points} MB
                 </div>
               </div>
 

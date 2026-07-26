@@ -115,7 +115,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
         <EmptyStateCard
           icon={Trophy}
           title="No legends yet"
-          description="The Hall of Fame fills as engineers rack up MB points. Be the first."
+          description="The Hall of Fame fills as engineers rack up MB. Be the first."
           primaryCTA={{
             label: "Start earning",
             onClick: () => onNavigate(routes.courses),

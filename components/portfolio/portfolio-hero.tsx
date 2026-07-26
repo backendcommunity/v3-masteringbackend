@@ -137,7 +137,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
     {
       icon: Award,
       value: stats.totalPoints.toLocaleString(),
-      label: "MB Points",
+      label: "MB",
     },
     {
       icon: Hash,

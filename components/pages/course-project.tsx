@@ -219,7 +219,7 @@ Create a personal portfolio website that showcases your skills and projects. You
           </Badge>
           <Badge variant="outline" className="flex items-center gap-1">
             <Star className="h-3 w-3" />
-            {project.points} pts
+            {project.points} MB
           </Badge>
         </div>
       </div>
@@ -267,7 +267,7 @@ Create a personal portfolio website that showcases your skills and projects. You
               <Star className="h-5 w-5 text-purple-600" />
               <div>
                 <p className="text-sm text-gray-600">Reward</p>
-                <p className="text-lg font-bold">{project.points} pts</p>
+                <p className="text-lg font-bold">{project.points} MB</p>
               </div>
             </div>
           </CardContent>

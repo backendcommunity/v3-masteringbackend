@@ -866,7 +866,7 @@ export function PathExerciseIde({
             </span>
             {points != null && (
               <span className="rounded-full bg-[#F2C94C] px-2 py-0.5 text-[10px] font-extrabold text-[#3d2e00]">
-                {points} XP
+                {points} MB
               </span>
             )}
           </div>
