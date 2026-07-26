@@ -6,7 +6,7 @@ import { PathSessionStep } from "@/lib/path-types";
 import { StepFrame } from "../step-frame";
 import { useAppStore } from "@/lib/store";
 import { useVideoTime } from "@/lib/video-time-store";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { Video } from "@/lib/data";
 
 const COUNTDOWN_FROM = 3;
@@ -95,7 +95,7 @@ export function VideoStep({
     <StepFrame step={step} onComplete={() => onComplete(step.id)}>
       <div>
         {loading ? (
-          <Loader />
+          <StepSkeleton />
         ) : video ? (
           <div className="relative mx-auto w-full max-w-[min(1200px,calc((100vh-15rem)*1.7778))] rounded-2xl overflow-hidden border border-border bg-[#0d1019] shadow-[0_10px_30px_-15px_rgba(0,0,0,0.35)]">
             <VimeoPlayer

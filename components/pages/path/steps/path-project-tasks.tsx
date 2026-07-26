@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { useAppStore } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
 import { ArticleBlocks } from "@/components/pages/path/path-article";
@@ -163,7 +163,7 @@ export function PathProjectTasks({
     }
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <StepSkeleton />;
   if (!project) {
     return (
       <div className="flex h-full w-full items-center justify-center p-10 text-center text-muted-foreground">

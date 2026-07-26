@@ -7,7 +7,7 @@ import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { InlinePlayground } from "./inline-playground";
 import { InlineQuiz } from "./inline-quiz";
 
@@ -208,7 +208,7 @@ export function PathArticle({
     <div className="flex h-full w-full justify-center overflow-y-auto">
       <div className="w-full max-w-[760px] px-5 py-8 sm:px-8 sm:py-10">
         {loading ? (
-          <Loader />
+          <StepSkeleton />
         ) : (
           <>
             {/* Lesson header */}

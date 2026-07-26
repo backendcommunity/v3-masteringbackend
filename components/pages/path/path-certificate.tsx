@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { useAppStore } from "@/lib/store";
 import type { PathCertificate as PathCertificateData } from "@/lib/path-types";
 import { cn } from "@/lib/utils";
@@ -228,7 +228,7 @@ export function PathCertificate({
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <Loader />
+        <StepSkeleton />
       </div>
     );
   }

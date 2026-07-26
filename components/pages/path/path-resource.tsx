@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { PROSE } from "./path-article";
 
 interface ResourceItem {
@@ -115,7 +115,7 @@ export function PathResource({
     <div className="flex h-full w-full items-start justify-center overflow-y-auto">
       <div className="my-auto w-full max-w-[560px] px-4 py-8 sm:px-6">
         {loading ? (
-          <Loader />
+          <StepSkeleton />
         ) : (
           <>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_40px_-20px_rgba(0,0,0,0.5)]">

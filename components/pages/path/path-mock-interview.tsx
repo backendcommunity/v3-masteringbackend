@@ -6,7 +6,7 @@ import { Mic, Video, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore, ChatInterviewTemplate } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { ChatInterviewRoom } from "@/components/pages/mock-interviews/chat/chat-interview-room";
 import { ChatInterviewWelcome } from "@/components/pages/mock-interviews/chat/chat-interview-welcome";
 import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session";
@@ -125,7 +125,7 @@ export function PathMockInterview({
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader />
+        <StepSkeleton />
       </div>
     );
   }
@@ -220,7 +220,7 @@ export function PathMockInterview({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <Loader />
+            <StepSkeleton />
           </div>
         )}
       </div>
