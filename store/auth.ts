@@ -8,7 +8,6 @@ import {
   sendForgotPasswordEmail,
   verifyCode,
   verifyEmail,
-  fetchUser,
   completeOnboarding as completeOnboardingApi,
   changePassword as changePasswordApi,
 } from "@/lib/auth";
@@ -21,7 +20,6 @@ import { NewUser, updateUser, User, OnboardingInput } from "@/lib/data";
 
 interface AuthState {
   user: User | null;
-  loading: boolean;
   token: string | null;
   login: (email: string, password: string, remember?: boolean) => Promise<User>;
   register: (user: NewUser) => Promise<boolean>;
@@ -35,7 +33,6 @@ interface AuthState {
     password: string
   ) => Promise<boolean>;
   verifyCode: (email: string, code: string, type?: string) => Promise<boolean>;
-  currentUser: () => Promise<User>;
   completeOnboarding: (input: OnboardingInput) => Promise<any>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<User>;
 }
@@ -43,22 +40,6 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   token: null,
-  loading: false,
-
-  currentUser: async () => {
-    try {
-      set({ loading: true });
-      const { data } = await fetchUser();
-      set({ user: data });
-      updateUser(data);
-      set({ loading: false });
-      return data;
-    } catch (e) {
-      set({ user: null });
-      set({ loading: false });
-      throw e;
-    }
-  },
 
   login: async (email, password, remember = false) => {
     const { data } = await login(email, password, remember);
