@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
 
@@ -63,7 +63,7 @@ export function PathResourceSheet({ step }: { step?: PathSessionStep }) {
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-4">
           {!loaded ? (
-            <Loader />
+            <PageSkeleton rows={2} />
           ) : resources.length ? (
             <ul className="space-y-2">
               {resources.map((r, i) => (

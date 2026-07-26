@@ -14,7 +14,7 @@ import { BootcampCard } from "@/components/pages/bootcamps/bootcamp-card";
 import { useAppStore } from "@/lib/store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Bootcamp } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { routes } from "@/lib/routes";
 import { Search } from "lucide-react";
 
@@ -173,7 +173,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
 
       {/* ── Grid ── */}
       {loading ? (
-        <Loader isLoader={false} />
+        <PageSkeleton />
       ) : list.length === 0 ? (
         <EmptyState />
       ) : (

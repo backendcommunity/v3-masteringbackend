@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -69,7 +69,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
     };
   }, [store]);
 
-  if (!rows) return <Loader isLoader={false} />;
+  if (!rows) return <PageSkeleton />;
 
   // The board is the top 100; an off-board current user (rank > 100) is appended
   // by the API — pull them out so they render as a pinned "your standing" row

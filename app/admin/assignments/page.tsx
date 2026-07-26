@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { AdminAssignmentsPage } from "@/components/pages/admin-assignments";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ShieldOff } from "lucide-react";
 
 export default function AdminAssignmentsPageRoute() {
@@ -25,7 +25,7 @@ export default function AdminAssignmentsPageRoute() {
   if (checking) {
     return (
       <DashboardLayout>
-        <Loader isLoader={false} />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }
