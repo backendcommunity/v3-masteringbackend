@@ -16,6 +16,7 @@ import {
   Loader2,
   Save,
 } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { PathArticle, ArticleBlock } from "@/components/pages/path/path-article";
@@ -215,7 +216,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <PageSkeleton rows={3} />
       </div>
     );
   }

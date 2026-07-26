@@ -45,6 +45,7 @@ import {
   CheckCircle2,
   Trash2,
 } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
@@ -1042,9 +1043,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             return (
               <>
                 {loading ? (
-                  <div className="flex items-center justify-center py-24">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
+                  <PageSkeleton rows={3} />
                 ) : list.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-24 text-center">
                     <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1104,9 +1103,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "booked" && (
           <>
             {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : bookedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1212,9 +1209,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "completed" && (
           <>
             {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : completedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1295,9 +1290,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "my-templates" && (
           <>
             {myTemplatesLoading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : myTemplates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />

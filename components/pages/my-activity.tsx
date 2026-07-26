@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -211,7 +211,7 @@ export function MyActivityPage({ onNavigate }: MyActivityPageProps) {
   }, [activeTab, inProgressItems, completedItems, search, typeFilter]);
 
   if (loading) {
-    return <Loader />;
+    return <PageSkeleton />;
   }
 
   if (error) {

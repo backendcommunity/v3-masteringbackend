@@ -13,6 +13,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import {
   Card,
   CardContent,
@@ -229,10 +230,7 @@ export function SubscriptionManagementPage({
         {/* Subscription Tab */}
         <TabsContent value="subscription" className="space-y-6">
           {!subscription ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              Loading subscription…
-            </div>
+            <PageSkeleton rows={3} />
           ) : <>
           {/* Current Plan */}
           <Card>
