@@ -18,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface PathContentWatchPageProps {
   pathId: string;
@@ -110,7 +110,7 @@ export function PathContentWatchPage({
   if (loading) {
     return (
       <div className="flex-1 p-6">
-        <Loader isLoader={false} />
+        <PageSkeleton />
       </div>
     );
   }

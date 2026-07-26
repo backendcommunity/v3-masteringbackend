@@ -13,7 +13,7 @@ import { JourneyGlyph } from "@/components/journey-glyph";
 import { Project30Card } from "@/components/pages/project30/project30-card";
 import { useAppStore } from "@/lib/store";
 import { Project30, UserProject30 } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 
@@ -240,7 +240,7 @@ export function Project30ListingPage({
 
       {/* ── Grid ── */}
       {loading ? (
-        <Loader isLoader={false} />
+        <PageSkeleton />
       ) : filteredList.length === 0 ? (
         <EmptyState />
       ) : (

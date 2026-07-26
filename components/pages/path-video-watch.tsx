@@ -45,7 +45,7 @@ import ConfettiCelebration from "../confetti-celebration";
 import { VimeoPlayer } from "../ui/vimeo-player";
 import { CourseQuizPage } from "./course-quiz";
 import { ExercisePage } from "../exercise";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 
@@ -183,7 +183,7 @@ export function RoadmapVideoWatchPage({
       setShowRequiredQuiz(true);
     } else setShowRequiredQuiz(false);
   }, [currentVideo, quizPassed]);
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!roadmap || !course) {
     return (

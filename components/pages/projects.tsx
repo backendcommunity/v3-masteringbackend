@@ -20,7 +20,7 @@ import { startItem } from "@/lib/start-flow";
 import { analytics } from "@/lib/analytics";
 import { PROJECT_EVENTS } from "@/lib/analytics-events";
 import { cn } from "@/lib/utils";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Pager } from "@/components/ui/pager";
 import { Project, StarterKitItem } from "@/lib/data";
 import { FreeStarterSection } from "@/components/free-starter-section";
@@ -236,7 +236,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
     }
   };
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">

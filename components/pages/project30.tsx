@@ -62,7 +62,7 @@ import { routes } from "@/lib/routes";
 import { ContentComingSoon } from "@/components/content-coming-soon";
 import { Certificate } from "../certificate";
 import { formatDate } from "@/lib/utils";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface Project30PageProps {
   slug?: string;
@@ -135,7 +135,7 @@ export function Project30Page({
     };
   }, [activeTab, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!project30) return <div>Ship not found</div>;
 

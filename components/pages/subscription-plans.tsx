@@ -23,7 +23,7 @@ import { routes } from "@/lib/routes";
 import { dataStore } from "@/lib/data";
 import { useAppStore } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface SubscriptionPlansPageProps {
   onNavigate: (path: string) => void;
@@ -87,7 +87,7 @@ export function SubscriptionPlansPage({
     };
   }, [store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   const handleSelectPlan = (planId: string, cycle: string) => {
     onNavigate(routes.checkout("subscription", planId, cycle));

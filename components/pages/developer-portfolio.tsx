@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { PortfolioData, PortfolioResponse } from "@/lib/portfolio-types";
 import { transformPortfolioResponse } from "@/lib/portfolio-transformer";
@@ -79,7 +79,7 @@ export function DeveloperPortfolioPage({
   }, [userId, store, initialData, currentUser?.id]);
 
   if (loading) {
-    return <Loader isLoader={false} />;
+    return <PageSkeleton />;
   }
 
   if (!portfolio) {

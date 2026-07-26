@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ExternalLink, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -139,7 +139,7 @@ export function AdminAssignmentsPage({
 
   const pendingCount = assignments.filter((a) => !a.completed).length;
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   return (
     <div className="flex-1 space-y-6">
