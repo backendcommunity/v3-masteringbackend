@@ -8,7 +8,7 @@ import { routes } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { Course, UserCourse } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
@@ -72,7 +72,7 @@ export function CourseCertificatePage({
     loadData(slug);
   }, [slug, certCode]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   if (!course) return <div>No course found</div>;
 
   // If a certCode was supplied but verification failed, show invalid state

@@ -50,7 +50,7 @@ import { Project } from "@/lib/data";
 import { toast } from "sonner";
 import ConfettiCelebration from "@/components/confetti-celebration";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface ProjectDetailPageProps {
@@ -152,7 +152,7 @@ export function ProjectDetailPage({
     }
   };
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if ((project as any)?.isWaiting) {
     return (

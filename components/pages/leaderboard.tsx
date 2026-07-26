@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -85,7 +85,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
 
   const countdown = useCountdown(league?.weekEndsAt);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   if (error || !league) {
     return (
       <EmptyStateCard
