@@ -30,7 +30,9 @@ export function AnnouncementBanner() {
   useEffect(() => {
     if (isDismissed()) return;
     setHidden(false);
-    analytics.track(MOCK_INTERVIEW_EVENTS.bannerViewed, { surface: "dashboard" });
+    analytics.track(MOCK_INTERVIEW_EVENTS.bannerViewed, {
+      surface: "dashboard",
+    });
   }, []);
 
   if (hidden) return null;
@@ -46,7 +48,9 @@ export function AnnouncementBanner() {
   };
 
   const open = () => {
-    analytics.track(MOCK_INTERVIEW_EVENTS.bannerCtaClicked, { surface: "dashboard" });
+    analytics.track(MOCK_INTERVIEW_EVENTS.bannerCtaClicked, {
+      surface: "dashboard",
+    });
     router.push("/mock-interviews/demo?tour=offer");
   };
 
@@ -73,7 +77,10 @@ export function AnnouncementBanner() {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-white/15 text-white hover:bg-white/15">
+              <Badge
+                variant="secondary"
+                className="bg-white/15 text-white hover:bg-white/15"
+              >
                 NEW
               </Badge>
               <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
@@ -83,8 +90,11 @@ export function AnnouncementBanner() {
               Practice a real interview with Kap AI. Get scored, get job-ready.
             </p>
           </div>
-          <Button onClick={open} className="shrink-0 font-semibold shadow-sm sm:ml-auto">
-            Try a Mock Interview
+          <Button
+            onClick={open}
+            className="shrink-0 font-semibold shadow-sm sm:ml-auto"
+          >
+            Try Mock Interview
           </Button>
         </div>
       </div>
