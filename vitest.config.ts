@@ -39,6 +39,7 @@ export default defineConfig({
       "components/__tests__/interview-completion-dialog-cta.test.tsx",
       "components/__tests__/simple-editor-run.test.tsx",
       "components/__tests__/page-skeleton.test.tsx",
+      "components/pages/path/__tests__/step-skeleton.test.tsx",
     ],
   },
   resolve: {
