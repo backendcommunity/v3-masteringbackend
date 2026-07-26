@@ -62,6 +62,11 @@ const API_BASE =
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
 
+// In-flight/resolved cache for getPathItem, keyed by endpoint. Dedupes
+// concurrent and repeat calls for the same step (video-step.tsx and
+// path-context-panel.tsx both fetch the same endpoint independently).
+const pathItemCache = new Map<string, Promise<any>>();
+
 // Chat interview types
 export interface ChatMessage {
   id: string;
@@ -1765,9 +1770,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   getPathItem: async (endpoint: string) => {
-    const path = endpoint.replace(/^\/api\/v3/, "");
-    const { data } = await api.get(path);
-    return data?.data;
+    const cached = pathItemCache.get(endpoint);
+    if (cached) return cached;
+    const promise = (async () => {
+      const path = endpoint.replace(/^\/api\/v3/, "");
+      const { data } = await api.get(path);
+      return data?.data;
+    })();
+    pathItemCache.set(endpoint, promise);
+    promise.catch(() => pathItemCache.delete(endpoint));
+    return promise;
   },
 
   getArticleById: async (id: string) => {
