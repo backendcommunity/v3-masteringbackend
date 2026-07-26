@@ -9,16 +9,15 @@ import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { stripHtmlTags } from "@/lib/html-utils";
 import type { ContinueLearningItem } from "@/lib/data";
-import type { PathSession, PathSessionStep } from "@/lib/path-types";
-import { ArrowRight, BookOpen, Compass, Loader2, Play, Target } from "lucide-react";
+import type { PathSession } from "@/lib/path-types";
+import { ArrowRight, Compass, Loader2, Play } from "lucide-react";
 
 interface ResumeHeroProps {
   item: ContinueLearningItem | null;
   pathSession: PathSession | null;
-  gateStep: PathSessionStep | null;
 }
 
-export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
+export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
   const store = useAppStore();
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
@@ -140,14 +139,6 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
   };
 
   const pathPct = pathSession?.path.progressPct ?? item.progress;
-  const pathTitle = pathSession?.path.title ?? item.title;
-
-  const gateLabel =
-    gateStep?.type === "QUIZ"
-      ? `Take ${gateStep.title} (≥80%)`
-      : gateStep
-        ? `Next: ${gateStep.title}`
-        : null;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_4px_18px_rgba(14,31,51,0.05)]">
@@ -190,11 +181,11 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
         </div>
 
         {/* CTAs */}
-        <div className="flex flex-shrink-0 gap-2 sm:flex-col">
+        <div className="flex flex-shrink-0 gap-2 sm:w-48 sm:flex-col">
           <Button
             onClick={handleResume}
             disabled={navigating}
-            className="flex-1 gap-1.5 sm:flex-none"
+            className="w-full gap-1.5"
           >
             {navigating ? (
               <>
@@ -206,41 +197,8 @@ export function ResumeHero({ item, pathSession, gateStep }: ResumeHeroProps) {
               </>
             )}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => router.push(routes.pathContinue(item.slug))}
-            className="flex-1 gap-1.5 sm:flex-none"
-          >
-            <BookOpen className="h-4 w-4" /> Syllabus
-          </Button>
         </div>
       </div>
-
-      {/* Path-gate footer */}
-      <button
-        type="button"
-        onClick={() =>
-          router.push(
-            gateStep
-              ? routes.pathWorkspace(item.slug, gateStep.id)
-              : routes.pathContinue(item.slug),
-          )
-        }
-        className="flex w-full items-center gap-2 border-t border-border bg-muted/30 px-5 py-3 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted/50 sm:px-6"
-      >
-        <Target className="h-4 w-4 flex-shrink-0 text-primary" />
-        <span className="min-w-0 flex-1">
-          You&apos;re <b className="text-foreground">{pathPct}% through {pathTitle}</b>
-          {gateLabel ? (
-            <>
-              {". "}
-              <span className="font-semibold text-primary">{gateLabel}</span>
-            </>
-          ) : (
-            ". You're one step from your next milestone"
-          )}
-        </span>
-      </button>
     </div>
   );
 }

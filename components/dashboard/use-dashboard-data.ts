@@ -40,7 +40,6 @@ export interface DashboardData {
   xpPct: number;
   // up next
   upNextSteps: PathSessionStep[];
-  gateStep: PathSessionStep | null;
 }
 
 const startOfDay = (d: Date) => {
@@ -159,10 +158,6 @@ export function useDashboardData(): DashboardData {
   const upNextSteps = orderedSteps
     .filter((s) => s.status !== "DONE")
     .slice(0, 3);
-  const gateStep =
-    orderedSteps.find((s) => s.status !== "DONE" && !s.access.allowed) ??
-    orderedSteps.find((s) => s.status !== "DONE" && s.type === "QUIZ") ??
-    null;
 
   return {
     resumeLoading,
@@ -182,6 +177,5 @@ export function useDashboardData(): DashboardData {
     xpToNext,
     xpPct,
     upNextSteps,
-    gateStep,
   };
 }

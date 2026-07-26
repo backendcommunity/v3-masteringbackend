@@ -54,7 +54,6 @@ export function DashboardContent() {
         <ResumeHero
           item={data.continueLearning}
           pathSession={data.pathSession}
-          gateStep={data.gateStep}
         />
       )}
 
