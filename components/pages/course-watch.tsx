@@ -488,7 +488,7 @@ export function CourseWatchPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Chapter not found</h1>
+          <h1 className="text-3xl font-bold">Chapter not found</h1>
           <Button
             onClick={() => onNavigate?.(routes.courseDetail(slug))}
             className="mt-4"

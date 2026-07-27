@@ -225,7 +225,7 @@ export function ArticleEditor({ articleId }: { articleId?: string }) {
     <div className="mx-auto w-full max-w-[920px] px-4 py-6">
       {/* Top bar */}
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">
+        <h1 className="text-2xl font-bold">
           {articleId ? "Edit article" : "New article"}
         </h1>
         <div className="flex items-center gap-2">

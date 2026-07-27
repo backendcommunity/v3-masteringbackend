@@ -109,7 +109,7 @@ export function BootcampDetailPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Bootcamp not found</h1>
+          <h1 className="text-3xl font-bold">Bootcamp not found</h1>
           <Button onClick={() => onNavigate?.("/bootcamps")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Bootcamps

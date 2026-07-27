@@ -132,7 +132,7 @@ export function RoadmapVideoWatchPage({
       return (
         <div className="flex-1 p-6">
           <div className="text-center">
-            <h1 className="text-2xl font-bold">Milestone not found</h1>
+            <h1 className="text-3xl font-bold">Milestone not found</h1>
             <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Learning Paths
@@ -189,7 +189,7 @@ export function RoadmapVideoWatchPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Roadmap not found</h1>
+          <h1 className="text-3xl font-bold">Roadmap not found</h1>
           <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths

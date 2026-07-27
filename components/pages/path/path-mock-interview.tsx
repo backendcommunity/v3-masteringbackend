@@ -191,7 +191,7 @@ export function PathMockInterview({
             <span className="grid h-16 w-16 place-items-center rounded-full bg-[#347474]/15 text-[#5fb0b0]">
               <Trophy className="h-8 w-8" />
             </span>
-            <h1 className="text-lg font-bold">Interview complete</h1>
+            <h1 className="text-2xl font-bold">Interview complete</h1>
             <p className="text-sm text-muted-foreground">
               You finished the {isVideo ? "video" : "audio"} interview for this
               milestone.

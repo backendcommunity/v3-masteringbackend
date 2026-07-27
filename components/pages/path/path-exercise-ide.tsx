@@ -840,7 +840,7 @@ export function PathExerciseIde({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <div className="flex items-start gap-2">
-          <h1 className="flex-1 text-lg font-bold leading-snug">
+          <h1 className="flex-1 text-xl font-bold leading-snug">
             {exercise?.title ?? step.title}
           </h1>
           {passed && (

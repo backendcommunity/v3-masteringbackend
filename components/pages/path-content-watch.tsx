@@ -119,7 +119,7 @@ export function PathContentWatchPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Learning path not found</h1>
+          <h1 className="text-3xl font-bold">Learning path not found</h1>
           {loadError && (
             <p className="text-sm text-muted-foreground mt-2">{loadError}</p>
           )}

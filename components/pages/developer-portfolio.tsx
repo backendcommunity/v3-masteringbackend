@@ -86,7 +86,7 @@ export function DeveloperPortfolioPage({
     return (
       <div className="flex-1 flex items-center justify-center py-20">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Portfolio not found</h1>
+          <h1 className="text-3xl font-bold">Portfolio not found</h1>
           <p className="text-muted-foreground text-sm">
             This developer portfolio could not be loaded.
           </p>

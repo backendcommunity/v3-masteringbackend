@@ -285,7 +285,7 @@ export function PathCertificate({
               <Sparkles className="mr-1 h-3 w-3" />
               {completedLabel}
             </Badge>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+            <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
               Congratulations, {data?.recipientName?.split(" ")[0]}!
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
@@ -504,7 +504,7 @@ export function PathCertificate({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
           <Target className="h-7 w-7 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-3xl font-bold text-foreground">
           Your certificate is within reach
         </h1>
         <p className="text-sm text-muted-foreground">

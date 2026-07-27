@@ -34,7 +34,7 @@ export function InterviewDetailPage({ interviewId, onNavigate }: InterviewDetail
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Interview Not Found</h1>
+          <h1 className="text-3xl font-bold">Interview Not Found</h1>
           <p className="text-muted-foreground mt-2">The interview you're looking for doesn't exist.</p>
           <Button onClick={() => onNavigate(routes.interviews)} className="mt-4">
             Back to Interviews

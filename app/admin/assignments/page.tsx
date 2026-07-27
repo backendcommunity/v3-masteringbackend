@@ -35,7 +35,7 @@ export default function AdminAssignmentsPageRoute() {
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
           <ShieldOff className="h-12 w-12 text-muted-foreground" />
-          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <h1 className="text-3xl font-bold">Access Denied</h1>
           <p className="text-muted-foreground max-w-sm">
             You need Admin or Instructor privileges to view this page.
           </p>
