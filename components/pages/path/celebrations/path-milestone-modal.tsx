@@ -112,7 +112,7 @@ export function PathMilestoneModal({
           )}
           {event.kind === "percent" && (
             <p className="flex items-baseline gap-0.5 leading-none">
-              <span className="text-2xl font-extrabold tracking-tight text-white">
+              <span className="text-2xl font-bold tracking-tight text-white">
                 {event.bracket}
               </span>
               <span className="text-base font-bold text-[#F2C94C]">%</span>

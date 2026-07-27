@@ -25,7 +25,7 @@ function ContinueBar({ onClick }: { onClick: () => void }) {
     <div className="flex flex-shrink-0 items-center justify-center border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
       <Button
         onClick={onClick}
-        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
       >
         Continue <ArrowRight className="h-4 w-4" />
       </Button>
@@ -156,7 +156,7 @@ export function PathMockInterview({
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
             <Button
               onClick={advance}
-              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
+              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
             >
               Continue path <ArrowRight className="h-4 w-4" />
             </Button>
@@ -198,7 +198,7 @@ export function PathMockInterview({
             </p>
             <Button
               onClick={advance}
-              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
+              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] hover:brightness-110"
             >
               Continue <ArrowRight className="h-4 w-4" />
             </Button>

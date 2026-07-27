@@ -105,7 +105,7 @@ export function UpNextPanel({ pathSession, steps }: UpNextPanelProps) {
                   </div>
                 </div>
                 {s.maxPoints > 0 && (
-                  <span className="flex-shrink-0 text-[11px] font-extrabold text-primary">
+                  <span className="flex-shrink-0 text-[11px] font-bold text-primary">
                     +{s.maxPoints} MB
                   </span>
                 )}

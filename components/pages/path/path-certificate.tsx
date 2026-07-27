@@ -651,7 +651,7 @@ function AlumniLoungeCard({
         </span>
 
         <div className="space-y-1.5">
-          <h2 className="text-2xl font-extrabold tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
             Alumni Lounge
           </h2>
           {unlocked ? (

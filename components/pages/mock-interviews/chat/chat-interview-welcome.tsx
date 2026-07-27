@@ -123,7 +123,7 @@ export function ChatInterviewWelcome({
       <div className="mx-auto w-full max-w-[620px] px-7 pb-12 pt-12 animate-in fade-in slide-in-from-bottom-3 duration-500">
         {/* eyebrow */}
         <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] border border-primary/35 bg-primary/15 font-extrabold text-primary">
+          <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] border border-primary/35 bg-primary/15 font-bold text-primary">
             K
           </span>
           {modeLabel} · {template.category || "Backend"}

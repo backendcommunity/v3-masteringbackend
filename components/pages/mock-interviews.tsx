@@ -786,7 +786,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <div className="flex items-start gap-4 sm:items-center">
               {/* Score chip — the demo's real payoff, shown up front */}
               <div className="hidden h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl border-2 border-primary/30 bg-primary/10 sm:flex">
-                <span className="text-lg font-extrabold leading-none text-primary">
+                <span className="text-lg font-bold leading-none text-primary">
                   82
                 </span>
                 <span className="text-[9px] font-medium text-primary/70">

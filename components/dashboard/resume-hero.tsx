@@ -161,7 +161,7 @@ export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
             Pick up where you left off
           </p>
-          <h2 className="mt-1 truncate text-xl font-extrabold tracking-tight">
+          <h2 className="mt-1 truncate text-xl font-bold tracking-tight">
             {item.title}
           </h2>
           {item.subtitle && (
