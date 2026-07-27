@@ -151,7 +151,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
     : publicStatItems;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-8">
+    <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-6 md:p-8">
       {/* Brand blueprint dot-grid */}
       <div className="hero-grid absolute inset-0" aria-hidden="true" />
       {/* Decorative orbs */}
@@ -214,7 +214,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
               backend engineer · open to roles
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
                 {user.name}
               </h1>
               <Tooltip>

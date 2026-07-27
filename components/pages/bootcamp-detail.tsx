@@ -223,7 +223,7 @@ export function BootcampDetailPage({
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">bootcamp</div>
             <div className="flex flex-wrap items-center gap-3 mt-1.5">
-              <h1 className="text-3xl font-bold">{bootcamp?.title}</h1>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight">{bootcamp?.title}</h1>
               {bootcamp?.cohort?.name && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
                   {bootcamp.cohort.name}

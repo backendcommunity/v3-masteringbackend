@@ -228,7 +228,7 @@ export function ProjectDetailPage({
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">project</div>
-            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">
               {project?.title}
             </h1>
 

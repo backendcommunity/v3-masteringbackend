@@ -171,7 +171,7 @@ function LeagueBoard({
   return (
     <div className="space-y-6">
       {/* Standing hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-7 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-6 md:p-7 text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-20 -left-16 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col gap-5">
@@ -179,7 +179,7 @@ function LeagueBoard({
             <LeagueTierEmblem tier={league.tier} size={52} />
             <div className="min-w-0">
               <div className="eyebrow-mono text-white/[.55]">MB League</div>
-              <h1 className="text-xl sm:text-2xl font-bold leading-tight">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">
                 {league.tierName} League
               </h1>
             </div>

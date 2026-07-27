@@ -685,7 +685,7 @@ export function LearningPathDetailPage({
             <div className="eyebrow-mono text-white/[.55]">
               learning path
             </div>
-            <h1 className="text-3xl font-bold mt-1.5">{roadmap.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">{roadmap.title}</h1>
 
             <div className="mt-4">
               {isFullAccess ? (
