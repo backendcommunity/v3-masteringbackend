@@ -145,7 +145,7 @@ export function ProjectCard({
         <button
           type="button"
           onClick={onOpenDetail}
-          className="text-left font-bold text-foreground text-[15px] leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
+          className="text-left font-bold text-foreground text-base leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
         >
           {project.title}
         </button>

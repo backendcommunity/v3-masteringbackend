@@ -64,7 +64,7 @@ export function BootcampCard({ bootcamp, onNavigate }: BootcampCardProps) {
       </div>
 
       {/* Title */}
-      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
+      <h3 className="font-bold text-foreground text-base mt-1 leading-snug line-clamp-2">
         {bootcamp.title}
       </h3>
 
