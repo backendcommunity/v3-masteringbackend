@@ -66,7 +66,7 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
 
   const overviewContent = step ? (
     <>
-      <h3 className="mb-3 text-[15px] font-bold leading-snug">{step.title}</h3>
+      <h3 className="mb-3 text-base font-bold leading-snug">{step.title}</h3>
       {loading ? (
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Loading lesson details…

@@ -89,7 +89,7 @@ export function PathOutlineDrawer({
                 )}
                 <span className="flex-1">
                   <span
-                    className={`block text-sm font-bold leading-snug ${
+                    className={`block text-[15px] font-bold leading-snug ${
                       unlocked ? "text-primary" : "text-foreground"
                     }`}
                   >

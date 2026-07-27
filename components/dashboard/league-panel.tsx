@@ -36,7 +36,7 @@ export function LeaguePanel({ league }: LeaguePanelProps) {
 
   const header = (
     <div className="mb-3 flex items-baseline justify-between">
-      <h3 className="text-[15px] font-bold">Leaderboard</h3>
+      <h3 className="text-base font-bold">Leaderboard</h3>
       <button
         onClick={() => router.push(routes.leaderboard)}
         className="text-xs font-bold text-primary hover:underline"

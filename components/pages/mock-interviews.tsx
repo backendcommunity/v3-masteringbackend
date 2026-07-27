@@ -1135,7 +1135,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                    <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 mt-1">
                       {interview.template.name ||
                         `${interview.template.position} at ${interview.template.company}`}
                     </h3>
@@ -1241,7 +1241,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       </div>
 
                       {/* Title */}
-                      <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                      <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 mt-1">
                         {interview.template.name ||
                           `${interview.template.position} at ${interview.template.company}`}
                       </h3>

@@ -404,7 +404,7 @@ export function BootcampDetailPage({
                             <Code2 className="h-4.5 w-4.5" />
                           </div>
                           <div>
-                            <h4 className="text-[15px] font-bold leading-snug">
+                            <h4 className="text-base font-bold leading-snug">
                               {topic.title}
                             </h4>
                             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -466,7 +466,7 @@ export function BootcampDetailPage({
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <h4 className="text-[15px] font-bold leading-snug">
+                                <h4 className="text-base font-bold leading-snug">
                                   {module?.title}
                                 </h4>
                                 {module?.summary && (

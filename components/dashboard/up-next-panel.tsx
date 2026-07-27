@@ -47,7 +47,7 @@ export function UpNextPanel({ pathSession, steps }: UpNextPanelProps) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-[15px] font-bold">Up next in your path</h3>
+        <h3 className="text-base font-bold">Up next in your path</h3>
         {slug && (
           <button
             onClick={() => router.push(routes.pathWorkspace(slug))}

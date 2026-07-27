@@ -207,7 +207,7 @@ export function PathProjectTasks({
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <FolderGit2 className="h-3.5 w-3.5 text-primary" /> Project
               </span>
-              <h2 className="mt-1.5 text-sm font-bold leading-snug">
+              <h2 className="mt-1.5 text-[15px] font-bold leading-snug">
                 {project.title}
               </h2>
               <div className="mt-3 flex items-center gap-2">
