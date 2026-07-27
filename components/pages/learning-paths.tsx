@@ -246,7 +246,7 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
-            <h1 className="text-2xl font-bold mt-1.5">Learning Paths</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">Learning Paths</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Mentor-designed paths that take you from fundamentals to
               job-ready, one mastered milestone at a time.

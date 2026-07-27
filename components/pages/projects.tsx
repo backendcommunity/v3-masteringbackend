@@ -250,7 +250,7 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">build</div>
-            <h1 className="text-2xl font-bold mt-1.5">Projects</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">Projects</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Build real-world backend projects. Ship working code against a
               live sandbox and grow a portfolio that proves you can do the job.
