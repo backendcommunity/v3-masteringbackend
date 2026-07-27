@@ -175,7 +175,7 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
             Back to Exercises
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{exercise.title}</h1>
+            <h1 className="text-3xl font-bold">{exercise.title}</h1>
             <p className="text-gray-600">{exercise.description}</p>
           </div>
         </div>

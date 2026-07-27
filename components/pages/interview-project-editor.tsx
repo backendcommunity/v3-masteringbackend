@@ -626,7 +626,7 @@ Build a full-stack task management application with the following features:
                 </span>
               </div>
             </div>
-            <h1 className="text-xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight">
               {project?.title || "Task Management System"}
             </h1>
           </div>

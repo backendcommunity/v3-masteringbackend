@@ -182,7 +182,7 @@ export function CourseProjectsPage({
             Back to Course
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
               <FolderOpen className="h-6 w-6 text-orange-600" />
               Course Projects
             </h1>

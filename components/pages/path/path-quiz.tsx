@@ -313,7 +313,7 @@ export function PathQuiz({
             <span className="mt-5 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               Knowledge Check
             </span>
-            <h1 className="mt-2 text-2xl font-bold leading-tight">
+            <h1 className="mt-2 text-3xl font-bold leading-tight">
               {quiz.title}
             </h1>
             {quiz.description && (

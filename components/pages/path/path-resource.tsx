@@ -167,7 +167,7 @@ export function PathResource({
 
               {/* Body */}
               <div className="p-5 sm:p-7">
-                <h1 className="text-[22px] font-bold leading-tight tracking-tight">
+                <h1 className="text-3xl font-bold leading-tight tracking-tight">
                   {title}
                 </h1>
 

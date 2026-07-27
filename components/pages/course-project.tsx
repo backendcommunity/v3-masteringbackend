@@ -209,7 +209,7 @@ Create a personal portfolio website that showcases your skills and projects. You
             Back to Projects
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{project.title}</h1>
+            <h1 className="text-3xl font-bold">{project.title}</h1>
             <p className="text-gray-600">{project.description}</p>
           </div>
         </div>

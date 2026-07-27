@@ -103,7 +103,7 @@ export function CourseQuizzesPage({
             Back to Course
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
               <Brain className="h-6 w-6 text-primary" />
               Course Quizzes
             </h1>
