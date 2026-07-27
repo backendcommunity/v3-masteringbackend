@@ -644,7 +644,7 @@ function AlumniLoungeCard({
 
         {/* Eyebrow */}
         <span
-          className="text-[11px] font-bold uppercase tracking-[0.28em]"
+          className="eyebrow-mono"
           style={{ color: GOLD }}
         >
           Highest tier

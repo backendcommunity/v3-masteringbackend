@@ -158,7 +158,7 @@ export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
 
         {/* Info */}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+          <p className="eyebrow-mono text-primary">
             Pick up where you left off
           </p>
           <h2 className="mt-1 truncate text-xl font-bold tracking-tight">

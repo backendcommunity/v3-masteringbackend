@@ -122,7 +122,7 @@ export function ChatInterviewWelcome({
     <div className="flex-1 min-h-0 overflow-auto bg-background bg-[radial-gradient(900px_400px_at_50%_-10%,rgba(19,174,206,0.10),transparent_60%)]">
       <div className="mx-auto w-full max-w-[620px] px-7 pb-12 pt-12 animate-in fade-in slide-in-from-bottom-3 duration-500">
         {/* eyebrow */}
-        <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="inline-flex items-center gap-2 eyebrow-mono text-muted-foreground">
           <span className="grid h-[22px] w-[22px] place-items-center rounded-[7px] border border-primary/35 bg-primary/15 font-bold text-primary">
             K
           </span>
@@ -178,7 +178,7 @@ export function ChatInterviewWelcome({
         )}
 
         {/* how it works */}
-        <h4 className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <h4 className="mb-3 eyebrow-mono text-muted-foreground">
           How it works
         </h4>
         <div className="mb-7 flex flex-col gap-2.5">

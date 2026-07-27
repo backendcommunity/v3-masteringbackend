@@ -158,7 +158,7 @@ export function PathResource({
                     >
                       <Icon className="h-7 w-7" />
                     </span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
+                    <span className="eyebrow-mono text-white/60">
                       {typeLabel}
                     </span>
                   </div>
