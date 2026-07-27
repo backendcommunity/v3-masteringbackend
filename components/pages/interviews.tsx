@@ -234,7 +234,7 @@ export function InterviewsPage({ onNavigate }: InterviewsPageProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
             MB Interviews
           </h1>
           <p className="text-muted-foreground text-sm md:text-base">

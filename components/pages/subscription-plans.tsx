@@ -96,7 +96,7 @@ export function SubscriptionPlansPage({
   return (
     <div className="container px-4 py-6 md:py-8 lg:py-10 max-w-5xl mx-auto space-y-8">
       <div className="text-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold">
+        <h1 className="text-3xl md:text-4xl font-bold">
           Choose Your Subscription Plan
         </h1>
         <p className="text-muted-foreground mt-1 max-w-2xl mx-auto">

@@ -104,7 +104,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
     <div className="max-w-4xl mx-auto w-full space-y-6">
       {/* Header: title + Hall of Fame link */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">MB League</h1>
+        <h1 className="text-3xl font-bold tracking-tight">MB League</h1>
         <Button
           variant="outline"
           size="sm"
@@ -134,7 +134,7 @@ function JoinGate({ league, countdown }: { league: League; countdown: string }) 
       <span className="mt-5 inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
         {countdown} left to join
       </span>
-      <h1 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">
+      <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">
         Gain {league.joinThreshold} MB to join this week&apos;s{" "}
         {league.tierName} League
       </h1>

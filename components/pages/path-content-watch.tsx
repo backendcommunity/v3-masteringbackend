@@ -143,7 +143,7 @@ export function PathContentWatchPage({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             {currentStep.title}
           </h1>
           <p className="text-muted-foreground">{path.title}</p>
