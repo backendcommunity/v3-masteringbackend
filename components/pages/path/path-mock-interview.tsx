@@ -262,7 +262,7 @@ export function PathMockInterview({
         <p className="text-sm font-semibold">
           Starting your {isVideo ? "video" : "audio"} interview…
         </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Allow {isVideo ? "camera and microphone" : "microphone"} access when
           prompted.
         </p>

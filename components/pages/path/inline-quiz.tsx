@@ -100,7 +100,7 @@ export function InlineQuiz({
               )}
             </div>
             {explanation && (
-              <p className="mt-1.5 flex gap-1.5 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed text-muted-foreground">
                 <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#caa000]" />
                 {explanation}
               </p>

@@ -850,7 +850,7 @@ export function PathExerciseIde({
           )}
         </div>
         {exercise?.description && (
-          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {exercise.description}
           </p>
         )}
@@ -877,7 +877,7 @@ export function PathExerciseIde({
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructionsHtml) }}
               />
             ) : (
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Complete the code, then submit.
               </p>
             )}
@@ -888,7 +888,7 @@ export function PathExerciseIde({
           <div className="mt-4">
             {showHint ? (
               <div
-                className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-[13px] leading-relaxed text-foreground"
+                className="rounded-lg border border-[#F2C94C]/40 bg-[#F2C94C]/10 p-3 text-sm leading-relaxed text-foreground"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(hintHtml) }}
               />
             ) : (

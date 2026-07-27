@@ -293,7 +293,7 @@ export function PathArticle({
 
             {/* Completion */}
             <div className="mt-10 flex flex-col items-center gap-3 border-t border-border pt-7 text-center">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {done
                   ? "You've completed this lesson."
                   : "Finished reading? Mark it complete to continue."}

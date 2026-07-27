@@ -212,7 +212,7 @@ export function PathResource({
 
             {/* Completion */}
             <div className="mt-8 flex flex-col items-center gap-3 text-center">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {done
                   ? "You've completed this resource."
                   : "Explored it? Mark it complete to continue."}

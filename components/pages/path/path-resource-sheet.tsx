@@ -81,7 +81,7 @@ export function PathResourceSheet({ step }: { step?: PathSessionStep }) {
               ))}
             </ul>
           ) : (
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               No links or resources for this lesson yet.
             </p>
           )}

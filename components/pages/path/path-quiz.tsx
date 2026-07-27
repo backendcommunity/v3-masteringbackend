@@ -339,7 +339,7 @@ export function PathQuiz({
 
           {/* Note + CTA */}
           <div className="px-8 pb-9 pt-6">
-            <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-center text-sm leading-relaxed text-muted-foreground">
               Answer all {questions.length} questions, then submit to see your
               score. You need {passingScore}% to pass. Retake anytime.
             </p>
@@ -560,7 +560,7 @@ export function PathQuiz({
                 )}
               </div>
               {!lastResult.passed && (
-                <p className="mt-1.5 text-[13px] text-muted-foreground">
+                <p className="mt-1.5 text-sm text-muted-foreground">
                   Correct answer:{" "}
                   <span className="font-semibold text-foreground">
                     {lastResult.correctAnswer}
@@ -568,7 +568,7 @@ export function PathQuiz({
                 </p>
               )}
               {current?.explanation && (
-                <p className="mt-2 flex gap-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 flex gap-1.5 text-sm leading-relaxed text-muted-foreground">
                   <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#caa000]" />
                   {current.explanation}
                 </p>
