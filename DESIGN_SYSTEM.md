@@ -48,7 +48,7 @@ always means *act*.
 | Meta / counts | `text-[11px]`–`text-[13px] text-muted-foreground` |
 | **Eyebrow** (`.eyebrow-mono`) | `11px / 700 / tracking .18em / uppercase` — section markers on heroes, e.g. `// learn`, `path completion`. Always use the `.eyebrow-mono` class, never a hand-rolled equivalent — several had drifted to inconsistent tracking values before this pass |
 
-**`font-black` (Satoshi 900) is spent in exactly one place per page** — the hero/page title, plus the dashboard's one signature stat number. Everything else that reads "bold" stays real `font-bold` (700). Never use Tailwind's `font-extrabold` (800) — Satoshi only ships 400/500/700/900, so 800 is always browser-synthesized fake-bold, not a real weight.
+**`font-black` (Satoshi 900) is spent in exactly one place per page** — the hero/page title, plus the dashboard's one signature stat number. Everything else that reads "bold" stays real `font-bold` (700). Never use Tailwind's `font-extrabold` (800) — Satoshi only ships 400/500/700/900, so 800 is always browser-synthesized fake-bold, not a real weight (`components/onboarding/*` is excluded — confirmed dead code, no importers, out of scope for this pass).
 
 The `//` code-comment prefix on eyebrows is the engineering wink — keep it.
 

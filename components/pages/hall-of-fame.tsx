@@ -95,7 +95,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
       </button>
 
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-7 text-center text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] dark:bg-[#080F1A] p-7 text-center text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-[#F2C94C]/10 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col items-center gap-2">

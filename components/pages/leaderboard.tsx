@@ -104,7 +104,7 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
     <div className="max-w-4xl mx-auto w-full space-y-6">
       {/* Header: title + Hall of Fame link */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">MB League</h1>
+        <h1 className="text-xl font-bold tracking-tight">MB League</h1>
         <Button
           variant="outline"
           size="sm"
@@ -171,7 +171,7 @@ function LeagueBoard({
   return (
     <div className="space-y-6">
       {/* Standing hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-6 md:p-7 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] dark:bg-[#080F1A] p-6 md:p-7 text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-20 -left-16 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col gap-5">

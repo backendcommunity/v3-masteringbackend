@@ -9,7 +9,7 @@ export const alt = "Developer Portfolio — MasteringBackend";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const NAVY = "#0c1222";
+const NAVY = "#0E1F33";
 const TEAL = "#13AECE";
 
 export default async function OpengraphImage({

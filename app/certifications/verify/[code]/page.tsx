@@ -69,7 +69,7 @@ export default function VerifyCertificatePage() {
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
       {/* Branded hero card */}
       <div className="w-full max-w-md">
-        <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 text-center mb-4">
+        <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-6 text-center mb-4">
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="absolute -top-20 -left-20 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
           <div className="relative z-10 flex flex-col items-center gap-3">

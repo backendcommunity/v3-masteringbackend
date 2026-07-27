@@ -151,7 +151,7 @@ export function PortfolioHero({ user, stats, isOwner }: PortfolioHeroProps) {
     : publicStatItems;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] p-6 md:p-8">
+    <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] dark:bg-[#080F1A] p-6 md:p-8">
       {/* Brand blueprint dot-grid */}
       <div className="hero-grid absolute inset-0" aria-hidden="true" />
       {/* Decorative orbs */}
