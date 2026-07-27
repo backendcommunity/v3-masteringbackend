@@ -129,7 +129,7 @@ export function ChatInterviewWelcome({
           {modeLabel} · {template.category || "Backend"}
         </div>
 
-        <h1 className="mt-3.5 mb-2 text-[30px] font-extrabold leading-tight tracking-[-0.01em] text-foreground">
+        <h1 className="mt-3.5 mb-2 text-[30px] font-bold leading-tight tracking-[-0.01em] text-foreground">
           {title}
         </h1>
         {subtitle && (

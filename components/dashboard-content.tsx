@@ -26,7 +26,7 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-extrabold tracking-tight sm:text-[28px]">
+      <h1 className="text-3xl font-black tracking-tight">
         Welcome back, {firstName}
       </h1>
 

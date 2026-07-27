@@ -322,7 +322,7 @@ export function PathProjectTasks({
                   )}
                 </span>
               </div>
-              <h1 className="mt-3 text-[28px] font-extrabold leading-tight tracking-tight">
+              <h1 className="mt-3 text-[28px] font-bold leading-tight tracking-tight">
                 {selected.title}
               </h1>
 

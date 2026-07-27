@@ -57,7 +57,7 @@ function plain(raw: string): string {
 export const PROSE = [
   "text-[15px] leading-[1.75] text-foreground/90",
   // headings
-  "[&_h1]:mb-4 [&_h1]:mt-10 [&_h1]:text-[28px] [&_h1]:font-extrabold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-foreground",
+  "[&_h1]:mb-4 [&_h1]:mt-10 [&_h1]:text-[28px] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-foreground",
   "[&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:leading-snug [&_h2]:tracking-tight [&_h2]:text-foreground",
   "[&_h3]:mb-2 [&_h3]:mt-7 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-foreground",
   "[&_h4]:mb-2 [&_h4]:mt-6 [&_h4]:text-[15px] [&_h4]:font-semibold [&_h4]:text-foreground",
@@ -236,7 +236,7 @@ export function PathArticle({
                   />
                 </button>
               </div>
-              <h1 className="mt-4 text-[30px] font-extrabold leading-tight tracking-tight">
+              <h1 className="mt-4 text-[30px] font-bold leading-tight tracking-tight">
                 {title}
               </h1>
               {description && (
