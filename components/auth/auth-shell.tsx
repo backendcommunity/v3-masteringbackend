@@ -67,8 +67,10 @@ export function AuthShell({
             className="mt-5 font-bold leading-[1.3]"
             style={{ color: "#FFFFFF", fontSize: 26, letterSpacing: "-0.01em" }}
           >
-            I went from stuck mid-level to a remote senior role in 7 months. The
-            labs feel like real production work — not toy tutorials.
+            Immediately after I finished my program at MasteringBackend, I
+            landed a gig to build a full-stack application for an NGO, and
+            everything I learned about building a production-ready
+            application I apply here.
           </blockquote>
 
           <div className="mt-7 flex items-center gap-4">
@@ -83,14 +85,14 @@ export function AuthShell({
                 fontSize: 17,
               }}
             >
-              AO
+              MO
             </div>
             <div>
               <div style={{ color: "#FFFFFF", fontWeight: 600, fontSize: 16 }}>
-                Adaeze Okafor
+                Maxmillian Ogbuabor
               </div>
               <div style={{ color: LIGHT_BLUE, fontSize: 13.5 }}>
-                Senior Backend Engineer · remote
+                Full-Stack Developer · Remote
               </div>
             </div>
           </div>
