@@ -6,7 +6,7 @@
  * because the popup's final page (our own return-URL redirect) auto-closes
  * itself (see the effect in project-playground.tsx).
  */
-export function openGithubPopup(url: string, onClose: () => void): void {
+export function openGithubPopup(url: string, onClose: () => void): Window | null {
   const width = 600;
   const height = 700;
   const left = (window.screen.width - width) / 2;
@@ -24,4 +24,6 @@ export function openGithubPopup(url: string, onClose: () => void): void {
       onClose();
     }
   }, 500);
+
+  return popup;
 }

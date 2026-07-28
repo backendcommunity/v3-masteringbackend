@@ -11,10 +11,25 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { Github, Loader2, Plus, Search } from "lucide-react";
+import { openGithubPopup } from "@/lib/github-popup";
+import { ChevronDown, ExternalLink, Github, Loader2, LogOut, Plus, RefreshCw, Search } from "lucide-react";
 
 type GithubStatus = {
   installed: boolean;
@@ -55,13 +70,24 @@ function withReturn(url: string): string {
   return url + encodeURIComponent(window.location.origin + path);
 }
 
-// Handles a 409 that carries an authUrl/installUrl by redirecting the user to
-// authorize/install. Returns true if it redirected (caller should stop).
-function handle409Redirect(err: any): boolean {
+// Wraps openGithubPopup with a user-facing warning if the browser blocked the
+// popup outright (window.open returned null) — otherwise the caller gets no
+// feedback and the connect flow silently goes nowhere.
+function openPopupOrWarn(url: string, onClose: () => void): void {
+  const popup = openGithubPopup(url, onClose);
+  if (!popup) {
+    toast.error("Popup blocked. Please allow popups for this site and try again.");
+  }
+}
+
+// Handles a 409 that carries an authUrl/installUrl by opening it in a popup.
+// Returns true if it opened one (caller should stop and let onClose re-check
+// status once the popup closes).
+function handle409Popup(err: any, onClose: () => void): boolean {
   const d = err?.response?.status === 409 ? err.response.data : null;
   const target = d?.authUrl || d?.installUrl;
   if (typeof target === "string" && target.length > 0) {
-    window.location.href = withReturn(target);
+    openPopupOrWarn(withReturn(target), onClose);
     return true;
   }
   return false;
@@ -152,14 +178,14 @@ export function GithubConnect({
       applyConnected(res.repoFullName, res.owner, res.repo);
     } catch (e) {
       // Stale/expired GitHub installation → show a reconnect banner (no silent
-      // bounce); the button takes the user through the install flow on click.
+      // popup); the button takes the user through the install flow on click.
       const reconnect = getReconnectUrl(e);
       if (reconnect) {
         setReconnectUrl(reconnect);
         return;
       }
-      // Other 409s (re-authorize personal account) — redirect immediately.
-      if (handle409Redirect(e)) return;
+      // Other 409s (re-authorize personal account) — open the popup immediately.
+      if (handle409Popup(e, refresh)) return;
       const err = e as { response?: { data?: { message?: string } } };
       setActionError(
         err?.response?.data?.message ??
@@ -200,7 +226,7 @@ export function GithubConnect({
         message: "Your GitHub connection expired. Reconnect to continue.",
         actionLabel: "Reconnect",
         retry: () => {
-          window.location.href = withReturn(reconnectUrl);
+          openPopupOrWarn(withReturn(reconnectUrl), refresh);
         },
       });
     } else if (loadError) {
@@ -219,17 +245,101 @@ export function GithubConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reconnectUrl, loadError, actionError]);
 
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await store.disconnectProjectGithub(slug);
+      setStatus((prev) =>
+        prev
+          ? { ...prev, connected: false, repoFullName: undefined, owner: undefined, repo: undefined }
+          : prev,
+      );
+      autoTriggeredRef.current = false; // allow auto-provision to offer again on next connect
+      setConfirmDisconnect(false);
+      toast.success("Disconnected from GitHub");
+    } catch {
+      toast.error("Couldn't disconnect. Please try again.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const notInstalledAtAll = !!status && !status.installed && !reconnectUrl;
+
   return (
     <>
-      <button
-        className="btn ghost"
-        onClick={() => setSheetOpen((o) => !o)}
-        title="GitHub"
-        aria-label="GitHub"
-        disabled={loading}
-      >
-        {saving ? <Loader2 className="i animate-spin" /> : <Github className="i" />}
-      </button>
+      {/* Persistent banner — only when the App isn't installed at all. Shows on
+          every visit while disconnected (no dismiss), so it's always visible as
+          the reason Run is blocked (see project-playground.tsx). */}
+      {notInstalledAtAll && (
+        <div className="gh-connect-banner" role="status">
+          <span className="gh-connect-banner-msg">
+            <Github className="h-4 w-4" />
+            Connect GitHub to save your work
+          </span>
+          <Button
+            size="sm"
+            disabled={!status?.installUrl}
+            onClick={() => {
+              if (status?.installUrl) {
+                openPopupOrWarn(withReturn(status.installUrl), refresh);
+              }
+            }}
+          >
+            Connect
+          </Button>
+        </div>
+      )}
+
+      {status?.installed && status.connected ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="btn ghost gh-connected-trigger" title="GitHub" aria-label="GitHub connection">
+              <Github className="i" />
+              {status.repoFullName && (
+                <span className="gh-repo-name">{status.repoFullName}</span>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {status.repoFullName && (
+              <DropdownMenuItem asChild>
+                <a
+                  href={`https://github.com/${status.repoFullName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View on GitHub
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => setSheetOpen(true)}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Switch repository
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setConfirmDisconnect(true)}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Disconnect
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <button
+          className="btn ghost"
+          onClick={() => setSheetOpen((o) => !o)}
+          title="GitHub"
+          aria-label="GitHub"
+          disabled={loading}
+        >
+          {saving ? <Loader2 className="i animate-spin" /> : <Github className="i" />}
+        </button>
+      )}
+
       {status && (
         <AdvancedDrawer
           slug={slug}
@@ -239,8 +349,62 @@ export function GithubConnect({
           installUrl={status.installUrl}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
+          onPopupClose={refresh}
         />
       )}
+
+      <Dialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disconnect this project from GitHub?</DialogTitle>
+            <DialogDescription>
+              {status?.repoFullName
+                ? `This project will no longer sync with ${status.repoFullName}. You can reconnect anytime.`
+                : "You can reconnect anytime."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDisconnect(false)} disabled={disconnecting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDisconnect} disabled={disconnecting}>
+              {disconnecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <style jsx global>{`
+        .gh-connect-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 16px;
+          background: hsl(var(--muted));
+          border-bottom: 1px solid hsl(var(--border));
+        }
+        .gh-connect-banner-msg {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 500;
+        }
+        .gh-connected-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .gh-repo-name {
+          font-size: 12px;
+          max-width: 140px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      `}</style>
     </>
   );
 }
@@ -255,6 +419,7 @@ function AdvancedDrawer({
   installUrl,
   open,
   onOpenChange,
+  onPopupClose,
 }: {
   slug: string;
   projectName?: string;
@@ -263,6 +428,7 @@ function AdvancedDrawer({
   installUrl?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPopupClose: () => void;
 }) {
   const store = useAppStore();
   const [ownersLoading, setOwnersLoading] = useState(false);
@@ -291,9 +457,9 @@ function AdvancedDrawer({
         setOwners(o);
         setOwner((prev) => prev || o[0]?.login || "");
       } catch (e) {
-        // A 409 means the GitHub connection is no longer usable — redirect to
-        // reconnect (re-install/re-authorize) instead of a dead error toast.
-        if (handle409Redirect(e)) return;
+        // A 409 means the GitHub connection is no longer usable — reconnect via
+        // popup (re-install/re-authorize) instead of a dead error toast.
+        if (handle409Popup(e, onPopupClose)) return;
         if (active) toast.error("Couldn't load your GitHub owners.");
       } finally {
         if (active) setOwnersLoading(false);
@@ -311,7 +477,7 @@ function AdvancedDrawer({
     try {
       setRepos(await store.listGithubRepos(ownerLogin, query));
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       toast.error("Couldn't list repositories.");
     } finally {
       setReposLoading(false);
@@ -331,7 +497,7 @@ function AdvancedDrawer({
       onConnected(res.repoFullName, res.owner, res.repo);
       onOpenChange(false);
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(
         err?.response?.data?.message ?? "Couldn't create the repository.",
@@ -351,7 +517,7 @@ function AdvancedDrawer({
       onConnected(res.repoFullName, res.owner, res.repo);
       onOpenChange(false);
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(
         err?.response?.data?.message ?? "Couldn't connect that repository.",
@@ -389,7 +555,7 @@ function AdvancedDrawer({
               className="btn-primary w-full"
               disabled={!installUrl}
               onClick={() => {
-                if (installUrl) window.location.href = withReturn(installUrl);
+                if (installUrl) openPopupOrWarn(withReturn(installUrl), onPopupClose);
               }}
             >
               <Github className="mr-2 h-4 w-4" /> Connect GitHub

@@ -515,6 +515,7 @@ interface AppState {
     repository: string,
     owner: string,
   ) => Promise<{ fullName: string; htmlUrl: string }>;
+  disconnectProjectGithub: (slug: string) => Promise<any>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -1767,6 +1768,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       owner,
     });
     return data?.data?.repo;
+  },
+  disconnectProjectGithub: async (slug: string) => {
+    const { data } = await api.delete(`/projects/${slug}/github`);
+    return data?.data;
   },
 
   getPathItem: async (endpoint: string) => {
