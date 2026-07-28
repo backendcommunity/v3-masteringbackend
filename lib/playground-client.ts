@@ -108,9 +108,11 @@ async function request(
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(
+    const err = new Error(
       json?.error || json?.message || `worker ${path} failed (${res.status})`,
-    );
+    ) as Error & { code?: string };
+    if (json?.code) err.code = json.code;
+    throw err;
   }
   return json;
 }
