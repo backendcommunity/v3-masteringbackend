@@ -43,6 +43,7 @@ export interface User {
   bio?: string;
   linkedin?: string;
   github?: string;
+  githubProfileUrl?: string;
   website?: string;
   address?: string;
   country?: string;
@@ -177,6 +178,7 @@ export interface PortfolioResponse {
     joinedAt: string;
     socialLinks: {
       github?: string;
+      githubProfileUrl?: string;
       linkedin?: string;
       website?: string;
     };
