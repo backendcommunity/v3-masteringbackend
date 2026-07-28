@@ -21,6 +21,7 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
+  Github,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
@@ -75,6 +76,7 @@ import { Terminal } from "../atoms/Terminal";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
+import { openGithubPopup } from "@/lib/github-popup";
 import { Label } from "../ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { analytics } from "@/lib/analytics";
@@ -388,6 +390,9 @@ export function ProjectPlaygroundPage({
     retry: () => void;
     actionLabel?: string;
   } | null>(null);
+  // Hard-gate modal for Run when GitHub isn't connected (fresh check at click
+  // time — see `handleRunProject`). No bypass.
+  const [showGithubRequiredModal, setShowGithubRequiredModal] = useState(false);
 
   // The sync engine instance (rebuilt when the connection identity changes).
   const syncRef = useRef<PlaygroundSync | null>(null);
@@ -641,12 +646,33 @@ export function ProjectPlaygroundPage({
           track(PLAYGROUND_EVENTS.githubConflict);
           setConflict({ open: true, remoteSha });
         },
+        onReconnectRequired: () => {
+          setGhError({
+            message: "Your GitHub connection expired. Reconnect to continue.",
+            actionLabel: "Reconnect",
+            retry: async () => {
+              // Re-fetch project-scoped GitHub status — it computes the same
+              // reconnect_required state get-project-github.ts already exposes,
+              // which carries the OAuth-authorize installUrl to pop open.
+              try {
+                const s = await store.getProjectGithub(slug);
+                if (s?.installUrl) {
+                  openGithubPopup(s.installUrl, () => {
+                    setGhError(null);
+                  });
+                }
+              } catch {
+                toast.error("Couldn't start reconnect. Please try again.");
+              }
+            },
+          });
+        },
         onReloaded: () => {
           void refreshTreeRef.current?.();
         },
       });
     },
-    [pgCtx],
+    [pgCtx, slug, store],
   );
 
   // Build (and tear down) the GitHub autosync engine when the project is linked
@@ -2038,6 +2064,28 @@ export function ProjectPlaygroundPage({
 
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+
+    // Hard gate: Run requires an active, non-expired GitHub connection. Checked
+    // fresh at click time (not the cheaper `ghConnected` derived flag) because
+    // that flag doesn't account for a connection GitHub revoked/suspended since
+    // page load.
+    // Sample projects are a frictionless trial — never gate Run behind GitHub
+    // for them. The guided tour runs Run as one of its scripted steps, often
+    // before a brand-new user has had any chance to connect GitHub yet, so
+    // gating here would silently interrupt the tour with the connect modal.
+    if (!isSampleProject) {
+      try {
+        const ghStatus = await store.getProjectGithub(slug);
+        if (!ghStatus?.connected) {
+          setShowGithubRequiredModal(true);
+          return;
+        }
+      } catch {
+        setShowGithubRequiredModal(true);
+        return;
+      }
+    }
+
     track(PLAYGROUND_EVENTS.runServer);
     runInFlightRef.current = true;
     setIsRunning(true);
@@ -3996,6 +4044,40 @@ app.listen(port, () => console.log("Server listening on port " + port));
           toast.success("Unlocked — enjoy the full project.");
         }}
       />
+
+      <Dialog open={showGithubRequiredModal} onOpenChange={setShowGithubRequiredModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect GitHub to run your project</DialogTitle>
+            <DialogDescription>
+              Running requires a connected GitHub repository so your work is
+              always backed up. Connect GitHub, then click Run again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGithubRequiredModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const s = await store.getProjectGithub(slug);
+                  if (s?.installUrl) {
+                    openGithubPopup(s.installUrl, () => {
+                      setShowGithubRequiredModal(false);
+                    });
+                  }
+                } catch {
+                  toast.error("Couldn't start connecting GitHub. Please try again.");
+                }
+              }}
+            >
+              <Github className="mr-2 h-4 w-4" />
+              Connect GitHub
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style jsx global>{`
         /* ── tokens: copied verbatim from the mock :root (exact hex) ── */
