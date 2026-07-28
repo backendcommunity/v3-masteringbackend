@@ -581,6 +581,18 @@ export function ProjectPlaygroundPage({
     if (searchTerm?.includes("githubapp")) load();
   }, []);
 
+  // Closes this window automatically when it's the GitHub-connect popup
+  // landing back on our own return URL (window.opener is only set when this
+  // page was opened via window.open, e.g. by lib/github-popup.ts).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isGithubReturn =
+      new URLSearchParams(window.location.search).get("ref") === "githubapp";
+    if (isGithubReturn && window.opener) {
+      window.close();
+    }
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (treeRef.current && !treeRef.current.contains(event.target as Node)) {
