@@ -76,7 +76,7 @@ import { Terminal } from "../atoms/Terminal";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
-import { openGithubPopup } from "@/lib/github-popup";
+import { openPopupOrWarn, withReturn } from "@/lib/github-popup";
 import { Label } from "../ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { analytics } from "@/lib/analytics";
@@ -464,6 +464,16 @@ export function ProjectPlaygroundPage({
     project?.slug === "hello-api-sample" ||
     !!project?.isSample ||
     demoForced;
+  // Narrower than isSampleProject: deliberately excludes `demoForced`. The
+  // `?demo` param is a forceable testing switch for the guided-tour demo on
+  // ANY real project — it must never also bypass the Run hard-gate's
+  // GitHub-connection requirement, or any real project could skip the "no
+  // run-anyway bypass" gate just by adding `?demo` to the URL. Only the
+  // actual seeded sample project bypasses the Run gate.
+  const isSeededDemoProject =
+    slug === "hello-api-sample" ||
+    project?.slug === "hello-api-sample" ||
+    !!project?.isSample;
 
   // The real demo actions (create file, run server, …) need handlers defined
   // lower in this component, so they're wired into tourActionsRef below. The
@@ -655,9 +665,16 @@ export function ProjectPlaygroundPage({
               // reconnect_required state get-project-github.ts already exposes,
               // which carries the OAuth-authorize installUrl to pop open.
               try {
+                // Tell academy the installation actually died (this detection
+                // came from the worker's mid-session sync, bypassing academy's
+                // normal proxy) — otherwise the status re-fetch below can
+                // still return a dead-end "install" URL instead of the
+                // correct self-healing "reconnect" URL. Best-effort: a
+                // failure here shouldn't block the reconnect UI.
+                await store.markGithubInstallationInvalid(slug).catch(() => {});
                 const s = await store.getProjectGithub(slug);
                 if (s?.installUrl) {
-                  openGithubPopup(s.installUrl, () => {
+                  openPopupOrWarn(withReturn(s.installUrl), () => {
                     setGhError(null);
                   });
                 }
@@ -2073,7 +2090,9 @@ export function ProjectPlaygroundPage({
     // for them. The guided tour runs Run as one of its scripted steps, often
     // before a brand-new user has had any chance to connect GitHub yet, so
     // gating here would silently interrupt the tour with the connect modal.
-    if (!isSampleProject) {
+    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
+    // `?demo` force-switch must never bypass this hard gate on a real project.
+    if (!isSeededDemoProject) {
       try {
         const ghStatus = await store.getProjectGithub(slug);
         if (!ghStatus?.connected) {
@@ -4063,7 +4082,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                 try {
                   const s = await store.getProjectGithub(slug);
                   if (s?.installUrl) {
-                    openGithubPopup(s.installUrl, () => {
+                    openPopupOrWarn(withReturn(s.installUrl), () => {
                       setShowGithubRequiredModal(false);
                     });
                   }

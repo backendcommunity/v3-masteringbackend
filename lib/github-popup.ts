@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 /**
  * Opens a GitHub connect/reconnect URL in a centered popup instead of
  * navigating the whole page away. `onClose` fires once the user closes the
@@ -26,4 +28,22 @@ export function openGithubPopup(url: string, onClose: () => void): Window | null
   }, 500);
 
   return popup;
+}
+
+// Append the current page as the return target. Academy hands back install URLs
+// already ending at `state=<email>+`; for auth URLs we add the return as a
+// `redirect_uri`-friendly suffix the same way (academy appends to `state`).
+export function withReturn(url: string): string {
+  const path = window.location.pathname || "/";
+  return url + encodeURIComponent(window.location.origin + path);
+}
+
+// Wraps openGithubPopup with a user-facing warning if the browser blocked the
+// popup outright (window.open returned null) — otherwise the caller gets no
+// feedback and the connect flow silently goes nowhere.
+export function openPopupOrWarn(url: string, onClose: () => void): void {
+  const popup = openGithubPopup(url, onClose);
+  if (!popup) {
+    toast.error("Popup blocked. Please allow popups for this site and try again.");
+  }
 }

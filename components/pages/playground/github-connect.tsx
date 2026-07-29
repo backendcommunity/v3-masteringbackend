@@ -28,7 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { openGithubPopup } from "@/lib/github-popup";
+import { withReturn, openPopupOrWarn } from "@/lib/github-popup";
 import { ChevronDown, ExternalLink, Github, Loader2, LogOut, Plus, RefreshCw, Search } from "lucide-react";
 
 type GithubStatus = {
@@ -60,24 +60,6 @@ interface GithubConnectProps {
   onError?: (
     err: { message: string; retry: () => void; actionLabel?: string } | null,
   ) => void;
-}
-
-// Append the current page as the return target. Academy hands back install URLs
-// already ending at `state=<email>+`; for auth URLs we add the return as a
-// `redirect_uri`-friendly suffix the same way (academy appends to `state`).
-function withReturn(url: string): string {
-  const path = window.location.pathname || "/";
-  return url + encodeURIComponent(window.location.origin + path);
-}
-
-// Wraps openGithubPopup with a user-facing warning if the browser blocked the
-// popup outright (window.open returned null) — otherwise the caller gets no
-// feedback and the connect flow silently goes nowhere.
-function openPopupOrWarn(url: string, onClose: () => void): void {
-  const popup = openGithubPopup(url, onClose);
-  if (!popup) {
-    toast.error("Popup blocked. Please allow popups for this site and try again.");
-  }
 }
 
 // Handles a 409 that carries an authUrl/installUrl by opening it in a popup.
@@ -124,6 +106,12 @@ export function GithubConnect({
   const [actionError, setActionError] = useState<string | null>(null);
   const [reconnectUrl, setReconnectUrl] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
+  // Set right after an explicit disconnect and left `true` until the user
+  // takes a new explicit connect action (handleSave). Prevents the
+  // auto-provision effect below from immediately re-firing on the very
+  // status change that disconnect itself produces (installed && !connected
+  // is true right after a disconnect — the same shape as a fresh install).
+  const justDisconnectedRef = useRef(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const refresh = async () => {
@@ -170,6 +158,11 @@ export function GithubConnect({
 
   // installed-not-connected primary action: auto-provision and link a repo.
   const handleSave = async () => {
+    // This is always an explicit connect action (a direct click, or the
+    // auto-provision effect after it has already verified the user isn't
+    // mid-disconnect) — clear the disconnect guard so future disconnects
+    // get their own fresh guard.
+    justDisconnectedRef.current = false;
     setSaving(true);
     setActionError(null);
     setReconnectUrl(null);
@@ -204,7 +197,8 @@ export function GithubConnect({
       status?.installed &&
       !status.connected &&
       !saving &&
-      !autoTriggeredRef.current
+      !autoTriggeredRef.current &&
+      !justDisconnectedRef.current
     ) {
       autoTriggeredRef.current = true;
       void handleSave();
@@ -257,7 +251,10 @@ export function GithubConnect({
           ? { ...prev, connected: false, repoFullName: undefined, owner: undefined, repo: undefined }
           : prev,
       );
-      autoTriggeredRef.current = false; // allow auto-provision to offer again on next connect
+      // Block the auto-provision effect from immediately re-firing on this
+      // very status change (installed && !connected, same shape as a fresh
+      // install) — only an explicit connect action (handleSave) lifts this.
+      justDisconnectedRef.current = true;
       setConfirmDisconnect(false);
       toast.success("Disconnected from GitHub");
     } catch {

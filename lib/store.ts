@@ -516,6 +516,7 @@ interface AppState {
     owner: string,
   ) => Promise<{ fullName: string; htmlUrl: string }>;
   disconnectProjectGithub: (slug: string) => Promise<any>;
+  markGithubInstallationInvalid: (slug: string) => Promise<void>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -1772,6 +1773,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   disconnectProjectGithub: async (slug: string) => {
     const { data } = await api.delete(`/projects/${slug}/github`);
     return data?.data;
+  },
+  // Tells academy the GitHub installation actually died. Needed because the
+  // mid-session reconnect detection runs through the Cloudflare
+  // playground-worker (bypassing academy's normal proxy endpoints), so
+  // academy otherwise has no way to learn the installation is gone — a
+  // subsequent status re-fetch could keep returning a dead-end "install" URL
+  // instead of the correct self-healing "reconnect" URL.
+  markGithubInstallationInvalid: async (slug: string) => {
+    await api.post(`/projects/${slug}/github/mark-invalid`);
   },
 
   getPathItem: async (endpoint: string) => {
