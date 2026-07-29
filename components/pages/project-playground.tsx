@@ -390,6 +390,13 @@ export function ProjectPlaygroundPage({
     retry: () => void;
     actionLabel?: string;
   } | null>(null);
+  // Persistent "App not installed at all" banner — full-width strip between
+  // the top nav and the workspace, red per the hard-block philosophy (Run is
+  // blocked while this shows). Reported up from GithubConnect; see its
+  // `onNotInstalled` prop.
+  const [ghNotInstalled, setGhNotInstalled] = useState<{
+    connect: () => void;
+  } | null>(null);
   // Hard-gate modal for Run when GitHub isn't connected (fresh check at click
   // time — see `handleRunProject`). No bypass.
   const [showGithubRequiredModal, setShowGithubRequiredModal] = useState(false);
@@ -2892,11 +2899,30 @@ app.listen(port, () => console.log("Server listening on port " + port));
               projectName={project?.title}
               onConnected={handleGhConnected}
               onError={setGhError}
+              onNotInstalled={setGhNotInstalled}
             />
           </span>
           {ghConnected && renderSyncChip()}
         </div>
       )}
+
+      {/* ── GitHub not-connected banner ──
+          Full-width, red — the loudest strip on the page, because Run is hard
+          -blocked while this shows (see handleRunProject). No dismiss. */}
+      {ghNotInstalled ? (
+        <div className="gh-connect-banner" role="status">
+          <span className="gh-connect-banner-msg">
+            <Github style={{ width: 16, height: 16 }} />
+            Connect GitHub to save your work
+          </span>
+          <button
+            className="btn gh-connect-banner-btn"
+            onClick={ghNotInstalled.connect}
+          >
+            Connect GitHub
+          </button>
+        </div>
+      ) : null}
 
       {/* ── GitHub error strip ──
           No persistent "connect GitHub" nudge — the nav icon + slide-in own all
@@ -4164,6 +4190,40 @@ app.listen(port, () => console.log("Server listening on port " + port));
         .pg-root .topbar.embedded-bar {
           height: 44px;
           flex: 0 0 44px;
+        }
+        /* GitHub not-connected banner — full-width, solid red, between the top
+           bar and the workspace. No dismiss; Run is hard-blocked while it shows. */
+        .pg-root .gh-connect-banner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex: 0 0 auto;
+          padding: 10px 16px;
+          background: #dc2626;
+          border-bottom: 1px solid #b91c1c;
+        }
+        .pg-root .gh-connect-banner-msg {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+        }
+        .pg-root .gh-connect-banner-btn {
+          width: auto;
+          padding: 6px 14px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          background: #fff;
+          color: #dc2626;
+          border: none;
+        }
+        .pg-root .gh-connect-banner-btn:hover {
+          background: #fef2f2;
         }
         /* GitHub connect nudge / sync strip — sits under the top bar (or stands
            in for it in embedded mode). */

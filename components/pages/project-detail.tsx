@@ -118,7 +118,7 @@ export function ProjectDetailPage({
     store.handleProjectEnrollment(slug);
 
   const handleContinueLearning = (s: string) => {
-    onNavigate(`/projects/${s}/tasks`);
+    onNavigate(routes.projectPlayground(s));
   };
 
   const handleEnrollNow = async () => {

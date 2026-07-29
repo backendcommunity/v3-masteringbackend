@@ -38,7 +38,7 @@ async function routeToValue(a: StartItemArgs): Promise<void> {
   }
   if (a.type === "project") {
     a.onNavigate(
-      a.completed ? routes.projectDetail(a.slug) : `/projects/${a.slug}/tasks`,
+      a.completed ? routes.projectDetail(a.slug) : routes.projectPlayground(a.slug),
     );
     return;
   }

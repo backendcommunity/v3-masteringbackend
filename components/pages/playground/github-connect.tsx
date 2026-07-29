@@ -60,6 +60,13 @@ interface GithubConnectProps {
   onError?: (
     err: { message: string; retry: () => void; actionLabel?: string } | null,
   ) => void;
+  /**
+   * Fires when the persistent "App not installed at all" banner should show
+   * (and with `null` once it shouldn't). The banner itself renders in the
+   * parent as a full-width strip between the top nav and the workspace —
+   * this component only owns the icon/dropdown/sheet, not banner placement.
+   */
+  onNotInstalled?: (banner: { connect: () => void } | null) => void;
 }
 
 // Handles a 409 that carries an authUrl/installUrl by opening it in a popup.
@@ -97,6 +104,7 @@ export function GithubConnect({
   projectName,
   onConnected,
   onError,
+  onNotInstalled,
 }: GithubConnectProps) {
   const store = useAppStore();
   const [loading, setLoading] = useState(true);
@@ -266,33 +274,29 @@ export function GithubConnect({
 
   const notInstalledAtAll = !!status && !status.installed && !reconnectUrl;
 
+  // Persistent banner — only when the App isn't installed at all. Renders in
+  // the parent (full-width strip between top nav and workspace) rather than
+  // here, so this component only reports the state; see onNotInstalled above.
+  useEffect(() => {
+    if (!onNotInstalled) return;
+    if (notInstalledAtAll) {
+      onNotInstalled({
+        connect: () => {
+          if (status?.installUrl) {
+            openPopupOrWarn(withReturn(status.installUrl), refresh);
+          }
+        },
+      });
+    } else {
+      onNotInstalled(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notInstalledAtAll, status?.installUrl]);
+
   return (
     <>
-      {/* Persistent banner — only when the App isn't installed at all. Shows on
-          every visit while disconnected (no dismiss), so it's always visible as
-          the reason Run is blocked (see project-playground.tsx). */}
-      {notInstalledAtAll && (
-        <div className="gh-connect-banner" role="status">
-          <span className="gh-connect-banner-msg">
-            <Github className="h-4 w-4" />
-            Connect GitHub to save your work
-          </span>
-          <Button
-            size="sm"
-            disabled={!status?.installUrl}
-            onClick={() => {
-              if (status?.installUrl) {
-                openPopupOrWarn(withReturn(status.installUrl), refresh);
-              }
-            }}
-          >
-            Connect
-          </Button>
-        </div>
-      )}
-
       {status?.installed && status.connected ? (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button className="btn ghost gh-connected-trigger" title="GitHub" aria-label="GitHub connection">
               <Github className="i" />
@@ -315,11 +319,31 @@ export function GithubConnect({
                 </a>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setSheetOpen(true)}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                // Defer to next tick (belt-and-suspenders around the real fix:
+                // `modal={false}` below on the DropdownMenu/Sheet/Dialog roots).
+                // Root cause was react-remove-scroll's shared "block
+                // interactivity" lock: Radix's modal Dialog/DropdownMenu wrap
+                // their content in it to block the page behind them, ref-
+                // counted so nested locks stack safely — but a modal
+                // DropdownMenu opening a modal Sheet in the same tick could
+                // break that ref-count, leaving `.block-interactivity-*
+                // { pointer-events: none }` stuck on <body> forever. Making
+                // these non-modal skips that lock entirely.
+                e.preventDefault();
+                setTimeout(() => setSheetOpen(true), 0);
+              }}
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               Switch repository
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setConfirmDisconnect(true)}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setTimeout(() => setConfirmDisconnect(true), 0);
+              }}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Disconnect
             </DropdownMenuItem>
@@ -350,7 +374,7 @@ export function GithubConnect({
         />
       )}
 
-      <Dialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
+      <Dialog modal={false} open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Disconnect this project from GitHub?</DialogTitle>
@@ -373,22 +397,6 @@ export function GithubConnect({
       </Dialog>
 
       <style jsx global>{`
-        .gh-connect-banner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 10px 16px;
-          background: hsl(var(--muted));
-          border-bottom: 1px solid hsl(var(--border));
-        }
-        .gh-connect-banner-msg {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          font-weight: 500;
-        }
         .gh-connected-trigger {
           display: inline-flex;
           align-items: center;
@@ -525,7 +533,7 @@ function AdvancedDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet modal={false} open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-[440px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
