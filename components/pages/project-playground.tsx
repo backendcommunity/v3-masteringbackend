@@ -318,6 +318,7 @@ export function ProjectPlaygroundPage({
   const [progressValue, setProgressValue] = useState(0);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [baseURL, setBaseURL] = useState("");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const editorRef = useRef<any>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -2889,7 +2890,12 @@ app.listen(port, () => console.log("Server listening on port " + port));
               opacity: 0.7,
             }}
           />
-          <PathFeedbackDialog />
+          <PathFeedbackDialog
+            open={feedbackOpen}
+            onOpenChange={setFeedbackOpen}
+            source="playground"
+            context={{ projectSlug: slug }}
+          />
           {/* GitHub icon stays in the top nav next to the other icons in every
               state; the sync chip sits alongside it once connected. The tour
               anchors on this always-present button (the sync chip is conditional). */}

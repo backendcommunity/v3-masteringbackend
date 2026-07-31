@@ -115,6 +115,7 @@ export function PathTopBar({
   projectActions,
 }: PathTopBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const interviewSeconds = useInterviewTimer((s) => s.seconds);
   const interviewOnEnd = useInterviewTimer((s) => s.onEnd);
 
@@ -281,7 +282,12 @@ export function PathTopBar({
           {step?.type !== "EXERCISE" && <PathCodeSheet step={step} />}
           <PathResourceSheet step={step} />
           <PathHelpSheet />
-          <PathFeedbackDialog />
+          <PathFeedbackDialog
+            open={feedbackOpen}
+            onOpenChange={setFeedbackOpen}
+            source="path-lesson"
+            context={{ lessonSlug: step?.itemId }}
+          />
         </div>
       </div>
 
@@ -365,7 +371,12 @@ export function PathTopBar({
                 {step?.type !== "EXERCISE" && <PathCodeSheet step={step} />}
                 <PathResourceSheet step={step} />
                 <PathHelpSheet />
-                <PathFeedbackDialog />
+                <PathFeedbackDialog
+                  open={feedbackOpen}
+                  onOpenChange={setFeedbackOpen}
+                  source="path-lesson"
+                  context={{ lessonSlug: step?.itemId }}
+                />
               </div>
             </div>
           </>
