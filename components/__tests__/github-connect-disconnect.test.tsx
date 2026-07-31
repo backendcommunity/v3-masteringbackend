@@ -52,11 +52,22 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuContent: ({ children }: any) => (
     <div data-testid="dropdown-content">{children}</div>
   ),
-  DropdownMenuItem: ({ children, onClick }: any) => (
+  DropdownMenuItem: ({ children, onClick, onSelect }: any) => (
     // A div (not a button) — avoids nesting an <a> (View on GitHub, asChild)
     // inside a <button>, which the real Radix item allows via Slot but a
     // literal <button> wrapper would make invalid HTML.
-    <div role="menuitem" onClick={onClick} style={{ cursor: "pointer" }}>
+    // Bridges BOTH onClick and onSelect: the real component uses onSelect
+    // (Radix's native click-select event) for "Switch repository"/"Disconnect"
+    // but onClick isn't used there — a real click event has its own
+    // preventDefault, so it's safe to hand the same event to either handler.
+    <div
+      role="menuitem"
+      onClick={(e: any) => {
+        onSelect?.(e);
+        onClick?.(e);
+      }}
+      style={{ cursor: "pointer" }}
+    >
       {children}
     </div>
   ),

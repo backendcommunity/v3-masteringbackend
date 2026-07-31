@@ -269,9 +269,12 @@ describe("F4 — streaming Output tab", () => {
     // Phase status spinner should be gone after final result
     expect(screen.queryByTestId("exercise-phase-status")).toBeNull();
 
-    // Final summary line should be present (existing finish() logic)
-    expect(screen.getByText(/PASSED/i)).toBeInTheDocument();
-    expect(screen.getByText(/100%/i)).toBeInTheDocument();
+    // Final summary line should be present (existing finish() logic). "PASSED"
+    // and "100%" legitimately render twice — once in the compact badge
+    // ("Passed ✓ 100%") and once in the detailed <pre> summary line
+    // ("— PASSED 100% (1/1)") — so assert on all matches, not a single one.
+    expect(screen.getAllByText(/PASSED/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/100%/i).length).toBeGreaterThan(0);
   });
 
   it("ignores exercise:phase and exercise:check events for a different submissionId", async () => {
