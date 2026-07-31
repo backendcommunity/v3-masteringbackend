@@ -66,8 +66,14 @@ export function PathFeedbackDialog({
       toast.success("Thanks for your feedback!");
       setText("");
       onOpenChange(false);
-    } catch {
-      toast.error("Couldn't send feedback — please try again.");
+    } catch (err) {
+      const isRateLimited =
+        (err as { response?: { status?: number } })?.response?.status === 429;
+      toast.error(
+        isRateLimited
+          ? "You've sent a lot of feedback — try again in a bit."
+          : "Couldn't send feedback — please try again."
+      );
     } finally {
       setSending(false);
     }

@@ -36,7 +36,9 @@ function ReportIssueButton({ error }: { error: Error | null }) {
       onOpenChange={setOpen}
       source="error-boundary"
       prefillMessage={prefillMessage}
-      context={{ url: typeof window !== "undefined" ? window.location.href : undefined }}
+      context={{
+        url: typeof window !== "undefined" ? window.location.href.slice(0, 500) : undefined,
+      }}
       trigger={
         <button
           type="button"
