@@ -27,6 +27,7 @@ export default defineConfig({
     include: [
       "lib/__tests__/**/*.test.ts",
       "lib/__tests__/**/*.test.tsx",
+      "components/__tests__/error-boundary.test.tsx",
       "components/__tests__/path-exercise-ide-continue.test.tsx",
       "components/__tests__/path-exercise-ide-max-attempts.test.tsx",
       "components/__tests__/take-hint-ide.test.tsx",
