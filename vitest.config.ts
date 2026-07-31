@@ -41,6 +41,7 @@ export default defineConfig({
       "components/__tests__/github-connect-disconnect.test.tsx",
       "components/__tests__/page-skeleton.test.tsx",
       "components/pages/path/__tests__/step-skeleton.test.tsx",
+      "components/pages/path/__tests__/path-feedback-dialog.test.tsx",
       "components/pages/__tests__/courses-skeleton.test.tsx",
     ],
   },

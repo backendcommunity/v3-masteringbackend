@@ -415,6 +415,11 @@ interface AppState {
   getJourneyRecap: (itemType: import("./data").RecapItemType, itemId: string) => Promise<import("./data").RecapPayload | null>;
   getWelcomeBack: () => Promise<import("./data").WelcomeBackPayload | null>;
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
+  submitFeedback: (input: {
+    message: string;
+    source: "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+    context?: { projectSlug?: string; lessonSlug?: string; url?: string };
+  }) => Promise<void>;
 
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
@@ -1496,6 +1501,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   sendRecapFeedback: async (eventId, useful) => {
     await api.post(`/journey/recap/${eventId}/feedback`, { useful });
+  },
+  submitFeedback: async (input) => {
+    await api.post("/feedback", input);
   },
 
   // Epic 5: Engagement features
