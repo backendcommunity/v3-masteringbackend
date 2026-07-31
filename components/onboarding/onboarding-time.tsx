@@ -79,7 +79,7 @@ export function OnboardingTime({
               description={opt.description}
               selected={value === opt.value}
               onClick={() => onChange(opt.value)}
-              badge={`${opt.multiplier}x XP`}
+              badge={`${opt.multiplier}x MB`}
               badgeColor={opt.color}
             />
           );

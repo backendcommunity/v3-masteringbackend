@@ -9,6 +9,7 @@ import { Project30 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import { Certificate } from "../certificate";
 import { formatDate } from "@/lib/utils";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface Project30CertificatePageProps {
   slug: string;
@@ -34,7 +35,7 @@ export function Project30CertificatePage({
     findProject(slug);
   }, [slug]);
 
-  if (loading || !project30) return <div>loading.asa..</div>;
+  if (loading || !project30) return <PageSkeleton />;
 
   const handleBackToProject = () => {
     const project30Path = routes.project30Detail(slug);

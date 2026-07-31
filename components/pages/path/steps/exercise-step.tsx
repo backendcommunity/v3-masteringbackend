@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Exercise } from "@/lib/data";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { PathExerciseIde } from "../path-exercise-ide";
 
 export function ExerciseStep({
@@ -36,7 +36,7 @@ export function ExerciseStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id]);
 
-  if (loading) return <Loader />;
+  if (loading) return <StepSkeleton />;
   if (!exercise)
     return (
       <div className="p-6 text-muted-foreground">Exercise unavailable.</div>

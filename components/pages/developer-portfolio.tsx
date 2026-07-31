@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { PortfolioData, PortfolioResponse } from "@/lib/portfolio-types";
 import { transformPortfolioResponse } from "@/lib/portfolio-transformer";
@@ -79,14 +79,14 @@ export function DeveloperPortfolioPage({
   }, [userId, store, initialData, currentUser?.id]);
 
   if (loading) {
-    return <Loader isLoader={false} />;
+    return <PageSkeleton />;
   }
 
   if (!portfolio) {
     return (
       <div className="flex-1 flex items-center justify-center py-20">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Portfolio not found</h1>
+          <h1 className="text-3xl font-bold">Portfolio not found</h1>
           <p className="text-muted-foreground text-sm">
             This developer portfolio could not be loaded.
           </p>

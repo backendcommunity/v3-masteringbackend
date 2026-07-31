@@ -50,7 +50,7 @@ import { Project } from "@/lib/data";
 import { toast } from "sonner";
 import ConfettiCelebration from "@/components/confetti-celebration";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface ProjectDetailPageProps {
@@ -152,7 +152,7 @@ export function ProjectDetailPage({
     }
   };
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if ((project as any)?.isWaiting) {
     return (
@@ -228,7 +228,7 @@ export function ProjectDetailPage({
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">project</div>
-            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">
               {project?.title}
             </h1>
 

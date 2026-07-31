@@ -7,7 +7,7 @@ import { FileText, Bookmark, Clock, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { InlinePlayground } from "./inline-playground";
 import { InlineQuiz } from "./inline-quiz";
 
@@ -57,7 +57,7 @@ function plain(raw: string): string {
 export const PROSE = [
   "text-[15px] leading-[1.75] text-foreground/90",
   // headings
-  "[&_h1]:mb-4 [&_h1]:mt-10 [&_h1]:text-[28px] [&_h1]:font-extrabold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-foreground",
+  "[&_h1]:mb-4 [&_h1]:mt-10 [&_h1]:text-[28px] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:tracking-tight [&_h1]:text-foreground",
   "[&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:leading-snug [&_h2]:tracking-tight [&_h2]:text-foreground",
   "[&_h3]:mb-2 [&_h3]:mt-7 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-foreground",
   "[&_h4]:mb-2 [&_h4]:mt-6 [&_h4]:text-[15px] [&_h4]:font-semibold [&_h4]:text-foreground",
@@ -208,7 +208,7 @@ export function PathArticle({
     <div className="flex h-full w-full justify-center overflow-y-auto">
       <div className="w-full max-w-[760px] px-5 py-8 sm:px-8 sm:py-10">
         {loading ? (
-          <Loader />
+          <StepSkeleton />
         ) : (
           <>
             {/* Lesson header */}
@@ -236,7 +236,7 @@ export function PathArticle({
                   />
                 </button>
               </div>
-              <h1 className="mt-4 text-[30px] font-extrabold leading-tight tracking-tight">
+              <h1 className="mt-4 text-[30px] font-bold leading-tight tracking-tight">
                 {title}
               </h1>
               {description && (
@@ -293,14 +293,14 @@ export function PathArticle({
 
             {/* Completion */}
             <div className="mt-10 flex flex-col items-center gap-3 border-t border-border pt-7 text-center">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {done
                   ? "You've completed this lesson."
                   : "Finished reading? Mark it complete to continue."}
               </p>
               <Button
                 onClick={() => onComplete(step.id, { done: true })}
-                className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+                className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 text-sm font-bold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
               >
                 {done ? (
                   <>

@@ -174,7 +174,7 @@ export function PaymentDialog({
       // get user MB balance
       const mb = user?.points ?? 0;
       if (mb < xpCost) {
-        toast.warning("Insufficient MB points to purchase");
+        toast.warning("Insufficient MB to purchase");
         return;
       }
 
@@ -393,7 +393,7 @@ export function PaymentDialog({
                       Redeem with MB
                     </h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Use your earned MB points
+                      Use your earned MB
                     </p>
                   </div>
                   <div className="text-right">

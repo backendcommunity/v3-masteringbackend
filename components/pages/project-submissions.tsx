@@ -37,7 +37,7 @@ import {
   User,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface ProjectSubmissionsPageProps {
   onNavigate?: (path: string) => void;
@@ -297,7 +297,7 @@ export function ProjectSubmissionsPage({
       {/* Submissions List */}
       {loading ? (
         <div className="flex items-center justify-center min-h-[300px]">
-          <Loader isLoader={true} />
+          <PageSkeleton />
         </div>
       ) : (
         <div className="space-y-4">

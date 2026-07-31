@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { AdminAssignmentsPage } from "@/components/pages/admin-assignments";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ShieldOff } from "lucide-react";
 
 export default function AdminAssignmentsPageRoute() {
@@ -25,7 +25,7 @@ export default function AdminAssignmentsPageRoute() {
   if (checking) {
     return (
       <DashboardLayout>
-        <Loader isLoader={false} />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }
@@ -35,7 +35,7 @@ export default function AdminAssignmentsPageRoute() {
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
           <ShieldOff className="h-12 w-12 text-muted-foreground" />
-          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <h1 className="text-3xl font-bold">Access Denied</h1>
           <p className="text-muted-foreground max-w-sm">
             You need Admin or Instructor privileges to view this page.
           </p>

@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
+const path = require("path");
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true",
 });
+
+// Absolute path to the canvg stub so both webpack and Turbopack can reference it.
+const canvgStub = path.resolve(__dirname, "lib/stubs/canvg.js");
 
 const nextConfig = {
   // Output dir is overridable so a production `next build` can target a separate
@@ -17,6 +21,20 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+  },
+  // Turbopack (Next.js 15 default dev bundler)
+  turbopack: {
+    resolveAlias: {
+      canvg: canvgStub,
+    },
+  },
+  // Webpack (production builds + `next dev --no-turbopack`)
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvg: canvgStub,
+    };
+    return config;
   },
 };
 

@@ -17,7 +17,7 @@ import {
   PathCertificate as PathCertificateType,
 } from "@/lib/path-types";
 import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { StepStage } from "@/components/pages/path/step-stage";
 import { PathTopBar } from "@/components/pages/path/path-top-bar";
 import { PathContextPanel } from "@/components/pages/path/path-context-panel";
@@ -367,7 +367,7 @@ export function PathWorkspace({
     setCelebrationQueue([]);
   }, []);
 
-  if (loading && !session) return <Loader />;
+  if (loading && !session) return <StepSkeleton />;
   if (!session) return null;
 
   // Always mounted: renders nothing when the queue is empty. When a step

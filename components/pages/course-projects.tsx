@@ -182,7 +182,7 @@ export function CourseProjectsPage({
             Back to Course
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
               <FolderOpen className="h-6 w-6 text-orange-600" />
               Course Projects
             </h1>
@@ -233,7 +233,7 @@ export function CourseProjectsPage({
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-purple-600" />
               <div>
-                <p className="text-sm text-gray-600">Points Earned</p>
+                <p className="text-sm text-gray-600">MB Earned</p>
                 <p className="text-2xl font-bold">{totalPoints}</p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export function CourseProjectsPage({
                 </div>
                 <div className="flex items-center gap-1 text-gray-600">
                   <Star className="h-4 w-4" />
-                  {project.points} points
+                  {project.points} MB
                 </div>
                 <div className="flex items-center gap-1 text-gray-600">
                   <Calendar className="h-4 w-4" />

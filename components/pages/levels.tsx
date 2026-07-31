@@ -23,9 +23,9 @@ export function LevelsPage({ onNavigate }: LevelsPageProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Level Progression</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Level Progression</h1>
         <p className="text-muted-foreground text-sm">
-          Earn MB points by watching videos, completing quizzes, and finishing projects.
+          Earn MB by watching videos, completing quizzes, and finishing projects.
           Each level unlocks new features and earns you platform badges.
         </p>
       </div>

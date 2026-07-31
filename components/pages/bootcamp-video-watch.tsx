@@ -35,7 +35,7 @@ import { codeSample, handleShare } from "@/lib/utils";
 import { CourseQuizPage } from "./course-quiz";
 import { usePathname } from "next/navigation";
 import { ExercisePage } from "../exercise";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Countdown from "../ui/count-down";
 import { SimpleEditor } from "./SimpleEditor";
 import { WeekCompletionShare } from "../week-completion-share";
@@ -144,13 +144,13 @@ export function BootcampVideoWatchPage({
     }
   }, [weekId, id, currentLesson?.id]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!lesson) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Chapter not found</h1>
+          <h1 className="text-3xl font-bold">Chapter not found</h1>
           <Button
             onClick={() => onNavigate?.(routes.courseDetail(slug))}
             className="mt-4"
@@ -271,7 +271,7 @@ export function BootcampVideoWatchPage({
 
       setShowWeekComplete(true);
     } catch (error: any) {
-      toast.error("An error occurred updating your points. Try again");
+      toast.error("An error occurred updating your MB. Try again");
       setCompleted(false);
     }
   };
@@ -318,7 +318,7 @@ export function BootcampVideoWatchPage({
 
       store.markLessonCompleted(id, cohort, weekId, currentLesson.id, payload);
 
-      toast.success("You just earned some points!");
+      toast.success("You just earned some MB!");
       setCelebration(true);
       if (nextVideo) handleVideoClick(nextVideo!);
     } catch (error) {
@@ -342,7 +342,7 @@ export function BootcampVideoWatchPage({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             {currentLesson ? currentLesson.title : week?.title}
           </h1>
           <p className="text-muted-foreground">

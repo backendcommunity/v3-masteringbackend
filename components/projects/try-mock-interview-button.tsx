@@ -13,7 +13,10 @@ interface TryMockInterviewButtonProps {
   className?: string;
 }
 
-export function TryMockInterviewButton({ source, className }: TryMockInterviewButtonProps) {
+export function TryMockInterviewButton({
+  source,
+  className,
+}: TryMockInterviewButtonProps) {
   const router = useRouter();
 
   const onClick = () => {
@@ -38,7 +41,7 @@ export function TryMockInterviewButton({ source, className }: TryMockInterviewBu
       type="button"
       variant={variant}
       onClick={onClick}
-      aria-label="Try a mock interview walkthrough"
+      aria-label="Try mock interview walkthrough"
       className={cn("gap-2 font-semibold", surfaceClass, className)}
     >
       <Mic aria-hidden="true" />

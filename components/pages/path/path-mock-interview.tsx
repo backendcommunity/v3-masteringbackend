@@ -6,7 +6,7 @@ import { Mic, Video, ArrowRight, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore, ChatInterviewTemplate } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { ChatInterviewRoom } from "@/components/pages/mock-interviews/chat/chat-interview-room";
 import { ChatInterviewWelcome } from "@/components/pages/mock-interviews/chat/chat-interview-welcome";
 import { MockInterviewSessionPage } from "@/components/pages/mock-interview-session";
@@ -25,7 +25,7 @@ function ContinueBar({ onClick }: { onClick: () => void }) {
     <div className="flex flex-shrink-0 items-center justify-center border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
       <Button
         onClick={onClick}
-        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+        className="h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
       >
         Continue <ArrowRight className="h-4 w-4" />
       </Button>
@@ -125,7 +125,7 @@ export function PathMockInterview({
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader />
+        <StepSkeleton />
       </div>
     );
   }
@@ -156,7 +156,7 @@ export function PathMockInterview({
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
             <Button
               onClick={advance}
-              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
+              className="pointer-events-auto h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] shadow-[0_8px_24px_-6px_rgba(19,174,206,0.6)] hover:brightness-110"
             >
               Continue path <ArrowRight className="h-4 w-4" />
             </Button>
@@ -191,14 +191,14 @@ export function PathMockInterview({
             <span className="grid h-16 w-16 place-items-center rounded-full bg-[#347474]/15 text-[#5fb0b0]">
               <Trophy className="h-8 w-8" />
             </span>
-            <h1 className="text-lg font-bold">Interview complete</h1>
+            <h1 className="text-2xl font-bold">Interview complete</h1>
             <p className="text-sm text-muted-foreground">
               You finished the {isVideo ? "video" : "audio"} interview for this
               milestone.
             </p>
             <Button
               onClick={advance}
-              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
+              className="mt-1 h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] hover:brightness-110"
             >
               Continue <ArrowRight className="h-4 w-4" />
             </Button>
@@ -220,7 +220,7 @@ export function PathMockInterview({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <Loader />
+            <StepSkeleton />
           </div>
         )}
       </div>
@@ -262,7 +262,7 @@ export function PathMockInterview({
         <p className="text-sm font-semibold">
           Starting your {isVideo ? "video" : "audio"} interview…
         </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Allow {isVideo ? "camera and microphone" : "microphone"} access when
           prompted.
         </p>

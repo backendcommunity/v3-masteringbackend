@@ -45,6 +45,7 @@ import {
   CheckCircle2,
   Trash2,
 } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
 import { cn } from "@/lib/utils";
@@ -707,7 +708,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
               />
               <div className="max-w-2xl">
                 <div className="eyebrow-mono text-[#4AC5E8]">grow</div>
-                <h1 className="text-2xl font-bold mt-1.5">Mock Interviews</h1>
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">Mock Interviews</h1>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
                   {(
                     {
@@ -785,7 +786,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             <div className="flex items-start gap-4 sm:items-center">
               {/* Score chip — the demo's real payoff, shown up front */}
               <div className="hidden h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl border-2 border-primary/30 bg-primary/10 sm:flex">
-                <span className="text-lg font-extrabold leading-none text-primary">
+                <span className="text-lg font-bold leading-none text-primary">
                   82
                 </span>
                 <span className="text-[9px] font-medium text-primary/70">
@@ -1042,9 +1043,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
             return (
               <>
                 {loading ? (
-                  <div className="flex items-center justify-center py-24">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
+                  <PageSkeleton rows={3} />
                 ) : list.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-24 text-center">
                     <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1104,9 +1103,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "booked" && (
           <>
             {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : bookedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1138,7 +1135,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                    <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 mt-1">
                       {interview.template.name ||
                         `${interview.template.position} at ${interview.template.company}`}
                     </h3>
@@ -1212,9 +1209,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "completed" && (
           <>
             {loading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : completedInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1246,7 +1241,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                       </div>
 
                       {/* Title */}
-                      <h3 className="font-bold text-foreground text-[15px] leading-snug line-clamp-2 mt-1">
+                      <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 mt-1">
                         {interview.template.name ||
                           `${interview.template.position} at ${interview.template.company}`}
                       </h3>
@@ -1295,9 +1290,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         {activeTab === "my-templates" && (
           <>
             {myTemplatesLoading ? (
-              <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <PageSkeleton rows={3} />
             ) : myTemplates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />

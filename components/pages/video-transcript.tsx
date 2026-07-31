@@ -83,14 +83,14 @@ export function VideoTranscript({
 
   if (!vimeoId)
     return (
-      <p className="p-3 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="p-3 text-sm leading-relaxed text-muted-foreground">
         A transcript is available for video lessons.
       </p>
     );
 
   if (!captions.length)
     return (
-      <p className="p-3 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="p-3 text-sm leading-relaxed text-muted-foreground">
         No transcript is available for this video yet.
       </p>
     );
@@ -112,7 +112,7 @@ export function VideoTranscript({
             <span className="shrink-0 w-10 pt-0.5 text-right text-[11px] tabular-nums">
               {new Date(cue.start * 1000).toISOString().substring(14, 19)}
             </span>
-            <span className="text-[13px] leading-relaxed">{cue.text}</span>
+            <span className="text-sm leading-relaxed">{cue.text}</span>
           </div>
         );
       })}

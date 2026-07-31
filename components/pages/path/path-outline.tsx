@@ -199,7 +199,7 @@ export function PathOutline({
                             <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
                               {String(courseNum).padStart(2, "0")}
                             </span>
-                            <span className="text-sm font-bold leading-snug">
+                            <span className="text-[15px] font-bold leading-snug">
                               {g.title}
                             </span>
                           </div>
@@ -265,7 +265,7 @@ export function PathOutline({
                 </span>
                 <div className="mt-1.5 flex items-center gap-2">
                   <StatusIcon step={s} active={active} />
-                  <span className="text-sm font-bold leading-snug">
+                  <span className="text-[15px] font-bold leading-snug">
                     {s.title}
                   </span>
                 </div>

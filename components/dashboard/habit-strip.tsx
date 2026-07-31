@@ -38,7 +38,7 @@ export function HabitStrip({
           <Flame className="h-7 w-7 text-white fill-white" />
         </div>
         <div className="min-w-0">
-          <div className="text-2xl font-extrabold leading-none">
+          <div className="text-2xl font-black leading-none">
             {currentStreak}{" "}
             <span className="text-sm font-bold text-muted-foreground">
               day streak
@@ -86,7 +86,7 @@ export function HabitStrip({
           </div>
         </div>
         <div className="min-w-0">
-          <div className="text-xl font-extrabold leading-none">
+          <div className="text-xl font-bold leading-none">
             {todayMB}
             <span className="text-sm font-bold text-muted-foreground">
               /{DAILY_GOAL_MB}
@@ -100,7 +100,7 @@ export function HabitStrip({
 
       {/* Level / XP */}
       <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-        <div className="flex h-[50px] w-[50px] flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E1F33] to-[#1c3d5e] text-lg font-extrabold text-white">
+        <div className="flex h-[50px] w-[50px] flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E1F33] to-[#1c3d5e] text-lg font-bold text-white">
           {level}
         </div>
         <div className="min-w-0 flex-1">
@@ -114,7 +114,7 @@ export function HabitStrip({
             />
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {xpToNext.toLocaleString()} XP to Level {level + 1}
+            {xpToNext.toLocaleString()} MB to Level {level + 1}
           </p>
         </div>
       </div>

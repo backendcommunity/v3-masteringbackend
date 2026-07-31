@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SimpleEditor } from "@/components/pages/SimpleEditor";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { PathSessionStep } from "@/lib/path-types";
 import { useAppStore } from "@/lib/store";
 
@@ -67,7 +67,7 @@ export function PathCodeSheet({ step }: { step?: PathSessionStep }) {
           {loaded ? (
             <SimpleEditor playground={playground} />
           ) : (
-            <Loader />
+            <PageSkeleton rows={2} />
           )}
         </div>
       </SheetContent>

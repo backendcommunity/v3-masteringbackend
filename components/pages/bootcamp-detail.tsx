@@ -30,7 +30,7 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { Bootcamp } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
 import Countdown from "../ui/count-down";
 import DisqusCommentBlock from "../ui/comment";
@@ -103,13 +103,13 @@ export function BootcampDetailPage({
     };
   }, [active, bootcamp?.cohort?.id, bootcampId, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!bootcamp) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Bootcamp not found</h1>
+          <h1 className="text-3xl font-bold">Bootcamp not found</h1>
           <Button onClick={() => onNavigate?.("/bootcamps")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Bootcamps
@@ -192,7 +192,7 @@ export function BootcampDetailPage({
         const updated = await store.getBootcamp(bootcampId);
         if (updated?.enrolled) {
           setBootcamp(updated);
-          toast.success("You have successfully enrolled with MB points");
+          toast.success("You have successfully enrolled with MB");
         } else {
           toast.error("Enrollment failed. Please try again.");
         }
@@ -223,7 +223,7 @@ export function BootcampDetailPage({
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">bootcamp</div>
             <div className="flex flex-wrap items-center gap-3 mt-1.5">
-              <h1 className="text-3xl font-bold">{bootcamp?.title}</h1>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight">{bootcamp?.title}</h1>
               {bootcamp?.cohort?.name && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
                   {bootcamp.cohort.name}
@@ -404,7 +404,7 @@ export function BootcampDetailPage({
                             <Code2 className="h-4.5 w-4.5" />
                           </div>
                           <div>
-                            <h4 className="text-[15px] font-bold leading-snug">
+                            <h4 className="text-base font-bold leading-snug">
                               {topic.title}
                             </h4>
                             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -466,7 +466,7 @@ export function BootcampDetailPage({
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <h4 className="text-[15px] font-bold leading-snug">
+                                <h4 className="text-base font-bold leading-snug">
                                   {module?.title}
                                 </h4>
                                 {module?.summary && (

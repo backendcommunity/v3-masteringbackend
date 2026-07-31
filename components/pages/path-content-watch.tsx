@@ -18,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface PathContentWatchPageProps {
   pathId: string;
@@ -110,7 +110,7 @@ export function PathContentWatchPage({
   if (loading) {
     return (
       <div className="flex-1 p-6">
-        <Loader isLoader={false} />
+        <PageSkeleton />
       </div>
     );
   }
@@ -119,7 +119,7 @@ export function PathContentWatchPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Learning path not found</h1>
+          <h1 className="text-3xl font-bold">Learning path not found</h1>
           {loadError && (
             <p className="text-sm text-muted-foreground mt-2">{loadError}</p>
           )}
@@ -143,7 +143,7 @@ export function PathContentWatchPage({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             {currentStep.title}
           </h1>
           <p className="text-muted-foreground">{path.title}</p>

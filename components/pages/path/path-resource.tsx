@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { PathSessionStep } from "@/lib/path-types";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { PROSE } from "./path-article";
 
 interface ResourceItem {
@@ -115,7 +115,7 @@ export function PathResource({
     <div className="flex h-full w-full items-start justify-center overflow-y-auto">
       <div className="my-auto w-full max-w-[560px] px-4 py-8 sm:px-6">
         {loading ? (
-          <Loader />
+          <StepSkeleton />
         ) : (
           <>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_40px_-20px_rgba(0,0,0,0.5)]">
@@ -158,7 +158,7 @@ export function PathResource({
                     >
                       <Icon className="h-7 w-7" />
                     </span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
+                    <span className="eyebrow-mono text-white/60">
                       {typeLabel}
                     </span>
                   </div>
@@ -167,7 +167,7 @@ export function PathResource({
 
               {/* Body */}
               <div className="p-5 sm:p-7">
-                <h1 className="text-[22px] font-bold leading-tight tracking-tight">
+                <h1 className="text-3xl font-bold leading-tight tracking-tight">
                   {title}
                 </h1>
 
@@ -201,7 +201,7 @@ export function PathResource({
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] transition hover:brightness-110 sm:w-auto sm:px-7"
+                    className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-bold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] transition hover:brightness-110 sm:w-auto sm:px-7"
                   >
                     <ExternalLink className="h-4 w-4" />
                     Open resource
@@ -212,7 +212,7 @@ export function PathResource({
 
             {/* Completion */}
             <div className="mt-8 flex flex-col items-center gap-3 text-center">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {done
                   ? "You've completed this resource."
                   : "Explored it? Mark it complete to continue."}
@@ -222,7 +222,7 @@ export function PathResource({
                 variant={done ? "default" : "outline"}
                 className={
                   done
-                    ? "h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-extrabold text-[#06222b] hover:brightness-110"
+                    ? "h-11 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-7 font-bold text-[#06222b] hover:brightness-110"
                     : "h-11 gap-1.5 rounded-xl border-border bg-transparent px-7"
                 }
               >

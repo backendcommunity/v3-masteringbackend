@@ -143,7 +143,7 @@ export function capitalize(str) {
             Back to Playgrounds
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{playground.title}</h1>
+            <h1 className="text-3xl font-bold">{playground.title}</h1>
             <p className="text-gray-600">{playground.description}</p>
           </div>
         </div>

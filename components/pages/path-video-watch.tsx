@@ -45,7 +45,7 @@ import ConfettiCelebration from "../confetti-celebration";
 import { VimeoPlayer } from "../ui/vimeo-player";
 import { CourseQuizPage } from "./course-quiz";
 import { ExercisePage } from "../exercise";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 
@@ -132,7 +132,7 @@ export function RoadmapVideoWatchPage({
       return (
         <div className="flex-1 p-6">
           <div className="text-center">
-            <h1 className="text-2xl font-bold">Milestone not found</h1>
+            <h1 className="text-3xl font-bold">Milestone not found</h1>
             <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Learning Paths
@@ -183,13 +183,13 @@ export function RoadmapVideoWatchPage({
       setShowRequiredQuiz(true);
     } else setShowRequiredQuiz(false);
   }, [currentVideo, quizPassed]);
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!roadmap || !course) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Roadmap not found</h1>
+          <h1 className="text-3xl font-bold">Roadmap not found</h1>
           <Button onClick={() => onNavigate?.("/paths")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
@@ -465,7 +465,7 @@ export function RoadmapVideoWatchPage({
         courseId: course.slug,
       });
 
-      toast.success("You just earned some points!");
+      toast.success("You just earned some MB!");
       // setCelebration(true);
     } catch (error) {
       toast.error("Unable to update video progress. Please try again.");

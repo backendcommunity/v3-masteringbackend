@@ -22,7 +22,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { getStoredUser } from "@/lib/user-store";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { routes } from "@/lib/routes";
 
 interface BootcampLeaderboardEntry {
@@ -98,7 +98,7 @@ export function BootcampLeaderboard({
     loadLeaderboard();
   }, [bootcampId, cohortId]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   const getInitials = (name: string | null) => {
     if (!name) return "?";
@@ -212,7 +212,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-lg mt-2">
-                    {topUsers?.[1]?.score} pts
+                    {topUsers?.[1]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -249,7 +249,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-xl mt-2">
-                    {topUsers?.[0]?.score} pts
+                    {topUsers?.[0]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -286,7 +286,7 @@ export function BootcampLeaderboard({
                     </Badge>
                   </div>
                   <div className="font-semibold text-foreground text-lg mt-2">
-                    {topUsers?.[2]?.score} pts
+                    {topUsers?.[2]?.score} MB
                   </div>
                 </CardContent>
               )}
@@ -312,7 +312,7 @@ export function BootcampLeaderboard({
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-semibold">{currentUser.score}</div>
-                  <p className="text-xs text-muted-foreground">points total</p>
+                  <p className="text-xs text-muted-foreground">MB total</p>
                 </div>
               </div>
             </CardContent>

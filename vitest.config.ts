@@ -28,6 +28,7 @@ export default defineConfig({
       "lib/__tests__/**/*.test.ts",
       "lib/__tests__/**/*.test.tsx",
       "components/__tests__/path-exercise-ide-continue.test.tsx",
+      "components/__tests__/path-exercise-ide-max-attempts.test.tsx",
       "components/__tests__/take-hint-ide.test.tsx",
       "components/__tests__/streaming-output.test.tsx",
       "components/__tests__/return-recap-modal.test.tsx",
@@ -37,6 +38,9 @@ export default defineConfig({
       "components/__tests__/try-mock-interview-button.test.tsx",
       "components/__tests__/interview-completion-dialog-cta.test.tsx",
       "components/__tests__/simple-editor-run.test.tsx",
+      "components/__tests__/page-skeleton.test.tsx",
+      "components/pages/path/__tests__/step-skeleton.test.tsx",
+      "components/pages/__tests__/courses-skeleton.test.tsx",
     ],
   },
   resolve: {

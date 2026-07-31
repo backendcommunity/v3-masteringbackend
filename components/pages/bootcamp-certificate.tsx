@@ -8,7 +8,7 @@ import { Bootcamp } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import { Certificate } from "../certificate";
 import { formatDate } from "@/lib/utils";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface BootcampCertificatePageProps {
   id: string;
@@ -36,7 +36,7 @@ export function BootcampCertificatePage({
   const handleBack = () => {
     onNavigate(`/bootcamps/${id}`);
   };
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   if (!bootcamp)
     return (
       <div className="flex-1 space-y-6">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -69,7 +69,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
     };
   }, [store]);
 
-  if (!rows) return <Loader isLoader={false} />;
+  if (!rows) return <PageSkeleton />;
 
   // The board is the top 100; an off-board current user (rank > 100) is appended
   // by the API — pull them out so they render as a pinned "your standing" row
@@ -95,7 +95,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
       </button>
 
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-7 text-center text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] dark:bg-[#080F1A] p-7 text-center text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-[#F2C94C]/10 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col items-center gap-2">
@@ -103,7 +103,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
             <Trophy className="h-6 w-6" />
           </div>
           <div className="eyebrow-mono text-white/[.55] mt-1">all-time</div>
-          <h1 className="text-2xl md:text-3xl font-bold">Hall of Fame</h1>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Hall of Fame</h1>
           <p className="text-sm text-white/60 max-w-md">
             The all-time legends of MasteringBackend, ranked by total MB earned
             across every course, project, and challenge.
@@ -115,7 +115,7 @@ export function HallOfFamePage({ onNavigate }: HallOfFamePageProps) {
         <EmptyStateCard
           icon={Trophy}
           title="No legends yet"
-          description="The Hall of Fame fills as engineers rack up MB points. Be the first."
+          description="The Hall of Fame fills as engineers rack up MB. Be the first."
           primaryCTA={{
             label: "Start earning",
             onClick: () => onNavigate(routes.courses),

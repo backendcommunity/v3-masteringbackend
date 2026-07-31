@@ -5,7 +5,7 @@ import { BootcampLeaderboard } from "@/components/pages/bootcamp-leaderboard";
 import { useParams, useRouter } from "next/navigation";
 import { useAppStore } from "@/lib/store";
 import { useEffect, useState } from "react";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 type BootcampLeaderboardPageRouteProps = {
   bootcampId: string;
@@ -43,7 +43,7 @@ export default function BootcampLeaderboardPageRoute() {
   if (loading || !cohortId) {
     return (
       <DashboardLayout>
-        <Loader isLoader={false} />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

@@ -102,7 +102,7 @@ export function PortfolioHeatmap({ activity }: PortfolioHeatmapProps) {
             </span>
             <span className="flex items-center gap-1">
               <Zap className="h-3.5 w-3.5 text-[#F2C94C]" />
-              {activity.monthlyXp.toLocaleString()} XP this month
+              {activity.monthlyXp.toLocaleString()} MB this month
             </span>
           </div>
         </div>

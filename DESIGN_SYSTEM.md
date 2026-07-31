@@ -40,11 +40,15 @@ always means *act*.
 
 | Role | Style |
 |---|---|
-| Page/hero title | `text-2xl`–`text-3xl font-bold` |
-| Card title | `text-[15px] font-bold leading-snug` |
+| Catalog/detail hero title | `text-3xl md:text-4xl font-black tracking-tight` — real Satoshi 900, not `font-extrabold` (800 isn't a loaded weight and renders as browser-synthesized fake-bold) |
+| Working-page title | `text-3xl font-bold` — stays 700, bigger than before. Only the dashboard's "Welcome back" title also uses `font-black`, as the app's de facto home-page title |
+| Dashboard signature stat | `font-black` — exactly one number per page gets this treatment; on the dashboard it's the streak count in `habit-strip.tsx` |
+| Card title | `text-base font-bold leading-snug` |
 | Body / description | `text-sm text-muted-foreground leading-relaxed` |
 | Meta / counts | `text-[11px]`–`text-[13px] text-muted-foreground` |
-| **Eyebrow** (`.eyebrow-mono`) | `11px / 700 / tracking .18em / uppercase` — section markers on heroes, e.g. `// learn`, `path completion` |
+| **Eyebrow** (`.eyebrow-mono`) | `11px / 700 / tracking .18em / uppercase` — section markers on heroes, e.g. `// learn`, `path completion`. Always use the `.eyebrow-mono` class, never a hand-rolled equivalent — several had drifted to inconsistent tracking values before this pass |
+
+**`font-black` (Satoshi 900) is spent in exactly one place per page** — the hero/page title, plus the dashboard's one signature stat number. Everything else that reads "bold" stays real `font-bold` (700). Never use Tailwind's `font-extrabold` (800) — Satoshi only ships 400/500/700/900, so 800 is always browser-synthesized fake-bold, not a real weight (`components/onboarding/*` is excluded — confirmed dead code, no importers, out of scope for this pass).
 
 The `//` code-comment prefix on eyebrows is the engineering wink — keep it.
 
@@ -58,6 +62,10 @@ The `//` code-comment prefix on eyebrows is the engineering wink — keep it.
 | Cyan-light | `#4AC5E8` | Accents on navy (badges, eyebrows) |
 | Emerald | `emerald-400/500/600` | Done, mastery, certificates |
 | Amber | `amber-100/400/700` | Level badges only |
+
+`#0E1F33` is the only sanctioned hero navy. An undocumented `#0c1222` variant had
+drifted onto 3 pages (Hall of Fame, MB League standing card, public portfolio
+hero) — reconciled to `#0E1F33` as part of the 2026-07 typography pass.
 
 Dark mode keeps the same semantics (`#171B26` canvas / `#1E2330` cards).
 

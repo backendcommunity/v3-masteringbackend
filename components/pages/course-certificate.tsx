@@ -8,7 +8,7 @@ import { routes } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { Course, UserCourse } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
@@ -48,14 +48,17 @@ export function CourseCertificatePage({
       ];
       if (certCode) {
         promises.push(
-          api.get(`/certifications/verify/${certCode}`)
+          api
+            .get(`/certifications/verify/${certCode}`)
             .then((res) => res.data)
-            .catch(() => null)
+            .catch(() => null),
         );
       }
-      const [courseData, userCourseData, certData] = await Promise.allSettled(promises);
+      const [courseData, userCourseData, certData] =
+        await Promise.allSettled(promises);
       if (courseData.status === "fulfilled") setCourse(courseData.value);
-      if (userCourseData.status === "fulfilled") setUserCourse(userCourseData.value);
+      if (userCourseData.status === "fulfilled")
+        setUserCourse(userCourseData.value);
       if (certCode) {
         const cert = certData?.status === "fulfilled" ? certData.value : null;
         if (cert?.data?.valid) {
@@ -69,7 +72,7 @@ export function CourseCertificatePage({
     loadData(slug);
   }, [slug, certCode]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   if (!course) return <div>No course found</div>;
 
   // If a certCode was supplied but verification failed, show invalid state
@@ -77,14 +80,19 @@ export function CourseCertificatePage({
     return (
       <div className="flex-1 space-y-6">
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" onClick={() => onNavigate(routes.courseDetail(slug))}>
+          <Button
+            variant="outline"
+            onClick={() => onNavigate(routes.courseDetail(slug))}
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Course
           </Button>
         </div>
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-4">Invalid Certificate</h2>
-          <p className="text-muted-foreground">This certificate code could not be verified.</p>
+          <p className="text-muted-foreground">
+            This certificate code could not be verified.
+          </p>
         </div>
       </div>
     );
@@ -104,7 +112,11 @@ export function CourseCertificatePage({
           month: "long",
           day: "numeric",
         })
-      : new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      : new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
 
   const handleBackToCourse = () => {
     onNavigate(routes.courseDetail(slug));
@@ -166,6 +178,7 @@ export function CourseCertificatePage({
         instructorName={course?.instructor ?? "Solomon Eseme"}
         completionDate={completionDate}
         course={course!}
+        certCode={certCode}
         onDownload={handleDownload}
         onShare={handleShare}
       />

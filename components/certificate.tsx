@@ -18,7 +18,8 @@ import {
   Twitter,
 } from "lucide-react";
 import { Course } from "@/lib/data";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { CompletionShare } from "@/components/week-completion-share";
@@ -31,6 +32,7 @@ interface CertificateProps {
   type: string;
   completionDate: string;
   course: Course | any;
+  certCode?: string;
   onDownload?: () => void;
   onShare?: () => void;
 }
@@ -42,6 +44,7 @@ export function Certificate({
   type = "course",
   instructorName,
   completionDate,
+  certCode,
   onDownload,
   onShare,
 }: CertificateProps) {
@@ -49,6 +52,15 @@ export function Certificate({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [copiedResume, setCopiedResume] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+
+  useEffect(() => {
+    setQrUrl(
+      certCode
+        ? `${window.location.origin}/certifications/verify/${certCode}`
+        : window.location.href,
+    );
+  }, []);
 
   const handleDownload = async () => {
     if (!certificateRef.current) return;
@@ -226,7 +238,7 @@ export function Certificate({
                 <img src="/logo.png" alt="logo" />
 
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Masteringbackend
+                  MasteringBackend
                 </h1>
               </div>
             </div>
@@ -282,7 +294,7 @@ export function Certificate({
                   Certificate ID
                 </p>
                 <p className="font-mono text-sm text-gray-600">
-                  MB-{Date.now().toString().slice(-6)}
+                  {certCode ?? "—"}
                 </p>
               </div>
             </div>
@@ -291,26 +303,40 @@ export function Certificate({
           {/* Footer */}
           <div className="pt-8 border-t border-gray-200">
             <div className="flex justify-between items-center">
+              {/* Instructor signature */}
               <div className="text-left">
                 <div className="w-32 h-px bg-gray-400 mb-2"></div>
-                <p className="text-sm text-gray-600">Instructor Signature</p>
                 <p className="text-sm font-medium text-gray-900">
                   {instructorName}
                 </p>
+                <p className="text-xs text-gray-500">Course Instructor</p>
               </div>
 
-              <div className="text-center">
-                <Award className="h-12 w-12 text-yellow-500 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">
-                  Verified by Masteringbackend
-                </p>
+              {/* Seal + QR */}
+              <div className="flex flex-col items-center gap-2">
+                <Award className="h-10 w-10 text-yellow-500" />
+                {qrUrl && (
+                  <>
+                    <QRCodeCanvas
+                      value={qrUrl}
+                      size={80}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                    />
+                    <p className="text-[10px] text-gray-400">Scan to verify</p>
+                  </>
+                )}
               </div>
 
+              {/* Platform authority signature */}
               <div className="text-right">
                 <div className="w-32 h-px bg-gray-400 mb-2 ml-auto"></div>
-                <p className="text-sm text-gray-600">Platform Authority</p>
                 <p className="text-sm font-medium text-gray-900">
-                  Masteringbackend.com
+                  Solomon Eseme
+                </p>
+                <p className="text-xs text-gray-500">
+                  Founder & CEO, MasteringBackend
                 </p>
               </div>
             </div>

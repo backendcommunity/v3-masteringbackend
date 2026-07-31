@@ -18,7 +18,7 @@ import { Quiz } from "@/lib/data";
 import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import StableTimer from "../atoms/Timer";
 
 interface CourseQuizPageProps {
@@ -196,7 +196,7 @@ export function CourseQuizPage({
     return (
       <div className="flex items-center p-6 h-[400px]">
         <div className="max-w-2xl mx-auto space-y-6">
-          <Loader />
+          <PageSkeleton rows={2} />
         </div>
       </div>
     );

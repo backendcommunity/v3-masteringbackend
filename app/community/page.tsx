@@ -23,7 +23,7 @@ export default function CommunityDeprecated() {
             <div className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 border border-orange-200 rounded-lg cursor-pointer transition">
               <h3 className="font-bold text-orange-900 mb-2 text-lg">🏆 Leaderboard</h3>
               <p className="text-sm text-orange-700">
-                Compete with other backend developers. Showcase your XP and achievements.
+                Compete with other backend developers. Showcase your MB and achievements.
               </p>
             </div>
           </Link>

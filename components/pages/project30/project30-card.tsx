@@ -66,12 +66,12 @@ export function Project30Card({ project30, onNavigate }: Project30CardProps) {
       </div>
 
       {/* Title */}
-      <h3 className="font-bold text-foreground text-[15px] mt-1 leading-snug line-clamp-2">
+      <h3 className="font-bold text-foreground text-base mt-1 leading-snug line-clamp-2">
         {project30.title}
       </h3>
 
       {/* Description */}
-      <p className="text-muted-foreground text-[13px] line-clamp-4 mt-2 leading-relaxed flex-1">
+      <p className="text-muted-foreground text-sm line-clamp-4 mt-2 leading-relaxed flex-1">
         {stripHtmlTags(project30.description ?? "")}
       </p>
 

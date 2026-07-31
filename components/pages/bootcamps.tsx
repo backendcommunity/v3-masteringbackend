@@ -14,7 +14,7 @@ import { BootcampCard } from "@/components/pages/bootcamps/bootcamp-card";
 import { useAppStore } from "@/lib/store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Bootcamp } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { routes } from "@/lib/routes";
 import { Search } from "lucide-react";
 
@@ -111,7 +111,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
           />
           <div className="max-w-2xl">
             <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
-            <h1 className="text-2xl font-bold mt-1.5">Bootcamps</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">Bootcamps</h1>
             <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
               Join a cohort, learn live, and ship alongside peers.
             </p>
@@ -173,7 +173,7 @@ export function BootcampsPage({ onNavigate }: BootcampsPageProps) {
 
       {/* ── Grid ── */}
       {loading ? (
-        <Loader isLoader={false} />
+        <PageSkeleton />
       ) : list.length === 0 ? (
         <EmptyState />
       ) : (

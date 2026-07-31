@@ -115,14 +115,14 @@ export function CourseCard({
         <button
           type="button"
           onClick={() => onViewDetails(course.slug)}
-          className="text-left font-bold text-foreground text-[15px] leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
+          className="text-left font-bold text-foreground text-base leading-snug line-clamp-2 hover:text-primary transition-colors focus-visible:outline-none focus-visible:underline"
         >
           {course.title}
         </button>
       </h3>
 
       {/* Description */}
-      <p className="text-muted-foreground text-[13px] line-clamp-4 mt-2 leading-relaxed flex-1">
+      <p className="text-muted-foreground text-sm line-clamp-4 mt-2 leading-relaxed flex-1">
         {stripHtmlTags(course.summary ?? course.description ?? "")}
       </p>
 

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { useAppStore } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
 import { ArticleBlocks } from "@/components/pages/path/path-article";
@@ -163,7 +163,7 @@ export function PathProjectTasks({
     }
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <StepSkeleton />;
   if (!project) {
     return (
       <div className="flex h-full w-full items-center justify-center p-10 text-center text-muted-foreground">
@@ -207,7 +207,7 @@ export function PathProjectTasks({
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <FolderGit2 className="h-3.5 w-3.5 text-primary" /> Project
               </span>
-              <h2 className="mt-1.5 text-sm font-bold leading-snug">
+              <h2 className="mt-1.5 text-[15px] font-bold leading-snug">
                 {project.title}
               </h2>
               <div className="mt-3 flex items-center gap-2">
@@ -322,7 +322,7 @@ export function PathProjectTasks({
                   )}
                 </span>
               </div>
-              <h1 className="mt-3 text-[28px] font-extrabold leading-tight tracking-tight">
+              <h1 className="mt-3 text-[28px] font-bold leading-tight tracking-tight">
                 {selected.title}
               </h1>
 

@@ -66,24 +66,24 @@ export function PathContextPanel({ step }: { step?: PathSessionStep }) {
 
   const overviewContent = step ? (
     <>
-      <h3 className="mb-3 text-[15px] font-bold leading-snug">{step.title}</h3>
+      <h3 className="mb-3 text-base font-bold leading-snug">{step.title}</h3>
       {loading ? (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Loading lesson details…
         </p>
       ) : description ? (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           {description}
         </p>
       ) : (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           This {step.type.replace("_", " ").toLowerCase()} is part of your
           learning path. Work through it, then mark it complete to move on.
         </p>
       )}
     </>
   ) : (
-    <p className="text-[13px] leading-relaxed text-muted-foreground">
+    <p className="text-sm leading-relaxed text-muted-foreground">
       Select a step to see its overview.
     </p>
   );

@@ -36,7 +36,7 @@ export function LeaguePanel({ league }: LeaguePanelProps) {
 
   const header = (
     <div className="mb-3 flex items-baseline justify-between">
-      <h3 className="text-[15px] font-bold">Leaderboard</h3>
+      <h3 className="text-base font-bold">Leaderboard</h3>
       <button
         onClick={() => router.push(routes.leaderboard)}
         className="text-xs font-bold text-primary hover:underline"
@@ -93,11 +93,11 @@ export function LeaguePanel({ league }: LeaguePanelProps) {
 
       {/* Your standing */}
       <div className="mb-3 flex items-center gap-3 rounded-xl bg-primary/5 p-3">
-        <div className="text-2xl font-extrabold text-primary">
+        <div className="text-2xl font-bold text-primary">
           #{league.cohortRank ?? "—"}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-extrabold">You · {league.tierName}</div>
+          <div className="text-sm font-bold">You · {league.tierName}</div>
           <div className="text-xs text-muted-foreground">
             {league.weeklyXp.toLocaleString()} MB this week
           </div>

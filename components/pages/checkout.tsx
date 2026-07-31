@@ -36,7 +36,7 @@ import {
 } from "../ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { formatDate } from "@/lib/utils";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface CheckoutPageProps {
   onNavigate: (path: string) => void;
@@ -288,7 +288,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
       </div>
     );
   }
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   // if (!plan) {
   //   return (
   //     <div className="container max-w-4xl py-12">

@@ -18,7 +18,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { Bootcamp, Lesson, UserCohort, Week } from "@/lib/data";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Countdown from "../ui/count-down";
 import { formatRelativeDate } from "@/lib/utils";
 import { routes } from "@/lib/routes";
@@ -34,7 +34,6 @@ export function BootcampDashboardPage({
 }: BootcampDashboardPageProps) {
   const store = useAppStore();
   const [loading, setLoading] = useState(false);
-  const [eventLoading, setEventLoading] = useState(false);
   const [events, setEvents] = useState<Array<any>>();
   const [bootcamp, setBootcamp] = useState<Bootcamp | any>();
   const [currentWeek, setCurrentWeek] = useState<Week & { index: number }>();
@@ -103,7 +102,6 @@ export function BootcampDashboardPage({
     const load = async () => {
       if (!currentWeek) return;
       try {
-        setEventLoading(true);
         const events = await store.getCurrentWeekEvents(
           bootcampId,
           currentWeek?.id!,
@@ -111,13 +109,8 @@ export function BootcampDashboardPage({
 
         if (!cancelled) {
           setEvents(events);
-          setEventLoading(false);
         }
-      } catch (error) {
-        if (!cancelled) {
-          setEventLoading(false);
-        }
-      }
+      } catch (error) {}
     };
 
     load();
@@ -127,13 +120,13 @@ export function BootcampDashboardPage({
     };
   }, [bootcampId, currentWeek, store]);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if (!bootcamp) {
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Bootcamp not found</h1>
+          <h1 className="text-3xl font-bold">Bootcamp not found</h1>
           <Button onClick={() => onNavigate?.("/bootcamps")} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Bootcamps

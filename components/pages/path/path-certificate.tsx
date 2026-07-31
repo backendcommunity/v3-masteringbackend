@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import confetti from "canvas-confetti";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader } from "@/components/ui/loader";
+import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { useAppStore } from "@/lib/store";
 import type { PathCertificate as PathCertificateData } from "@/lib/path-types";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,6 @@ import {
   MessagesSquare,
   RefreshCw,
   Sparkles,
-  Star,
   Target,
   Trophy,
   Twitter,
@@ -228,7 +228,7 @@ export function PathCertificate({
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <Loader />
+        <StepSkeleton />
       </div>
     );
   }
@@ -285,7 +285,7 @@ export function PathCertificate({
               <Sparkles className="mr-1 h-3 w-3" />
               {completedLabel}
             </Badge>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+            <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
               Congratulations, {data?.recipientName?.split(" ")[0]}!
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
@@ -338,7 +338,7 @@ export function PathCertificate({
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900">
-                Masteringbackend
+                MasteringBackend
               </h2>
               <p className="text-sm uppercase tracking-[0.2em] text-gray-500">
                 Certificate of Completion
@@ -394,51 +394,53 @@ export function PathCertificate({
               </div>
             </div>
 
-            {/* Footer: signature + seal */}
+            {/* Footer: two signatures + seal/QR center */}
             <div className="mt-6 flex items-end justify-between border-t border-gray-200 pt-6">
+              {/* Curriculum signatory */}
               <div className="text-left">
                 <div
                   className="mb-1.5 h-px w-28"
                   style={{ backgroundColor: "#9ca3af" }}
                 />
-                <p className="text-xs text-gray-500">Platform Authority</p>
                 <p className="text-sm font-medium text-gray-900">
-                  Masteringbackend.com
+                  Solomon Eseme
                 </p>
+                <p className="text-xs text-gray-500">Curriculum Director</p>
               </div>
-              <div className="flex flex-col items-center">
+
+              {/* Seal + QR center */}
+              <div className="flex flex-col items-center gap-2">
                 <div
                   className="flex h-12 w-12 items-center justify-center rounded-full border-2"
                   style={{ borderColor: GOLD }}
                 >
                   <Award className="h-6 w-6" style={{ color: GOLD }} />
                 </div>
-                <p className="mt-1 text-[10px] text-gray-500">Official Seal</p>
+                <QRCodeCanvas
+                  value={`${window.location.origin}/certifications/verify/${data.certId}`}
+                  size={80}
+                  level="M"
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+                <p className="text-[10px] text-gray-400">Scan to verify</p>
+              </div>
+
+              {/* CEO signature */}
+              <div className="text-right">
+                <div
+                  className="mb-1.5 ml-auto h-px w-28"
+                  style={{ backgroundColor: "#9ca3af" }}
+                />
+                <p className="text-sm font-medium text-gray-900">
+                  Solomon Eseme
+                </p>
+                <p className="text-xs text-gray-500">
+                  Founder & CEO, MasteringBackend
+                </p>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile
-            icon={Sparkles}
-            label="Points"
-            value={String(data?.stats?.points)}
-            color={BRAND}
-          />
-          <StatTile
-            icon={CheckCircle2}
-            label="Items Completed"
-            value={`${data?.stats?.itemsCompleted}/${data?.stats?.totalItems}`}
-            color="#27AE60"
-          />
-          <StatTile
-            icon={Star}
-            label="Final Score"
-            value={`${data?.finalScore}%`}
-            color={GOLD}
-          />
         </div>
 
         {/* Actions */}
@@ -502,11 +504,11 @@ export function PathCertificate({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
           <Target className="h-7 w-7 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-3xl font-bold text-foreground">
           Your certificate is within reach
         </h1>
         <p className="text-sm text-muted-foreground">
-          Keep earning points across the {pathTitle} path to unlock your
+          Keep earning MB across the {pathTitle} path to unlock your
           official certificate.
         </p>
       </div>
@@ -552,14 +554,14 @@ export function PathCertificate({
                 Progress to certificate
               </p>
               <p className="text-xs text-muted-foreground">
-                {data?.earnedPoints} / {data?.certThreshold} points earned
+                {data?.earnedPoints} / {data?.certThreshold} MB earned
               </p>
             </div>
             <span className="text-2xl font-bold text-primary">{pct}%</span>
           </div>
           <Progress value={pct} className="h-2.5" />
           <p className="text-sm font-medium text-foreground">
-            <span className="text-primary">{data?.pointsToGo} points</span> to
+            <span className="text-primary">{data?.pointsToGo} MB</span> to
             go
           </p>
         </CardContent>
@@ -642,14 +644,14 @@ function AlumniLoungeCard({
 
         {/* Eyebrow */}
         <span
-          className="text-[11px] font-bold uppercase tracking-[0.28em]"
+          className="eyebrow-mono"
           style={{ color: GOLD }}
         >
           Highest tier
         </span>
 
         <div className="space-y-1.5">
-          <h2 className="text-2xl font-extrabold tracking-tight text-white">
+          <h2 className="text-2xl font-bold tracking-tight text-white">
             Alumni Lounge
           </h2>
           {unlocked ? (
@@ -695,7 +697,7 @@ function AlumniLoungeCard({
           <div className="w-full max-w-sm space-y-2.5 pt-1">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-white/70">
-                Acceptance at {certThreshold} pts
+                Acceptance at {certThreshold} MB
               </span>
               <span className="font-bold" style={{ color: GOLD }}>
                 {pct}%
@@ -712,7 +714,7 @@ function AlumniLoungeCard({
             </div>
             <p className="text-xs text-white/60">
               <span className="font-semibold text-white">
-                {pointsToGo} points
+                {pointsToGo} MB
               </span>{" "}
               from your seat in the lounge.
             </p>
@@ -723,27 +725,3 @@ function AlumniLoungeCard({
   );
 }
 
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ComponentType<{
-    className?: string;
-    style?: React.CSSProperties;
-  }>;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
-        <Icon className="h-5 w-5" style={{ color }} />
-        <span className="text-lg font-bold text-foreground">{value}</span>
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </CardContent>
-    </Card>
-  );
-}

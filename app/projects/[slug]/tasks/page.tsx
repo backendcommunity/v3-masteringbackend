@@ -79,11 +79,11 @@ export default function ProjectTasksRoute() {
         <div className="flex items-center gap-1.5">
           {points.totalPoints > 0 && (
             <span
-              title="Points earned building this project"
+              title="MB earned building this project"
               className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary"
             >
               <Zap className="h-3.5 w-3.5" />
-              {points.earnedPoints} / {points.totalPoints} pts
+              {points.earnedPoints} / {points.totalPoints} MB
             </span>
           )}
           {certUnlocked && (

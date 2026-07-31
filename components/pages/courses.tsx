@@ -30,7 +30,7 @@ import {
 } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
-import { Loader } from "../ui/loader";
+import { CoursesSkeleton } from "./courses-skeleton";
 import { FreeStarterSection } from "@/components/free-starter-section";
 import { JourneyGlyph } from "@/components/journey-glyph";
 import { CourseCard } from "@/components/pages/courses/course-card";
@@ -426,7 +426,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
             />
             <div className="max-w-2xl">
               <div className="eyebrow-mono text-[#4AC5E8]">learn</div>
-              <h1 className="text-2xl font-bold mt-1.5">Courses</h1>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">Courses</h1>
               <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
                 Master backend development with our comprehensive course
                 library.
@@ -550,7 +550,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── All Courses ───────────────────────────────────────────────────── */}
         <TabsContent value="all-courses" className="space-y-6">
           {loading ? (
-            <Loader isLoader={false} />
+            <CoursesSkeleton />
           ) : (
             <>
               {freeStarters.length > 0 && (
@@ -605,7 +605,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── My Courses ────────────────────────────────────────────────────── */}
         <TabsContent value="my-courses" className="space-y-6">
           {userLoading ? (
-            <Loader isLoader={false} />
+            <CoursesSkeleton />
           ) : (
             <>
               {userCourses.length === 0 ? (
@@ -656,7 +656,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── Popular ───────────────────────────────────────────────────────── */}
         <TabsContent value="popular" className="space-y-6">
           {popularLoading ? (
-            <Loader isLoader={false} />
+            <CoursesSkeleton />
           ) : (
             <>
               {popularCourses.length === 0 ? (
@@ -696,7 +696,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── New Releases ──────────────────────────────────────────────────── */}
         <TabsContent value="new" className="space-y-6">
           {newLoading ? (
-            <Loader isLoader={false} />
+            <CoursesSkeleton />
           ) : (
             <>
               {newCourses.length === 0 ? (
@@ -736,7 +736,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
         {/* ── Saved ─────────────────────────────────────────────────────────── */}
         <TabsContent value="saved" className="space-y-6">
           {savedLoading ? (
-            <Loader isLoader={false} />
+            <CoursesSkeleton />
           ) : savedCourses.length === 0 ? (
             <EmptyState
               icon={<Bookmark className="h-12 w-12 text-muted-foreground mb-4" />}

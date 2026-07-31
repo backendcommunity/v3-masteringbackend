@@ -224,7 +224,7 @@ export function ExercisePage({
                     </div>
                     {allTestsPassed && (
                       <Badge className="bg-green-100 text-green-800">
-                        +{exercise?.points} pts
+                        +{exercise?.points} MB
                       </Badge>
                     )}
                   </div>

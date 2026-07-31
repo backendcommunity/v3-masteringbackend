@@ -34,6 +34,7 @@ import {
   Share2,
   Link as LinkIcon,
   Wrench,
+  FileText,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -45,7 +46,7 @@ import { isCredibleLearnerCount } from "@/lib/social-proof";
 import { Chapter, Course, Video } from "@/lib/data";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ScheduleWidget } from "@/components/schedule/ScheduleWidget";
 
 interface CourseDetailPageProps {
@@ -214,7 +215,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
   const isCompleted = course?.progress! >= 100;
   const canEarnCertificate = course?.enrolled && isCompleted;
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
 
   if ((course as any)?.isWaiting) {
     return (
@@ -293,7 +294,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
           <div className="hero-grid absolute inset-0" aria-hidden="true" />
           <div className="relative px-5 py-6 sm:px-8 sm:py-7">
             <div className="eyebrow-mono text-white/[.55]">course</div>
-            <h1 className="text-2xl md:text-3xl font-bold mt-1.5">{course?.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">{course?.title}</h1>
 
             <div className="mt-4">
               {course?.enrolled ? (
@@ -521,14 +522,32 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                                     icon: any;
                                     label: string;
                                     mb?: number;
+                                    order?: number;
                                   }[] = [];
-                                  (chapter.videos || []).forEach((v) =>
-                                    items.push({
+                                  const videoItems = (chapter.videos || []).map(
+                                    (v) => ({
                                       icon: Play,
                                       label: v.title,
                                       mb: v.mb,
+                                      order: v.order,
                                     }),
                                   );
+                                  const articleItems = (
+                                    chapter.articles || []
+                                  ).map((a) => ({
+                                    icon: FileText,
+                                    label: a.title,
+                                    order: a.order,
+                                  }));
+                                  const merged = [
+                                    ...videoItems,
+                                    ...articleItems,
+                                  ].sort(
+                                    (x, y) =>
+                                      (x.order ?? Infinity) -
+                                      (y.order ?? Infinity),
+                                  );
+                                  merged.forEach((item) => items.push(item));
                                   (chapter.quizzes || []).forEach((q) =>
                                     items.push({ icon: Brain, label: q.title }),
                                   );

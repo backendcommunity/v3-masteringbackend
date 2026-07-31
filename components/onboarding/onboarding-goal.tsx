@@ -91,7 +91,7 @@ export function OnboardingGoal({
               description={opt.description}
               selected={value === opt.value}
               onClick={() => onChange(opt.value)}
-              badge={`+${opt.points} XP`}
+              badge={`+${opt.points} MB`}
               badgeColor={opt.color}
             />
           );

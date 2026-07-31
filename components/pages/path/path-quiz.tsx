@@ -313,7 +313,7 @@ export function PathQuiz({
             <span className="mt-5 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               Knowledge Check
             </span>
-            <h1 className="mt-2 text-2xl font-bold leading-tight">
+            <h1 className="mt-2 text-3xl font-bold leading-tight">
               {quiz.title}
             </h1>
             {quiz.description && (
@@ -339,14 +339,14 @@ export function PathQuiz({
 
           {/* Note + CTA */}
           <div className="px-8 pb-9 pt-6">
-            <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-center text-sm leading-relaxed text-muted-foreground">
               Answer all {questions.length} questions, then submit to see your
               score. You need {passingScore}% to pass. Retake anytime.
             </p>
             <Button
               onClick={begin}
               disabled={starting}
-              className="mt-5 h-11 w-full rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-extrabold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
+              className="mt-5 h-11 w-full rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] text-sm font-bold text-[#06222b] shadow-[0_6px_20px_-4px_rgba(19,174,206,0.5)] hover:brightness-110"
             >
               {starting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Start Quiz
@@ -390,7 +390,7 @@ export function PathQuiz({
                 <Target className="h-9 w-9" />
               )}
             </div>
-            <div className="text-4xl font-extrabold tabular-nums">{score}%</div>
+            <div className="text-4xl font-bold tabular-nums">{score}%</div>
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
                 passed
@@ -424,7 +424,7 @@ export function PathQuiz({
             {passed && (
               <Button
                 onClick={() => onComplete(step.id, { passed: true, score })}
-                className="h-11 flex-1 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] font-extrabold text-[#06222b] hover:brightness-110"
+                className="h-11 flex-1 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] font-bold text-[#06222b] hover:brightness-110"
               >
                 Continue <ArrowRight className="h-4 w-4" />
               </Button>
@@ -476,9 +476,9 @@ export function PathQuiz({
               </span>
             ) : null}
             {totalPoints > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#F2C94C]/15 px-2.5 py-1 text-xs font-extrabold text-[#caa000]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F2C94C]/15 px-2.5 py-1 text-xs font-bold text-[#caa000]">
                 <Sparkles className="h-3.5 w-3.5" />
-                {totalPoints} XP
+                {totalPoints} MB
               </span>
             )}
           </div>
@@ -560,7 +560,7 @@ export function PathQuiz({
                 )}
               </div>
               {!lastResult.passed && (
-                <p className="mt-1.5 text-[13px] text-muted-foreground">
+                <p className="mt-1.5 text-sm text-muted-foreground">
                   Correct answer:{" "}
                   <span className="font-semibold text-foreground">
                     {lastResult.correctAnswer}
@@ -568,7 +568,7 @@ export function PathQuiz({
                 </p>
               )}
               {current?.explanation && (
-                <p className="mt-2 flex gap-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 flex gap-1.5 text-sm leading-relaxed text-muted-foreground">
                   <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#caa000]" />
                   {current.explanation}
                 </p>
@@ -582,20 +582,20 @@ export function PathQuiz({
           {single ? (
             <>
               <span className="text-xs text-muted-foreground">
-                {current?.points ? `${current.points} pts` : ""}
+                {current?.points ? `${current.points} MB` : ""}
               </span>
               {!revealed ? (
                 <Button
                   onClick={check}
                   disabled={selected == null}
-                  className="h-10 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
+                  className="h-10 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-bold text-[#06222b] hover:brightness-110 disabled:opacity-40"
                 >
                   Check Answer
                 </Button>
               ) : singlePassed ? (
                 <Button
                   onClick={() => onComplete(step.id, { passed: true, score })}
-                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110"
+                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-bold text-[#06222b] hover:brightness-110"
                 >
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -623,7 +623,7 @@ export function PathQuiz({
                 <Button
                   onClick={submitGroup}
                   disabled={!allAnswered}
-                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-extrabold text-[#06222b] hover:brightness-110 disabled:opacity-40"
+                  className="h-10 gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#2BB8D8] px-6 font-bold text-[#06222b] hover:brightness-110 disabled:opacity-40"
                   title={allAnswered ? "" : "Answer every question first"}
                 >
                   Submit Quiz

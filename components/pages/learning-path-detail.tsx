@@ -44,7 +44,6 @@ import {
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
-import { Loader } from "../ui/loader";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { useUser } from "@/hooks/use-user";
 import { PathPreviewDialog } from "../path-preview-dialog";
@@ -606,7 +605,7 @@ export function LearningPathDetailPage({
     return (
       <div className="flex-1 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Learning Path not found</h1>
+          <h1 className="text-3xl font-bold">Learning Path not found</h1>
           <Button onClick={() => onNavigate?.(routes.paths)} className="mt-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Learning Paths
@@ -686,7 +685,7 @@ export function LearningPathDetailPage({
             <div className="eyebrow-mono text-white/[.55]">
               learning path
             </div>
-            <h1 className="text-3xl font-bold mt-1.5">{roadmap.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">{roadmap.title}</h1>
 
             <div className="mt-4">
               {isFullAccess ? (

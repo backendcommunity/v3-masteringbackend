@@ -26,7 +26,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { toast } from "sonner";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface XpRedemptionPageProps {
   onNavigate: (path: string) => void;
@@ -129,7 +129,7 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
 
         <TabsContent value="rewards" className="space-y-4">
           {loadingRewards ? (
-            <Loader isLoader={false} />
+            <PageSkeleton />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {rewards
@@ -218,7 +218,7 @@ export function XpRedemptionPage({ onNavigate }: XpRedemptionPageProps) {
             )}
 
             {loadingAch ? (
-              <Loader isLoader={false} />
+              <PageSkeleton />
             ) : (
               <>
                 {achievements?.map((item: any, index: number) => {

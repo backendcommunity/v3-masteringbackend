@@ -168,7 +168,7 @@ export function MockInterviewTemplateCard({
       <h3
         className={cn(
           "font-bold text-foreground leading-snug line-clamp-2",
-          compact ? "text-sm mt-0" : "text-[15px] mt-1",
+          compact ? "text-sm mt-0" : "text-base mt-1",
         )}
       >
         {label}
@@ -179,7 +179,7 @@ export function MockInterviewTemplateCard({
         <p
           className={cn(
             "text-muted-foreground leading-relaxed flex-1",
-            compact ? "text-[11px] line-clamp-3" : "text-[13px] line-clamp-4 mt-2",
+            compact ? "text-[11px] line-clamp-3" : "text-sm line-clamp-4 mt-2",
           )}
         >
           {template.description || template.summary}

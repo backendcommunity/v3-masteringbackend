@@ -587,6 +587,15 @@ export interface Topic {
   summary?: string;
 }
 
+export interface Article {
+  id: string;
+  title: string;
+  type?: string;
+  order?: number;
+  isPremium?: boolean;
+  slug?: string;
+}
+
 export interface Chapter {
   id: string;
   title: string;
@@ -598,6 +607,7 @@ export interface Chapter {
   slug: string;
   quiz?: Quiz;
   videos: Video[];
+  articles?: Article[];
   quizzes?: Quiz[];
   exercise?: Exercise;
   playground?: Playground;
@@ -697,6 +707,8 @@ export interface Exercise {
   passMark?: number;
   completed: boolean;
   attempts: number;
+  maxAttempts?: number;
+  attemptsResetAt?: string | null;
   instructions?: string;
   hintCost?: number;
   hintTaken?: boolean;
@@ -1036,7 +1048,7 @@ export const LEVEL_PERKS: Record<number, { perks: string[]; icon: string }> = {
       "Access to all free courses",
       "Basic progress tracking",
       "Public developer profile",
-      "MB points system",
+      "MB system",
     ],
   },
   2: {

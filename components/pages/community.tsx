@@ -386,7 +386,7 @@ export function CommunityPage() {
                     <span className="text-sm">{member.name}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {member.points} pts
+                    {member.points} MB
                   </span>
                 </div>
               ))}

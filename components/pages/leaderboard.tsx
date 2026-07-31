@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader } from "@/components/ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
@@ -85,13 +85,13 @@ export function LeaderboardPage({ onNavigate }: LeaderboardPageProps) {
 
   const countdown = useCountdown(league?.weekEndsAt);
 
-  if (loading) return <Loader isLoader={false} />;
+  if (loading) return <PageSkeleton />;
   if (error || !league) {
     return (
       <EmptyStateCard
         icon={Trophy}
         title="Your league is warming up"
-        description="Earn some XP — finish a lesson, ship a project — and you'll join this week's league."
+        description="Earn some MB — finish a lesson, ship a project — and you'll join this week's league."
         primaryCTA={{
           label: "Browse courses",
           onClick: () => onNavigate(routes.courses),
@@ -134,7 +134,7 @@ function JoinGate({ league, countdown }: { league: League; countdown: string }) 
       <span className="mt-5 inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
         {countdown} left to join
       </span>
-      <h1 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">
+      <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">
         Gain {league.joinThreshold} MB to join this week&apos;s{" "}
         {league.tierName} League
       </h1>
@@ -165,13 +165,13 @@ function LeagueBoard({
     league.zone === "PROMOTE"
       ? "You're in the promotion zone — hold it to climb."
       : league.zone === "DEMOTE"
-        ? "You're in the demotion zone — earn XP to climb out."
-        : "Keep earning XP to reach the promotion zone.";
+        ? "You're in the demotion zone — earn MB to climb out."
+        : "Keep earning MB to reach the promotion zone.";
 
   return (
     <div className="space-y-6">
       {/* Standing hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#0c1222] p-6 md:p-7 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-[#0E1F33] dark:bg-[#080F1A] p-6 md:p-7 text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="absolute -top-20 -left-16 w-44 h-44 bg-primary/15 rounded-full blur-3xl" />
         <div className="relative z-10 flex flex-col gap-5">
@@ -179,7 +179,7 @@ function LeagueBoard({
             <LeagueTierEmblem tier={league.tier} size={52} />
             <div className="min-w-0">
               <div className="eyebrow-mono text-white/[.55]">MB League</div>
-              <h1 className="text-xl sm:text-2xl font-bold leading-tight">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">
                 {league.tierName} League
               </h1>
             </div>

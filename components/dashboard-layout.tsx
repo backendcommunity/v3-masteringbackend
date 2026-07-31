@@ -8,6 +8,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useMobile } from "@/hooks/use-mobile";
 import { useUserStore } from "@/lib/user-store";
 import { ForcePasswordChangeModal } from "@/components/force-password-change-modal";
+import { completeOnboarding } from "@/lib/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -46,6 +47,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  // Routes where content is the point of arrival (deep link, share, bookmark) —
+  // don't interrupt with onboarding. hasFinishedOnboarding stays false, so
+  // onboarding still triggers if they land elsewhere afterwards.
+  const ONBOARDING_EXEMPT_PREFIXES = ["/projects", "/mock-interviews", "/courses", "/paths"];
+  const isOnboardingExempt = ONBOARDING_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+  );
+
   // Lock background scroll while the mobile drawer is open.
   useEffect(() => {
     if (isMobile && sidebarOpen) {
@@ -64,6 +73,18 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     const redirect = new URLSearchParams(search).get("redirect");
 
     if (user.hasFinishedOnboarding === false) {
+      const skip = new URLSearchParams(search).get("skip") === "true";
+      if (skip) {
+        // Workshop certificate flow: skip onboarding, land directly on destination
+        completeOnboarding({ skipped: true }).catch(() => {});
+        if (redirect) router.replace(redirect);
+        return;
+      }
+      if (isOnboardingExempt) {
+        // Deep link into content — let them through, don't force onboarding here
+        if (redirect) router.replace(redirect);
+        return;
+      }
       // Preserve redirect through onboarding for new users
       const existingRedirect = redirect || pathname || "/";
       router.replace(`/onboarding?redirect=${encodeURIComponent(existingRedirect)}`);
@@ -76,8 +97,13 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     }
   }, [user, pathname, router]);
 
-  // Prevent flash of dashboard content for new users before redirect fires
-  if (user?.hasFinishedOnboarding === false) return null;
+  // Prevent flash of dashboard content for new users before redirect fires.
+  // Exceptions: skip=true (workshop cert flow) and onboarding-exempt routes
+  // (deep links into content) — let them through immediately.
+  const skipOnboarding =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("skip") === "true";
+  if (user?.hasFinishedOnboarding === false && !skipOnboarding && !isOnboardingExempt) return null;
 
   return (
     <>

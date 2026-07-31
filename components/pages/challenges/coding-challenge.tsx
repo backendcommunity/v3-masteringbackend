@@ -217,8 +217,8 @@ ${challenge.difficulty}
 ## Time Limit
 ${challenge.timeLimit} minutes
 
-## Points
-${challenge.points} points
+## MB
+${challenge.points} MB
 
 ## Requirements
 ${challenge.requirements.map((req) => `- ${req}`).join("\n")}
@@ -383,7 +383,7 @@ ${challenge.testCases
       setTerminalOutput((prev) => [
         ...prev,
         `Tests completed: ${passedTests}/${mockResults.length} passed`,
-        `Score: ${newScore}/${challenge.points} points`,
+        `Score: ${newScore}/${challenge.points} MB`,
         "",
       ]);
 
@@ -472,7 +472,7 @@ ${challenge.testCases
                 className="border-primary text-primary"
               >
                 <Trophy className="w-3 h-3 mr-1" />
-                {challenge.points} pts
+                {challenge.points} MB
               </Badge>
               <Badge
                 variant="outline"
@@ -486,7 +486,7 @@ ${challenge.testCases
                 {formatTime(timeRemaining)}
               </Badge>
             </div>
-            <h1 className="text-xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight">
               {challenge.title}
             </h1>
           </div>
@@ -543,7 +543,7 @@ ${challenge.testCases
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
           <span>Score Progress</span>
           <span>
-            {score}/{challenge.points} points
+            {score}/{challenge.points} MB
           </span>
         </div>
         <Progress value={(score / challenge.points) * 100} className="h-1" />
@@ -894,7 +894,7 @@ ${challenge.testCases
                             {score}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            out of {challenge.points} points
+                            out of {challenge.points} MB
                           </div>
                           <Progress
                             value={(score / challenge.points) * 100}

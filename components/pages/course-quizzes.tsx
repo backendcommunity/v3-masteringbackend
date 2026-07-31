@@ -17,7 +17,7 @@ import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { Course, Quiz } from "@/lib/data";
 import { PaymentDialog } from "../payment-dialog";
-import { Loader } from "../ui/loader";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface CourseQuizzesPageProps {
   slug: string;
@@ -66,7 +66,7 @@ export function CourseQuizzesPage({
     setFilteredQuizzes(uniqueFiltered);
   }, [filter, quizzes]);
 
-  if (!quizzes) return <Loader isLoader={false} />;
+  if (!quizzes) return <PageSkeleton />;
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -103,7 +103,7 @@ export function CourseQuizzesPage({
             Back to Course
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
               <Brain className="h-6 w-6 text-primary" />
               Course Quizzes
             </h1>
