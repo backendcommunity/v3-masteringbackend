@@ -16,6 +16,7 @@ import userEvent from "@testing-library/user-event";
 const {
   mockProject,
   getProject,
+  gradeProjectTask,
   pgRun,
   pgExec,
   pgFs,
@@ -49,6 +50,14 @@ const {
   return {
     mockProject,
     getProject: vi.fn().mockResolvedValue(mockProject),
+    gradeProjectTask: vi.fn().mockResolvedValue({
+      passed: true,
+      checks: [],
+      statusCode: 200,
+      latencyMs: 1,
+      pointsAwarded: 0,
+      projectCompleted: false,
+    }),
     pgRun: vi.fn().mockResolvedValue({ status: "healthy", serverUrl: null }),
     pgExec: vi
       .fn()
@@ -85,7 +94,7 @@ vi.mock("sonner", () => ({
 
 // ── app store (only getProject is used by this component) ────────────────
 vi.mock("@/lib/store", () => ({
-  useAppStore: () => ({ getProject }),
+  useAppStore: () => ({ getProject, gradeProjectTask }),
 }));
 
 // ── user ─────────────────────────────────────────────────────────────────
@@ -319,6 +328,122 @@ describe("ProjectPlaygroundPage — terminal-mode panel gating (Task 5)", () => 
     // No apiSpec on this task, so the REST-API-specific `!baseURL` gate must
     // not apply — the button must be enabled even though no server was run.
     expect(runTestBtn).not.toBeDisabled();
+  });
+});
+
+// Editable stdin fields — the task drawer shows the required inputs
+// pre-filled from terminalSpec.stdin, and Run test grades with whatever the
+// learner currently has typed (not silently re-sending the instructor's
+// original values behind the scenes).
+describe("ProjectPlaygroundPage — editable stdin fields for terminal tasks", () => {
+  const terminalConfig = {
+    mode: "terminal" as const,
+    language: "node" as const,
+    entrypoint: "index.js",
+  };
+  const greetTask = {
+    id: "task-1",
+    title: "Say hello",
+    type: "task",
+    terminalSpec: { stdin: ["Solomon"], expectedOutput: "Hello, {1}!\n" },
+    userTask: null,
+  };
+
+  it("pre-fills one input field per stdin entry from the task's terminalSpec", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+      projectTasks: [{ id: "group-1", title: "Milestone 1", tasks: [greetTask] }],
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(<ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />);
+    await waitFor(() => expect(getProject).toHaveBeenCalledWith("test-project"));
+    await user.click(await screen.findByText(/say hello/i));
+
+    expect(await screen.findByLabelText(/input 1/i)).toHaveValue("Solomon");
+  });
+
+  it("Run test grades with whatever the learner currently has typed, not the instructor's original value", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+      projectTasks: [{ id: "group-1", title: "Milestone 1", tasks: [greetTask] }],
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(<ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />);
+    await waitFor(() => expect(getProject).toHaveBeenCalledWith("test-project"));
+    await user.click(await screen.findByText(/say hello/i));
+
+    const input1 = await screen.findByLabelText(/input 1/i);
+    await user.clear(input1);
+    await user.type(input1, "Kap");
+
+    await user.click(await screen.findByRole("button", { name: /run test/i }));
+
+    await waitFor(() =>
+      expect(gradeProjectTask).toHaveBeenCalledWith("test-project", "task-1", ["Kap"]),
+    );
+  });
+
+  it("opening a different task resets the fields to that task's own terminalSpec.stdin", async () => {
+    const user = userEvent.setup();
+    const secondTask = {
+      id: "task-2",
+      title: "Say goodbye",
+      type: "task",
+      terminalSpec: { stdin: ["Kap", "30"], expectedOutput: "Bye, {1} ({2})\n" },
+      userTask: null,
+    };
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+      projectTasks: [
+        { id: "group-1", title: "Milestone 1", tasks: [greetTask, secondTask] },
+      ],
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(<ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />);
+    await waitFor(() => expect(getProject).toHaveBeenCalledWith("test-project"));
+
+    await user.click(await screen.findByText(/say hello/i));
+    const input1First = await screen.findByLabelText(/input 1/i);
+    await user.clear(input1First);
+    await user.type(input1First, "edited-away");
+
+    await user.click(await screen.findByText(/say goodbye/i));
+
+    // The second task's own two fields, pre-filled from ITS terminalSpec —
+    // not leaking the edit made to the first task's field.
+    expect(await screen.findByLabelText(/input 1/i)).toHaveValue("Kap");
+    expect(await screen.findByLabelText(/input 2/i)).toHaveValue("30");
+  });
+
+  it("apiSpec tasks never render input fields or send a stdin body", async () => {
+    const user = userEvent.setup();
+    const apiTask = {
+      id: "task-api",
+      title: "GET /hello",
+      type: "task",
+      apiSpec: { method: "GET", url: "/hello" },
+      userTask: null,
+    };
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+      projectTasks: [{ id: "group-1", title: "Milestone 1", tasks: [apiTask] }],
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(<ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />);
+    await waitFor(() => expect(getProject).toHaveBeenCalledWith("test-project"));
+    await user.click(await screen.findByText(/get \/hello/i));
+
+    expect(screen.queryByLabelText(/input 1/i)).not.toBeInTheDocument();
   });
 });
 

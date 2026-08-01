@@ -284,6 +284,10 @@ export function ProjectPlaygroundPage({
     status: "idle" | "running" | "pass" | "fail";
     checks: { label: string; ok: boolean }[];
   }>({ status: "idle", checks: [] });
+  // Terminal-mode task drawer: the learner's editable copy of the required
+  // stdin inputs, pre-filled from activeTask.terminalSpec.stdin. Reset
+  // whenever a different task's drawer opens (see openTaskDrawer).
+  const [testStdin, setTestStdin] = useState<string[]>([]);
   const [celebration, setCelebration] = useState(false);
   const [showTask, setShowTask] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(true);
@@ -1931,10 +1935,16 @@ export function ProjectPlaygroundPage({
     setTestRun({ status: "running", checks: [] });
     const testStart = Date.now();
     try {
-      // Real grading: the backend probes the endpoint and returns per-assertion results.
+      // Real grading: the backend probes the endpoint (apiSpec) or execs the
+      // entrypoint with the learner's typed stdin (terminalSpec) and returns
+      // per-assertion results.
       let verdict: Awaited<ReturnType<typeof store.gradeProjectTask>>;
       try {
-        verdict = await store.gradeProjectTask(slug, t.id);
+        verdict = await store.gradeProjectTask(
+          slug,
+          t.id,
+          t.terminalSpec ? testStdin : undefined,
+        );
       } catch (e: any) {
         if (e?.response?.status === 409) {
           toast.error("Start your server first — click Run Server.");
@@ -2045,6 +2055,9 @@ export function ProjectPlaygroundPage({
         ? { status: "pass", checks: synthChecks(task) }
         : { status: "idle", checks: [] },
     );
+    // Pre-fill the editable stdin fields from this task's terminalSpec (if
+    // any) — the learner sees exactly what will run and can edit it.
+    setTestStdin(task?.terminalSpec?.stdin ?? []);
   };
 
   const handleRunProject = async () => {
@@ -3671,6 +3684,42 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     {fmtInstr(activeTask?.description || activeTask?.summary)}
                   </div>
                 </div>
+
+                {activeTask?.terminalSpec && (
+                  <div className="sec">
+                    <h4>Inputs</h4>
+                    <div className="task-desc" style={{ marginBottom: 8 }}>
+                      This program reads {testStdin.length} input
+                      {testStdin.length === 1 ? "" : "s"} from the terminal.
+                      Edit them if you want, then hit Run test.
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {testStdin.map((v, i) => (
+                        <div
+                          key={i}
+                          style={{ display: "flex", alignItems: "center", gap: 8 }}
+                        >
+                          <label
+                            htmlFor={`test-stdin-${i}`}
+                            style={{ fontSize: 12, color: "var(--muted)", width: 20, flexShrink: 0 }}
+                          >
+                            {i + 1}.
+                          </label>
+                          <Input
+                            id={`test-stdin-${i}`}
+                            aria-label={`Input ${i + 1}`}
+                            value={v}
+                            onChange={(e) =>
+                              setTestStdin((prev) =>
+                                prev.map((p, pi) => (pi === i ? e.target.value : p)),
+                              )
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="sec">
                   <h4>Test results</h4>
