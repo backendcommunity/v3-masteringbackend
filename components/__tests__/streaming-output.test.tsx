@@ -269,9 +269,11 @@ describe("F4 — streaming Output tab", () => {
     // Phase status spinner should be gone after final result
     expect(screen.queryByTestId("exercise-phase-status")).toBeNull();
 
-    // Final summary line should be present (existing finish() logic)
-    expect(screen.getByText(/PASSED/i)).toBeInTheDocument();
-    expect(screen.getByText(/100%/i)).toBeInTheDocument();
+    // Final summary line should be present (existing finish() logic).
+    // Scoped to the "— PASSED ..." summary line specifically — a bare
+    // /PASSED/i also matches the separate "Passed ✓" badge rendered
+    // elsewhere once `passed` is true, making the query ambiguous.
+    expect(screen.getByText(/— PASSED 100%/i)).toBeInTheDocument();
   });
 
   it("ignores exercise:phase and exercise:check events for a different submissionId", async () => {

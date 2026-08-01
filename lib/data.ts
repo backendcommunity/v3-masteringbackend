@@ -777,7 +777,12 @@ export interface Project {
   template?: string;
   baseRepository?: string;         // optional git repo the worker clones as the project baseline
   languages?: string[];            // project language codes; languages[0] seeds the starter
-  playgroundConfig?: { terminalJail?: boolean } & Record<string, unknown>; // per-project playground settings; terminalJail defaults true (only false disables the worker jail)
+  playgroundConfig?: {
+    terminalJail?: boolean;
+    mode?: "rest-api" | "frontend" | "terminal";
+    language?: "node" | "python";
+    entrypoint?: string;
+  } & Record<string, unknown>; // per-project playground settings; terminalJail defaults true (only false disables the worker jail)
   summary: string;
   difficulty: "Easy" | "Medium" | "Hard";
   level: string;

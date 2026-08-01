@@ -138,6 +138,21 @@ export function pgStop(ctx: PgCtx): Promise<any> {
 }
 
 /**
+ * Non-interactive exec in the learner's sandbox — used by terminal-mode Run
+ * to kill a previous foreground process before starting a fresh one (a raw
+ * Ctrl+C through the PTY was verified NOT to reliably interrupt a foreground
+ * process in this sandbox; this REST path does, reliably, tested live).
+ * Mirrors mb-executor's existing POST /exec (already used server-side by
+ * academy's probeTerminal for grading) — same endpoint, browser-called.
+ */
+export function pgExec(
+  ctx: PgCtx,
+  args: { cmd: string },
+): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number | null }> {
+  return request(ctx, "/exec", { cmd: args.cmd });
+}
+
+/**
  * Restart the running server process in place (hot-reload after a save). Keeps
  * the exposed preview URL — only the process restarts. No-op if not running.
  */

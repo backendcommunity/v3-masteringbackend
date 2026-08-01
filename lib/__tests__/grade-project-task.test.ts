@@ -22,7 +22,7 @@ describe("gradeProjectTask", () => {
       },
     });
     const res = await useAppStore.getState().gradeProjectTask("proj", "task-1");
-    expect(api.post).toHaveBeenCalledWith("/projects/proj/tasks/task-1/grade");
+    expect(api.post).toHaveBeenCalledWith("/projects/proj/tasks/task-1/grade", {});
     expect(res.passed).toBe(true);
     expect(res.checks[0].passed).toBe(true);
     expect(res.checks[0].detail).toBe("200");
@@ -45,7 +45,7 @@ describe("gradeProjectTask", () => {
       },
     });
     const res = await useAppStore.getState().gradeProjectTask("proj", "task-2");
-    expect(api.post).toHaveBeenCalledWith("/projects/proj/tasks/task-2/grade");
+    expect(api.post).toHaveBeenCalledWith("/projects/proj/tasks/task-2/grade", {});
     expect(res.passed).toBe(false);
     expect(res.checks[0].passed).toBe(false);
     expect(res.error).toBe("status mismatch");
@@ -56,6 +56,26 @@ describe("gradeProjectTask", () => {
     (api.post as any).mockRejectedValue(err);
     await expect(useAppStore.getState().gradeProjectTask("proj", "task-3")).rejects.toMatchObject({
       response: { status: 409 },
+    });
+  });
+
+  it("sends the learner's stdin array for terminal-mode tasks", async () => {
+    (api.post as any).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          passed: true,
+          checks: [],
+          statusCode: 200,
+          latencyMs: 10,
+          pointsAwarded: 10,
+          projectCompleted: false,
+        },
+      },
+    });
+    await useAppStore.getState().gradeProjectTask("proj", "task-4", ["Kap"]);
+    expect(api.post).toHaveBeenCalledWith("/projects/proj/tasks/task-4/grade", {
+      stdin: ["Kap"],
     });
   });
 });
