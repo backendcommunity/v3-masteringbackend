@@ -152,6 +152,8 @@ vi.mock("@/components/atoms/Terminal", () => ({
   }),
 }));
 
+import { toast } from "sonner";
+
 import { ProjectPlaygroundPage } from "../project-playground";
 
 beforeEach(() => {
@@ -317,5 +319,107 @@ describe("ProjectPlaygroundPage — terminal-mode panel gating (Task 5)", () => 
     // No apiSpec on this task, so the REST-API-specific `!baseURL` gate must
     // not apply — the button must be enabled even though no server was run.
     expect(runTestBtn).not.toBeDisabled();
+  });
+});
+
+// Fix 4 — positive coverage for the terminal-mode Run happy path. The
+// existing Task 5 tests only cover panel gating; nothing yet asserts that
+// clicking Run actually pkills the previous process and types the right
+// `node`/`python3 <entrypoint>` command into the terminal. Commands are
+// asserted by shape (starts-with + contains-entrypoint) rather than exact
+// string equality since `escapeSingleQuoted` (Fix 2) wraps the entrypoint in
+// shell-quoting that would make an exact match brittle.
+describe("ProjectPlaygroundPage — terminal-mode Run happy path (Fix 4)", () => {
+  const nodeTerminalConfig = {
+    mode: "terminal" as const,
+    language: "node" as const,
+    entrypoint: "server/index.js",
+  };
+  const pythonTerminalConfig = {
+    mode: "terminal" as const,
+    language: "python" as const,
+    entrypoint: "app/main.py",
+  };
+
+  it("clicking Run on a terminal-mode Node project pkills the old process then runs `node <entrypoint>`", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: nodeTerminalConfig,
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /run server/i }),
+    );
+
+    await waitFor(() => expect(pgExec).toHaveBeenCalled());
+    const pkillCmd = pgExec.mock.calls[0][1]?.cmd as string;
+    expect(pkillCmd).toContain("pkill -f");
+    expect(pkillCmd).toContain(nodeTerminalConfig.entrypoint);
+
+    await waitFor(() => expect(runCommand).toHaveBeenCalled());
+    const runCmd = runCommand.mock.calls[0][0] as string;
+    expect(runCmd.startsWith("node ")).toBe(true);
+    expect(runCmd).toContain(nodeTerminalConfig.entrypoint);
+  });
+
+  it("clicking Run on a terminal-mode Python project runs `python3 <entrypoint>`", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: pythonTerminalConfig,
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /run server/i }),
+    );
+
+    await waitFor(() => expect(runCommand).toHaveBeenCalled());
+    const runCmd = runCommand.mock.calls[0][0] as string;
+    expect(runCmd.startsWith("python3 ")).toBe(true);
+    expect(runCmd).toContain(pythonTerminalConfig.entrypoint);
+  });
+
+  it("clicking Run on a terminal-mode project with no entrypoint configured shows an error toast and never calls runCommand/pgExec", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: { mode: "terminal" as const, language: "node" as const },
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /run server/i }),
+    );
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(pgExec).not.toHaveBeenCalled();
+    expect(runCommand).not.toHaveBeenCalled();
   });
 });
