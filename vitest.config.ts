@@ -41,6 +41,8 @@ export default defineConfig({
       "components/__tests__/page-skeleton.test.tsx",
       "components/pages/path/__tests__/step-skeleton.test.tsx",
       "components/pages/__tests__/courses-skeleton.test.tsx",
+      "components/atoms/__tests__/terminal-run-api.test.tsx",
+      "components/pages/__tests__/project-playground-terminal-mode.test.tsx",
     ],
   },
   resolve: {

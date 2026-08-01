@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useTheme } from "next-themes";
 import { SandboxAddon } from "@cloudflare/sandbox/xterm";
 import {
@@ -83,14 +83,16 @@ const ansi = (line: string) => {
   return l;
 };
 
-export function Terminal({
-  ctx,
-  onClose,
-  output,
-  collapsed,
-  onToggle,
-  jail = true,
-}: TerminalProps) {
+export interface TerminalRunHandle {
+  /** Writes `cmd` into the live PTY session exactly as if typed, then Enter. */
+  runCommand: (cmd: string) => void;
+}
+
+export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
+  function Terminal(
+    { ctx, onClose, output, collapsed, onToggle, jail = true },
+    ref,
+  ) {
   const { theme } = useTheme();
   const isDark = !theme || theme.includes("dark");
   const hostRef = useRef<HTMLDivElement>(null);
@@ -223,6 +225,16 @@ export function Terminal({
       xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
   }, [isDark]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      runCommand: (cmd: string) => {
+        xtRef.current?.paste(`${cmd}\r`);
+      },
+    }),
+    [],
+  );
+
   // Run the shell `clear` command in the live PTY so the session itself is
   // cleared (not just the local xterm buffer). Falls back to a local clear when
   // the PTY isn't attached yet.
@@ -302,4 +314,5 @@ export function Terminal({
       <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden px-2 pt-1.5" />
     </div>
   );
-}
+  },
+);
