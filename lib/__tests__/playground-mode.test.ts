@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { getPlaygroundMode } from "../playground-mode";
 
 describe("getPlaygroundMode (frontend)", () => {
@@ -14,5 +16,13 @@ describe("getPlaygroundMode (frontend)", () => {
     expect(
       getPlaygroundMode({ frontendURL: "https://x.test", baseRepository: "https://git.test" } as any),
     ).toBe("rest-api");
+  });
+  it("rejects an unknown stored mode value, logs it, and falls back to rest-api rather than frontendPreview", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(
+      getPlaygroundMode({ playgroundConfig: { mode: "bogus", frontendPreview: true } } as any),
+    ).toBe("rest-api");
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

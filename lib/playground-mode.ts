@@ -11,9 +11,16 @@ export type PlaygroundMode = (typeof PLAYGROUND_MODES)[number];
 export function getPlaygroundMode(project: Pick<Project, "playgroundConfig">): PlaygroundMode {
   const config = project?.playgroundConfig as Record<string, unknown> | undefined;
   const mode = config?.mode;
-  if (typeof mode === "string" && (PLAYGROUND_MODES as readonly string[]).includes(mode)) {
-    return mode as PlaygroundMode;
+
+  if (mode !== undefined) {
+    if (typeof mode === "string" && (PLAYGROUND_MODES as readonly string[]).includes(mode)) {
+      return mode as PlaygroundMode;
+    }
+    console.error("getPlaygroundMode: unknown stored mode", { mode });
+    return "rest-api";
   }
+
   if (config?.frontendPreview) return "frontend";
+
   return "rest-api";
 }
