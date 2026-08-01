@@ -50,6 +50,7 @@ import {
   pgSeed,
   pgDownload,
   pgRestart,
+  pgExec,
   type PgCtx,
 } from "@/lib/playground-client";
 import {
@@ -71,7 +72,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { PaymentDialog } from "../payment-dialog";
-import { Terminal } from "../atoms/Terminal";
+import { Terminal, type TerminalRunHandle } from "../atoms/Terminal";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
@@ -324,6 +325,7 @@ export function ProjectPlaygroundPage({
   const railRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<HTMLDivElement>(null);
+  const terminalRunRef = useRef<TerminalRunHandle | null>(null);
   const lastTermH = useRef("150px"); // remembers expanded height across collapse
   // Per-path debounce timers for autosave. MUST be a ref: a plain `{}` in the
   // component body is recreated every render, so clearTimeout never finds the
@@ -2026,6 +2028,37 @@ export function ProjectPlaygroundPage({
 
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
+
+    // TODO(Task 5): replace with getPlaygroundMode(project) once
+    // lib/playground-mode.ts lands — this inline check is a temporary
+    // stand-in so terminal-mode Run works ahead of that helper existing.
+    const mode =
+      (project as any)?.playgroundConfig?.mode === "terminal"
+        ? "terminal"
+        : "rest-api";
+    if (mode === "terminal") {
+      const language = (project as any)?.playgroundConfig?.language ?? "node";
+      const entrypoint = (project as any)?.playgroundConfig?.entrypoint;
+      if (!entrypoint) {
+        toast.error("This project has no entrypoint configured.");
+        return;
+      }
+      track(PLAYGROUND_EVENTS.runServer, { mode: "terminal" });
+      setShowTerminal(true);
+      const cmd =
+        language === "python" ? `python3 '${entrypoint}'` : `node '${entrypoint}'`;
+      try {
+        // Kill any previous run via REST (a PTY Ctrl+C was verified unreliable
+        // for this — see Task 0's spike) before typing the fresh command.
+        await pgExec(pgCtx, { cmd: `pkill -f '${entrypoint}'` });
+      } catch {
+        // Best-effort: pkill on a not-yet-running process is a no-op failure,
+        // never block the run because of it.
+      }
+      terminalRunRef.current?.runCommand(cmd);
+      return;
+    }
+
     track(PLAYGROUND_EVENTS.runServer);
     runInFlightRef.current = true;
     setIsRunning(true);
@@ -3296,6 +3329,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                 style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
               >
                 <Terminal
+                  ref={terminalRunRef}
                   collapsed={!showTerminal}
                   onToggle={toggleTerminal}
                   onClose={() => toggleTerminal()}
