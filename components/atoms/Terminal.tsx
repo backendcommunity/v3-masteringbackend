@@ -1,17 +1,18 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { SandboxAddon } from "@cloudflare/sandbox/xterm";
 import {
   getWorkerToken,
+  pgExec,
   pgTerminalUrl,
   type PgCtx,
 } from "@/lib/playground-client";
-import { TerminalSquare, Trash2, HelpCircle } from "lucide-react";
+import { TerminalSquare, Trash2, HelpCircle, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 
 interface TerminalProps {
   ctx: PgCtx | null;
@@ -114,6 +115,10 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
   const connectionStateRef = useRef<"connecting" | "connected" | "disconnected">(
     "connecting",
   );
+  // Set inside the boot effect to the current connectPty() closure, so
+  // restartPty() (below) can call it without re-running the whole effect.
+  const connectPtyRef = useRef<() => Promise<void>>(async () => {});
+  const [restarting, setRestarting] = useState(false);
 
   // ── boot a real xterm + attach the Cloudflare Sandbox PTY addon ──
   //
@@ -127,9 +132,12 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
   // but don't connect; once `ctx` is non-null we boot the terminal and connect.
   useEffect(() => {
     if (!ctx || !hostRef.current || xtRef.current) return;
-    // client-only deps
-    const XTerm = require("xterm").Terminal;
-    const FitAddon = require("xterm-addon-fit").FitAddon;
+    // client-only deps. Must be @xterm/xterm (not the deprecated `xterm`
+    // package) — @cloudflare/sandbox/xterm's SandboxAddon types against
+    // @xterm/xterm's Terminal, and only @xterm/xterm exposes `.input()`
+    // (needed to submit a command without triggering bracketed-paste mode).
+    const XTerm = require("@xterm/xterm").Terminal;
+    const FitAddon = require("@xterm/addon-fit").FitAddon;
 
     const xt = new XTerm({
       theme: isDark ? XTERM_DARK : XTERM_LIGHT,
@@ -174,6 +182,27 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         },
       });
 
+    // Mint a fresh worker token and attach a new PTY addon (cols/rows reflect
+    // the fitted size). Shared by the initial open AND by restartPty() below —
+    // each call to the worker's /terminal produces a brand-new pty/shell, so
+    // disconnecting the old addon and re-running this is a genuine restart,
+    // not a resume.
+    const connectPty = async () => {
+      try {
+        const token = await getWorkerToken(ctx.slug);
+        if (disposed) return;
+        const addon = buildAddon(token);
+        addonRef.current = addon;
+        xt.loadAddon(addon as any);
+        addon.connect({ sandboxId: ctx.projectId });
+      } catch (e: any) {
+        xt.writeln(
+          `\r\n\x1b[31m${e?.message ?? "failed to start terminal"}\x1b[0m`,
+        );
+      }
+    };
+    connectPtyRef.current = connectPty;
+
     // Defer open()/fit() until the host actually has a size. Opening xterm on a
     // zero-size element (collapsed panel, or before layout settles) leaves the
     // renderer without dimensions, and the next refresh throws. The
@@ -191,20 +220,7 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         xt.writeln(ansi(out[i]));
       writtenRef.current = out.length;
 
-      // mint a worker token, then attach the PTY addon (cols/rows reflect the
-      // fitted size). The addon takes over keystrokes/output/resize from here.
-      try {
-        const token = await getWorkerToken(ctx.slug);
-        if (disposed) return;
-        const addon = buildAddon(token);
-        addonRef.current = addon;
-        xt.loadAddon(addon as any);
-        addon.connect({ sandboxId: ctx.projectId });
-      } catch (e: any) {
-        xt.writeln(
-          `\r\n\x1b[31m${e?.message ?? "failed to start terminal"}\x1b[0m`,
-        );
-      }
+      await connectPty();
     };
     requestAnimationFrame(openTerminal);
 
@@ -277,6 +293,36 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
     else xt.clear();
   };
 
+  // Full restart: stop whatever's running, tear down the current PTY
+  // connection, and open a fresh one — a genuinely new shell process, not a
+  // resume. Each /terminal request the worker receives starts a new pty, so
+  // disconnecting the old addon and reconnecting is a real restart.
+  const restartPty = async () => {
+    if (restarting) return;
+    setRestarting(true);
+    try {
+      if (ctx) {
+        try {
+          // Best-effort: kill anything left running in this project's
+          // sandbox before dropping the session, so a restart doesn't leave
+          // an orphaned background process. Same REST kill path terminal
+          // mode's Run already uses — never blocks the restart if it fails.
+          await pgExec(ctx, {
+            cmd: "pkill -9 -x node -x python3 2>/dev/null; true",
+          });
+        } catch {}
+      }
+      addonRef.current?.disconnect();
+      addonRef.current?.dispose();
+      addonRef.current = null;
+      connectionStateRef.current = "connecting";
+      xtRef.current?.reset();
+      await connectPtyRef.current();
+    } finally {
+      setRestarting(false);
+    }
+  };
+
   const showHelp = () => {
     const xt = xtRef.current;
     if (!xt) return;
@@ -315,6 +361,17 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
           onClick={clearTerm}
         >
           <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Restart terminal"
+          title="Stop everything and start a fresh terminal session"
+          disabled={restarting}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
+          onClick={restartPty}
+        >
+          <RotateCcw className={cn("h-3.5 w-3.5", restarting && "animate-spin")} />
         </Button>
         <Button
           variant="ghost"

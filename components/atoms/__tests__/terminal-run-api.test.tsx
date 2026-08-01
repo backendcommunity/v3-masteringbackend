@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // jsdom has no ResizeObserver implementation; Terminal.tsx uses one to defer
 // opening xterm until its host has a real size. Stub it (same inline-polyfill
@@ -40,17 +41,17 @@ vi.mock("next-themes", () => ({
   useTheme: () => ({ theme: "dark" }),
 }));
 
-// Terminal.tsx loads xterm/xterm-addon-fit via a runtime `require()` (client-only
-// lazy load), not a static import — Vitest's `vi.mock` only rewrites `import`/
-// `import()` syntax, so it can't intercept that call (verified directly: a
-// vi.mock("xterm", ...) here is silently ignored and the real xterm.js package
-// loads instead, which then throws inside jsdom's incomplete Clipboard API).
+// Terminal.tsx loads @xterm/xterm and @xterm/addon-fit via a runtime `require()`
+// (client-only lazy load), not a static import — Vitest's `vi.mock` only rewrites
+// `import`/`import()` syntax, so it can't intercept that call (verified directly:
+// a vi.mock("@xterm/xterm", ...) here is silently ignored and the real xterm.js
+// package loads instead, which then throws inside jsdom's incomplete Clipboard API).
 // Node's `require.cache` is a process-wide singleton keyed by resolved path, so
 // poisoning the cache entry here is picked up by Terminal.tsx's own require()
 // call regardless of how its `require` binding was created. This keeps
 // Terminal.tsx's internals untouched (only the forwardRef wrap changes it).
-const xtermPath = require.resolve("xterm");
-const xtermAddonFitPath = require.resolve("xterm-addon-fit");
+const xtermPath = require.resolve("@xterm/xterm");
+const xtermAddonFitPath = require.resolve("@xterm/addon-fit");
 const mockXtermInstance = {
   open: vi.fn(),
   loadAddon: vi.fn(),
@@ -58,6 +59,8 @@ const mockXtermInstance = {
   input: inputMock,
   onData: vi.fn(),
   dispose: vi.fn(),
+  reset: vi.fn(),
+  clear: vi.fn(),
   cols: 80,
   rows: 24,
   options: {},
@@ -98,6 +101,7 @@ vi.mock("@cloudflare/sandbox/xterm", () => ({
     return {
       activate: vi.fn(),
       connect: vi.fn(),
+      disconnect: vi.fn(),
       dispose: vi.fn(),
     };
   }),
@@ -105,9 +109,12 @@ vi.mock("@cloudflare/sandbox/xterm", () => ({
 vi.mock("@/lib/playground-client", () => ({
   getWorkerToken: vi.fn().mockResolvedValue("token"),
   pgTerminalUrl: vi.fn().mockReturnValue("wss://worker.test/terminal"),
+  pgExec: vi.fn().mockResolvedValue({ ok: true, stdout: "", stderr: "", exitCode: 0 }),
 }));
 
 import { Terminal } from "../Terminal";
+import { SandboxAddon } from "@cloudflare/sandbox/xterm";
+import { pgExec } from "@/lib/playground-client";
 
 const testCtx = { slug: "s", userId: "u", projectId: "p", projectName: "s" };
 
@@ -159,5 +166,59 @@ describe("Terminal imperative run API", () => {
     expect(inputMock).not.toHaveBeenCalled();
     expect(result).toBe(false);
     warnSpy.mockRestore();
+  });
+});
+
+describe("Terminal restart button", () => {
+  beforeEach(() => {
+    inputMock.mockClear();
+    capturedSandboxOptions = null;
+    (SandboxAddon as any).mockClear();
+    (pgExec as any).mockClear();
+  });
+
+  it("clicking Restart kills running processes via pgExec, tears down the old PTY, and opens a fresh one", async () => {
+    const firstDisconnect = vi.fn();
+    const firstDispose = vi.fn();
+    (SandboxAddon as any).mockImplementationOnce(function (options: any) {
+      capturedSandboxOptions = options;
+      return { activate: vi.fn(), connect: vi.fn(), disconnect: firstDisconnect, dispose: firstDispose };
+    });
+
+    render(<Terminal ctx={testCtx} onClose={() => {}} />);
+
+    await waitFor(() => expect(capturedSandboxOptions).not.toBeNull());
+    capturedSandboxOptions.onStateChange("connected");
+    expect(SandboxAddon).toHaveBeenCalledTimes(1);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /restart terminal/i }));
+
+    // Killed whatever was running in the sandbox before tearing down.
+    await waitFor(() => expect(pgExec).toHaveBeenCalledWith(testCtx, expect.objectContaining({ cmd: expect.any(String) })));
+    // Old addon torn down, not just abandoned.
+    expect(firstDisconnect).toHaveBeenCalled();
+    expect(firstDispose).toHaveBeenCalled();
+    // A genuinely new addon/connection was created, not a resume of the old one.
+    await waitFor(() => expect(SandboxAddon).toHaveBeenCalledTimes(2));
+  });
+
+  it("Restart button is disabled while a restart is already in flight", async () => {
+    let resolveExec: (v: unknown) => void = () => {};
+    (pgExec as any).mockImplementationOnce(
+      () => new Promise((resolve) => (resolveExec = resolve)),
+    );
+
+    render(<Terminal ctx={testCtx} onClose={() => {}} />);
+    await waitFor(() => expect(capturedSandboxOptions).not.toBeNull());
+    capturedSandboxOptions.onStateChange("connected");
+
+    const user = userEvent.setup();
+    const button = screen.getByRole("button", { name: /restart terminal/i });
+    await user.click(button);
+
+    expect(button).toBeDisabled();
+    resolveExec({ ok: true });
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 });
