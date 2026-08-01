@@ -252,7 +252,15 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
           );
           return false;
         }
-        xtRef.current?.paste(`${cmd}\r`);
+        // xterm.js's paste() wraps content in bracketed-paste escapes (real
+        // terminal behavior) — bash/readline treat a \r *inside* a bracketed
+        // paste as literal text, not a submit, so `paste(cmd + "\r")` types
+        // the command but never runs it. `input()` delivers data "the same
+        // way input typed into the terminal would" (no bracketed-paste
+        // wrapping), exactly matching a real keypress — use it for both the
+        // command text and the trailing Enter.
+        xtRef.current?.input(cmd, true);
+        xtRef.current?.input("\r", true);
         return true;
       },
     }),

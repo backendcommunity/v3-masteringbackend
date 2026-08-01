@@ -34,7 +34,7 @@ Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
   value: 400,
 });
 
-const pasteMock = vi.fn();
+const inputMock = vi.fn();
 
 vi.mock("next-themes", () => ({
   useTheme: () => ({ theme: "dark" }),
@@ -55,7 +55,7 @@ const mockXtermInstance = {
   open: vi.fn(),
   loadAddon: vi.fn(),
   writeln: vi.fn(),
-  paste: pasteMock,
+  input: inputMock,
   onData: vi.fn(),
   dispose: vi.fn(),
   cols: 80,
@@ -113,11 +113,11 @@ const testCtx = { slug: "s", userId: "u", projectId: "p", projectName: "s" };
 
 describe("Terminal imperative run API", () => {
   beforeEach(() => {
-    pasteMock.mockClear();
+    inputMock.mockClear();
     capturedSandboxOptions = null;
   });
 
-  it("runCommand() pastes the command with a trailing carriage return once the PTY reports connected", async () => {
+  it("runCommand() sends the command then a real Enter via input() (not paste, which bracketed-paste mode would swallow) once the PTY reports connected", async () => {
     const ref = React.createRef<any>();
     render(<Terminal ref={ref} ctx={testCtx} onClose={() => {}} />);
 
@@ -127,7 +127,8 @@ describe("Terminal imperative run API", () => {
     capturedSandboxOptions.onStateChange("connected");
 
     const result = ref.current?.runCommand("node index.js");
-    expect(pasteMock).toHaveBeenCalledWith("node index.js\r");
+    expect(inputMock).toHaveBeenNthCalledWith(1, "node index.js", true);
+    expect(inputMock).toHaveBeenNthCalledWith(2, "\r", true);
     expect(result).toBe(true);
   });
 
@@ -140,7 +141,7 @@ describe("Terminal imperative run API", () => {
     // the async connect chain resolves, which is exactly the window a fast
     // Run click can land in.
     const result = ref.current?.runCommand("node index.js");
-    expect(pasteMock).not.toHaveBeenCalled();
+    expect(inputMock).not.toHaveBeenCalled();
     expect(result).toBe(false);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
@@ -155,7 +156,7 @@ describe("Terminal imperative run API", () => {
     capturedSandboxOptions.onStateChange("disconnected", undefined);
 
     const result = ref.current?.runCommand("node index.js");
-    expect(pasteMock).not.toHaveBeenCalled();
+    expect(inputMock).not.toHaveBeenCalled();
     expect(result).toBe(false);
     warnSpy.mockRestore();
   });
