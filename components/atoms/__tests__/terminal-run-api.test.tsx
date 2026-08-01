@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, waitFor } from "@testing-library/react";
 
 // jsdom has no ResizeObserver implementation; Terminal.tsx uses one to defer
 // opening xterm until its host has a real size. Stub it (same inline-polyfill
@@ -11,6 +11,28 @@ class MockResizeObserver {
   disconnect = vi.fn();
 }
 (global as any).ResizeObserver = MockResizeObserver;
+
+// jsdom (without `pretendToBeVisual`) has no requestAnimationFrame, but
+// Terminal.tsx defers opening xterm/connecting the PTY until the next frame.
+// Stub it onto a real (setTimeout-backed) macrotask so that chain actually
+// runs during tests instead of throwing or silently never firing.
+const rafStub = (cb: FrameRequestCallback) =>
+  setTimeout(() => cb(Date.now()), 0) as unknown as number;
+(global as any).requestAnimationFrame = rafStub;
+(global as any).cancelAnimationFrame = (id: number) => clearTimeout(id);
+
+// jsdom elements report 0x0 by default, which makes Terminal.tsx's
+// `openTerminal()` bail out (it waits for a real host size before opening
+// xterm and connecting the PTY). Stub a real-looking size so the
+// rAF → getWorkerToken → SandboxAddon chain actually runs in these tests.
+Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+  configurable: true,
+  value: 800,
+});
+Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+  configurable: true,
+  value: 400,
+});
 
 const pasteMock = vi.fn();
 
@@ -62,12 +84,23 @@ require.cache[xtermAddonFitPath] = {
   exports: { FitAddon: MockFitAddon },
 } as any;
 
+// Capture the options Terminal.tsx hands to `new SandboxAddon(...)` (in
+// particular `onStateChange`) so tests can drive the PTY's reported
+// connection state by hand — the mock never fires it on its own, mirroring
+// how the real addon only calls it once its async WebSocket handshake
+// resolves.
+let capturedSandboxOptions: any = null;
 vi.mock("@cloudflare/sandbox/xterm", () => ({
-  SandboxAddon: vi.fn().mockImplementation(() => ({
-    activate: vi.fn(),
-    connect: vi.fn(),
-    dispose: vi.fn(),
-  })),
+  // A plain `function` (not an arrow) — Terminal.tsx invokes this via
+  // `new SandboxAddon(...)`, and arrow functions aren't constructable.
+  SandboxAddon: vi.fn().mockImplementation(function (options: any) {
+    capturedSandboxOptions = options;
+    return {
+      activate: vi.fn(),
+      connect: vi.fn(),
+      dispose: vi.fn(),
+    };
+  }),
 }));
 vi.mock("@/lib/playground-client", () => ({
   getWorkerToken: vi.fn().mockResolvedValue("token"),
@@ -76,17 +109,54 @@ vi.mock("@/lib/playground-client", () => ({
 
 import { Terminal } from "../Terminal";
 
+const testCtx = { slug: "s", userId: "u", projectId: "p", projectName: "s" };
+
 describe("Terminal imperative run API", () => {
-  it("runCommand() pastes the command with a trailing carriage return", () => {
+  beforeEach(() => {
+    pasteMock.mockClear();
+    capturedSandboxOptions = null;
+  });
+
+  it("runCommand() pastes the command with a trailing carriage return once the PTY reports connected", async () => {
     const ref = React.createRef<any>();
-    render(
-      <Terminal
-        ref={ref}
-        ctx={{ slug: "s", userId: "u", projectId: "p", projectName: "s" }}
-        onClose={() => {}}
-      />,
-    );
-    ref.current?.runCommand("node index.js");
+    render(<Terminal ref={ref} ctx={testCtx} onClose={() => {}} />);
+
+    // Wait for the rAF → getWorkerToken → SandboxAddon construction chain to
+    // resolve, then simulate the PTY WebSocket reporting a successful connect.
+    await waitFor(() => expect(capturedSandboxOptions).not.toBeNull());
+    capturedSandboxOptions.onStateChange("connected");
+
+    const result = ref.current?.runCommand("node index.js");
     expect(pasteMock).toHaveBeenCalledWith("node index.js\r");
+    expect(result).toBe(true);
+  });
+
+  it("runCommand() returns false and does not paste while the PTY is still connecting", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ref = React.createRef<any>();
+    render(<Terminal ref={ref} ctx={testCtx} onClose={() => {}} />);
+
+    // No onStateChange("connected") has fired — runCommand is called before
+    // the async connect chain resolves, which is exactly the window a fast
+    // Run click can land in.
+    const result = ref.current?.runCommand("node index.js");
+    expect(pasteMock).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("runCommand() returns false and does not paste when the PTY reports disconnected", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ref = React.createRef<any>();
+    render(<Terminal ref={ref} ctx={testCtx} onClose={() => {}} />);
+
+    await waitFor(() => expect(capturedSandboxOptions).not.toBeNull());
+    capturedSandboxOptions.onStateChange("disconnected", undefined);
+
+    const result = ref.current?.runCommand("node index.js");
+    expect(pasteMock).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+    warnSpy.mockRestore();
   });
 });

@@ -2071,7 +2071,10 @@ export function ProjectPlaygroundPage({
         // Best-effort: pkill on a not-yet-running process is a no-op failure,
         // never block the run because of it.
       }
-      terminalRunRef.current?.runCommand(cmd);
+      const started = terminalRunRef.current?.runCommand(cmd);
+      if (started === false) {
+        toast.message("Terminal still connecting… try Run again in a moment.");
+      }
       return;
     }
 
@@ -3359,6 +3362,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                 className={cn(
                   "term border-t border-border",
                   !showTerminal && "collapsed",
+                  isTerminalMode && "terminal-primary",
                 )}
                 ref={termRef}
                 style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
@@ -3368,6 +3372,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   collapsed={!showTerminal}
                   onToggle={toggleTerminal}
                   onClose={() => toggleTerminal()}
+                  // Terminal mode has no editor to fall back to — collapsing
+                  // would leave a blank, unrecoverable workspace with no
+                  // recovery path, so the collapse control is hidden here.
+                  hideCollapse={isTerminalMode}
                   ctx={pgCtx}
                   jail={project?.playgroundConfig?.terminalJail !== false}
                   output={terminalOutput}
@@ -5088,6 +5096,12 @@ app.listen(port, () => console.log("Server listening on port " + port));
         }
         .term.collapsed {
           flex: 0 0 32px;
+        }
+        /* Terminal mode: the editor is unmounted, so the terminal is the
+           entire center pane's content — it must fill the available height
+           instead of staying at its small collapsible-dock size. */
+        .term.terminal-primary {
+          flex: 1 1 auto;
         }
 
         /* ── right ── */

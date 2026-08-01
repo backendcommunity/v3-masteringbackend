@@ -21,6 +21,12 @@ interface TerminalProps {
   onToggle?: () => void;
   /** Per-project terminal sandbox jail. Defaults ON; only `false` disables it. */
   jail?: boolean;
+  /**
+   * Terminal-mode projects have no editor to fall back to, so collapsing the
+   * terminal would leave a blank, unrecoverable workspace. When true, the
+   * collapse/expand chevron is not rendered at all.
+   */
+  hideCollapse?: boolean;
 }
 
 // Mock-matched dark theme (navy/cyan/teal palette).
@@ -84,13 +90,20 @@ const ansi = (line: string) => {
 };
 
 export interface TerminalRunHandle {
-  /** Writes `cmd` into the live PTY session exactly as if typed, then Enter. */
-  runCommand: (cmd: string) => void;
+  /**
+   * Writes `cmd` into the live PTY session exactly as if typed, then Enter.
+   * Returns `false` (and does nothing) if the PTY isn't connected yet — the
+   * `SandboxAddon` WebSocket connect is an async chain
+   * (rAF → getWorkerToken → connect) that runs after this ref is already
+   * attached, so a Run click in that window must not silently drop the
+   * command. Callers should surface feedback when this returns `false`.
+   */
+  runCommand: (cmd: string) => boolean;
 }
 
 export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
   function Terminal(
-    { ctx, onClose, output, collapsed, onToggle, jail = true },
+    { ctx, onClose, output, collapsed, onToggle, jail = true, hideCollapse = false },
     ref,
   ) {
   const { theme } = useTheme();
@@ -100,6 +113,13 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
   const fitRef = useRef<any>(null);
   const addonRef = useRef<SandboxAddon | null>(null);
   const writtenRef = useRef(0); // run-log lines already written
+  // Tracks the PTY WebSocket's actual connection state (per the SandboxAddon's
+  // onStateChange), which lags behind this component mounting by an async
+  // chain (rAF → getWorkerToken → connect). runCommand() checks this before
+  // pasting so a Run click in that window is never a silent no-op.
+  const connectionStateRef = useRef<"connecting" | "connected" | "disconnected">(
+    "connecting",
+  );
 
   // ── boot a real xterm + attach the Cloudflare Sandbox PTY addon ──
   //
@@ -153,6 +173,7 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         getWebSocketUrl: () =>
           pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
         onStateChange: (state, error) => {
+          connectionStateRef.current = state;
           if (state === "disconnected" && error) {
             xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);
           }
@@ -204,6 +225,7 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
       ro.disconnect();
       addonRef.current?.dispose();
       addonRef.current = null;
+      connectionStateRef.current = "connecting";
       xt.dispose();
       xtRef.current = null;
     };
@@ -229,7 +251,15 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
     ref,
     () => ({
       runCommand: (cmd: string) => {
+        if (connectionStateRef.current !== "connected") {
+          console.warn(
+            "[Terminal] runCommand called before the PTY connected; dropping command",
+            cmd,
+          );
+          return false;
+        }
         xtRef.current?.paste(`${cmd}\r`);
+        return true;
       },
     }),
     [],
@@ -284,30 +314,32 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
-          title={collapsed ? "Expand" : "Collapse"}
-          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-          onClick={() => (onToggle ? onToggle() : onClose(false))}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className={cn(
-              "h-3.5 w-3.5 transition-transform",
-              collapsed && "rotate-180",
-            )}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+        {!hideCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
+            title={collapsed ? "Expand" : "Collapse"}
+            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+            onClick={() => (onToggle ? onToggle() : onClose(false))}
           >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </Button>
+            <svg
+              viewBox="0 0 24 24"
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                collapsed && "rotate-180",
+              )}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </Button>
+        )}
       </div>
 
       {/* real xterm.js host */}
