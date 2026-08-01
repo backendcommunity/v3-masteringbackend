@@ -112,6 +112,13 @@ interface FileNode {
 // absolute leading "/". Convert tree paths to project-relative before emitting.
 const toRel = (p?: string) => (p || "").replace(/^\/+/, "");
 
+// Safely wrap a string for interpolation into a POSIX shell command as a
+// single-quoted token — mirrors academy's `probe-terminal.ts` helper so an
+// entrypoint containing a single quote (or any other shell metacharacter)
+// can't break the `node '<entrypoint>'` / `pkill -f '<entrypoint>'` strings
+// built for the terminal-mode Run flow.
+const escapeSingleQuoted = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
+
 // ── worker `/fs list` shape (Cloudflare SDK `listFiles`) ──
 // `pgFs(ctx,{op:"list"})` returns `{ ok, files }` where `files` is the SDK
 // `ListFilesResult`: { success, path, files: FileInfo[], count, timestamp }.
@@ -2053,11 +2060,13 @@ export function ProjectPlaygroundPage({
       track(PLAYGROUND_EVENTS.runServer, { mode: "terminal" });
       setShowTerminal(true);
       const cmd =
-        language === "python" ? `python3 '${entrypoint}'` : `node '${entrypoint}'`;
+        language === "python"
+          ? `python3 ${escapeSingleQuoted(entrypoint)}`
+          : `node ${escapeSingleQuoted(entrypoint)}`;
       try {
         // Kill any previous run via REST (a PTY Ctrl+C was verified unreliable
         // for this — see Task 0's spike) before typing the fresh command.
-        await pgExec(pgCtx, { cmd: `pkill -f '${entrypoint}'` });
+        await pgExec(pgCtx, { cmd: `pkill -f ${escapeSingleQuoted(entrypoint)}` });
       } catch {
         // Best-effort: pkill on a not-yet-running process is a no-op failure,
         // never block the run because of it.
