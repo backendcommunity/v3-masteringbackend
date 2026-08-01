@@ -2265,7 +2265,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
       // preview — the finale — is fully visible and unobstructed.
       setShowTask(false);
       setIsRightPanelVisible(true);
-      setRightTab("preview");
+      // Terminal-mode projects have no iframe preview (Task 5 hides the
+      // Preview tab entirely) — switching to it here would silently reopen a
+      // panel that shouldn't exist in this mode.
+      if (!isTerminalMode) setRightTab("preview");
       // App mode points the iframe at <baseURL>/__app/, where the worker serves
       // the relocated frontend. Only takes effect when the project enables it
       // (frontendEnabled); harmless otherwise (the toggle is hidden).
