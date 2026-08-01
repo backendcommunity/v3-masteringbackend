@@ -21,12 +21,6 @@ interface TerminalProps {
   onToggle?: () => void;
   /** Per-project terminal sandbox jail. Defaults ON; only `false` disables it. */
   jail?: boolean;
-  /**
-   * Terminal-mode projects have no editor to fall back to, so collapsing the
-   * terminal would leave a blank, unrecoverable workspace. When true, the
-   * collapse/expand chevron is not rendered at all.
-   */
-  hideCollapse?: boolean;
 }
 
 // Mock-matched dark theme (navy/cyan/teal palette).
@@ -103,7 +97,7 @@ export interface TerminalRunHandle {
 
 export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
   function Terminal(
-    { ctx, onClose, output, collapsed, onToggle, jail = true, hideCollapse = false },
+    { ctx, onClose, output, collapsed, onToggle, jail = true },
     ref,
   ) {
   const { theme } = useTheme();
@@ -314,32 +308,30 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
-        {!hideCollapse && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
-            title={collapsed ? "Expand" : "Collapse"}
-            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => (onToggle ? onToggle() : onClose(false))}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
+          title={collapsed ? "Expand" : "Collapse"}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+          onClick={() => (onToggle ? onToggle() : onClose(false))}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              collapsed && "rotate-180",
+            )}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className={cn(
-                "h-3.5 w-3.5 transition-transform",
-                collapsed && "rotate-180",
-              )}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </Button>
-        )}
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </Button>
       </div>
 
       {/* real xterm.js host */}
