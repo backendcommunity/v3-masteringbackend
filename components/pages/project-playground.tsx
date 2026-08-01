@@ -83,6 +83,7 @@ import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
 import { makeEditDebouncer } from "@/lib/playground-track";
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 import type { TourAction } from "@/lib/playground-tour";
+import { getPlaygroundMode } from "@/lib/playground-mode";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -257,12 +258,17 @@ export function ProjectPlaygroundPage({
   // Bumped by the preview Refresh button; appended to the iframe URL to force a
   // real reload (the iframe src is derived from baseURL, not previewUrl).
   const [previewNonce, setPreviewNonce] = useState(0);
-  const frontendEnabled = !!(project as any)?.playgroundConfig?.frontendPreview;
+  const playgroundMode = getPlaygroundMode(project ?? {});
+  const isTerminalMode = playgroundMode === "terminal";
+  const frontendEnabled = !isTerminalMode && !!(project as any)?.playgroundConfig?.frontendPreview;
   const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
   useEffect(() => {
     if (frontendEnabled) setPreviewMode("app");
   }, [frontendEnabled]);
   const [showTerminal, setShowTerminal] = useState(false); // collapsed to header by default
+  useEffect(() => {
+    if (isTerminalMode) setShowTerminal(true);
+  }, [isTerminalMode]);
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
   const [markAsCompleted, setMarkAsCompleted] = useState(false);
@@ -284,6 +290,9 @@ export function ProjectPlaygroundPage({
   const [activeTab, setActiveTab] = useState("tasks");
   const [railTab, setRailTab] = useState<"tasks" | "explorer" | "kap">("tasks");
   const [rightTab, setRightTab] = useState<"preview" | "tests">("preview");
+  useEffect(() => {
+    if (isTerminalMode) setRightTab("tests");
+  }, [isTerminalMode]);
   const [code, setCode] = useState(fileTree?.[0]?.children?.[0]?.content || "");
   const [currentLanguage, setCurrentLanguage] = useState("javascript");
   const [showPayment, setShowPayment] = useState(false);
@@ -1065,7 +1074,11 @@ export function ProjectPlaygroundPage({
   // is skipped; the learner lands straight in the workspace.
   const hasStarted = doneCount > 0 || lastSha != null;
   // The big start page shows only before they've started AND with no file open.
-  const onStartPage = openFiles.length === 0 && !hasStarted;
+  // Terminal-mode projects have no concept of "opening a file" — the terminal
+  // IS the workspace, so this must never gate its mount for that mode (a
+  // fresh terminal-mode learner's first "Run" click would silently no-op
+  // against a null terminalRunRef otherwise).
+  const onStartPage = !isTerminalMode && openFiles.length === 0 && !hasStarted;
 
   // Item 2: "Start building"/"Continue building" opens the first editable file AND
   // switches the left rail to the Files tab, so the learner lands in the editor
@@ -1891,14 +1904,15 @@ export function ProjectPlaygroundPage({
   const runTaskTest = async (t: any) => {
     if (!t) return;
 
-    // Run Test grades endpoint tasks only (those with an apiSpec). Non-endpoint
-    // tasks complete via "Mark as complete" (markTaskManually) — this path never
-    // auto-passes a task.
-    if (!t.apiSpec) return;
+    // Run Test grades endpoint tasks (apiSpec) and terminal tasks (terminalSpec).
+    // Non-endpoint, non-terminal tasks complete via "Mark as complete"
+    // (markTaskManually) — this path never auto-passes a task.
+    if (!t.apiSpec && !t.terminalSpec) return;
 
     // Endpoint tasks need a live sandbox — catch before the network round-trip
-    // so the learner gets instant, clear feedback.
-    if (!baseURL) {
+    // so the learner gets instant, clear feedback. Terminal tasks have no
+    // server/baseURL to wait for, so this gate is REST-API-specific.
+    if (t.apiSpec && !baseURL) {
       toast.error("Start your server first — click Run Server.");
       setTestRun({
         status: "fail",
@@ -2029,14 +2043,7 @@ export function ProjectPlaygroundPage({
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
 
-    // TODO(Task 5): replace with getPlaygroundMode(project) once
-    // lib/playground-mode.ts lands — this inline check is a temporary
-    // stand-in so terminal-mode Run works ahead of that helper existing.
-    const mode =
-      (project as any)?.playgroundConfig?.mode === "terminal"
-        ? "terminal"
-        : "rest-api";
-    if (mode === "terminal") {
+    if (isTerminalMode) {
       const language = (project as any)?.playgroundConfig?.language ?? "node";
       const entrypoint = (project as any)?.playgroundConfig?.entrypoint;
       if (!entrypoint) {
@@ -2766,19 +2773,33 @@ app.listen(port, () => console.log("Server listening on port " + port));
               {I.play} {isRunning ? "Running…" : "Run server"}
             </button>
           )}
-          <button
-            className={cn("btn", isRightPanelVisible && "on")}
-            onClick={() => {
-              track(PLAYGROUND_EVENTS.previewToggled, {
-                visible: !isRightPanelVisible,
-              });
-              setIsRightPanelVisible((p) => !p);
-            }}
-            title="Toggle preview & tests"
-            aria-pressed={isRightPanelVisible}
-          >
-            {I.preview} Preview
-          </button>
+          {isTerminalMode ? (
+            <button
+              className={cn("btn", isRightPanelVisible && "on")}
+              onClick={() => {
+                setRightTab("tests");
+                setIsRightPanelVisible((p) => !p);
+              }}
+              title="Toggle tests"
+              aria-pressed={isRightPanelVisible}
+            >
+              {I.checkCircle} Tests
+            </button>
+          ) : (
+            <button
+              className={cn("btn", isRightPanelVisible && "on")}
+              onClick={() => {
+                track(PLAYGROUND_EVENTS.previewToggled, {
+                  visible: !isRightPanelVisible,
+                });
+                setIsRightPanelVisible((p) => !p);
+              }}
+              title="Toggle preview & tests"
+              aria-pressed={isRightPanelVisible}
+            >
+              {I.preview} Preview
+            </button>
+          )}
           <button
             className="btn ghost"
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
@@ -3136,8 +3157,13 @@ app.listen(port, () => console.log("Server listening on port " + port));
           )}
 
           {/* editor OR welcome. Item 10: once started, no start page at all —
-              the auto-open effect lands the learner straight in the editor. */}
-          {openFiles.length === 0 && !hasStarted ? (
+              the auto-open effect lands the learner straight in the editor.
+              Uses the `onStartPage` variable (not a re-derived inline
+              expression) so terminal mode's widened definition applies here
+              too — otherwise a fresh terminal-mode project would still show
+              this welcome card above the terminal instead of the terminal
+              filling the pane. */}
+          {onStartPage ? (
             <div className="welcome">
               <div className="wcard">
                 <div className="weyebrow">
@@ -3240,7 +3266,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
             </div>
           ) : isBlocked ? (
             <div className="blocked-view">Preview not supported</div>
-          ) : (
+          ) : isTerminalMode ? null : (
             <div data-tour="editor" className="editor-host">
               <Editor
                 height="100%"
@@ -3362,12 +3388,14 @@ app.listen(port, () => console.log("Server listening on port " + port));
                 className="rtabs border-b border-border"
                 style={{ boxShadow: "inset 0 -1px 0 var(--line)" }}
               >
-                <button
-                  className={cn("seg-b", rightTab === "preview" && "on")}
-                  onClick={() => setRightTab("preview")}
-                >
-                  {I.monitor} Preview
-                </button>
+                {!isTerminalMode && (
+                  <button
+                    className={cn("seg-b", rightTab === "preview" && "on")}
+                    onClick={() => setRightTab("preview")}
+                  >
+                    {I.monitor} Preview
+                  </button>
+                )}
                 <button
                   className={cn("seg-b", rightTab === "tests" && "on")}
                   onClick={() => setRightTab("tests")}
@@ -3670,12 +3698,12 @@ app.listen(port, () => console.log("Server listening on port " + port));
               </div>
 
               <div className="df">
-                {activeTask?.apiSpec ? (
+                {activeTask?.apiSpec || activeTask?.terminalSpec ? (
                   <>
                     <span className="hint">
-                      {!baseURL
+                      {activeTask?.apiSpec && !baseURL
                         ? "Run your server first to test this endpoint."
-                        : "Runs your endpoint in the sandbox and checks each assertion."}
+                        : "Runs your code in the sandbox and checks the output."}
                     </span>
                     <button
                       data-tour="run-test"
@@ -3684,7 +3712,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                       disabled={
                         testRun.status === "running" ||
                         activeTask?.userTask?.isCompleted ||
-                        !baseURL
+                        (!!activeTask?.apiSpec && !baseURL)
                       }
                     >
                       {I.play}{" "}

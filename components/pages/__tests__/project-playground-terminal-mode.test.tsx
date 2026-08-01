@@ -187,3 +187,135 @@ describe("ProjectPlaygroundPage — REST-API mode Run (regression)", () => {
     expect(runCommand).not.toHaveBeenCalled();
   });
 });
+
+// Task 5 — panel gating by playgroundConfig.mode + the widened Run-Test gate.
+describe("ProjectPlaygroundPage — terminal-mode panel gating (Task 5)", () => {
+  const terminalConfig = {
+    mode: "terminal" as const,
+    language: "node" as const,
+    entrypoint: "index.js",
+  };
+
+  it("terminal mode mounts the Terminal (and a non-null runCommand ref) even before any file is opened", async () => {
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    // A fresh project: no files opened, no tasks completed, so `onStartPage`
+    // would previously have been true and suppressed the Terminal mount
+    // entirely. It must be mounted regardless for terminal-mode projects.
+    expect(await screen.findByTestId("mock-terminal")).toBeInTheDocument();
+  });
+
+  it("REST-API mode (no playgroundConfig.mode) still shows Preview button and iframe tab", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    const previewToggle = await screen.findByRole("button", {
+      name: /preview/i,
+    });
+    expect(previewToggle).toBeInTheDocument();
+
+    await user.click(previewToggle);
+
+    // Opening the panel reveals the tab strip's own "Preview" button
+    // alongside the top-bar toggle — two "Preview"-labelled buttons total
+    // (role-scoped so the unrelated, always-present mobile bottom-nav tab,
+    // role="tab", doesn't count).
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("button", { name: /^preview$/i }).length,
+      ).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("terminal mode hides the Preview button and forces the Tests tab open", async () => {
+    const user = userEvent.setup();
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    // No "Preview" *button* control anywhere — not the top-bar toggle, not
+    // (once opened) the tab strip. Scoped to role="button" so the unrelated,
+    // always-present mobile bottom-nav tab (role="tab", outside Task 5's
+    // scope) doesn't produce a false positive.
+    expect(
+      screen.queryByRole("button", { name: /^preview$/i }),
+    ).not.toBeInTheDocument();
+
+    const testsToggle = await screen.findByRole("button", { name: /tests/i });
+    await user.click(testsToggle);
+
+    expect(
+      screen.queryByRole("button", { name: /^preview$/i }),
+    ).not.toBeInTheDocument();
+    // rightTab defaulted to "tests" — the tests pane content renders as soon
+    // as the panel opens, with no need to click a "Tests" tab-strip button.
+    expect(
+      await screen.findByText(/no tests defined for this project/i),
+    ).toBeInTheDocument();
+  });
+
+  it("terminal mode's Run-Test button is enabled for a terminalSpec task with no baseURL", async () => {
+    const user = userEvent.setup();
+    const terminalTask = {
+      id: "task-1",
+      title: "Print hello to stdout",
+      type: "task",
+      terminalSpec: { command: "node index.js", expectedOutput: "hello" },
+      userTask: null,
+    };
+    const terminalProject = {
+      ...mockProject,
+      playgroundConfig: terminalConfig,
+      projectTasks: [
+        { id: "group-1", title: "Milestone 1", tasks: [terminalTask] },
+      ],
+    };
+    getProject.mockResolvedValueOnce(terminalProject);
+
+    render(
+      <ProjectPlaygroundPage slug="test-project" onNavigate={() => {}} />,
+    );
+
+    await waitFor(() =>
+      expect(getProject).toHaveBeenCalledWith("test-project"),
+    );
+
+    await user.click(await screen.findByText(/print hello to stdout/i));
+
+    const runTestBtn = await screen.findByRole("button", {
+      name: /run test/i,
+    });
+    // No apiSpec on this task, so the REST-API-specific `!baseURL` gate must
+    // not apply — the button must be enabled even though no server was run.
+    expect(runTestBtn).not.toBeDisabled();
+  });
+});
