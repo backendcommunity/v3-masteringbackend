@@ -37,7 +37,9 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(
+    null,
+  );
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(true);
   const [formData, setFormData] = useState({
@@ -144,7 +146,7 @@ function RegisterContent() {
 
       {/* Social */}
       <div className="space-y-3">
-        <a
+        {/* <a
           href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${ref}&redirect=${redirect}`}
           className={authSocialBtnClass}
           aria-disabled={isAuthLoading}
@@ -159,7 +161,7 @@ function RegisterContent() {
         >
           {oauthLoading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GithubGlyph />}
           <span>Sign up with GitHub</span>
-        </a>
+        </a> */}
 
         <a
           href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${ref}&redirect=${redirect}`}
@@ -171,10 +173,17 @@ function RegisterContent() {
               return;
             }
             setOauthLoading("google");
-            analytics.track("oauth_initiated", { provider: "google", page: "register" });
+            analytics.track("oauth_initiated", {
+              provider: "google",
+              page: "register",
+            });
           }}
         >
-          {oauthLoading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleGlyph />}
+          {oauthLoading === "google" ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <GoogleGlyph />
+          )}
           <span>Sign up with Google</span>
         </a>
       </div>
@@ -184,24 +193,32 @@ function RegisterContent() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="firstName" className={authLabelClass}>First Name</label>
+            <label htmlFor="firstName" className={authLabelClass}>
+              First Name
+            </label>
             <input
               type="text"
               id="firstName"
               value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, firstName: e.target.value })
+              }
               className={authInputClass}
               placeholder="John"
               required
             />
           </div>
           <div>
-            <label htmlFor="lastName" className={authLabelClass}>Last Name</label>
+            <label htmlFor="lastName" className={authLabelClass}>
+              Last Name
+            </label>
             <input
               type="text"
               id="lastName"
               value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, lastName: e.target.value })
+              }
               className={authInputClass}
               placeholder="Doe"
               required
@@ -210,12 +227,16 @@ function RegisterContent() {
         </div>
 
         <div>
-          <label htmlFor="email" className={authLabelClass}>Email Address</label>
+          <label htmlFor="email" className={authLabelClass}>
+            Email Address
+          </label>
           <input
             type="email"
             id="email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
             className={authInputClass}
             placeholder="name@company.com"
             required
@@ -223,13 +244,17 @@ function RegisterContent() {
         </div>
 
         <div>
-          <label htmlFor="password" className={authLabelClass}>Choose Password</label>
+          <label htmlFor="password" className={authLabelClass}>
+            Choose Password
+          </label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               id="password"
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
               className={`${authInputClass} pr-12`}
               placeholder="Create a strong password"
               required
@@ -239,7 +264,11 @@ function RegisterContent() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0E1F33] transition-colors"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
 
@@ -254,7 +283,13 @@ function RegisterContent() {
                 </div>
                 <span
                   className={`text-xs font-medium ${
-                    strength <= 2 ? "text-red-400" : strength <= 3 ? "text-yellow-400" : strength <= 4 ? "text-blue-400" : "text-green-400"
+                    strength <= 2
+                      ? "text-red-400"
+                      : strength <= 3
+                        ? "text-yellow-400"
+                        : strength <= 4
+                          ? "text-blue-400"
+                          : "text-green-400"
                   }`}
                 >
                   {getStrengthText(strength)}
@@ -267,8 +302,15 @@ function RegisterContent() {
                   ["Lowercase", checks.lowercase],
                   ["Number", checks.number],
                 ].map(([label, ok]) => (
-                  <div key={label as string} className={`flex items-center gap-1 ${ok ? "text-green-400" : "text-[#94A3B8]"}`}>
-                    {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                  <div
+                    key={label as string}
+                    className={`flex items-center gap-1 ${ok ? "text-green-400" : "text-[#94A3B8]"}`}
+                  >
+                    {ok ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <X className="w-3 h-3" />
+                    )}
                     <span>{label as string}</span>
                   </div>
                 ))}
@@ -278,15 +320,20 @@ function RegisterContent() {
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className={authLabelClass}>Confirm Password</label>
+          <label htmlFor="confirmPassword" className={authLabelClass}>
+            Confirm Password
+          </label>
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
               value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, confirmPassword: e.target.value })
+              }
               className={`${authInputClass} pr-12 ${
-                formData.confirmPassword && formData.password !== formData.confirmPassword
+                formData.confirmPassword &&
+                formData.password !== formData.confirmPassword
                   ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/25"
                   : ""
               }`}
@@ -298,12 +345,19 @@ function RegisterContent() {
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0E1F33] transition-colors"
             >
-              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showConfirmPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
-          {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-            <p className="mt-1 text-xs text-red-400">Passwords don&apos;t match</p>
-          )}
+          {formData.confirmPassword &&
+            formData.password !== formData.confirmPassword && (
+              <p className="mt-1 text-xs text-red-400">
+                Passwords don&apos;t match
+              </p>
+            )}
         </div>
 
         <div className="space-y-3 pt-1">
@@ -317,8 +371,19 @@ function RegisterContent() {
             />
             <span className="text-sm text-[#64748B]">
               I agree to the{" "}
-              <a href="#" className="text-[#0E1F33] hover:text-[#13AECE] underline">Terms of Service</a> and{" "}
-              <a href="#" className="text-[#0E1F33] hover:text-[#13AECE] underline">Privacy Policy</a>
+              <a
+                href="#"
+                className="text-[#0E1F33] hover:text-[#13AECE] underline"
+              >
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a
+                href="#"
+                className="text-[#0E1F33] hover:text-[#13AECE] underline"
+              >
+                Privacy Policy
+              </a>
             </span>
           </label>
           <label className="flex items-start gap-3 cursor-pointer">
@@ -334,7 +399,11 @@ function RegisterContent() {
           </label>
         </div>
 
-        <button type="submit" disabled={isAuthLoading || !agreedToTerms} className={`${authPrimaryBtnClass} mt-2`}>
+        <button
+          type="submit"
+          disabled={isAuthLoading || !agreedToTerms}
+          className={`${authPrimaryBtnClass} mt-2`}
+        >
           {emailLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -349,7 +418,11 @@ function RegisterContent() {
       <p className="mt-6 text-center text-[14px] text-[#64748B]">
         Already have an account?{" "}
         <a
-          href={redirect ? `/auth/login?redirect=${encodeURIComponent(redirect)}` : "/auth/login"}
+          href={
+            redirect
+              ? `/auth/login?redirect=${encodeURIComponent(redirect)}`
+              : "/auth/login"
+          }
           className="text-[#0E1F33] font-semibold border-b border-[#0E1F33]/40 hover:border-[#0E1F33] transition-colors"
         >
           Log In
