@@ -28,6 +28,7 @@ export interface PlaygroundSyncOpts {
   setLastSha: (sha: string | null) => void;
   onStatus: (state: SyncState, at?: number) => void;
   onConflict: (remoteSha: string) => void;
+  onReconnectRequired: () => void;
   onReloaded?: () => void; // after a resetToRemote so the UI can reload the tree
   now?: () => number; // injectable clock (default Date.now) for tests
   debounceMs?: number; // default 2500
@@ -48,6 +49,10 @@ export interface PlaygroundSync {
 }
 
 const DEFAULT_DEBOUNCE_MS = 2500;
+
+function isReconnectRequired(err: unknown): boolean {
+  return (err as { code?: string })?.code === "INSTALLATION_INVALID";
+}
 
 export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
   const now = opts.now ?? Date.now;
@@ -97,8 +102,12 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
       opts.setLastSha(r.sha ?? null);
       opts.onStatus("synced", now());
       return { empty: !!r.empty, sha: r.sha ?? null };
-    } catch {
-      opts.onStatus("error");
+    } catch (err) {
+      if (isReconnectRequired(err)) {
+        opts.onReconnectRequired();
+      } else {
+        opts.onStatus("error");
+      }
       return null;
     }
   }
@@ -112,8 +121,12 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
       opts.setLastSha(r.sha ?? null);
       opts.onStatus("synced", now());
       return { seeded: !!r.seeded, sha: r.sha ?? null };
-    } catch {
-      opts.onStatus("error");
+    } catch (err) {
+      if (isReconnectRequired(err)) {
+        opts.onReconnectRequired();
+      } else {
+        opts.onStatus("error");
+      }
       return { seeded: false, sha: null };
     }
   }
@@ -154,8 +167,12 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
         if (r.sha) opts.setLastSha(r.sha);
         opts.onStatus("synced", now());
       }
-    } catch {
-      opts.onStatus("error");
+    } catch (err) {
+      if (isReconnectRequired(err)) {
+        opts.onReconnectRequired();
+      } else {
+        opts.onStatus("error");
+      }
     } finally {
       inFlight = false;
       if (pending) {
@@ -178,8 +195,12 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
       opts.setLastSha(r.sha ?? null);
       opts.onReloaded?.();
       opts.onStatus("synced", now());
-    } catch {
-      opts.onStatus("error");
+    } catch (err) {
+      if (isReconnectRequired(err)) {
+        opts.onReconnectRequired();
+      } else {
+        opts.onStatus("error");
+      }
     }
   }
 
@@ -193,8 +214,12 @@ export function createPlaygroundSync(opts: PlaygroundSyncOpts): PlaygroundSync {
       });
       opts.setLastSha(r.sha ?? null);
       opts.onStatus("synced", now());
-    } catch {
-      opts.onStatus("error");
+    } catch (err) {
+      if (isReconnectRequired(err)) {
+        opts.onReconnectRequired();
+      } else {
+        opts.onStatus("error");
+      }
     }
   }
 

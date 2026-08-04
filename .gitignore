@@ -34,5 +34,8 @@ next-env.d.ts
 /app/preview/
 .gstack/
 /docs
+!/docs/
+/docs/*
+!/docs/frontend-architecture-migration-runbook.md
 
 .claude/

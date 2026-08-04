@@ -21,6 +21,7 @@ import {
   ListChecks,
   FolderClosed,
   Sparkles,
+  Github,
 } from "lucide-react";
 import { getUser, Project, updateUser } from "@/lib/data";
 import Editor, { OnChange } from "@monaco-editor/react";
@@ -76,6 +77,7 @@ import { Terminal, type TerminalRunHandle } from "../atoms/Terminal";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
+import { openPopupOrWarn, withReturn } from "@/lib/github-popup";
 import { Label } from "../ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { analytics } from "@/lib/analytics";
@@ -337,6 +339,7 @@ export function ProjectPlaygroundPage({
   const [progressValue, setProgressValue] = useState(0);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [baseURL, setBaseURL] = useState("");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const editorRef = useRef<any>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -410,6 +413,16 @@ export function ProjectPlaygroundPage({
     retry: () => void;
     actionLabel?: string;
   } | null>(null);
+  // Persistent "App not installed at all" banner — full-width strip between
+  // the top nav and the workspace, red per the hard-block philosophy (Run is
+  // blocked while this shows). Reported up from GithubConnect; see its
+  // `onNotInstalled` prop.
+  const [ghNotInstalled, setGhNotInstalled] = useState<{
+    connect: () => void;
+  } | null>(null);
+  // Hard-gate modal for Run when GitHub isn't connected (fresh check at click
+  // time — see `handleRunProject`). No bypass.
+  const [showGithubRequiredModal, setShowGithubRequiredModal] = useState(false);
 
   // The sync engine instance (rebuilt when the connection identity changes).
   const syncRef = useRef<PlaygroundSync | null>(null);
@@ -481,6 +494,16 @@ export function ProjectPlaygroundPage({
     project?.slug === "hello-api-sample" ||
     !!project?.isSample ||
     demoForced;
+  // Narrower than isSampleProject: deliberately excludes `demoForced`. The
+  // `?demo` param is a forceable testing switch for the guided-tour demo on
+  // ANY real project — it must never also bypass the Run hard-gate's
+  // GitHub-connection requirement, or any real project could skip the "no
+  // run-anyway bypass" gate just by adding `?demo` to the URL. Only the
+  // actual seeded sample project bypasses the Run gate.
+  const isSeededDemoProject =
+    slug === "hello-api-sample" ||
+    project?.slug === "hello-api-sample" ||
+    !!project?.isSample;
 
   // The real demo actions (create file, run server, …) need handlers defined
   // lower in this component, so they're wired into tourActionsRef below. The
@@ -603,6 +626,18 @@ export function ProjectPlaygroundPage({
     if (searchTerm?.includes("githubapp")) load();
   }, []);
 
+  // Closes this window automatically when it's the GitHub-connect popup
+  // landing back on our own return URL (window.opener is only set when this
+  // page was opened via window.open, e.g. by lib/github-popup.ts).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isGithubReturn =
+      new URLSearchParams(window.location.search).get("ref") === "githubapp";
+    if (isGithubReturn && window.opener) {
+      window.close();
+    }
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (treeRef.current && !treeRef.current.contains(event.target as Node)) {
@@ -651,12 +686,40 @@ export function ProjectPlaygroundPage({
           track(PLAYGROUND_EVENTS.githubConflict);
           setConflict({ open: true, remoteSha });
         },
+        onReconnectRequired: () => {
+          setGhError({
+            message: "Your GitHub connection expired. Reconnect to continue.",
+            actionLabel: "Reconnect",
+            retry: async () => {
+              // Re-fetch project-scoped GitHub status — it computes the same
+              // reconnect_required state get-project-github.ts already exposes,
+              // which carries the OAuth-authorize installUrl to pop open.
+              try {
+                // Tell academy the installation actually died (this detection
+                // came from the worker's mid-session sync, bypassing academy's
+                // normal proxy) — otherwise the status re-fetch below can
+                // still return a dead-end "install" URL instead of the
+                // correct self-healing "reconnect" URL. Best-effort: a
+                // failure here shouldn't block the reconnect UI.
+                await store.markGithubInstallationInvalid(slug).catch(() => {});
+                const s = await store.getProjectGithub(slug);
+                if (s?.installUrl) {
+                  openPopupOrWarn(withReturn(s.installUrl), () => {
+                    setGhError(null);
+                  });
+                }
+              } catch {
+                toast.error("Couldn't start reconnect. Please try again.");
+              }
+            },
+          });
+        },
         onReloaded: () => {
           void refreshTreeRef.current?.();
         },
       });
     },
-    [pgCtx],
+    [pgCtx, slug, store],
   );
 
   // Build (and tear down) the GitHub autosync engine when the project is linked
@@ -2063,32 +2126,27 @@ export function ProjectPlaygroundPage({
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
 
-    if (isTerminalMode) {
-      const language = (project as any)?.playgroundConfig?.language ?? "node";
-      const entrypoint = (project as any)?.playgroundConfig?.entrypoint;
-      if (!entrypoint) {
-        toast.error("This project has no entrypoint configured.");
+    // Hard gate: Run requires an active, non-expired GitHub connection. Checked
+    // fresh at click time (not the cheaper `ghConnected` derived flag) because
+    // that flag doesn't account for a connection GitHub revoked/suspended since
+    // page load.
+    // Sample projects are a frictionless trial — never gate Run behind GitHub
+    // for them. The guided tour runs Run as one of its scripted steps, often
+    // before a brand-new user has had any chance to connect GitHub yet, so
+    // gating here would silently interrupt the tour with the connect modal.
+    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
+    // `?demo` force-switch must never bypass this hard gate on a real project.
+    if (!isSeededDemoProject) {
+      try {
+        const ghStatus = await store.getProjectGithub(slug);
+        if (!ghStatus?.connected) {
+          setShowGithubRequiredModal(true);
+          return;
+        }
+      } catch {
+        setShowGithubRequiredModal(true);
         return;
       }
-      track(PLAYGROUND_EVENTS.runServer, { mode: "terminal" });
-      setShowTerminal(true);
-      const cmd =
-        language === "python"
-          ? `python3 ${escapeSingleQuoted(entrypoint)}`
-          : `node ${escapeSingleQuoted(entrypoint)}`;
-      try {
-        // Kill any previous run via REST (a PTY Ctrl+C was verified unreliable
-        // for this — see Task 0's spike) before typing the fresh command.
-        await pgExec(pgCtx, { cmd: `pkill -f ${escapeSingleQuoted(entrypoint)}` });
-      } catch {
-        // Best-effort: pkill on a not-yet-running process is a no-op failure,
-        // never block the run because of it.
-      }
-      const started = terminalRunRef.current?.runCommand(cmd);
-      if (started === false) {
-        toast.message("Terminal still connecting… try Run again in a moment.");
-      }
-      return;
     }
 
     track(PLAYGROUND_EVENTS.runServer);
@@ -2885,7 +2943,12 @@ app.listen(port, () => console.log("Server listening on port " + port));
               opacity: 0.7,
             }}
           />
-          <PathFeedbackDialog />
+          <PathFeedbackDialog
+            open={feedbackOpen}
+            onOpenChange={setFeedbackOpen}
+            source="playground"
+            context={{ projectSlug: slug }}
+          />
           {/* GitHub icon stays in the top nav next to the other icons in every
               state; the sync chip sits alongside it once connected. The tour
               anchors on this always-present button (the sync chip is conditional). */}
@@ -2895,11 +2958,30 @@ app.listen(port, () => console.log("Server listening on port " + port));
               projectName={project?.title}
               onConnected={handleGhConnected}
               onError={setGhError}
+              onNotInstalled={setGhNotInstalled}
             />
           </span>
           {ghConnected && renderSyncChip()}
         </div>
       )}
+
+      {/* ── GitHub not-connected banner ──
+          Full-width, red — the loudest strip on the page, because Run is hard
+          -blocked while this shows (see handleRunProject). No dismiss. */}
+      {ghNotInstalled ? (
+        <div className="gh-connect-banner" role="status">
+          <span className="gh-connect-banner-msg">
+            <Github style={{ width: 16, height: 16 }} />
+            Connect GitHub to save your work
+          </span>
+          <button
+            className="btn gh-connect-banner-btn"
+            onClick={ghNotInstalled.connect}
+          >
+            Connect GitHub
+          </button>
+        </div>
+      ) : null}
 
       {/* ── GitHub error strip ──
           No persistent "connect GitHub" nudge — the nav icon + slide-in own all
@@ -4108,6 +4190,40 @@ app.listen(port, () => console.log("Server listening on port " + port));
         }}
       />
 
+      <Dialog open={showGithubRequiredModal} onOpenChange={setShowGithubRequiredModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect GitHub to run your project</DialogTitle>
+            <DialogDescription>
+              Running requires a connected GitHub repository so your work is
+              always backed up. Connect GitHub, then click Run again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGithubRequiredModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const s = await store.getProjectGithub(slug);
+                  if (s?.installUrl) {
+                    openPopupOrWarn(withReturn(s.installUrl), () => {
+                      setShowGithubRequiredModal(false);
+                    });
+                  }
+                } catch {
+                  toast.error("Couldn't start connecting GitHub. Please try again.");
+                }
+              }}
+            >
+              <Github className="mr-2 h-4 w-4" />
+              Connect GitHub
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <style jsx global>{`
         /* ── tokens: copied verbatim from the mock :root (exact hex) ── */
         .pg-root {
@@ -4174,6 +4290,40 @@ app.listen(port, () => console.log("Server listening on port " + port));
         .pg-root .topbar.embedded-bar {
           height: 44px;
           flex: 0 0 44px;
+        }
+        /* GitHub not-connected banner — full-width, solid red, between the top
+           bar and the workspace. No dismiss; Run is hard-blocked while it shows. */
+        .pg-root .gh-connect-banner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex: 0 0 auto;
+          padding: 10px 16px;
+          background: #dc2626;
+          border-bottom: 1px solid #b91c1c;
+        }
+        .pg-root .gh-connect-banner-msg {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+        }
+        .pg-root .gh-connect-banner-btn {
+          width: auto;
+          padding: 6px 14px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          background: #fff;
+          color: #dc2626;
+          border: none;
+        }
+        .pg-root .gh-connect-banner-btn:hover {
+          background: #fef2f2;
         }
         /* GitHub connect nudge / sync strip — sits under the top bar (or stands
            in for it in embedded mode). */

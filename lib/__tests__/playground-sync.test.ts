@@ -32,6 +32,7 @@ function makeOpts(over: Partial<PlaygroundSyncOpts> = {}) {
     }),
     onStatus: vi.fn(),
     onConflict: vi.fn(),
+    onReconnectRequired: vi.fn(),
     onReloaded: vi.fn(),
     now: () => 1_700_000_000_000, // fixed clock for deterministic HH:MM + timestamps
     ...over,
@@ -283,6 +284,44 @@ describe("hydrate", () => {
       (c: [SyncState]) => c[0],
     );
     expect(states).toContain("error");
+  });
+});
+
+describe("createPlaygroundSync — reconnect detection", () => {
+  it("saveNow calls onReconnectRequired instead of onStatus('error') when the error carries INSTALLATION_INVALID", async () => {
+    const err = new Error("installation invalid") as Error & { code?: string };
+    err.code = "INSTALLATION_INVALID";
+    pgGitMock.mockRejectedValueOnce(err);
+
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+    await sync.saveNow("manual");
+
+    expect(opts.onReconnectRequired).toHaveBeenCalledTimes(1);
+    expect(opts.onStatus).not.toHaveBeenCalledWith("error");
+  });
+
+  it("saveNow still calls onStatus('error') for an unrelated failure", async () => {
+    pgGitMock.mockRejectedValueOnce(new Error("network blip"));
+
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+    await sync.saveNow("manual");
+
+    expect(opts.onReconnectRequired).not.toHaveBeenCalled();
+    expect(opts.onStatus).toHaveBeenCalledWith("error");
+  });
+
+  it("hydrate calls onReconnectRequired on INSTALLATION_INVALID", async () => {
+    const err = new Error("installation invalid") as Error & { code?: string };
+    err.code = "INSTALLATION_INVALID";
+    pgGitMock.mockRejectedValueOnce(err);
+
+    const opts = makeOpts();
+    const sync = createPlaygroundSync(opts);
+    await sync.hydrate();
+
+    expect(opts.onReconnectRequired).toHaveBeenCalledTimes(1);
   });
 });
 

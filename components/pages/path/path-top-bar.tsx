@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Menu,
+  MessageSquareText,
   MoreVertical,
   Zap,
   Clock,
@@ -115,6 +116,7 @@ export function PathTopBar({
   projectActions,
 }: PathTopBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const interviewSeconds = useInterviewTimer((s) => s.seconds);
   const interviewOnEnd = useInterviewTimer((s) => s.onEnd);
 
@@ -281,7 +283,15 @@ export function PathTopBar({
           {step?.type !== "EXERCISE" && <PathCodeSheet step={step} />}
           <PathResourceSheet step={step} />
           <PathHelpSheet />
-          <PathFeedbackDialog />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8"
+            onClick={() => setFeedbackOpen(true)}
+          >
+            <MessageSquareText className="w-4 h-4" />
+            <span className="sr-only">Feedback</span>
+          </Button>
         </div>
       </div>
 
@@ -365,12 +375,34 @@ export function PathTopBar({
                 {step?.type !== "EXERCISE" && <PathCodeSheet step={step} />}
                 <PathResourceSheet step={step} />
                 <PathHelpSheet />
-                <PathFeedbackDialog />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8"
+                  onClick={() => {
+                    setFeedbackOpen(true);
+                    setMobileOpen(false);
+                  }}
+                >
+                  <MessageSquareText className="w-4 h-4" />
+                  <span className="sr-only">Feedback</span>
+                </Button>
               </div>
             </div>
           </>
         )}
       </div>
+      {/* Rendered once at the top level regardless of viewport — Radix mounts
+          DialogContent into a body-level portal, so keeping a copy inside the
+          `hidden md:flex` desktop cluster AND the `{mobileOpen && ...}` mobile
+          menu would open two overlapping dialogs off one `feedbackOpen` flag. */}
+      <PathFeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        source="path-lesson"
+        context={{ lessonSlug: step?.itemId }}
+        trigger={<span className="sr-only" aria-hidden />}
+      />
     </header>
   );
 }
