@@ -268,7 +268,6 @@ describe("F4 — streaming Output tab", () => {
 
     // Phase status spinner should be gone after final result
     expect(screen.queryByTestId("exercise-phase-status")).toBeNull();
-
     // Final summary line should be present (existing finish() logic). "PASSED"
     // and "100%" legitimately render twice — once in the compact badge
     // ("Passed ✓ 100%") and once in the detailed <pre> summary line

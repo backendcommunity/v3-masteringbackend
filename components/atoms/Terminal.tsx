@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { SandboxAddon } from "@cloudflare/sandbox/xterm";
 import {
   getWorkerToken,
+  pgExec,
   pgTerminalUrl,
   type PgCtx,
 } from "@/lib/playground-client";
-import { TerminalSquare, Trash2, HelpCircle } from "lucide-react";
+import { TerminalSquare, Trash2, HelpCircle, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 
 interface TerminalProps {
   ctx: PgCtx | null;
@@ -83,14 +84,23 @@ const ansi = (line: string) => {
   return l;
 };
 
-export function Terminal({
-  ctx,
-  onClose,
-  output,
-  collapsed,
-  onToggle,
-  jail = true,
-}: TerminalProps) {
+export interface TerminalRunHandle {
+  /**
+   * Writes `cmd` into the live PTY session exactly as if typed, then Enter.
+   * Returns `false` (and does nothing) if the PTY isn't connected yet — the
+   * `SandboxAddon` WebSocket connect is an async chain
+   * (rAF → getWorkerToken → connect) that runs after this ref is already
+   * attached, so a Run click in that window must not silently drop the
+   * command. Callers should surface feedback when this returns `false`.
+   */
+  runCommand: (cmd: string) => boolean;
+}
+
+export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
+  function Terminal(
+    { ctx, onClose, output, collapsed, onToggle, jail = true },
+    ref,
+  ) {
   const { theme } = useTheme();
   const isDark = !theme || theme.includes("dark");
   const hostRef = useRef<HTMLDivElement>(null);
@@ -98,6 +108,17 @@ export function Terminal({
   const fitRef = useRef<any>(null);
   const addonRef = useRef<SandboxAddon | null>(null);
   const writtenRef = useRef(0); // run-log lines already written
+  // Tracks the PTY WebSocket's actual connection state (per the SandboxAddon's
+  // onStateChange), which lags behind this component mounting by an async
+  // chain (rAF → getWorkerToken → connect). runCommand() checks this before
+  // pasting so a Run click in that window is never a silent no-op.
+  const connectionStateRef = useRef<"connecting" | "connected" | "disconnected">(
+    "connecting",
+  );
+  // Set inside the boot effect to the current connectPty() closure, so
+  // restartPty() (below) can call it without re-running the whole effect.
+  const connectPtyRef = useRef<() => Promise<void>>(async () => {});
+  const [restarting, setRestarting] = useState(false);
 
   // ── boot a real xterm + attach the Cloudflare Sandbox PTY addon ──
   //
@@ -111,9 +132,12 @@ export function Terminal({
   // but don't connect; once `ctx` is non-null we boot the terminal and connect.
   useEffect(() => {
     if (!ctx || !hostRef.current || xtRef.current) return;
-    // client-only deps
-    const XTerm = require("xterm").Terminal;
-    const FitAddon = require("xterm-addon-fit").FitAddon;
+    // client-only deps. Must be @xterm/xterm (not the deprecated `xterm`
+    // package) — @cloudflare/sandbox/xterm's SandboxAddon types against
+    // @xterm/xterm's Terminal, and only @xterm/xterm exposes `.input()`
+    // (needed to submit a command without triggering bracketed-paste mode).
+    const XTerm = require("@xterm/xterm").Terminal;
+    const FitAddon = require("@xterm/addon-fit").FitAddon;
 
     const xt = new XTerm({
       theme: isDark ? XTERM_DARK : XTERM_LIGHT,
@@ -151,11 +175,33 @@ export function Terminal({
         getWebSocketUrl: () =>
           pgTerminalUrl(token, ctx, { cols: xt.cols, rows: xt.rows, jail }),
         onStateChange: (state, error) => {
+          connectionStateRef.current = state;
           if (state === "disconnected" && error) {
             xt.writeln(`\r\n\x1b[31m${error.message}\x1b[0m`);
           }
         },
       });
+
+    // Mint a fresh worker token and attach a new PTY addon (cols/rows reflect
+    // the fitted size). Shared by the initial open AND by restartPty() below —
+    // each call to the worker's /terminal produces a brand-new pty/shell, so
+    // disconnecting the old addon and re-running this is a genuine restart,
+    // not a resume.
+    const connectPty = async () => {
+      try {
+        const token = await getWorkerToken(ctx.slug);
+        if (disposed) return;
+        const addon = buildAddon(token);
+        addonRef.current = addon;
+        xt.loadAddon(addon as any);
+        addon.connect({ sandboxId: ctx.projectId });
+      } catch (e: any) {
+        xt.writeln(
+          `\r\n\x1b[31m${e?.message ?? "failed to start terminal"}\x1b[0m`,
+        );
+      }
+    };
+    connectPtyRef.current = connectPty;
 
     // Defer open()/fit() until the host actually has a size. Opening xterm on a
     // zero-size element (collapsed panel, or before layout settles) leaves the
@@ -174,20 +220,7 @@ export function Terminal({
         xt.writeln(ansi(out[i]));
       writtenRef.current = out.length;
 
-      // mint a worker token, then attach the PTY addon (cols/rows reflect the
-      // fitted size). The addon takes over keystrokes/output/resize from here.
-      try {
-        const token = await getWorkerToken(ctx.slug);
-        if (disposed) return;
-        const addon = buildAddon(token);
-        addonRef.current = addon;
-        xt.loadAddon(addon as any);
-        addon.connect({ sandboxId: ctx.projectId });
-      } catch (e: any) {
-        xt.writeln(
-          `\r\n\x1b[31m${e?.message ?? "failed to start terminal"}\x1b[0m`,
-        );
-      }
+      await connectPty();
     };
     requestAnimationFrame(openTerminal);
 
@@ -202,6 +235,7 @@ export function Terminal({
       ro.disconnect();
       addonRef.current?.dispose();
       addonRef.current = null;
+      connectionStateRef.current = "connecting";
       xt.dispose();
       xtRef.current = null;
     };
@@ -223,6 +257,32 @@ export function Terminal({
       xtRef.current.options.theme = isDark ? XTERM_DARK : XTERM_LIGHT;
   }, [isDark]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      runCommand: (cmd: string) => {
+        if (connectionStateRef.current !== "connected") {
+          console.warn(
+            "[Terminal] runCommand called before the PTY connected; dropping command",
+            cmd,
+          );
+          return false;
+        }
+        // xterm.js's paste() wraps content in bracketed-paste escapes (real
+        // terminal behavior) — bash/readline treat a \r *inside* a bracketed
+        // paste as literal text, not a submit, so `paste(cmd + "\r")` types
+        // the command but never runs it. `input()` delivers data "the same
+        // way input typed into the terminal would" (no bracketed-paste
+        // wrapping), exactly matching a real keypress — use it for both the
+        // command text and the trailing Enter.
+        xtRef.current?.input(cmd, true);
+        xtRef.current?.input("\r", true);
+        return true;
+      },
+    }),
+    [],
+  );
+
   // Run the shell `clear` command in the live PTY so the session itself is
   // cleared (not just the local xterm buffer). Falls back to a local clear when
   // the PTY isn't attached yet.
@@ -231,6 +291,36 @@ export function Terminal({
     if (!xt) return;
     if (addonRef.current) xt.input("clear\r");
     else xt.clear();
+  };
+
+  // Full restart: stop whatever's running, tear down the current PTY
+  // connection, and open a fresh one — a genuinely new shell process, not a
+  // resume. Each /terminal request the worker receives starts a new pty, so
+  // disconnecting the old addon and reconnecting is a real restart.
+  const restartPty = async () => {
+    if (restarting) return;
+    setRestarting(true);
+    try {
+      if (ctx) {
+        try {
+          // Best-effort: kill anything left running in this project's
+          // sandbox before dropping the session, so a restart doesn't leave
+          // an orphaned background process. Same REST kill path terminal
+          // mode's Run already uses — never blocks the restart if it fails.
+          await pgExec(ctx, {
+            cmd: "pkill -9 -x node -x python3 2>/dev/null; true",
+          });
+        } catch {}
+      }
+      addonRef.current?.disconnect();
+      addonRef.current?.dispose();
+      addonRef.current = null;
+      connectionStateRef.current = "connecting";
+      xtRef.current?.reset();
+      await connectPtyRef.current();
+    } finally {
+      setRestarting(false);
+    }
   };
 
   const showHelp = () => {
@@ -275,6 +365,17 @@ export function Terminal({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Restart terminal"
+          title="Stop everything and start a fresh terminal session"
+          disabled={restarting}
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50"
+          onClick={restartPty}
+        >
+          <RotateCcw className={cn("h-3.5 w-3.5", restarting && "animate-spin")} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           aria-label={collapsed ? "Expand terminal" : "Collapse terminal"}
           title={collapsed ? "Expand" : "Collapse"}
           className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -302,4 +403,5 @@ export function Terminal({
       <div ref={hostRef} className="flex-1 min-h-0 overflow-hidden px-2 pt-1.5" />
     </div>
   );
-}
+  },
+);

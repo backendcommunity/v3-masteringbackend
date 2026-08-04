@@ -383,6 +383,10 @@ interface AppState {
   gradeProjectTask: (
     slug: string,
     id: string,
+    /** Terminal-mode tasks only — the learner's typed values for each
+     * required input, in order (pre-filled from the task's terminalSpec,
+     * editable). Omitted for apiSpec (REST-API) tasks. */
+    stdin?: string[],
   ) => Promise<{
     passed: boolean;
     checks: Array<{ kind: string; passed: boolean; detail: string }>;
@@ -1269,8 +1273,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.post(`/projects/${slug}/tasks/${id}`);
     return data?.data;
   },
-  gradeProjectTask: async (slug: string, id: string) => {
-    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`);
+  gradeProjectTask: async (slug: string, id: string, stdin?: string[]) => {
+    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`, stdin ? { stdin } : {});
     return data?.data;
   },
   cancelSubscription: async (id: string) => {
