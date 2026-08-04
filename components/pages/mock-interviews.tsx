@@ -189,6 +189,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   });
   const [topicInput, setTopicInput] = useState("");
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const deepLinkHandledRef = useRef<string | null>(null);
 
   const [myTemplates, setMyTemplates] = useState<InterviewTemplate[]>([]);
   const [myTemplatesLoading, setMyTemplatesLoading] = useState(false);
@@ -248,18 +249,31 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     };
   }, []);
 
-  // Handle interview booking from URL query parameter
+  // Handle interview booking from URL query parameter (deep link from
+  // interviews.masteringbackend.com). The template may not be on the
+  // current page/filter of `templates`, so fall back to fetching it
+  // directly by id instead of silently doing nothing.
   useEffect(() => {
     const interviewId = searchParams?.get("id");
-    if (!interviewId || templates.length === 0) return;
+    if (!interviewId || interviewId === deepLinkHandledRef.current) return;
 
-    // Find template with matching ID
     const template = templates.find((t) => t.id === interviewId);
     if (template) {
-      // Call handleBookInterview with the found template
-      // Use setTimeout to ensure dialog is properly rendered
+      deepLinkHandledRef.current = interviewId;
       setTimeout(() => handleBookInterview(template), 100);
+      return;
     }
+
+    if (templates.length === 0) return;
+
+    deepLinkHandledRef.current = interviewId;
+    store
+      .getMockInterviewTemplate(interviewId)
+      .then((fetched: InterviewTemplate | null) => {
+        if (fetched) setTimeout(() => handleBookInterview(fetched), 100);
+        else toast.error("This interview template is no longer available");
+      })
+      .catch(() => toast.error("This interview template is no longer available"));
   }, [searchParams, templates]);
 
   const loadTemplates = async () => {
