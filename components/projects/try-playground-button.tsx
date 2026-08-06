@@ -80,7 +80,7 @@ export function TryPlaygroundButton({
     source === "detail"
       ? "border-white/30 bg-white/5 text-white hover:bg-white/10 hover:text-white"
       : source === "detail-sidebar"
-        ? "border-primary/40 text-primary hover:bg-primary/10"
+        ? "border-primary/40 text-primary hover:text-primary hover:bg-primary/10"
         : source === "nav"
           ? "text-primary hover:bg-primary/10"
           : "shadow-sm shadow-primary/25"; // listing (solid brand)
