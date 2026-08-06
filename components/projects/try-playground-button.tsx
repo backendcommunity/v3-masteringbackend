@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Play } from "lucide-react";
 import { routes } from "@/lib/routes";
 
-const SAMPLE_SLUG = "hello-api-sample";
+const SAMPLE_SLUG = "playground-demo";
 
 interface TryPlaygroundButtonProps {
   source: "detail" | "detail-sidebar" | "listing" | "nav";
