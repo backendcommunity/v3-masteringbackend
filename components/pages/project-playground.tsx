@@ -303,7 +303,6 @@ export function ProjectPlaygroundPage({
   const [mobilePane, setMobilePane] = useState<"rail" | "editor" | "right">(
     "editor",
   );
-  const [activeTab, setActiveTab] = useState("tasks");
   const [railTab, setRailTab] = useState<"tasks" | "explorer" | "kap">("tasks");
   const [rightTab, setRightTab] = useState<"preview" | "tests">("preview");
   useEffect(() => {
@@ -320,7 +319,6 @@ export function ProjectPlaygroundPage({
   const stopInFlightRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
-  const [language, setLanguage] = useState("");
   const [restart, setRestart] = useState(false);
   // Welcome/start page: technology tags collapse past the first 8.
   const [tagsExpanded, setTagsExpanded] = useState(false);
@@ -494,35 +492,11 @@ export function ProjectPlaygroundPage({
   // (sandbox boot), since the welcome/file/editor steps don't need a server.
   const tourReady = !loading && !loadingFiles;
   const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
-  // Detect the demo sample from EVERY available signal so a single stale/missing
-  // one can't silently disable the demo: the route slug, the loaded project's
-  // slug, the backend isSample flag, or an explicit `?demo=1` force switch (so
-  // the demo can be triggered on any enrolled project for testing). The sample
-  // auto-runs the tour + real actions on every visit; real projects get the
-  // highlight-only tour and are never mutated unless `?demo=1` is set.
-  const demoForced =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("demo");
-  const isSampleProject =
-    slug === "hello-api-sample" ||
-    project?.slug === "hello-api-sample" ||
-    !!project?.isSample ||
-    demoForced;
-  // Narrower than isSampleProject: deliberately excludes `demoForced`. The
-  // `?demo` param is a forceable testing switch for the guided-tour demo on
-  // ANY real project — it must never also bypass the Run hard-gate's
-  // GitHub-connection requirement, or any real project could skip the "no
-  // run-anyway bypass" gate just by adding `?demo` to the URL. Only the
-  // actual seeded sample project bypasses the Run gate.
-  const isSeededDemoProject =
-    slug === "hello-api-sample" ||
-    project?.slug === "hello-api-sample" ||
-    !!project?.isSample;
 
   // The real demo actions (create file, run server, …) need handlers defined
   // lower in this component, so they're wired into tourActionsRef below. The
-  // tour reads them through this stable delegating map. Populated only for the
-  // sample project — the demo never mutates a real user's project.
+  // tour reads them through this stable delegating map. Populated only for demo
+  // mode (isDemo) — the demo never mutates a real user's project.
   const tourActionsRef = useRef<Record<string, TourAction>>({});
   const tourActions = useMemo<Record<string, TourAction>>(() => {
     if (isDemo) {
@@ -601,7 +575,7 @@ export function ProjectPlaygroundPage({
     autoStart: true,
     actions: tourActions,
     reveals: tourReveals,
-    alwaysOffer: isSampleProject,
+    alwaysOffer: isDemo,
   });
   useEffect(() => {
     if (shouldOffer) track(TOUR_EVENTS.offered);
@@ -2336,10 +2310,7 @@ export function ProjectPlaygroundPage({
     // for them. The guided tour runs Run as one of its scripted steps, often
     // before a brand-new user has had any chance to connect GitHub yet, so
     // gating here would silently interrupt the tour with the connect modal.
-    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
-    // `?demo` force-switch must never bypass this hard gate on a real project.
-    // Also skip for isDemo (playground-demo frontend-only demo).
-    if (!isSeededDemoProject && !isDemo) {
+    if (!isDemo) {
       try {
         const ghStatus = await store.getProjectGithub(slug);
         if (!ghStatus?.connected) {
@@ -2616,29 +2587,28 @@ app.listen(port, () => console.log("Server listening on port " + port));
   // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
   // real user's project). Panel-opening lives in reveals above; these do the
   // actual work the demo shows off.
-  tourActionsRef.current =
-    isSampleProject || isDemo
-      ? {
-          "file-tree": demoCreateFile,
-          "run-server": async () => {
-            if (!pgCtx) {
-              console.warn("[playground-tour] run-server skipped: no pgCtx");
-              return;
-            }
-            await handleRunProject();
-          },
-          "run-test": async () => {
-            const gradable = firstGradableTask();
-            if (!gradable) {
-              console.warn(
-                "[playground-tour] run-test skipped: no gradable task (apiSpec).",
-              );
-              return;
-            }
-            await runTaskTest(gradable);
-          },
-        }
-      : {};
+  tourActionsRef.current = isDemo
+    ? {
+        "file-tree": demoCreateFile,
+        "run-server": async () => {
+          if (!pgCtx) {
+            console.warn("[playground-tour] run-server skipped: no pgCtx");
+            return;
+          }
+          await handleRunProject();
+        },
+        "run-test": async () => {
+          const gradable = firstGradableTask();
+          if (!gradable) {
+            console.warn(
+              "[playground-tour] run-test skipped: no gradable task (apiSpec).",
+            );
+            return;
+          }
+          await runTaskTest(gradable);
+        },
+      }
+    : {};
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
@@ -4479,7 +4449,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
         }}
       />
 
-      <Dialog open={showGithubRequiredModal} onOpenChange={setShowGithubRequiredModal}>
+      <Dialog
+        open={showGithubRequiredModal}
+        onOpenChange={setShowGithubRequiredModal}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Connect GitHub to run your project</DialogTitle>
@@ -4489,7 +4462,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGithubRequiredModal(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowGithubRequiredModal(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -4507,7 +4483,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     });
                   }
                 } catch {
-                  toast.error("Couldn't start connecting GitHub. Please try again.");
+                  toast.error(
+                    "Couldn't start connecting GitHub. Please try again.",
+                  );
                 }
               }}
             >

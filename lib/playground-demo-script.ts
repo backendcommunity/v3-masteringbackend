@@ -6,7 +6,7 @@ export const DEMO_STARTER_FILES: Array<{ name: string; content: string }> = [
   {
     name: "package.json",
     content: `{
-  "name": "hello-api-sample",
+  "name": "api-starter",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -41,7 +41,7 @@ export const DEMO_TERMINAL_LOGS: Array<{ step: string; log: string; delay: numbe
   // "run-server" step: server startup logs
   { step: "run-server", log: "$ npm start", delay: 0 },
   { step: "run-server", log: "", delay: 50 },
-  { step: "run-server", log: "> hello-api-sample@1.0.0 start", delay: 100 },
+  { step: "run-server", log: "> api-starter@1.0.0 start", delay: 100 },
   { step: "run-server", log: "> node index.js", delay: 120 },
   { step: "run-server", log: "", delay: 150 },
   { step: "run-server", log: "Server running at http://localhost:3000/", delay: 200 },
@@ -49,7 +49,7 @@ export const DEMO_TERMINAL_LOGS: Array<{ step: string; log: string; delay: numbe
   // "run-test" step: test execution logs
   { step: "run-test", log: "$ npm test", delay: 500 },
   { step: "run-test", log: "", delay: 550 },
-  { step: "run-test", log: "> hello-api-sample@1.0.0 test", delay: 600 },
+  { step: "run-test", log: "> api-starter@1.0.0 test", delay: 600 },
   { step: "run-test", log: "> node test.js", delay: 620 },
   { step: "run-test", log: "", delay: 650 },
   { step: "run-test", log: "Testing GET /api/hello...", delay: 700 },
