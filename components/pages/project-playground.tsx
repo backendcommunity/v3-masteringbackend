@@ -815,6 +815,8 @@ export function ProjectPlaygroundPage({
             message: "Your GitHub connection expired. Reconnect to continue.",
             actionLabel: "Reconnect",
             retry: async () => {
+              // Skip for demo mode (no real GitHub)
+              if (isDemo) return;
               // Re-fetch project-scoped GitHub status — it computes the same
               // reconnect_required state get-project-github.ts already exposes,
               // which carries the OAuth-authorize installUrl to pop open.
@@ -2336,7 +2338,8 @@ export function ProjectPlaygroundPage({
     // gating here would silently interrupt the tour with the connect modal.
     // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
     // `?demo` force-switch must never bypass this hard gate on a real project.
-    if (!isSeededDemoProject) {
+    // Also skip for isDemo (playground-demo frontend-only demo).
+    if (!isSeededDemoProject && !isDemo) {
       try {
         const ghStatus = await store.getProjectGithub(slug);
         if (!ghStatus?.connected) {
@@ -4491,6 +4494,11 @@ app.listen(port, () => console.log("Server listening on port " + port));
             </Button>
             <Button
               onClick={async () => {
+                // Skip for demo mode
+                if (isDemo) {
+                  setShowGithubRequiredModal(false);
+                  return;
+                }
                 try {
                   const s = await store.getProjectGithub(slug);
                   if (s?.installUrl) {
