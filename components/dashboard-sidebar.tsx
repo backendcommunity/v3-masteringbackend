@@ -40,7 +40,6 @@ const navigationData = {
       icon: Target,
       active: true,
       beta: false,
-      isNew: true,
     },
     {
       title: "Courses",
@@ -64,6 +63,7 @@ const navigationData = {
       icon: Code2,
       active: true,
       beta: false,
+      isNew: true,
     },
     {
       title: "Ship",
@@ -130,12 +130,11 @@ export function DashboardSidebar({
   const mainNav = [
     { title: "Dashboard", url: routes.dashboard, icon: LayoutDashboard },
     { title: "My Activity", url: routes.activity, icon: Activity },
-    { title: "Leaderboard", url: routes.leaderboard, icon: Trophy, isNew: true },
+    { title: "Leaderboard", url: routes.leaderboard, icon: Trophy },
     {
       title: "My Portfolio",
       url: routes.portfolio(user?.id || ""),
       icon: Briefcase,
-      isNew: true,
     },
   ];
 
