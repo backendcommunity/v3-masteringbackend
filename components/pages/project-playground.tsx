@@ -2303,27 +2303,6 @@ export function ProjectPlaygroundPage({
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
 
-    // Hard gate: Run requires an active, non-expired GitHub connection. Checked
-    // fresh at click time (not the cheaper `ghConnected` derived flag) because
-    // that flag doesn't account for a connection GitHub revoked/suspended since
-    // page load.
-    // Sample projects are a frictionless trial — never gate Run behind GitHub
-    // for them. The guided tour runs Run as one of its scripted steps, often
-    // before a brand-new user has had any chance to connect GitHub yet, so
-    // gating here would silently interrupt the tour with the connect modal.
-    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
-    // `?demo` force-switch must never bypass this hard gate on a real project.
-    if (!isSeededDemoProject) {
-      try {
-        const ghStatus = await store.getProjectGithub(slug);
-        if (!ghStatus?.connected) {
-          setShowGithubRequiredModal(true);
-          return;
-        }
-      } catch {
-        setShowGithubRequiredModal(true);
-        return;
-      }
     // Demo mode: mock server response
     if (isDemo) {
       track(PLAYGROUND_EVENTS.runServer);
@@ -2345,6 +2324,29 @@ export function ProjectPlaygroundPage({
         runInFlightRef.current = false;
       }, 800);
       return;
+    }
+
+    // Hard gate: Run requires an active, non-expired GitHub connection. Checked
+    // fresh at click time (not the cheaper `ghConnected` derived flag) because
+    // that flag doesn't account for a connection GitHub revoked/suspended since
+    // page load.
+    // Sample projects are a frictionless trial — never gate Run behind GitHub
+    // for them. The guided tour runs Run as one of its scripted steps, often
+    // before a brand-new user has had any chance to connect GitHub yet, so
+    // gating here would silently interrupt the tour with the connect modal.
+    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
+    // `?demo` force-switch must never bypass this hard gate on a real project.
+    if (!isSeededDemoProject) {
+      try {
+        const ghStatus = await store.getProjectGithub(slug);
+        if (!ghStatus?.connected) {
+          setShowGithubRequiredModal(true);
+          return;
+        }
+      } catch {
+        setShowGithubRequiredModal(true);
+        return;
+      }
     }
 
     if (isTerminalMode) {
