@@ -83,7 +83,8 @@ import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
 import { makeEditDebouncer } from "@/lib/playground-track";
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 import type { TourAction } from "@/lib/playground-tour";
-import { getPlaygroundMode } from "@/lib/playground-mode";
+import { getPlaygroundMode, isDemoMode } from "@/lib/playground-mode";
+import { createDemoExecutor } from "@/lib/playground-demo-executor";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -379,10 +380,22 @@ export function ProjectPlaygroundPage({
 
   const AUTO_COMMIT_INTERVAL = 1 * 60 * 1000; // 2 minutes
 
+  // Demo mode detection for interactive playground demo
+  const searchParamsObj =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+  const isDemo = isDemoMode(slug, searchParamsObj);
+
   // Per-call worker context — built once project + user are known. Every worker
   // call is guarded by `if (!pgCtx) return;`. `projectName = project.slug` (it's
   // worker-safe `[A-Za-z0-9_-]{1,64}` and becomes the sandbox workdir name).
+  // In demo mode, use the mock executor instead of the real one.
   const pgCtx: PgCtx | null = useMemo(() => {
+    if (isDemo) {
+      const demoCtx = createDemoExecutor() as PgCtx;
+      return demoCtx;
+    }
     if (!project?.id || !user?.id) return null;
     return {
       slug: project.slug,
@@ -390,7 +403,7 @@ export function ProjectPlaygroundPage({
       projectId: project.id,
       projectName: project.slug,
     };
-  }, [project?.id, project?.slug, user?.id]);
+  }, [project?.id, project?.slug, user?.id, isDemo]);
 
   // ── GitHub autosync wiring ──────────────────────────────────────────────
   // GitHub is the source of truth ONLY when the project has a linked repo AND
@@ -851,6 +864,26 @@ export function ProjectPlaygroundPage({
     project?.title,
     slug,
   ]);
+
+  // Load demo file tree when in demo mode
+  useEffect(() => {
+    if (!isDemo || loading) return;
+
+    import("@/lib/playground-demo-script").then(({ DEMO_STARTER_FILES }) => {
+      const demoTree = toFileTree(
+        {
+          files: DEMO_STARTER_FILES.map((f) => ({
+            name: f.name,
+            relativePath: f.name,
+            type: "file" as const,
+          })),
+        },
+        slug
+      );
+      setFileTree(demoTree);
+      setLoadingFiles(false);
+    });
+  }, [isDemo, slug, loading]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
