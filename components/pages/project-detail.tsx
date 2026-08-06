@@ -81,7 +81,9 @@ export function ProjectDetailPage({
       setUserProject(project?.userProject);
       setLoading(false);
       if (project?.id) {
-        setTimeout(() => { void triggerItemRecap("PROJECT", project.id); }, 0);
+        setTimeout(() => {
+          void triggerItemRecap("PROJECT", project.id);
+        }, 0);
       }
       if (project) {
         analytics.track(PROJECT_EVENTS.viewed, {
@@ -193,7 +195,10 @@ export function ProjectDetailPage({
   const shareUrl = `https://projects.masteringbackend.com/projects/${slug}?ref=app`;
   const shareText = `Check out the ${project?.title} project on MasteringBackend`;
   const openShare = (network: string, url: string) => {
-    analytics.track("project_share_clicked", { projectId: project?.id, network });
+    analytics.track("project_share_clicked", {
+      projectId: project?.id,
+      network,
+    });
     window.open(url, "_blank", "noopener,noreferrer");
   };
   const shareLinkedIn = () =>
@@ -366,7 +371,7 @@ export function ProjectDetailPage({
           ) : null}
 
           {/* Prerequisites & Skills */}
-          {(project?.prerequisites?.length || project?.skills?.length) ? (
+          {project?.prerequisites?.length || project?.skills?.length ? (
             <Card>
               <CardContent className="grid gap-6 pt-6 sm:grid-cols-2">
                 {project?.prerequisites?.length ? (
@@ -385,7 +390,9 @@ export function ProjectDetailPage({
                 ) : null}
                 {project?.skills?.length ? (
                   <div className="space-y-2">
-                    <CardTitle className="text-base">Skills you'll build</CardTitle>
+                    <CardTitle className="text-base">
+                      Skills you'll build
+                    </CardTitle>
                     {project.skills.map((s, i) => (
                       <div
                         key={i}
@@ -441,28 +448,11 @@ export function ProjectDetailPage({
                             <AccordionTrigger className="w-full px-4 py-4 hover:no-underline hover:bg-muted/30 [&[data-state=open]]:bg-muted/10">
                               <div className="space-y-1.5 text-left flex-1 pr-2">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={groupBadgeCls}>Tasks</span>
                                   {completed && (
                                     <Badge className="bg-emerald-600 text-[10px] py-0 px-1.5 h-auto text-white hover:bg-emerald-700">
                                       ✓ Done
                                     </Badge>
                                   )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] py-0 px-1.5 h-auto ${
-                                      !project?.isPremium
-                                        ? "border-emerald-600 text-emerald-600"
-                                        : project?.enrolled
-                                          ? "border-primary text-primary"
-                                          : "border-amber-600 text-amber-600"
-                                    }`}
-                                  >
-                                    {!project?.isPremium
-                                      ? "FREE"
-                                      : project?.enrolled
-                                        ? "ENROLLED"
-                                        : "PREMIUM"}
-                                  </Badge>
                                   {group?.tasks?.length ? (
                                     <span className={groupBadgeCls}>
                                       {group.tasks.length} task
@@ -499,30 +489,32 @@ export function ProjectDetailPage({
                               <div className="border-t pt-3 space-y-3">
                                 {group?.tasks?.length ? (
                                   <ul className="space-y-2.5">
-                                    {group.tasks.map((task: any, ti: number) => (
-                                      <li
-                                        key={task.id ?? ti}
-                                        className="flex items-start gap-2 text-sm"
-                                      >
-                                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                        <span className="flex-1 min-w-0">
-                                          <span className="block text-foreground/90 font-medium">
-                                            {task?.title}
+                                    {group.tasks.map(
+                                      (task: any, ti: number) => (
+                                        <li
+                                          key={task.id ?? ti}
+                                          className="flex items-start gap-2 text-sm"
+                                        >
+                                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                          <span className="flex-1 min-w-0">
+                                            <span className="block text-foreground/90 font-medium">
+                                              {task?.title}
+                                            </span>
+                                            {task?.technologies?.length ? (
+                                              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                                <Database className="h-3 w-3" />
+                                                {task.technologies.join(", ")}
+                                              </span>
+                                            ) : null}
                                           </span>
-                                          {task?.technologies?.length ? (
-                                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                              <Database className="h-3 w-3" />
-                                              {task.technologies.join(", ")}
+                                          {task?.mb ? (
+                                            <span className="flex-shrink-0 text-[11px] font-semibold text-amber-600">
+                                              +{task.mb} MB
                                             </span>
                                           ) : null}
-                                        </span>
-                                        {task?.mb ? (
-                                          <span className="flex-shrink-0 text-[11px] font-semibold text-amber-600">
-                                            +{task.mb} MB
-                                          </span>
-                                        ) : null}
-                                      </li>
-                                    ))}
+                                        </li>
+                                      ),
+                                    )}
                                   </ul>
                                 ) : null}
 
@@ -571,7 +563,9 @@ export function ProjectDetailPage({
                                     ) : (
                                       <Lock className="h-3 w-3 mr-1" />
                                     )}
-                                    {enrolling ? "Starting…" : "Enroll to Unlock"}
+                                    {enrolling
+                                      ? "Starting…"
+                                      : "Enroll to Unlock"}
                                   </Button>
                                 )}
                               </div>
@@ -869,7 +863,11 @@ export function ProjectDetailPage({
                     aria-label="Share on LinkedIn"
                     className={`${tileCls} hover:border-[#0A66C2] hover:bg-[#0A66C2] hover:text-white`}
                   >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-5 h-5"
+                    >
                       <path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM10 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.3c0-1.27-.02-2.9-1.77-2.9-1.77 0-2.04 1.38-2.04 2.8V21h-4z" />
                     </svg>
                     LinkedIn
@@ -879,7 +877,11 @@ export function ProjectDetailPage({
                     aria-label="Share on X"
                     className={`${tileCls} hover:border-foreground hover:bg-foreground hover:text-background`}
                   >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-4 h-4"
+                    >
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
                     X
@@ -889,7 +891,11 @@ export function ProjectDetailPage({
                     aria-label="Share on Facebook"
                     className={`${tileCls} hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white`}
                   >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-5 h-5"
+                    >
                       <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.86.24-1.45 1.48-1.45H17V4.1c-.27-.04-1.2-.12-2.28-.12-2.26 0-3.8 1.38-3.8 3.9V10H8.2v3h2.72v8z" />
                     </svg>
                     Facebook
