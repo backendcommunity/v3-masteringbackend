@@ -2191,6 +2191,29 @@ export function ProjectPlaygroundPage({
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
 
+    // Demo mode: mock server response
+    if (isDemo) {
+      track(PLAYGROUND_EVENTS.runServer);
+      runInFlightRef.current = true;
+      setIsRunning(true);
+      setSandboxLive(true);
+
+      // Simulate server startup logs
+      setTimeout(() => {
+        setTerminalOutput((prev) => [
+          ...prev,
+          "$ npm start",
+          "> node index.js",
+          "",
+          "$ Server running at: http://localhost:3000",
+          "$ Use this as your base URL in Postman or your frontend.",
+        ]);
+        setIsRunning(false);
+        runInFlightRef.current = false;
+      }, 800);
+      return;
+    }
+
     if (isTerminalMode) {
       const language = (project as any)?.playgroundConfig?.language ?? "node";
       const entrypoint = (project as any)?.playgroundConfig?.entrypoint;
