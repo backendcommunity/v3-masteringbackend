@@ -85,7 +85,9 @@ import { PLAYGROUND_EVENTS, TOUR_EVENTS } from "@/lib/analytics-events";
 import { makeEditDebouncer } from "@/lib/playground-track";
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 import type { TourAction } from "@/lib/playground-tour";
-import { getPlaygroundMode } from "@/lib/playground-mode";
+import { getPlaygroundMode, isDemoMode } from "@/lib/playground-mode";
+import { createDemoPgCtx } from "@/lib/playground-demo-executor";
+import { DEMO_TASKS, DEMO_FRONTEND_HTML } from "@/lib/playground-demo-script";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -269,7 +271,8 @@ export function ProjectPlaygroundPage({
   const [previewNonce, setPreviewNonce] = useState(0);
   const playgroundMode = getPlaygroundMode(project ?? {});
   const isTerminalMode = playgroundMode === "terminal";
-  const frontendEnabled = !isTerminalMode && !!(project as any)?.playgroundConfig?.frontendPreview;
+  const frontendEnabled =
+    !isTerminalMode && !!(project as any)?.playgroundConfig?.frontendPreview;
   const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
   useEffect(() => {
     if (frontendEnabled) setPreviewMode("app");
@@ -300,7 +303,6 @@ export function ProjectPlaygroundPage({
   const [mobilePane, setMobilePane] = useState<"rail" | "editor" | "right">(
     "editor",
   );
-  const [activeTab, setActiveTab] = useState("tasks");
   const [railTab, setRailTab] = useState<"tasks" | "explorer" | "kap">("tasks");
   const [rightTab, setRightTab] = useState<"preview" | "tests">("preview");
   useEffect(() => {
@@ -317,7 +319,6 @@ export function ProjectPlaygroundPage({
   const stopInFlightRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
-  const [language, setLanguage] = useState("");
   const [restart, setRestart] = useState(false);
   // Welcome/start page: technology tags collapse past the first 8.
   const [tagsExpanded, setTagsExpanded] = useState(false);
@@ -382,10 +383,21 @@ export function ProjectPlaygroundPage({
 
   const AUTO_COMMIT_INTERVAL = 1 * 60 * 1000; // 2 minutes
 
+  // Demo mode detection for interactive playground demo
+  const searchParamsObj =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+  const isDemo = isDemoMode(slug, searchParamsObj);
+
   // Per-call worker context — built once project + user are known. Every worker
   // call is guarded by `if (!pgCtx) return;`. `projectName = project.slug` (it's
   // worker-safe `[A-Za-z0-9_-]{1,64}` and becomes the sandbox workdir name).
+  // In demo mode, use the mock executor instead of the real one.
   const pgCtx: PgCtx | null = useMemo(() => {
+    if (isDemo) {
+      return createDemoPgCtx();
+    }
     if (!project?.id || !user?.id) return null;
     return {
       slug: project.slug,
@@ -393,7 +405,7 @@ export function ProjectPlaygroundPage({
       projectId: project.id,
       projectName: project.slug,
     };
-  }, [project?.id, project?.slug, user?.id]);
+  }, [project?.id, project?.slug, user?.id, isDemo]);
 
   // ── GitHub autosync wiring ──────────────────────────────────────────────
   // GitHub is the source of truth ONLY when the project has a linked repo AND
@@ -480,42 +492,71 @@ export function ProjectPlaygroundPage({
   // (sandbox boot), since the welcome/file/editor steps don't need a server.
   const tourReady = !loading && !loadingFiles;
   const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
-  // Detect the demo sample from EVERY available signal so a single stale/missing
-  // one can't silently disable the demo: the route slug, the loaded project's
-  // slug, the backend isSample flag, or an explicit `?demo=1` force switch (so
-  // the demo can be triggered on any enrolled project for testing). The sample
-  // auto-runs the tour + real actions on every visit; real projects get the
-  // highlight-only tour and are never mutated unless `?demo=1` is set.
-  const demoForced =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("demo");
-  const isSampleProject =
-    slug === "hello-api-sample" ||
-    project?.slug === "hello-api-sample" ||
-    !!project?.isSample ||
-    demoForced;
-  // Narrower than isSampleProject: deliberately excludes `demoForced`. The
-  // `?demo` param is a forceable testing switch for the guided-tour demo on
-  // ANY real project — it must never also bypass the Run hard-gate's
-  // GitHub-connection requirement, or any real project could skip the "no
-  // run-anyway bypass" gate just by adding `?demo` to the URL. Only the
-  // actual seeded sample project bypasses the Run gate.
-  const isSeededDemoProject =
-    slug === "hello-api-sample" ||
-    project?.slug === "hello-api-sample" ||
-    !!project?.isSample;
 
   // The real demo actions (create file, run server, …) need handlers defined
   // lower in this component, so they're wired into tourActionsRef below. The
-  // tour reads them through this stable delegating map. Populated only for the
-  // sample project — the demo never mutates a real user's project.
+  // tour reads them through this stable delegating map. Populated only for demo
+  // mode (isDemo) — the demo never mutates a real user's project.
   const tourActionsRef = useRef<Record<string, TourAction>>({});
   const tourActions = useMemo<Record<string, TourAction>>(() => {
-    const ids = ["file-tree", "run-server", "run-test"];
+    if (isDemo) {
+      // Demo mode: actions trigger state changes + log emission
+      return {
+        "file-tree": () => {
+          tourRevealsRef.current["file-tree"]?.();
+          tourActionsRef.current["file-tree"]?.();
+        },
+        "run-server": async () => {
+          tourActionsRef.current["run-server"]?.();
+          // Emit "run-server" logs to terminal
+          const { DEMO_TERMINAL_LOGS } =
+            await import("@/lib/playground-demo-script");
+          const logsForStep = DEMO_TERMINAL_LOGS.filter(
+            (l) => l.step === "run-server",
+          );
+          for (const log of logsForStep) {
+            await new Promise((r) => setTimeout(r, log.delay));
+            terminalRunRef.current?.write(log.log);
+          }
+        },
+        "run-test": async () => {
+          // Open drawer, show logs, run test all at once (no delays)
+          tourRevealsRef.current["run-test"]?.();
+
+          // Show test logs immediately without delays
+          const { DEMO_TERMINAL_LOGS } =
+            await import("@/lib/playground-demo-script");
+          const logsForStep = DEMO_TERMINAL_LOGS.filter(
+            (l) => l.step === "run-test",
+          );
+          for (const log of logsForStep) {
+            terminalRunRef.current?.write(log.log);
+          }
+
+          // Show test passed immediately
+          tourActionsRef.current["run-test"]?.();
+        },
+        "github-sync": () => {
+          // Show syncing status immediately
+          setSyncStatus({ state: "syncing", at: Date.now() });
+          // Then show synced after a quick moment
+          setTimeout(() => {
+            setSyncStatus({ state: "synced", at: Date.now() });
+          }, 100);
+        },
+        kap: () => {
+          // Open Kap tutor panel (demo messages shown automatically)
+          tourRevealsRef.current.kap?.();
+        },
+      };
+    }
+
+    // Non-demo path (keep existing code)
+    const ids = ["file-tree", "run-server", "run-test", "github-sync", "kap"];
     const map: Record<string, TourAction> = {};
     for (const id of ids) map[id] = () => tourActionsRef.current[id]?.();
     return map;
-  }, []);
+  }, [isDemo]);
   // Reveals open each step's panel/tab/drawer BEFORE it is highlighted, so every
   // step shows on its real target even when that panel isn't open by default.
   // Always provided (opening a panel is safe on any project); only the real
@@ -534,7 +575,7 @@ export function ProjectPlaygroundPage({
     autoStart: true,
     actions: tourActions,
     reveals: tourReveals,
-    alwaysOffer: isSampleProject,
+    alwaysOffer: isDemo,
   });
   useEffect(() => {
     if (shouldOffer) track(TOUR_EVENTS.offered);
@@ -558,10 +599,67 @@ export function ProjectPlaygroundPage({
   // would re-run, setLoading(true), and tear down the whole playground (editor +
   // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
   // refetches the project (without setLoading) so connected state still updates.
+  // For demo mode, use a fake project object instead of database lookup.
   useEffect(() => {
     // setLoading(true);
     async function findProject(slug: string) {
-      const project = await store.getProject(slug);
+      let project;
+      if (isDemo) {
+        // Mock project for demo mode
+        project = {
+          id: "demo-project-id",
+          slug: "playground-demo",
+          title: "Playground Demo",
+          summary: "Build a real backend, right here — in 60 seconds.",
+          description:
+            "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
+          level: "Beginner",
+          skills: ["http", "api", "nodejs"],
+          technologies: ["Node.js"],
+          prerequisites: [],
+          industries: ["Web"],
+          duration: 1,
+          isPremium: false,
+          isSample: true,
+          isWaiting: false,
+          enrolled: true,
+          userProject: { enrolled: true },
+          playgroundConfig: {
+            frontendPreview: true,
+            previewDir: "public",
+          },
+          projectTasks: [
+            {
+              id: "demo-task-group-1",
+              title: "Getting Started",
+              tasks: DEMO_TASKS.slice(0, 3).map((t: any) => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                required: t.required,
+                mb: t.mb,
+                apiSpec: t.apiSpec,
+                userTask: { isCompleted: false },
+              })),
+            },
+            {
+              id: "demo-task-group-2",
+              title: "Advanced",
+              tasks: DEMO_TASKS.slice(3).map((t: any) => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                required: t.required,
+                mb: t.mb,
+                apiSpec: t.apiSpec,
+                userTask: { isCompleted: false },
+              })),
+            },
+          ],
+        } as any;
+      } else {
+        project = await store.getProject(slug);
+      }
       setProject(project);
       setLoading(false);
       const source =
@@ -576,7 +674,7 @@ export function ProjectPlaygroundPage({
       });
     }
     findProject(slug);
-  }, [slug]);
+  }, [slug, isDemo]);
 
   // Track GitHub-connected state separately — a cheap flag update with no loading
   // churn, so it can react to user changes without remounting the page.
@@ -691,6 +789,8 @@ export function ProjectPlaygroundPage({
             message: "Your GitHub connection expired. Reconnect to continue.",
             actionLabel: "Reconnect",
             retry: async () => {
+              // Skip for demo mode (no real GitHub)
+              if (isDemo) return;
               // Re-fetch project-scoped GitHub status — it computes the same
               // reconnect_required state get-project-github.ts already exposes,
               // which carries the OAuth-authorize installUrl to pop open.
@@ -751,8 +851,9 @@ export function ProjectPlaygroundPage({
 
   // Initial tree load + best-effort seed (replaces the socket folder:read +
   // project:start/clone flow). Runs once the worker ctx is ready.
+  // Skip for demo mode (uses separate demo file tree loading effect).
   useEffect(() => {
-    if (!pgCtx) return;
+    if (!pgCtx || isDemo) return;
     let cancelled = false;
 
     // The first worker call on a cold sandbox can transiently fail while the
@@ -904,6 +1005,7 @@ export function ProjectPlaygroundPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pgCtx,
+    isDemo,
     project?.baseRepository,
     // Depend on the primitive, not the array reference. store.getProject()
     // returns a fresh `languages` array on every refetch (e.g. after GitHub
@@ -914,6 +1016,26 @@ export function ProjectPlaygroundPage({
     project?.title,
     slug,
   ]);
+
+  // Load demo file tree when in demo mode
+  useEffect(() => {
+    if (!isDemo || loading) return;
+
+    import("@/lib/playground-demo-script").then(({ DEMO_STARTER_FILES }) => {
+      const demoTree = toFileTree(
+        {
+          files: DEMO_STARTER_FILES.map((f) => ({
+            name: f.name,
+            relativePath: f.name,
+            type: "file" as const,
+          })),
+        },
+        slug,
+      );
+      setFileTree(demoTree);
+      setLoadingFiles(false);
+    });
+  }, [isDemo, slug, loading]);
 
   // Best-effort final save when the tab/window closes (connected only — the
   // guard lives in the engine ref being null when not connected).
@@ -1108,7 +1230,7 @@ export function ProjectPlaygroundPage({
       />
     );
   }
-  if (!project?.enrolled)
+  if (!isDemo && !project?.enrolled)
     return (
       <div className="container max-w-4xl py-12">
         <Card>
@@ -1219,7 +1341,7 @@ export function ProjectPlaygroundPage({
 
   const handleEnrollNow = async () => {
     try {
-      if (!user?.isPremium && project.isPremium && !project.enrolled) {
+      if (!user?.isPremium && project?.isPremium && !project.enrolled) {
         setShowPayment(!showPayment);
         return;
       }
@@ -1460,6 +1582,17 @@ export function ProjectPlaygroundPage({
       prev.includes(filePath) ? prev : [...prev, filePath],
     );
     try {
+      // Demo mode: load from DEMO_STARTER_FILES instead of pgFs
+      if (isDemo) {
+        const { DEMO_STARTER_FILES } =
+          await import("@/lib/playground-demo-script");
+        const demoFile = DEMO_STARTER_FILES.find(
+          (f) => f.name === fileName || f.name === filePath,
+        );
+        setCode(demoFile?.content ?? "");
+        return;
+      }
+
       const r = await pgFs(pgCtx, { op: "read", path: toRel(filePath) });
       setCode(r?.content ?? "");
     } catch (error: any) {
@@ -1729,9 +1862,7 @@ export function ProjectPlaygroundPage({
                   }}
                 />
               ) : (
-                <span className="nm">
-                  {depth === 0 ? project?.title || "Project files" : node.name}
-                </span>
+                <span className="nm">{depth === 0 ? slug : node.name}</span>
               )}
               <span className="acts">
                 <button
@@ -1978,6 +2109,28 @@ export function ProjectPlaygroundPage({
   const runTaskTest = async (t: any) => {
     if (!t) return;
 
+    // Demo mode: instant pass with celebration
+    if (isDemo) {
+      const { DEMO_TEST_RESULT } = await import("@/lib/playground-demo-script");
+      setTestRun({
+        status: DEMO_TEST_RESULT.pass ? "pass" : "fail",
+        checks: [
+          {
+            label: DEMO_TEST_RESULT.message,
+            ok: DEMO_TEST_RESULT.pass,
+          },
+        ],
+      });
+      if (DEMO_TEST_RESULT.pass) {
+        markTaskCompleteInState(t.id);
+        setCelebration(true);
+        toast.success(`Passed — +${DEMO_TEST_RESULT.scoreEarned} MB`);
+      } else {
+        toast.error("Test failed");
+      }
+      return;
+    }
+
     // Run Test grades endpoint tasks (apiSpec) and terminal tasks (terminalSpec).
     // Non-endpoint, non-terminal tasks complete via "Mark as complete"
     // (markTaskManually) — this path never auto-passes a task.
@@ -2126,6 +2279,29 @@ export function ProjectPlaygroundPage({
   const handleRunProject = async () => {
     if (!pgCtx || runInFlightRef.current) return; // re-entrancy guard
 
+    // Demo mode: mock server response
+    if (isDemo) {
+      track(PLAYGROUND_EVENTS.runServer);
+      runInFlightRef.current = true;
+      setIsRunning(true);
+      setBaseURL("http://localhost:3000");
+
+      // Simulate server startup logs
+      setTimeout(() => {
+        setTerminalOutput((prev) => [
+          ...prev,
+          "$ npm start",
+          "> node index.js",
+          "",
+          "$ Server running at: http://localhost:3000",
+          "$ Use this as your base URL in Postman or your frontend.",
+        ]);
+        setIsRunning(false);
+        runInFlightRef.current = false;
+      }, 800);
+      return;
+    }
+
     // Hard gate: Run requires an active, non-expired GitHub connection. Checked
     // fresh at click time (not the cheaper `ghConnected` derived flag) because
     // that flag doesn't account for a connection GitHub revoked/suspended since
@@ -2134,9 +2310,7 @@ export function ProjectPlaygroundPage({
     // for them. The guided tour runs Run as one of its scripted steps, often
     // before a brand-new user has had any chance to connect GitHub yet, so
     // gating here would silently interrupt the tour with the connect modal.
-    // Deliberately uses isSeededDemoProject (NOT isSampleProject) — the
-    // `?demo` force-switch must never bypass this hard gate on a real project.
-    if (!isSeededDemoProject) {
+    if (!isDemo) {
       try {
         const ghStatus = await store.getProjectGithub(slug);
         if (!ghStatus?.connected) {
@@ -2147,6 +2321,36 @@ export function ProjectPlaygroundPage({
         setShowGithubRequiredModal(true);
         return;
       }
+    }
+
+    if (isTerminalMode) {
+      const language = (project as any)?.playgroundConfig?.language ?? "node";
+      const entrypoint = (project as any)?.playgroundConfig?.entrypoint;
+      if (!entrypoint) {
+        toast.error("This project has no entrypoint configured.");
+        return;
+      }
+      track(PLAYGROUND_EVENTS.runServer, { mode: "terminal" });
+      setShowTerminal(true);
+      const cmd =
+        language === "python"
+          ? `python3 ${escapeSingleQuoted(entrypoint)}`
+          : `node ${escapeSingleQuoted(entrypoint)}`;
+      try {
+        // Kill any previous run via REST (a PTY Ctrl+C was verified unreliable
+        // for this — see Task 0's spike) before typing the fresh command.
+        await pgExec(pgCtx, {
+          cmd: `pkill -f ${escapeSingleQuoted(entrypoint)}`,
+        });
+      } catch {
+        // Best-effort: pkill on a not-yet-running process is a no-op failure,
+        // never block the run because of it.
+      }
+      const started = terminalRunRef.current?.runCommand(cmd);
+      if (started === false) {
+        toast.message("Terminal still connecting… try Run again in a moment.");
+      }
+      return;
     }
 
     track(PLAYGROUND_EVENTS.runServer);
@@ -2192,6 +2396,21 @@ export function ProjectPlaygroundPage({
 
   const handleStopProject = async () => {
     if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+
+    // Demo mode: mock stop
+    if (isDemo) {
+      track(PLAYGROUND_EVENTS.stopServer);
+      stopInFlightRef.current = true;
+      setIsStopping(true);
+      setBaseURL("");
+      toast.message("Server stopped");
+      setTimeout(() => {
+        setIsStopping(false);
+        stopInFlightRef.current = false;
+      }, 300);
+      return;
+    }
+
     track(PLAYGROUND_EVENTS.stopServer);
     stopInFlightRef.current = true;
     setIsStopping(true);
@@ -2278,6 +2497,24 @@ app.listen(port, () => console.log("Server listening on port " + port));
       return;
     }
     setRailTab("explorer");
+
+    // Demo mode: skip file system writes, just open editor with demo code
+    if (isDemo) {
+      const { DEMO_STARTER_FILES } =
+        await import("@/lib/playground-demo-script");
+      const indexFile = DEMO_STARTER_FILES.find((f) => f.name === "index.js");
+      if (indexFile) {
+        await openFile({
+          name: "index.js",
+          type: "file",
+          icon: "📄",
+          path: "index.js",
+          language: getLanguageFromFileName("index.js"),
+        });
+      }
+      return;
+    }
+
     try {
       await pgFs(pgCtx, {
         op: "write",
@@ -2350,7 +2587,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
   // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
   // real user's project). Panel-opening lives in reveals above; these do the
   // actual work the demo shows off.
-  tourActionsRef.current = isSampleProject
+  tourActionsRef.current = isDemo
     ? {
         "file-tree": demoCreateFile,
         "run-server": async () => {
@@ -2724,9 +2961,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
   const tMethod = tSpec.method || activeTask?.method;
   const tUrl = tSpec.url || activeTask?.url;
 
-  // ── GitHub sync status chip (connected only) ──
+  // ── GitHub sync status chip (connected only, or demo mode) ──
   const renderSyncChip = () => {
-    if (!ghConnected) return null;
+    if (!ghConnected && !isDemo) return null;
     const state = syncStatus?.state ?? "synced";
     const at = syncStatus?.at;
     const base =
@@ -2961,7 +3198,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
               onNotInstalled={setGhNotInstalled}
             />
           </span>
-          {ghConnected && renderSyncChip()}
+          {(ghConnected || isDemo) && renderSyncChip()}
         </div>
       )}
 
@@ -2987,8 +3224,8 @@ app.listen(port, () => console.log("Server listening on port " + port));
           No persistent "connect GitHub" nudge — the nav icon + slide-in own all
           the actions and provisioning is automatic. This strip appears ONLY when
           GithubConnect reports an actionable error (load failed, auto-provision
-          failed), with a Retry that re-runs the failed step. */}
-      {ghError ? (
+          failed), with a Retry that re-runs the failed step. Hidden in demo mode. */}
+      {ghError && !isDemo ? (
         <div className="gh-nudge gh-nudge-error">
           <span className="gh-nudge-msg gh-nudge-msg-error">
             <AlertTriangle style={{ width: 14, height: 14 }} />
@@ -3200,6 +3437,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   "Give me a hint",
                 ]}
                 onMessageSent={() => track(PLAYGROUND_EVENTS.kapMessageSent)}
+                demoMode={isDemo}
               />
             </div>
           )}
@@ -3306,7 +3544,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     {I.spark} {totalPts} MB
                   </span>
                 </div>
-                {project?.technologies?.length > 0 && (
+                {project?.technologies && project.technologies.length > 0 && (
                   <div className="wtags">
                     {(tagsExpanded
                       ? project.technologies
@@ -3457,7 +3695,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
               )}
               <div
                 data-tour="terminal"
-                className={cn("term border-t border-border", !showTerminal && "collapsed")}
+                className={cn(
+                  "term border-t border-border",
+                  !showTerminal && "collapsed",
+                )}
                 ref={termRef}
                 style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
               >
@@ -3607,7 +3848,8 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   <div className="pv-frame">
                     {baseURL ? (
                       <iframe
-                        src={resolvedPreviewUrl}
+                        src={isDemo ? undefined : resolvedPreviewUrl}
+                        srcDoc={isDemo ? DEMO_FRONTEND_HTML : undefined}
                         title="Project preview"
                         // Defense-in-depth: the preview serves learner-authored
                         // code from the sandbox. Sandbox the frame so a misbehaving
@@ -3775,15 +4017,30 @@ app.listen(port, () => console.log("Server listening on port " + port));
                       {testStdin.length === 1 ? "" : "s"} from the terminal.
                       Edit them if you want, then hit Run test.
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
                       {testStdin.map((v, i) => (
                         <div
                           key={i}
-                          style={{ display: "flex", alignItems: "center", gap: 8 }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
                         >
                           <label
                             htmlFor={`test-stdin-${i}`}
-                            style={{ fontSize: 12, color: "var(--muted)", width: 20, flexShrink: 0 }}
+                            style={{
+                              fontSize: 12,
+                              color: "var(--muted)",
+                              width: 20,
+                              flexShrink: 0,
+                            }}
                           >
                             {i + 1}.
                           </label>
@@ -3793,7 +4050,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
                             value={v}
                             onChange={(e) =>
                               setTestStdin((prev) =>
-                                prev.map((p, pi) => (pi === i ? e.target.value : p)),
+                                prev.map((p, pi) =>
+                                  pi === i ? e.target.value : p,
+                                ),
                               )
                             }
                           />
@@ -4190,7 +4449,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
         }}
       />
 
-      <Dialog open={showGithubRequiredModal} onOpenChange={setShowGithubRequiredModal}>
+      <Dialog
+        open={showGithubRequiredModal}
+        onOpenChange={setShowGithubRequiredModal}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Connect GitHub to run your project</DialogTitle>
@@ -4200,11 +4462,19 @@ app.listen(port, () => console.log("Server listening on port " + port));
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGithubRequiredModal(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowGithubRequiredModal(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={async () => {
+                // Skip for demo mode
+                if (isDemo) {
+                  setShowGithubRequiredModal(false);
+                  return;
+                }
                 try {
                   const s = await store.getProjectGithub(slug);
                   if (s?.installUrl) {
@@ -4213,7 +4483,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     });
                   }
                 } catch {
-                  toast.error("Couldn't start connecting GitHub. Please try again.");
+                  toast.error(
+                    "Couldn't start connecting GitHub. Please try again.",
+                  );
                 }
               }}
             >
