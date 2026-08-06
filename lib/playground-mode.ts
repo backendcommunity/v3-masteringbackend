@@ -24,3 +24,23 @@ export function getPlaygroundMode(project: Pick<Project, "playgroundConfig">): P
 
   return "rest-api";
 }
+
+// Demo mode detection for canned, frontend-only playground demo
+export function isDemoMode(
+  slug: string,
+  searchParams?: URLSearchParams
+): boolean {
+  // Demo mode triggered by:
+  // 1. slug="playground-demo" (special demo-only slug)
+  // 2. ?demo=1 query param (force demo on any enrolled project for testing)
+  const demoForced =
+    typeof window !== "undefined" &&
+    (searchParams || new URLSearchParams(window.location.search)).has("demo");
+
+  return slug === "playground-demo" || demoForced;
+}
+
+export function canUseDemoMode(): boolean {
+  // Demo mode available in all environments (safe—it's frontend-only, no API)
+  return true;
+}

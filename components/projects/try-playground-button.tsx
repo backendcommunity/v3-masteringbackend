@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Play } from "lucide-react";
 import { routes } from "@/lib/routes";
 
-const SAMPLE_SLUG = "hello-api-sample";
+const SAMPLE_SLUG = "playground-demo";
 
 interface TryPlaygroundButtonProps {
   source: "detail" | "detail-sidebar" | "listing" | "nav";
@@ -46,22 +46,25 @@ export function TryPlaygroundButton({
     setLoading(true);
     analytics.track(PROJECT_EVENTS.tryPlaygroundClicked, { source, slug: targetSlug });
 
-    // Enrollment POSTs to the backend. For an already-enrolled user the backend
-    // is expected to be idempotent, but if it surfaces an "already enrolled"
-    // error we still want to drop the learner straight into the playground.
-    try {
-      await handleProjectEnrollment(targetSlug);
-    } catch (error: any) {
-      const message: string = String(
-        error?.response?.data?.message ?? "",
-      ).toLowerCase();
-      const alreadyEnrolled =
-        message.includes("already") || error?.response?.status === 409;
-      if (!alreadyEnrolled) {
-        toast.error("Couldn't start the playground. Please try again.");
-        inFlight.current = false;
-        setLoading(false);
-        return;
+    // Skip enrollment for demo mode (frontend-only, no DB project needed)
+    if (targetSlug !== "playground-demo") {
+      // Enrollment POSTs to the backend. For an already-enrolled user the backend
+      // is expected to be idempotent, but if it surfaces an "already enrolled"
+      // error we still want to drop the learner straight into the playground.
+      try {
+        await handleProjectEnrollment(targetSlug);
+      } catch (error: any) {
+        const message: string = String(
+          error?.response?.data?.message ?? "",
+        ).toLowerCase();
+        const alreadyEnrolled =
+          message.includes("already") || error?.response?.status === 409;
+        if (!alreadyEnrolled) {
+          toast.error("Couldn't start the playground. Please try again.");
+          inFlight.current = false;
+          setLoading(false);
+          return;
+        }
       }
     }
 
