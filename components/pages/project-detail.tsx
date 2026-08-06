@@ -711,6 +711,12 @@ export function ProjectDetailPage({
                 {enrolling ? "Starting…" : "Start Building"}
               </button>
 
+              <TryPlaygroundButton
+                source="detail"
+                slug={slug}
+                className="mt-2 w-full"
+              />
+
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 {!project?.isPremium || user?.isPremium
                   ? "Build at your own pace · Earn a verified certificate"
