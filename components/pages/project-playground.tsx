@@ -523,6 +523,8 @@ export function ProjectPlaygroundPage({
           }
         },
         "run-test": async () => {
+          // Open test drawer first
+          tourRevealsRef.current["run-test"]?.();
           // Emit "run-test" logs to terminal
           const { DEMO_TERMINAL_LOGS } =
             await import("@/lib/playground-demo-script");
@@ -533,6 +535,7 @@ export function ProjectPlaygroundPage({
             await new Promise((r) => setTimeout(r, log.delay));
             terminalRunRef.current?.write(log.log);
           }
+          // Run the test
           tourActionsRef.current["run-test"]?.();
         },
       };
@@ -1286,7 +1289,7 @@ export function ProjectPlaygroundPage({
 
   const handleEnrollNow = async () => {
     try {
-      if (!user?.isPremium && project.isPremium && !project.enrolled) {
+      if (!user?.isPremium && project?.isPremium && !project.enrolled) {
         setShowPayment(!showPayment);
         return;
       }
