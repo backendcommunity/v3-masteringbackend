@@ -627,6 +627,11 @@ export function ProjectDetailPage({
                   <Play className="w-4 h-4" />
                   Continue Building
                 </button>
+                <TryPlaygroundButton
+                  source="detail"
+                  slug={slug}
+                  className="mt-2 w-full"
+                />
 
                 {(project?.PRDLink || project?.frontendURL) && (
                   <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
