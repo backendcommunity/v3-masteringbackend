@@ -27,6 +27,7 @@ export default defineConfig({
     include: [
       "lib/__tests__/**/*.test.ts",
       "lib/__tests__/**/*.test.tsx",
+      "components/__tests__/error-boundary.test.tsx",
       "components/__tests__/path-exercise-ide-continue.test.tsx",
       "components/__tests__/path-exercise-ide-max-attempts.test.tsx",
       "components/__tests__/take-hint-ide.test.tsx",
@@ -38,8 +39,10 @@ export default defineConfig({
       "components/__tests__/try-mock-interview-button.test.tsx",
       "components/__tests__/interview-completion-dialog-cta.test.tsx",
       "components/__tests__/simple-editor-run.test.tsx",
+      "components/__tests__/github-connect-disconnect.test.tsx",
       "components/__tests__/page-skeleton.test.tsx",
       "components/pages/path/__tests__/step-skeleton.test.tsx",
+      "components/pages/path/__tests__/path-feedback-dialog.test.tsx",
       "components/pages/__tests__/courses-skeleton.test.tsx",
       "components/atoms/__tests__/terminal-run-api.test.tsx",
       "components/pages/__tests__/project-playground-terminal-mode.test.tsx",

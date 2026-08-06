@@ -11,10 +11,25 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { Github, Loader2, Plus, Search } from "lucide-react";
+import { withReturn, openPopupOrWarn } from "@/lib/github-popup";
+import { ChevronDown, ExternalLink, Github, Loader2, LogOut, Plus, RefreshCw, Search } from "lucide-react";
 
 type GithubStatus = {
   installed: boolean;
@@ -45,23 +60,23 @@ interface GithubConnectProps {
   onError?: (
     err: { message: string; retry: () => void; actionLabel?: string } | null,
   ) => void;
+  /**
+   * Fires when the persistent "App not installed at all" banner should show
+   * (and with `null` once it shouldn't). The banner itself renders in the
+   * parent as a full-width strip between the top nav and the workspace —
+   * this component only owns the icon/dropdown/sheet, not banner placement.
+   */
+  onNotInstalled?: (banner: { connect: () => void } | null) => void;
 }
 
-// Append the current page as the return target. Academy hands back install URLs
-// already ending at `state=<email>+`; for auth URLs we add the return as a
-// `redirect_uri`-friendly suffix the same way (academy appends to `state`).
-function withReturn(url: string): string {
-  const path = window.location.pathname || "/";
-  return url + encodeURIComponent(window.location.origin + path);
-}
-
-// Handles a 409 that carries an authUrl/installUrl by redirecting the user to
-// authorize/install. Returns true if it redirected (caller should stop).
-function handle409Redirect(err: any): boolean {
+// Handles a 409 that carries an authUrl/installUrl by opening it in a popup.
+// Returns true if it opened one (caller should stop and let onClose re-check
+// status once the popup closes).
+function handle409Popup(err: any, onClose: () => void): boolean {
   const d = err?.response?.status === 409 ? err.response.data : null;
   const target = d?.authUrl || d?.installUrl;
   if (typeof target === "string" && target.length > 0) {
-    window.location.href = withReturn(target);
+    openPopupOrWarn(withReturn(target), onClose);
     return true;
   }
   return false;
@@ -89,6 +104,7 @@ export function GithubConnect({
   projectName,
   onConnected,
   onError,
+  onNotInstalled,
 }: GithubConnectProps) {
   const store = useAppStore();
   const [loading, setLoading] = useState(true);
@@ -98,6 +114,12 @@ export function GithubConnect({
   const [actionError, setActionError] = useState<string | null>(null);
   const [reconnectUrl, setReconnectUrl] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
+  // Set right after an explicit disconnect and left `true` until the user
+  // takes a new explicit connect action (handleSave). Prevents the
+  // auto-provision effect below from immediately re-firing on the very
+  // status change that disconnect itself produces (installed && !connected
+  // is true right after a disconnect — the same shape as a fresh install).
+  const justDisconnectedRef = useRef(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const refresh = async () => {
@@ -144,6 +166,11 @@ export function GithubConnect({
 
   // installed-not-connected primary action: auto-provision and link a repo.
   const handleSave = async () => {
+    // This is always an explicit connect action (a direct click, or the
+    // auto-provision effect after it has already verified the user isn't
+    // mid-disconnect) — clear the disconnect guard so future disconnects
+    // get their own fresh guard.
+    justDisconnectedRef.current = false;
     setSaving(true);
     setActionError(null);
     setReconnectUrl(null);
@@ -152,14 +179,14 @@ export function GithubConnect({
       applyConnected(res.repoFullName, res.owner, res.repo);
     } catch (e) {
       // Stale/expired GitHub installation → show a reconnect banner (no silent
-      // bounce); the button takes the user through the install flow on click.
+      // popup); the button takes the user through the install flow on click.
       const reconnect = getReconnectUrl(e);
       if (reconnect) {
         setReconnectUrl(reconnect);
         return;
       }
-      // Other 409s (re-authorize personal account) — redirect immediately.
-      if (handle409Redirect(e)) return;
+      // Other 409s (re-authorize personal account) — open the popup immediately.
+      if (handle409Popup(e, refresh)) return;
       const err = e as { response?: { data?: { message?: string } } };
       setActionError(
         err?.response?.data?.message ??
@@ -178,7 +205,8 @@ export function GithubConnect({
       status?.installed &&
       !status.connected &&
       !saving &&
-      !autoTriggeredRef.current
+      !autoTriggeredRef.current &&
+      !justDisconnectedRef.current
     ) {
       autoTriggeredRef.current = true;
       void handleSave();
@@ -200,7 +228,7 @@ export function GithubConnect({
         message: "Your GitHub connection expired. Reconnect to continue.",
         actionLabel: "Reconnect",
         retry: () => {
-          window.location.href = withReturn(reconnectUrl);
+          openPopupOrWarn(withReturn(reconnectUrl), refresh);
         },
       });
     } else if (loadError) {
@@ -219,17 +247,120 @@ export function GithubConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reconnectUrl, loadError, actionError]);
 
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await store.disconnectProjectGithub(slug);
+      setStatus((prev) =>
+        prev
+          ? { ...prev, connected: false, repoFullName: undefined, owner: undefined, repo: undefined }
+          : prev,
+      );
+      // Block the auto-provision effect from immediately re-firing on this
+      // very status change (installed && !connected, same shape as a fresh
+      // install) — only an explicit connect action (handleSave) lifts this.
+      justDisconnectedRef.current = true;
+      setConfirmDisconnect(false);
+      toast.success("Disconnected from GitHub");
+    } catch {
+      toast.error("Couldn't disconnect. Please try again.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const notInstalledAtAll = !!status && !status.installed && !reconnectUrl;
+
+  // Persistent banner — only when the App isn't installed at all. Renders in
+  // the parent (full-width strip between top nav and workspace) rather than
+  // here, so this component only reports the state; see onNotInstalled above.
+  useEffect(() => {
+    if (!onNotInstalled) return;
+    if (notInstalledAtAll) {
+      onNotInstalled({
+        connect: () => {
+          if (status?.installUrl) {
+            openPopupOrWarn(withReturn(status.installUrl), refresh);
+          }
+        },
+      });
+    } else {
+      onNotInstalled(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notInstalledAtAll, status?.installUrl]);
+
   return (
     <>
-      <button
-        className="btn ghost"
-        onClick={() => setSheetOpen((o) => !o)}
-        title="GitHub"
-        aria-label="GitHub"
-        disabled={loading}
-      >
-        {saving ? <Loader2 className="i animate-spin" /> : <Github className="i" />}
-      </button>
+      {status?.installed && status.connected ? (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button className="btn ghost gh-connected-trigger" title="GitHub" aria-label="GitHub connection">
+              <Github className="i" />
+              {status.repoFullName && (
+                <span className="gh-repo-name">{status.repoFullName}</span>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {status.repoFullName && (
+              <DropdownMenuItem asChild>
+                <a
+                  href={`https://github.com/${status.repoFullName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View on GitHub
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onSelect={(e) => {
+                // Defer to next tick (belt-and-suspenders around the real fix:
+                // `modal={false}` below on the DropdownMenu/Sheet/Dialog roots).
+                // Root cause was react-remove-scroll's shared "block
+                // interactivity" lock: Radix's modal Dialog/DropdownMenu wrap
+                // their content in it to block the page behind them, ref-
+                // counted so nested locks stack safely — but a modal
+                // DropdownMenu opening a modal Sheet in the same tick could
+                // break that ref-count, leaving `.block-interactivity-*
+                // { pointer-events: none }` stuck on <body> forever. Making
+                // these non-modal skips that lock entirely.
+                e.preventDefault();
+                setTimeout(() => setSheetOpen(true), 0);
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Switch repository
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setTimeout(() => setConfirmDisconnect(true), 0);
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Disconnect
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <button
+          className="btn ghost"
+          onClick={() => setSheetOpen((o) => !o)}
+          title="GitHub"
+          aria-label="GitHub"
+          disabled={loading}
+        >
+          {saving ? <Loader2 className="i animate-spin" /> : <Github className="i" />}
+        </button>
+      )}
+
       {status && (
         <AdvancedDrawer
           slug={slug}
@@ -239,8 +370,46 @@ export function GithubConnect({
           installUrl={status.installUrl}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
+          onPopupClose={refresh}
         />
       )}
+
+      <Dialog modal={false} open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disconnect this project from GitHub?</DialogTitle>
+            <DialogDescription>
+              {status?.repoFullName
+                ? `This project will no longer sync with ${status.repoFullName}. You can reconnect anytime.`
+                : "You can reconnect anytime."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDisconnect(false)} disabled={disconnecting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDisconnect} disabled={disconnecting}>
+              {disconnecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <style jsx global>{`
+        .gh-connected-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .gh-repo-name {
+          font-size: 12px;
+          max-width: 140px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      `}</style>
     </>
   );
 }
@@ -255,6 +424,7 @@ function AdvancedDrawer({
   installUrl,
   open,
   onOpenChange,
+  onPopupClose,
 }: {
   slug: string;
   projectName?: string;
@@ -263,6 +433,7 @@ function AdvancedDrawer({
   installUrl?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPopupClose: () => void;
 }) {
   const store = useAppStore();
   const [ownersLoading, setOwnersLoading] = useState(false);
@@ -291,9 +462,9 @@ function AdvancedDrawer({
         setOwners(o);
         setOwner((prev) => prev || o[0]?.login || "");
       } catch (e) {
-        // A 409 means the GitHub connection is no longer usable — redirect to
-        // reconnect (re-install/re-authorize) instead of a dead error toast.
-        if (handle409Redirect(e)) return;
+        // A 409 means the GitHub connection is no longer usable — reconnect via
+        // popup (re-install/re-authorize) instead of a dead error toast.
+        if (handle409Popup(e, onPopupClose)) return;
         if (active) toast.error("Couldn't load your GitHub owners.");
       } finally {
         if (active) setOwnersLoading(false);
@@ -311,7 +482,7 @@ function AdvancedDrawer({
     try {
       setRepos(await store.listGithubRepos(ownerLogin, query));
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       toast.error("Couldn't list repositories.");
     } finally {
       setReposLoading(false);
@@ -331,7 +502,7 @@ function AdvancedDrawer({
       onConnected(res.repoFullName, res.owner, res.repo);
       onOpenChange(false);
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(
         err?.response?.data?.message ?? "Couldn't create the repository.",
@@ -351,7 +522,7 @@ function AdvancedDrawer({
       onConnected(res.repoFullName, res.owner, res.repo);
       onOpenChange(false);
     } catch (e) {
-      if (handle409Redirect(e)) return;
+      if (handle409Popup(e, onPopupClose)) return;
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(
         err?.response?.data?.message ?? "Couldn't connect that repository.",
@@ -362,7 +533,7 @@ function AdvancedDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet modal={false} open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-[440px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
@@ -389,7 +560,7 @@ function AdvancedDrawer({
               className="btn-primary w-full"
               disabled={!installUrl}
               onClick={() => {
-                if (installUrl) window.location.href = withReturn(installUrl);
+                if (installUrl) openPopupOrWarn(withReturn(installUrl), onPopupClose);
               }}
             >
               <Github className="mr-2 h-4 w-4" /> Connect GitHub

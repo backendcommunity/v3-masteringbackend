@@ -31,6 +31,7 @@ export default function ProjectTasksRoute() {
   const [certUnlocked, setCertUnlocked] = useState(false);
   const [showCert, setShowCert] = useState(false);
   const [points, setPoints] = useState({ earnedPoints: 0, totalPoints: 0 });
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Once the project has loaded, check whether the certificate is unlocked so we
   // can surface the "Certificate ready" CTA. Failures are silent — the CTA just
@@ -98,7 +99,12 @@ export default function ProjectTasksRoute() {
             </Button>
           )}
           <PathCodeSheet />
-          <PathFeedbackDialog />
+          <PathFeedbackDialog
+            open={feedbackOpen}
+            onOpenChange={setFeedbackOpen}
+            source="tasks-page"
+            context={{ projectSlug: slug }}
+          />
         </div>
       </header>
 

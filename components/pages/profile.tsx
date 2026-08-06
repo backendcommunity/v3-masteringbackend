@@ -61,7 +61,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     address: user?.address || "",
     bio: user?.bio || "",
     website: user?.website || "",
-    github: user?.github || "",
+    githubProfileUrl: user?.githubProfileUrl || "",
     linkedin: user?.linkedin || "",
     country: user?.country || "",
     title: user?.title || "",
@@ -113,7 +113,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         address: updatedUser?.address || "",
         bio: updatedUser?.bio || "",
         website: updatedUser?.website || "",
-        github: updatedUser?.github || "",
+        githubProfileUrl: updatedUser?.githubProfileUrl || "",
         linkedin: updatedUser?.linkedin || "",
         country: updatedUser?.country || "",
         title: updatedUser?.title || "",
@@ -137,7 +137,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       address: user?.address || "",
       bio: user?.bio || "",
       website: user?.website || "",
-      github: user?.github || "",
+      githubProfileUrl: user?.githubProfileUrl || "",
       linkedin: user?.linkedin || "",
       country: user?.country || "",
       title: user?.title || "",
@@ -616,22 +616,22 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     {isEditing ? (
                       <Input
                         id="github"
-                        value={formData.github}
+                        value={formData.githubProfileUrl}
                         onChange={(e) =>
-                          setFormData({ ...formData, github: e.target.value })
+                          setFormData({ ...formData, githubProfileUrl: e.target.value })
                         }
                       />
                     ) : (
                       <div className="flex items-center gap-2 text-sm">
                         <Github className="h-4 w-4 text-primary" />
                         <a
-                          href={formData.github}
+                          href={formData.githubProfileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:underline"
                         >
-                          {formData.github
-                            ? formData.github?.substring(0, 20) + "..."
+                          {formData.githubProfileUrl
+                            ? formData.githubProfileUrl?.substring(0, 20) + "..."
                             : "Not specified"}
                         </a>
                       </div>

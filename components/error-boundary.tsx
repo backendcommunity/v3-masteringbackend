@@ -1,6 +1,7 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { PathFeedbackDialog } from "@/components/pages/path/path-feedback-dialog";
 
 const CHUNK_RELOAD_KEY = "mb_chunk_reload";
 const CHUNK_RELOAD_TOAST_KEY = "mb_chunk_reload_toast";
@@ -16,6 +17,38 @@ const isChunkLoadError = (error: Error | null) => {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+// Function component so it can own dialog-open state — ErrorBoundary itself
+// is a class component (required for componentDidCatch) and can't use hooks.
+// Deliberately takes no props beyond the error: it must render correctly with
+// no AuthProvider/store context above it, since a crash inside AuthProvider
+// is exactly when this renders.
+function ReportIssueButton({ error }: { error: Error | null }) {
+  const [open, setOpen] = useState(false);
+  const prefillMessage = error?.message
+    ? error.message.slice(0, 200)
+    : "An unexpected error occurred.";
+
+  return (
+    <PathFeedbackDialog
+      open={open}
+      onOpenChange={setOpen}
+      source="error-boundary"
+      prefillMessage={prefillMessage}
+      context={{
+        url: typeof window !== "undefined" ? window.location.href.slice(0, 500) : undefined,
+      }}
+      trigger={
+        <button
+          type="button"
+          className="rounded-md border px-4 py-2 text-sm"
+        >
+          Report Issue
+        </button>
+      }
+    />
+  );
 }
 
 export class ErrorBoundary extends React.Component<
@@ -78,12 +111,7 @@ export class ErrorBoundary extends React.Component<
             >
               Refresh Page
             </button>
-            <a
-              href="https://masteringbackend.com/community"
-              className="rounded-md border px-4 py-2 text-sm"
-            >
-              Report Issue
-            </a>
+            <ReportIssueButton error={this.state.error} />
           </div>
         </div>
       );

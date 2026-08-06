@@ -419,6 +419,11 @@ interface AppState {
   getJourneyRecap: (itemType: import("./data").RecapItemType, itemId: string) => Promise<import("./data").RecapPayload | null>;
   getWelcomeBack: () => Promise<import("./data").WelcomeBackPayload | null>;
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
+  submitFeedback: (input: {
+    message: string;
+    source: "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+    context?: { projectSlug?: string; lessonSlug?: string; url?: string };
+  }) => Promise<void>;
 
   // Epic 5: Engagement features
   getStreak: () => Promise<StreakData>;
@@ -519,6 +524,8 @@ interface AppState {
     repository: string,
     owner: string,
   ) => Promise<{ fullName: string; htmlUrl: string }>;
+  disconnectProjectGithub: (slug: string) => Promise<any>;
+  markGithubInstallationInvalid: (slug: string) => Promise<void>;
   getPathItem: (endpoint: string) => Promise<any>;
   getArticleById: (id: string) => Promise<any>;
   createArticle: (payload: any) => Promise<any>;
@@ -1499,6 +1506,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   sendRecapFeedback: async (eventId, useful) => {
     await api.post(`/journey/recap/${eventId}/feedback`, { useful });
   },
+  submitFeedback: async (input) => {
+    await api.post("/feedback", input);
+  },
 
   // Epic 5: Engagement features
   getStreak: async () => {
@@ -1771,6 +1781,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       owner,
     });
     return data?.data?.repo;
+  },
+  disconnectProjectGithub: async (slug: string) => {
+    const { data } = await api.delete(`/projects/${slug}/github`);
+    return data?.data;
+  },
+  // Tells academy the GitHub installation actually died. Needed because the
+  // mid-session reconnect detection runs through the Cloudflare
+  // playground-worker (bypassing academy's normal proxy endpoints), so
+  // academy otherwise has no way to learn the installation is gone — a
+  // subsequent status re-fetch could keep returning a dead-end "install" URL
+  // instead of the correct self-healing "reconnect" URL.
+  markGithubInstallationInvalid: async (slug: string) => {
+    await api.post(`/projects/${slug}/github/mark-invalid`);
   },
 
   getPathItem: async (endpoint: string) => {
