@@ -1525,6 +1525,18 @@ export function ProjectPlaygroundPage({
       prev.includes(filePath) ? prev : [...prev, filePath],
     );
     try {
+      // Demo mode: load from DEMO_STARTER_FILES instead of pgFs
+      if (isDemo) {
+        const { DEMO_STARTER_FILES } = await import(
+          "@/lib/playground-demo-script"
+        );
+        const demoFile = DEMO_STARTER_FILES.find(
+          (f) => f.name === fileName || f.name === filePath,
+        );
+        setCode(demoFile?.content ?? "");
+        return;
+      }
+
       const r = await pgFs(pgCtx, { op: "read", path: toRel(filePath) });
       setCode(r?.content ?? "");
     } catch (error: any) {
@@ -2058,6 +2070,8 @@ export function ProjectPlaygroundPage({
         ],
       });
       if (DEMO_TEST_RESULT.pass) {
+        // Mark task complete in state so test drawer shows checkmark
+        markTaskCompleteInState(t.id);
         setCelebration(true);
         toast.success(`Passed — +${DEMO_TEST_RESULT.scoreEarned} MB`);
       } else {
