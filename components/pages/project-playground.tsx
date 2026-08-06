@@ -2043,6 +2043,29 @@ export function ProjectPlaygroundPage({
   const runTaskTest = async (t: any) => {
     if (!t) return;
 
+    // Demo mode: show mock test result
+    if (isDemo) {
+      const { DEMO_TEST_RESULT } = await import(
+        "@/lib/playground-demo-script"
+      );
+      setTestRun({
+        status: DEMO_TEST_RESULT.pass ? "pass" : "fail",
+        checks: [
+          {
+            label: DEMO_TEST_RESULT.message,
+            ok: DEMO_TEST_RESULT.pass,
+          },
+        ],
+      });
+      if (DEMO_TEST_RESULT.pass) {
+        setCelebration(true);
+        toast.success(`Passed — +${DEMO_TEST_RESULT.scoreEarned} MB`);
+      } else {
+        toast.error("Test failed");
+      }
+      return;
+    }
+
     // Run Test grades endpoint tasks (apiSpec) and terminal tasks (terminalSpec).
     // Non-endpoint, non-terminal tasks complete via "Mark as complete"
     // (markTaskManually) — this path never auto-passes a task.
@@ -2386,6 +2409,25 @@ app.listen(port, () => console.log("Server listening on port " + port));
       return;
     }
     setRailTab("explorer");
+
+    // Demo mode: skip file system writes, just open editor with demo code
+    if (isDemo) {
+      const { DEMO_STARTER_FILES } = await import(
+        "@/lib/playground-demo-script"
+      );
+      const indexFile = DEMO_STARTER_FILES.find((f) => f.name === "index.js");
+      if (indexFile) {
+        await openFile({
+          name: "index.js",
+          type: "file",
+          icon: "📄",
+          path: "index.js",
+          language: getLanguageFromFileName("index.js"),
+        });
+      }
+      return;
+    }
+
     try {
       await pgFs(pgCtx, {
         op: "write",
@@ -2458,7 +2500,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
   // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
   // real user's project). Panel-opening lives in reveals above; these do the
   // actual work the demo shows off.
-  tourActionsRef.current = isSampleProject
+  tourActionsRef.current = isSampleProject || isDemo
     ? {
         "file-tree": demoCreateFile,
         "run-server": async () => {
