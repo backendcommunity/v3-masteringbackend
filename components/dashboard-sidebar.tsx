@@ -63,6 +63,7 @@ const navigationData = {
       icon: Code2,
       active: true,
       beta: false,
+      isNew: true,
     },
     {
       title: "Ship",
