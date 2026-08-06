@@ -80,6 +80,12 @@ export const DEMO_TASKS = [
     description: "Make `GET /api/hello` return 200 with a JSON body like { message: 'Hello API' }. Click Run test.",
     required: true,
     mb: 10,
+    apiSpec: {
+      method: "GET",
+      path: "/api/hello",
+      expectedStatus: 200,
+      expectedBody: { message: "Hello, World!" },
+    },
   },
   {
     id: "demo-task-3",

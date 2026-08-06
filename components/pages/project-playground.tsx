@@ -269,7 +269,8 @@ export function ProjectPlaygroundPage({
   const [previewNonce, setPreviewNonce] = useState(0);
   const playgroundMode = getPlaygroundMode(project ?? {});
   const isTerminalMode = playgroundMode === "terminal";
-  const frontendEnabled = !isTerminalMode && !!(project as any)?.playgroundConfig?.frontendPreview;
+  const frontendEnabled =
+    !isTerminalMode && !!(project as any)?.playgroundConfig?.frontendPreview;
   const [previewMode, setPreviewMode] = useState<"app" | "api">("api");
   useEffect(() => {
     if (frontendEnabled) setPreviewMode("app");
@@ -511,11 +512,10 @@ export function ProjectPlaygroundPage({
         "run-server": async () => {
           tourActionsRef.current["run-server"]?.();
           // Emit "run-server" logs to terminal
-          const { DEMO_TERMINAL_LOGS } = await import(
-            "@/lib/playground-demo-script"
-          );
+          const { DEMO_TERMINAL_LOGS } =
+            await import("@/lib/playground-demo-script");
           const logsForStep = DEMO_TERMINAL_LOGS.filter(
-            (l) => l.step === "run-server"
+            (l) => l.step === "run-server",
           );
           for (const log of logsForStep) {
             await new Promise((r) => setTimeout(r, log.delay));
@@ -524,11 +524,10 @@ export function ProjectPlaygroundPage({
         },
         "run-test": async () => {
           // Emit "run-test" logs to terminal
-          const { DEMO_TERMINAL_LOGS } = await import(
-            "@/lib/playground-demo-script"
-          );
+          const { DEMO_TERMINAL_LOGS } =
+            await import("@/lib/playground-demo-script");
           const logsForStep = DEMO_TERMINAL_LOGS.filter(
-            (l) => l.step === "run-test"
+            (l) => l.step === "run-test",
           );
           for (const log of logsForStep) {
             await new Promise((r) => setTimeout(r, log.delay));
@@ -599,7 +598,8 @@ export function ProjectPlaygroundPage({
           slug: "playground-demo",
           title: "Playground Demo",
           summary: "Build a real backend, right here — in 60 seconds.",
-          description: "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
+          description:
+            "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
           level: "Beginner",
           skills: ["http", "api", "nodejs"],
           technologies: ["Node.js"],
@@ -619,24 +619,26 @@ export function ProjectPlaygroundPage({
             {
               id: "demo-task-group-1",
               title: "Getting Started",
-              tasks: DEMO_TASKS.slice(0, 3).map((t) => ({
+              tasks: DEMO_TASKS.slice(0, 3).map((t: any) => ({
                 id: t.id,
                 title: t.title,
                 description: t.description,
                 required: t.required,
                 mb: t.mb,
+                apiSpec: t.apiSpec,
                 userTask: { isCompleted: false },
               })),
             },
             {
               id: "demo-task-group-2",
               title: "Advanced",
-              tasks: DEMO_TASKS.slice(3).map((t) => ({
+              tasks: DEMO_TASKS.slice(3).map((t: any) => ({
                 id: t.id,
                 title: t.title,
                 description: t.description,
                 required: t.required,
                 mb: t.mb,
+                apiSpec: t.apiSpec,
                 userTask: { isCompleted: false },
               })),
             },
@@ -973,7 +975,7 @@ export function ProjectPlaygroundPage({
             type: "file" as const,
           })),
         },
-        slug
+        slug,
       );
       setFileTree(demoTree);
       setLoadingFiles(false);
@@ -1527,9 +1529,8 @@ export function ProjectPlaygroundPage({
     try {
       // Demo mode: load from DEMO_STARTER_FILES instead of pgFs
       if (isDemo) {
-        const { DEMO_STARTER_FILES } = await import(
-          "@/lib/playground-demo-script"
-        );
+        const { DEMO_STARTER_FILES } =
+          await import("@/lib/playground-demo-script");
         const demoFile = DEMO_STARTER_FILES.find(
           (f) => f.name === fileName || f.name === filePath,
         );
@@ -1806,9 +1807,7 @@ export function ProjectPlaygroundPage({
                   }}
                 />
               ) : (
-                <span className="nm">
-                  {depth === 0 ? slug : node.name}
-                </span>
+                <span className="nm">{depth === 0 ? slug : node.name}</span>
               )}
               <span className="acts">
                 <button
@@ -2057,9 +2056,7 @@ export function ProjectPlaygroundPage({
 
     // Demo mode: show mock test result
     if (isDemo) {
-      const { DEMO_TEST_RESULT } = await import(
-        "@/lib/playground-demo-script"
-      );
+      const { DEMO_TEST_RESULT } = await import("@/lib/playground-demo-script");
       setTestRun({
         status: DEMO_TEST_RESULT.pass ? "pass" : "fail",
         checks: [
@@ -2267,7 +2264,9 @@ export function ProjectPlaygroundPage({
       try {
         // Kill any previous run via REST (a PTY Ctrl+C was verified unreliable
         // for this — see Task 0's spike) before typing the fresh command.
-        await pgExec(pgCtx, { cmd: `pkill -f ${escapeSingleQuoted(entrypoint)}` });
+        await pgExec(pgCtx, {
+          cmd: `pkill -f ${escapeSingleQuoted(entrypoint)}`,
+        });
       } catch {
         // Best-effort: pkill on a not-yet-running process is a no-op failure,
         // never block the run because of it.
@@ -2426,9 +2425,8 @@ app.listen(port, () => console.log("Server listening on port " + port));
 
     // Demo mode: skip file system writes, just open editor with demo code
     if (isDemo) {
-      const { DEMO_STARTER_FILES } = await import(
-        "@/lib/playground-demo-script"
-      );
+      const { DEMO_STARTER_FILES } =
+        await import("@/lib/playground-demo-script");
       const indexFile = DEMO_STARTER_FILES.find((f) => f.name === "index.js");
       if (indexFile) {
         await openFile({
@@ -2514,28 +2512,29 @@ app.listen(port, () => console.log("Server listening on port " + port));
   // ACTIONS — the REAL, mutating steps. Sample project only (never mutate a
   // real user's project). Panel-opening lives in reveals above; these do the
   // actual work the demo shows off.
-  tourActionsRef.current = isSampleProject || isDemo
-    ? {
-        "file-tree": demoCreateFile,
-        "run-server": async () => {
-          if (!pgCtx) {
-            console.warn("[playground-tour] run-server skipped: no pgCtx");
-            return;
-          }
-          await handleRunProject();
-        },
-        "run-test": async () => {
-          const gradable = firstGradableTask();
-          if (!gradable) {
-            console.warn(
-              "[playground-tour] run-test skipped: no gradable task (apiSpec).",
-            );
-            return;
-          }
-          await runTaskTest(gradable);
-        },
-      }
-    : {};
+  tourActionsRef.current =
+    isSampleProject || isDemo
+      ? {
+          "file-tree": demoCreateFile,
+          "run-server": async () => {
+            if (!pgCtx) {
+              console.warn("[playground-tour] run-server skipped: no pgCtx");
+              return;
+            }
+            await handleRunProject();
+          },
+          "run-test": async () => {
+            const gradable = firstGradableTask();
+            if (!gradable) {
+              console.warn(
+                "[playground-tour] run-test skipped: no gradable task (apiSpec).",
+              );
+              return;
+            }
+            await runTaskTest(gradable);
+          },
+        }
+      : {};
 
   // Collapse the terminal to just its 32px header (keep it on screen), expand
   // back to the last height. The .term panel is shrunk via flex-basis; its
@@ -3446,7 +3445,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                     {I.spark} {totalPts} MB
                   </span>
                 </div>
-                {project?.technologies?.length > 0 && (
+                {project?.technologies && project.technologies.length > 0 && (
                   <div className="wtags">
                     {(tagsExpanded
                       ? project.technologies
@@ -3597,7 +3596,10 @@ app.listen(port, () => console.log("Server listening on port " + port));
               )}
               <div
                 data-tour="terminal"
-                className={cn("term border-t border-border", !showTerminal && "collapsed")}
+                className={cn(
+                  "term border-t border-border",
+                  !showTerminal && "collapsed",
+                )}
                 ref={termRef}
                 style={{ boxShadow: "inset 0 1px 0 var(--line)" }}
               >
@@ -3915,15 +3917,30 @@ app.listen(port, () => console.log("Server listening on port " + port));
                       {testStdin.length === 1 ? "" : "s"} from the terminal.
                       Edit them if you want, then hit Run test.
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
                       {testStdin.map((v, i) => (
                         <div
                           key={i}
-                          style={{ display: "flex", alignItems: "center", gap: 8 }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
                         >
                           <label
                             htmlFor={`test-stdin-${i}`}
-                            style={{ fontSize: 12, color: "var(--muted)", width: 20, flexShrink: 0 }}
+                            style={{
+                              fontSize: 12,
+                              color: "var(--muted)",
+                              width: 20,
+                              flexShrink: 0,
+                            }}
                           >
                             {i + 1}.
                           </label>
@@ -3933,7 +3950,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
                             value={v}
                             onChange={(e) =>
                               setTestStdin((prev) =>
-                                prev.map((p, pi) => (pi === i ? e.target.value : p)),
+                                prev.map((p, pi) =>
+                                  pi === i ? e.target.value : p,
+                                ),
                               )
                             }
                           />
