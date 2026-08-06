@@ -2196,7 +2196,7 @@ export function ProjectPlaygroundPage({
       track(PLAYGROUND_EVENTS.runServer);
       runInFlightRef.current = true;
       setIsRunning(true);
-      setSandboxLive(true);
+      setBaseURL("http://localhost:3000");
 
       // Simulate server startup logs
       setTimeout(() => {
@@ -2291,7 +2291,6 @@ export function ProjectPlaygroundPage({
       track(PLAYGROUND_EVENTS.stopServer);
       stopInFlightRef.current = true;
       setIsStopping(true);
-      setSandboxLive(false);
       setBaseURL("");
       toast.message("Server stopped");
       setTimeout(() => {
