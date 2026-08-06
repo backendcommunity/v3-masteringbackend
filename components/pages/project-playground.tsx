@@ -85,6 +85,7 @@ import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 import type { TourAction } from "@/lib/playground-tour";
 import { getPlaygroundMode, isDemoMode } from "@/lib/playground-mode";
 import { createDemoPgCtx } from "@/lib/playground-demo-executor";
+import { DEMO_TASKS, DEMO_FRONTEND_HTML } from "@/lib/playground-demo-script";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -586,10 +587,64 @@ export function ProjectPlaygroundPage({
   // would re-run, setLoading(true), and tear down the whole playground (editor +
   // sandbox), which reads as a jarring full-page refresh. handleGhConnected already
   // refetches the project (without setLoading) so connected state still updates.
+  // For demo mode, use a fake project object instead of database lookup.
   useEffect(() => {
     // setLoading(true);
     async function findProject(slug: string) {
-      const project = await store.getProject(slug);
+      let project;
+      if (isDemo) {
+        // Mock project for demo mode
+        project = {
+          id: "demo-project-id",
+          slug: "playground-demo",
+          title: "Playground Demo",
+          summary: "Build a real backend, right here — in 60 seconds.",
+          description: "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
+          level: "Beginner",
+          skills: ["http", "api", "nodejs"],
+          technologies: ["Node.js"],
+          prerequisites: [],
+          industries: ["Web"],
+          duration: 1,
+          isPremium: false,
+          isSample: true,
+          isWaiting: false,
+          enrolled: true,
+          userProject: { enrolled: true },
+          playgroundConfig: {
+            frontendPreview: true,
+            previewDir: "public",
+          },
+          projectTasks: [
+            {
+              id: "demo-task-group-1",
+              title: "Getting Started",
+              tasks: DEMO_TASKS.slice(0, 3).map((t) => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                required: t.required,
+                mb: t.mb,
+                userTask: { isCompleted: false },
+              })),
+            },
+            {
+              id: "demo-task-group-2",
+              title: "Advanced",
+              tasks: DEMO_TASKS.slice(3).map((t) => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                required: t.required,
+                mb: t.mb,
+                userTask: { isCompleted: false },
+              })),
+            },
+          ],
+        } as any;
+      } else {
+        project = await store.getProject(slug);
+      }
       setProject(project);
       setLoading(false);
       const source =
@@ -604,7 +659,7 @@ export function ProjectPlaygroundPage({
       });
     }
     findProject(slug);
-  }, [slug]);
+  }, [slug, isDemo]);
 
   // Track GitHub-connected state separately — a cheap flag update with no loading
   // churn, so it can react to user changes without remounting the page.
@@ -1740,7 +1795,7 @@ export function ProjectPlaygroundPage({
                 />
               ) : (
                 <span className="nm">
-                  {depth === 0 ? project?.title || "Project files" : node.name}
+                  {depth === 0 ? slug : node.name}
                 </span>
               )}
               <span className="acts">
