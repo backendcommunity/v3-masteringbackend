@@ -3752,7 +3752,8 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   <div className="pv-frame">
                     {baseURL ? (
                       <iframe
-                        src={resolvedPreviewUrl}
+                        src={isDemo ? undefined : resolvedPreviewUrl}
+                        srcDoc={isDemo ? DEMO_FRONTEND_HTML : undefined}
                         title="Project preview"
                         // Defense-in-depth: the preview serves learner-authored
                         // code from the sandbox. Sandbox the frame so a misbehaving
