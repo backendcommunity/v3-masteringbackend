@@ -458,22 +458,6 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
                                       ✓ Done
                                     </Badge>
                                   )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] py-0 px-1.5 h-auto ${
-                                      !chapter.isPremium
-                                        ? "border-emerald-600 text-emerald-600"
-                                        : course?.enrolled
-                                          ? "border-primary text-primary"
-                                          : "border-amber-600 text-amber-600"
-                                    }`}
-                                  >
-                                    {!chapter.isPremium
-                                      ? "FREE"
-                                      : course?.enrolled
-                                        ? "ENROLLED"
-                                        : "PREMIUM"}
-                                  </Badge>
                                   {(chapter.quizzes?.length ?? 0) > 0 && (
                                     <span className={chapterBadgeCls}>Quiz</span>
                                   )}
