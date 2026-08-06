@@ -2285,6 +2285,22 @@ export function ProjectPlaygroundPage({
 
   const handleStopProject = async () => {
     if (!pgCtx || stopInFlightRef.current) return; // re-entrancy guard
+
+    // Demo mode: mock stop
+    if (isDemo) {
+      track(PLAYGROUND_EVENTS.stopServer);
+      stopInFlightRef.current = true;
+      setIsStopping(true);
+      setSandboxLive(false);
+      setBaseURL("");
+      toast.message("Server stopped");
+      setTimeout(() => {
+        setIsStopping(false);
+        stopInFlightRef.current = false;
+      }, 300);
+      return;
+    }
+
     track(PLAYGROUND_EVENTS.stopServer);
     stopInFlightRef.current = true;
     setIsStopping(true);
