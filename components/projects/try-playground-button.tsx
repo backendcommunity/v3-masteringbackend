@@ -15,7 +15,7 @@ import { routes } from "@/lib/routes";
 const SAMPLE_SLUG = "hello-api-sample";
 
 interface TryPlaygroundButtonProps {
-  source: "detail" | "listing" | "nav";
+  source: "detail" | "detail-sidebar" | "listing" | "nav";
   /**
    * Target project to open. When omitted (listing/nav) the seeded SAMPLE is
    * used and the full auto-driven demo runs. On the project DETAIL page, pass
@@ -72,21 +72,24 @@ export function TryPlaygroundButton({
   // Visual hierarchy by surface:
   // - listing: the primary brand CTA (solid) — this is the marketing entry point
   // - detail:  SECONDARY to "Start/Continue Building"; outline on the navy hero
+  // - detail-sidebar: outline on card background (sidebar)
   // - nav:     compact, low-emphasis ghost
   const variant =
-    source === "listing" ? "default" : source === "detail" ? "outline" : "ghost";
+    source === "listing" ? "default" : source === "detail" || source === "detail-sidebar" ? "outline" : "ghost";
   const surfaceClass =
     source === "detail"
       ? "border-white/30 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-      : source === "nav"
-        ? "text-primary hover:bg-primary/10"
-        : "shadow-sm shadow-primary/25"; // listing (solid brand)
+      : source === "detail-sidebar"
+        ? "border-primary/40 text-primary hover:text-primary hover:bg-primary/10"
+        : source === "nav"
+          ? "text-primary hover:bg-primary/10"
+          : "shadow-sm shadow-primary/25"; // listing (solid brand)
   const badgeClass =
     source === "listing"
       ? "bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20"
       : "bg-primary/15 text-primary hover:bg-primary/15 border-transparent";
   const ariaLabel =
-    source === "detail"
+    source === "detail" || source === "detail-sidebar"
       ? "Open this project's playground and take a guided tour"
       : "Try the playground with a sample project";
 
