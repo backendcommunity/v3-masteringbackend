@@ -739,8 +739,9 @@ export function ProjectPlaygroundPage({
 
   // Initial tree load + best-effort seed (replaces the socket folder:read +
   // project:start/clone flow). Runs once the worker ctx is ready.
+  // Skip for demo mode (uses separate demo file tree loading effect).
   useEffect(() => {
-    if (!pgCtx) return;
+    if (!pgCtx || isDemo) return;
     let cancelled = false;
 
     // The first worker call on a cold sandbox can transiently fail while the
@@ -892,6 +893,7 @@ export function ProjectPlaygroundPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pgCtx,
+    isDemo,
     project?.baseRepository,
     // Depend on the primitive, not the array reference. store.getProject()
     // returns a fresh `languages` array on every refetch (e.g. after GitHub
