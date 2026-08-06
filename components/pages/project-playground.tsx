@@ -84,7 +84,7 @@ import { makeEditDebouncer } from "@/lib/playground-track";
 import { usePlaygroundTour } from "@/hooks/use-playground-tour";
 import type { TourAction } from "@/lib/playground-tour";
 import { getPlaygroundMode, isDemoMode } from "@/lib/playground-mode";
-import { createDemoExecutor } from "@/lib/playground-demo-executor";
+import { createDemoPgCtx } from "@/lib/playground-demo-executor";
 
 interface ProjectPlaygroundPageProps {
   slug: string;
@@ -393,8 +393,7 @@ export function ProjectPlaygroundPage({
   // In demo mode, use the mock executor instead of the real one.
   const pgCtx: PgCtx | null = useMemo(() => {
     if (isDemo) {
-      const demoCtx = createDemoExecutor() as PgCtx;
-      return demoCtx;
+      return createDemoPgCtx();
     }
     if (!project?.id || !user?.id) return null;
     return {
