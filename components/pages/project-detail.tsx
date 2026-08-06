@@ -628,7 +628,7 @@ export function ProjectDetailPage({
                   Continue Building
                 </button>
                 <TryPlaygroundButton
-                  source="detail"
+                  source="detail-sidebar"
                   slug={slug}
                   className="mt-2 w-full"
                 />
@@ -712,7 +712,7 @@ export function ProjectDetailPage({
               </button>
 
               <TryPlaygroundButton
-                source="detail"
+                source="detail-sidebar"
                 slug={slug}
                 className="mt-2 w-full"
               />
