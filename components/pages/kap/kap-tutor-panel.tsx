@@ -35,6 +35,8 @@ interface KapTutorPanelProps {
   header?: ReactNode;
   /** Called after the user dispatches a message (no message text — analytics use only). */
   onMessageSent?: () => void;
+  /** Demo mode: show demo messages in chat */
+  demoMode?: boolean;
 }
 
 interface Msg extends KapTutorMessage {
@@ -56,6 +58,7 @@ export function KapTutorPanel({
   className,
   header,
   onMessageSent,
+  demoMode,
 }: KapTutorPanelProps) {
   const streamKapTutor = useAppStore((s) => s.streamKapTutor);
   const getKapHistory = useAppStore((s) => s.getKapHistory);
@@ -99,6 +102,37 @@ export function KapTutorPanel({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
+
+  // Demo mode: show demo message with slight delay between Q and A
+  useEffect(() => {
+    if (!demoMode || messages.length > 0) return;
+    const msgId = uid();
+    const demoUserMsg: Msg = {
+      id: `demo-user-${msgId}`,
+      role: "user",
+      content: "Why is my test failing?",
+      ts: `${Date.now()}`,
+    };
+    const demoKapMsg: Msg = {
+      id: `demo-kap-${msgId}`,
+      role: "ai",
+      content:
+        "Check if your API is returning the correct status code. Make sure you're responding with 200 for `GET /api/hello`. Try testing with curl:\n\n```bash\ncurl -i http://localhost:3000/api/hello\n```\n\nThis will show you the response headers and status code. If it's not 200, check your route handler.",
+      ts: `${Date.now() + 100}`,
+    };
+    // Show user message first
+    setTimeout(() => {
+      if (mountedRef.current) {
+        setMessages([demoUserMsg]);
+      }
+    }, 100);
+    // Then show Kap response after brief delay
+    setTimeout(() => {
+      if (mountedRef.current) {
+        setMessages([demoUserMsg, demoKapMsg]);
+      }
+    }, 200);
+  }, [demoMode]);
 
   const send = useCallback(
     async (text: string) => {

@@ -523,26 +523,39 @@ export function ProjectPlaygroundPage({
           }
         },
         "run-test": async () => {
-          // Open test drawer first
+          // Open drawer, show logs, run test all at once (no delays)
           tourRevealsRef.current["run-test"]?.();
-          // Emit "run-test" logs to terminal
+
+          // Show test logs immediately without delays
           const { DEMO_TERMINAL_LOGS } =
             await import("@/lib/playground-demo-script");
           const logsForStep = DEMO_TERMINAL_LOGS.filter(
             (l) => l.step === "run-test",
           );
           for (const log of logsForStep) {
-            await new Promise((r) => setTimeout(r, log.delay));
             terminalRunRef.current?.write(log.log);
           }
-          // Run the test
+
+          // Show test passed immediately
           tourActionsRef.current["run-test"]?.();
+        },
+        "github-sync": () => {
+          // Show syncing status immediately
+          setSyncStatus({ state: "syncing", at: Date.now() });
+          // Then show synced after a quick moment
+          setTimeout(() => {
+            setSyncStatus({ state: "synced", at: Date.now() });
+          }, 100);
+        },
+        kap: () => {
+          // Open Kap tutor panel (demo messages shown automatically)
+          tourRevealsRef.current.kap?.();
         },
       };
     }
 
     // Non-demo path (keep existing code)
-    const ids = ["file-tree", "run-server", "run-test"];
+    const ids = ["file-tree", "run-server", "run-test", "github-sync", "kap"];
     const map: Record<string, TourAction> = {};
     for (const id of ids) map[id] = () => tourActionsRef.current[id]?.();
     return map;
@@ -2057,7 +2070,7 @@ export function ProjectPlaygroundPage({
   const runTaskTest = async (t: any) => {
     if (!t) return;
 
-    // Demo mode: show mock test result
+    // Demo mode: instant pass with celebration
     if (isDemo) {
       const { DEMO_TEST_RESULT } = await import("@/lib/playground-demo-script");
       setTestRun({
@@ -2070,7 +2083,6 @@ export function ProjectPlaygroundPage({
         ],
       });
       if (DEMO_TEST_RESULT.pass) {
-        // Mark task complete in state so test drawer shows checkmark
         markTaskCompleteInState(t.id);
         setCelebration(true);
         toast.success(`Passed — +${DEMO_TEST_RESULT.scoreEarned} MB`);
@@ -2890,9 +2902,9 @@ app.listen(port, () => console.log("Server listening on port " + port));
   const tMethod = tSpec.method || activeTask?.method;
   const tUrl = tSpec.url || activeTask?.url;
 
-  // ── GitHub sync status chip (connected only) ──
+  // ── GitHub sync status chip (connected only, or demo mode) ──
   const renderSyncChip = () => {
-    if (!ghConnected) return null;
+    if (!ghConnected && !isDemo) return null;
     const state = syncStatus?.state ?? "synced";
     const at = syncStatus?.at;
     const base =
@@ -3121,7 +3133,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
               onError={setGhError}
             />
           </span>
-          {ghConnected && renderSyncChip()}
+          {(ghConnected || isDemo) && renderSyncChip()}
         </div>
       )}
 
@@ -3129,8 +3141,8 @@ app.listen(port, () => console.log("Server listening on port " + port));
           No persistent "connect GitHub" nudge — the nav icon + slide-in own all
           the actions and provisioning is automatic. This strip appears ONLY when
           GithubConnect reports an actionable error (load failed, auto-provision
-          failed), with a Retry that re-runs the failed step. */}
-      {ghError ? (
+          failed), with a Retry that re-runs the failed step. Hidden in demo mode. */}
+      {ghError && !isDemo ? (
         <div className="gh-nudge gh-nudge-error">
           <span className="gh-nudge-msg gh-nudge-msg-error">
             <AlertTriangle style={{ width: 14, height: 14 }} />
@@ -3342,6 +3354,7 @@ app.listen(port, () => console.log("Server listening on port " + port));
                   "Give me a hint",
                 ]}
                 onMessageSent={() => track(PLAYGROUND_EVENTS.kapMessageSent)}
+                demoMode={isDemo}
               />
             </div>
           )}
