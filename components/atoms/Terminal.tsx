@@ -94,6 +94,13 @@ export interface TerminalRunHandle {
    * command. Callers should surface feedback when this returns `false`.
    */
   runCommand: (cmd: string) => boolean;
+
+  /**
+   * Writes a line of text directly to the terminal display (xterm).
+   * Used for mock log emission in demo mode. Automatically formats
+   * the line with ANSI codes based on its prefix.
+   */
+  write: (line: string) => void;
 }
 
 export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
@@ -278,6 +285,11 @@ export const Terminal = forwardRef<TerminalRunHandle, TerminalProps>(
         xtRef.current?.input(cmd, true);
         xtRef.current?.input("\r", true);
         return true;
+      },
+      write: (line: string) => {
+        const xt = xtRef.current;
+        if (!xt) return;
+        xt.writeln(ansi(line));
       },
     }),
     [],

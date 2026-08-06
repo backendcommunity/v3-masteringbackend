@@ -501,11 +501,50 @@ export function ProjectPlaygroundPage({
   // sample project — the demo never mutates a real user's project.
   const tourActionsRef = useRef<Record<string, TourAction>>({});
   const tourActions = useMemo<Record<string, TourAction>>(() => {
+    if (isDemo) {
+      // Demo mode: actions trigger state changes + log emission
+      return {
+        "file-tree": () => {
+          tourRevealsRef.current["file-tree"]?.();
+          tourActionsRef.current["file-tree"]?.();
+        },
+        "run-server": async () => {
+          tourActionsRef.current["run-server"]?.();
+          // Emit "run-server" logs to terminal
+          const { DEMO_TERMINAL_LOGS } = await import(
+            "@/lib/playground-demo-script"
+          );
+          const logsForStep = DEMO_TERMINAL_LOGS.filter(
+            (l) => l.step === "run-server"
+          );
+          for (const log of logsForStep) {
+            await new Promise((r) => setTimeout(r, log.delay));
+            terminalRunRef.current?.write(log.log);
+          }
+        },
+        "run-test": async () => {
+          // Emit "run-test" logs to terminal
+          const { DEMO_TERMINAL_LOGS } = await import(
+            "@/lib/playground-demo-script"
+          );
+          const logsForStep = DEMO_TERMINAL_LOGS.filter(
+            (l) => l.step === "run-test"
+          );
+          for (const log of logsForStep) {
+            await new Promise((r) => setTimeout(r, log.delay));
+            terminalRunRef.current?.write(log.log);
+          }
+          tourActionsRef.current["run-test"]?.();
+        },
+      };
+    }
+
+    // Non-demo path (keep existing code)
     const ids = ["file-tree", "run-server", "run-test"];
     const map: Record<string, TourAction> = {};
     for (const id of ids) map[id] = () => tourActionsRef.current[id]?.();
     return map;
-  }, []);
+  }, [isDemo]);
   // Reveals open each step's panel/tab/drawer BEFORE it is highlighted, so every
   // step shows on its real target even when that panel isn't open by default.
   // Always provided (opening a panel is safe on any project); only the real
