@@ -490,7 +490,7 @@ export function ProjectPlaygroundPage({
   // only appears once the playground (and its data-tour anchors) is rendered —
   // never over the "Loading your project…" screen. It does NOT wait on baseURL
   // (sandbox boot), since the welcome/file/editor steps don't need a server.
-  const tourReady = !loading && !loadingFiles;
+  const tourReady = !loading && !loadingFiles && (!!project?.id || isDemo);
   const tourTheme = editorTheme === "mb-light" ? "light" : "dark";
 
   // The real demo actions (create file, run server, …) need handlers defined
@@ -603,75 +603,81 @@ export function ProjectPlaygroundPage({
   useEffect(() => {
     // setLoading(true);
     async function findProject(slug: string) {
-      let project;
-      if (isDemo) {
-        // Mock project for demo mode
-        project = {
-          id: "demo-project-id",
-          slug: "playground-demo",
-          title: "Playground Demo",
-          summary: "Build a real backend, right here — in 60 seconds.",
-          description:
-            "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
-          level: "Beginner",
-          skills: ["http", "api", "nodejs"],
-          technologies: ["Node.js"],
-          prerequisites: [],
-          industries: ["Web"],
-          duration: 1,
-          isPremium: false,
-          isSample: true,
-          isWaiting: false,
-          enrolled: true,
-          userProject: { enrolled: true },
-          playgroundConfig: {
-            frontendPreview: true,
-            previewDir: "public",
-          },
-          projectTasks: [
-            {
-              id: "demo-task-group-1",
-              title: "Getting Started",
-              tasks: DEMO_TASKS.slice(0, 3).map((t: any) => ({
-                id: t.id,
-                title: t.title,
-                description: t.description,
-                required: t.required,
-                mb: t.mb,
-                apiSpec: t.apiSpec,
-                userTask: { isCompleted: false },
-              })),
+      try {
+        let project;
+        if (isDemo) {
+          // Mock project for demo mode
+          project = {
+            id: "demo-project-id",
+            slug: "playground-demo",
+            title: "Playground Demo",
+            summary: "Build a real backend, right here — in 60 seconds.",
+            description:
+              "A guided, interactive demo of the Mastering Backend playground. Create a file, run a test, and preview a live Hello API — all in your browser. No setup, no install — just the real playground.",
+            level: "Beginner",
+            skills: ["http", "api", "nodejs"],
+            technologies: ["Node.js"],
+            prerequisites: [],
+            industries: ["Web"],
+            duration: 1,
+            isPremium: false,
+            isSample: true,
+            isWaiting: false,
+            enrolled: true,
+            userProject: { enrolled: true },
+            playgroundConfig: {
+              frontendPreview: true,
+              previewDir: "public",
             },
-            {
-              id: "demo-task-group-2",
-              title: "Advanced",
-              tasks: DEMO_TASKS.slice(3).map((t: any) => ({
-                id: t.id,
-                title: t.title,
-                description: t.description,
-                required: t.required,
-                mb: t.mb,
-                apiSpec: t.apiSpec,
-                userTask: { isCompleted: false },
-              })),
-            },
-          ],
-        } as any;
-      } else {
-        project = await store.getProject(slug);
+            projectTasks: [
+              {
+                id: "demo-task-group-1",
+                title: "Getting Started",
+                tasks: DEMO_TASKS.slice(0, 3).map((t: any) => ({
+                  id: t.id,
+                  title: t.title,
+                  description: t.description,
+                  required: t.required,
+                  mb: t.mb,
+                  apiSpec: t.apiSpec,
+                  userTask: { isCompleted: false },
+                })),
+              },
+              {
+                id: "demo-task-group-2",
+                title: "Advanced",
+                tasks: DEMO_TASKS.slice(3).map((t: any) => ({
+                  id: t.id,
+                  title: t.title,
+                  description: t.description,
+                  required: t.required,
+                  mb: t.mb,
+                  apiSpec: t.apiSpec,
+                  userTask: { isCompleted: false },
+                })),
+              },
+            ],
+          } as any;
+        } else {
+          project = await store.getProject(slug);
+        }
+        setProject(project);
+        const source =
+          new URLSearchParams(window.location.search).get("tour") === "offer"
+            ? "try_playground"
+            : "direct";
+        analytics.track(PLAYGROUND_EVENTS.opened, {
+          project_slug: slug,
+          project_title: project?.title,
+          is_sample: !!project?.isSample,
+          source,
+        });
+      } catch (err) {
+        // API error or timeout — log and keep loading state to show error UI
+        console.error("Failed to load project:", err);
+      } finally {
+        setLoading(false);
       }
-      setProject(project);
-      setLoading(false);
-      const source =
-        new URLSearchParams(window.location.search).get("tour") === "offer"
-          ? "try_playground"
-          : "direct";
-      analytics.track(PLAYGROUND_EVENTS.opened, {
-        project_slug: slug,
-        project_title: project?.title,
-        is_sample: !!project?.isSample,
-        source,
-      });
     }
     findProject(slug);
   }, [slug, isDemo]);
@@ -1230,24 +1236,20 @@ export function ProjectPlaygroundPage({
       />
     );
   }
-  if (!isDemo && !project?.enrolled)
+  if (!isDemo && !project?.id) {
+    // Project hasn't loaded yet — show loader
     return (
-      <div className="container max-w-4xl py-12">
-        <Card>
-          <CardHeader>
-            <CardTitle>Not enrolled</CardTitle>
-            <CardDescription>
-              You need to enroll to access the playground.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button onClick={() => onNavigate(`/projects/${slug}`)}>
-              View Project
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+      <Loader
+        label={
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm font-medium text-foreground">
+              Loading your project
+            </p>
+          </div>
+        }
+      />
     );
+  }
 
   const tasks = project?.projectTasks?.flatMap((p: any) => p.tasks);
 
