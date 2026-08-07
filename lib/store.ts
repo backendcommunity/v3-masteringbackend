@@ -171,8 +171,8 @@ const resolveRoadmapSlug = async (identifier: string) => {
       `/roadmaps?page=0&size=${ROADMAP_RESOLVE_PAGE_SIZE}`,
     );
     const roadmaps = data?.data?.roadmaps ?? data?.data ?? [];
-    const match = roadmaps.find((roadmap: any) =>
-      String(roadmap?.id) === identifier,
+    const match = roadmaps.find(
+      (roadmap: any) => String(roadmap?.id) === identifier,
     );
     if (match?.slug) {
       roadmapSlugCache.set(identifier, match.slug);
@@ -184,7 +184,6 @@ const resolveRoadmapSlug = async (identifier: string) => {
 
   return identifier;
 };
-
 
 interface AppState {
   // Data getters
@@ -216,8 +215,20 @@ interface AppState {
   }) => any;
   getMockInterviewCategories: () => Promise<string[]>;
   getMockInterviewCompanies: () => Promise<string[]>;
-  getUserBookedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
-  getUserCompletedInterviews: (size?: number, skip?: number) => Promise<{ data: any[]; meta: { total: number; size: number; skip: number } }>;
+  getUserBookedInterviews: (
+    size?: number,
+    skip?: number,
+  ) => Promise<{
+    data: any[];
+    meta: { total: number; size: number; skip: number };
+  }>;
+  getUserCompletedInterviews: (
+    size?: number,
+    skip?: number,
+  ) => Promise<{
+    data: any[];
+    meta: { total: number; size: number; skip: number };
+  }>;
   getMyTemplates: () => any;
   deleteMyTemplate: (id: string) => Promise<void>;
   getMockInterviewTemplate: (id: string) => any;
@@ -259,7 +270,10 @@ interface AppState {
   getRoadmapItems: (slug: string, topicId: string) => any;
   getRoadmapCertificate: (slug: string) => Promise<any>;
   getExercise: (id: string) => Exercise | any;
-  getSubmissionStatus: (exerciseId: string, submissionId: string) => Promise<any>;
+  getSubmissionStatus: (
+    exerciseId: string,
+    submissionId: string,
+  ) => Promise<any>;
   getRewards: () => Reward | any;
   getUserAchievement: (type?: string) => any;
   getBadges: () => any;
@@ -314,7 +328,10 @@ interface AppState {
     id: string,
     data: { scheduledTime?: Date | string; interviewConfig?: any },
   ) => any;
-  getBookmarks: (size?: number, skip?: number) => Promise<{ bookmarks: any[]; meta: { total: number } }>;
+  getBookmarks: (
+    size?: number,
+    skip?: number,
+  ) => Promise<{ bookmarks: any[]; meta: { total: number } }>;
   createBookmark: (input: {
     type: "COURSE" | "ROADMAP" | "PROJECT" | "MOCK_INTERVIEW";
     bookmarkType: "BOOKMARK" | "WISHLIST";
@@ -322,8 +339,17 @@ interface AppState {
     roadmapId?: string;
     projectId?: string;
     mockInterviewTemplateId?: string;
-  }) => Promise<{ id: string; mockInterviewTemplateId?: string | null; courseId?: string | null }>;
-  deleteBookmark: (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => Promise<void>;
+  }) => Promise<{
+    id: string;
+    mockInterviewTemplateId?: string | null;
+    courseId?: string | null;
+  }>;
+  deleteBookmark: (opts: {
+    mockInterviewTemplateId?: string;
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+  }) => Promise<void>;
   scheduleInterviewFromTemplate: (
     id: string,
     data: { scheduledTime?: string; interviewConfig?: any },
@@ -340,8 +366,16 @@ interface AppState {
     scheduledTime: string;
     interviewConfig?: string;
   }) => any;
-  analyzeJD: (jdText: string, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
-  analyzeJDFile: (file: File, duration: number, style: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  analyzeJD: (
+    jdText: string,
+    duration: number,
+    style: string,
+  ) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  analyzeJDFile: (
+    file: File,
+    duration: number,
+    style: string,
+  ) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   handleProjectEnrollment: (slug: string) => Project | any;
   updateUserProject: (slug: string, payload: any) => Project | any;
   updateChallenge: (id: string, updates: Partial<Challenge>) => void;
@@ -361,7 +395,10 @@ interface AppState {
   handleMBPayment: (payload: MBPayload) => any;
   completeChallenge: (challengeId: string) => void;
   addXP: (amount: number) => void;
-  handleCourseEnrollment: (courseId: string, isPreview?: boolean) => UserCourse | any;
+  handleCourseEnrollment: (
+    courseId: string,
+    isPreview?: boolean,
+  ) => UserCourse | any;
   handleRoadmapCourseEnrollment: (
     slug: string,
     topicId: string,
@@ -407,16 +444,31 @@ interface AppState {
       chapter?: any;
     },
   ) => any;
-  executeCode: (payload: { language: string; code: string; stdin?: string }) => any;
+  executeCode: (payload: {
+    language: string;
+    code: string;
+    stdin?: string;
+  }) => any;
   createMockInterviewRoom: (userInterviewId: string) => any;
   ensurePathMockInterview: (templateId: string) => Promise<any>;
   initiateAsyncpayCheckout: (bootcampId: string, cohortId: string) => any;
   getCoursesFilters: () => Promise<CourseFiltersData>;
 
   // Return-Recap
-  returnRecap: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null;
-  setReturnRecap: (r: import("./data").RecapPayload | import("./data").WelcomeBackPayload | null) => void;
-  getJourneyRecap: (itemType: import("./data").RecapItemType, itemId: string) => Promise<import("./data").RecapPayload | null>;
+  returnRecap:
+    | import("./data").RecapPayload
+    | import("./data").WelcomeBackPayload
+    | null;
+  setReturnRecap: (
+    r:
+      | import("./data").RecapPayload
+      | import("./data").WelcomeBackPayload
+      | null,
+  ) => void;
+  getJourneyRecap: (
+    itemType: import("./data").RecapItemType,
+    itemId: string,
+  ) => Promise<import("./data").RecapPayload | null>;
   getWelcomeBack: () => Promise<import("./data").WelcomeBackPayload | null>;
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
   submitFeedback: (input: {
@@ -435,24 +487,49 @@ interface AppState {
   search: (query: string) => Promise<SearchResults>;
 
   // Chat-based Mock Interview
-  getChatInterviewPreview: (userInterviewId: string) => Promise<{ template: ChatInterviewTemplate; sessionStatus: string | null }>;
+  getChatInterviewPreview: (userInterviewId: string) => Promise<{
+    template: ChatInterviewTemplate;
+    sessionStatus: string | null;
+  }>;
   /** Stash a just-created interview's preview so the chat room skips the fetch. */
   primeChatPreview: (id: string, preview: ChatPreview) => void;
   /** Read + clear a stashed preview (one-shot). Null if none was primed. */
   consumeChatPreview: (id: string) => ChatPreview | null;
-  startChatInterview: (userInterviewId: string, interviewType?: string) => Promise<ChatInterviewSession>;
+  startChatInterview: (
+    userInterviewId: string,
+    interviewType?: string,
+  ) => Promise<ChatInterviewSession>;
   getChatInterviewSession: (sessionId: string) => Promise<ChatInterviewSession>;
-  streamChatMessage: (sessionId: string, content: string, artifacts?: ChatArtifactRef[]) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
-  saveChatArtifact: (sessionId: string, type: "code" | "whiteboard", data: string, language?: string) => Promise<void>;
-  streamKapTutor: (params: KapAskParams, signal?: AbortSignal) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  streamChatMessage: (
+    sessionId: string,
+    content: string,
+    artifacts?: ChatArtifactRef[],
+  ) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  saveChatArtifact: (
+    sessionId: string,
+    type: "code" | "whiteboard",
+    data: string,
+    language?: string,
+  ) => Promise<void>;
+  streamKapTutor: (
+    params: KapAskParams,
+    signal?: AbortSignal,
+  ) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
   getKapHistory: (scope: string, refId: string) => Promise<KapTutorMessage[]>;
   clearKapHistory: (scope: string, refId: string) => Promise<void>;
   getKapInsights: (videoId: string) => Promise<KapInsights>;
   endChatInterviewSession: (sessionId: string) => Promise<void>;
   getChatSessionReport: (sessionId: string) => Promise<any>;
   generateSessionReport: (sessionId: string) => Promise<any>;
-  streamSessionReport: (sessionId: string) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
-  submitMessageFeedback: (sessionId: string, messageId: string, vote: "up" | "down", content: string) => Promise<void>;
+  streamSessionReport: (
+    sessionId: string,
+  ) => Promise<ReadableStreamDefaultReader<Uint8Array>>;
+  submitMessageFeedback: (
+    sessionId: string,
+    messageId: string,
+    vote: "up" | "down",
+    content: string,
+  ) => Promise<void>;
 
   // Epic 7: Auto-progression
   autoProgressionEnabled: boolean;
@@ -469,10 +546,16 @@ interface AppState {
 
   // Level-up celebration modal
   levelUpModal: { oldLevel: number; newLevel: number } | null;
-  setLevelUpModal: (data: { oldLevel: number; newLevel: number } | null) => void;
+  setLevelUpModal: (
+    data: { oldLevel: number; newLevel: number } | null,
+  ) => void;
 
   // Sync user points/level from a mutation response without an extra API call
-  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => void;
+  syncUserSnapshot: (snapshot: {
+    points: number;
+    level: number;
+    currentStreak?: number;
+  }) => void;
 
   // Path (Learning Path) actions
   getPathSession: (slug: string) => Promise<import("./path-types").PathSession>;
@@ -486,9 +569,7 @@ interface AppState {
     slug: string,
   ) => Promise<import("./path-types").PathCertificate>;
   // Project ↔ GitHub
-  getProjectGithub: (
-    slug: string,
-  ) => Promise<{
+  getProjectGithub: (slug: string) => Promise<{
     installed: boolean;
     connected: boolean;
     installUrl: string;
@@ -498,7 +579,11 @@ interface AppState {
   }>;
   connectProjectGithub: (
     slug: string,
-    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+    body: {
+      mode: "auto" | "existing";
+      repoFullName?: string;
+      isPrivate?: boolean;
+    },
   ) => Promise<{
     connected: true;
     repoFullName: string;
@@ -518,7 +603,12 @@ interface AppState {
     owner: string,
     name: string,
     isPrivate?: boolean,
-  ) => Promise<{ name: string; fullName: string; htmlUrl: string; cloneUrl: string }>;
+  ) => Promise<{
+    name: string;
+    fullName: string;
+    htmlUrl: string;
+    cloneUrl: string;
+  }>;
   connectProjectRepo: (
     slug: string,
     repository: string,
@@ -728,7 +818,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   getSubmissionStatus: async (exerciseId: string, submissionId: string) => {
-    const { data } = await api.get(`/exercises/${exerciseId}/submissions/${submissionId}`);
+    const { data } = await api.get(
+      `/exercises/${exerciseId}/submissions/${submissionId}`,
+    );
     return data?.data;
   },
   takeExerciseHint: async (exerciseId: string) => {
@@ -737,13 +829,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       return data?.data;
     } catch (e: any) {
       if (e?.response?.status === 402)
-        return { error: "INSUFFICIENT", shortfall: e.response.data?.shortfall ?? 0 };
+        return {
+          error: "INSUFFICIENT",
+          shortfall: e.response.data?.shortfall ?? 0,
+        };
       throw e;
     }
   },
   getMilestone: async (slug: string, topicId: string) => {
     const resolvedSlug = await resolveRoadmapSlug(slug);
-    const { data } = await api.get(`/roadmaps/${resolvedSlug}/topics/${topicId}`);
+    const { data } = await api.get(
+      `/roadmaps/${resolvedSlug}/topics/${topicId}`,
+    );
     return data?.data;
   },
   getProjects: async (queries?: Project30Query) => {
@@ -911,7 +1008,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return p;
   },
 
-  startChatInterview: async (userInterviewId: string, interviewType?: string) => {
+  startChatInterview: async (
+    userInterviewId: string,
+    interviewType?: string,
+  ) => {
     const { data } = await api.post(
       `/mock-interviews/chat/${userInterviewId}/start`,
       { interviewType },
@@ -984,10 +1084,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   clearKapHistory: async (scope: string, refId: string) => {
     const baseURL = API_BASE;
-    await fetch(
-      `${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`,
-      { method: "DELETE", credentials: "include" },
-    );
+    await fetch(`${baseURL}/kap-tutor/history?scope=${scope}&refId=${refId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
   },
 
   getKapInsights: async (videoId: string) => {
@@ -1031,9 +1131,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  submitMessageFeedback: async (sessionId: string, messageId: string, vote: "up" | "down", content: string) => {
+  submitMessageFeedback: async (
+    sessionId: string,
+    messageId: string,
+    vote: "up" | "down",
+    content: string,
+  ) => {
     await api.post(`/mock-interviews/chat/sessions/${sessionId}/feedback`, {
-      messageId, vote, content,
+      messageId,
+      vote,
+      content,
     });
   },
 
@@ -1043,7 +1150,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       `${baseURL}/mock-interviews/chat/sessions/${sessionId}/report/stream`,
       { method: "GET", credentials: "include" },
     );
-    if (!response.ok) throw new Error(`Stream request failed: ${response.status}`);
+    if (!response.ok)
+      throw new Error(`Stream request failed: ${response.status}`);
     if (!response.body) throw new Error("No response body");
     return response.body.getReader();
   },
@@ -1151,20 +1259,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   getUserBookedInterviews: async (size = 12, skip = 0) => {
-    const { data } = await api.get(`/mock-interviews/user/booked?size=${size}&skip=${skip}`);
-    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
+    const { data } = await api.get(
+      `/mock-interviews/user/booked?size=${size}&skip=${skip}`,
+    );
+    return {
+      data: data?.data ?? [],
+      meta: data?.meta ?? { total: 0, size, skip },
+    };
   },
 
   getUserCompletedInterviews: async (size = 12, skip = 0) => {
-    const { data } = await api.get(`/mock-interviews/user/completed?size=${size}&skip=${skip}`);
-    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0, size, skip } };
+    const { data } = await api.get(
+      `/mock-interviews/user/completed?size=${size}&skip=${skip}`,
+    );
+    return {
+      data: data?.data ?? [],
+      meta: data?.meta ?? { total: 0, size, skip },
+    };
   },
 
   getMockInterviewTemplate: async (id: string) => {
     const { data } = await api.get(`/mock-interviews/${id}`);
     return data?.data;
   },
-
 
   getMyTemplates: async () => {
     const { data } = await api.get("/mock-interviews/my-templates");
@@ -1218,11 +1335,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLevelUpModal: (data) => set({ levelUpModal: data }),
 
   // Sync user points/level from a mutation response — zero extra API calls
-  syncUserSnapshot: (snapshot: { points: number; level: number; currentStreak?: number }) => {
+  syncUserSnapshot: (snapshot: {
+    points: number;
+    level: number;
+    currentStreak?: number;
+  }) => {
     updateUserInStore({
       points: snapshot.points,
       level: snapshot.level,
-      ...(snapshot.currentStreak !== undefined ? { currentStreak: snapshot.currentStreak } : {}),
+      ...(snapshot.currentStreak !== undefined
+        ? { currentStreak: snapshot.currentStreak }
+        : {}),
     });
     set((state) => ({ version: state.version + 1 }));
   },
@@ -1244,12 +1367,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       return await startWithIdentifier(slug);
     } catch (error: any) {
       const status = error?.response?.status;
-      const shouldTryId = id && id !== slug && (status === 404 || status === 500);
+      const shouldTryId =
+        id && id !== slug && (status === 404 || status === 500);
       if (!shouldTryId) throw error;
       return await startWithIdentifier(id);
     }
   },
-  executeCode: async (payload: { language: string; code: string; stdin?: string }) => {
+  executeCode: async (payload: {
+    language: string;
+    code: string;
+    stdin?: string;
+  }) => {
     const { data } = await api.post(`/playgrounds/execute`, payload);
     return data?.data ?? data;
   },
@@ -1274,7 +1402,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
   gradeProjectTask: async (slug: string, id: string, stdin?: string[]) => {
-    const { data } = await api.post(`/projects/${slug}/tasks/${id}/grade`, stdin ? { stdin } : {});
+    const { data } = await api.post(
+      `/projects/${slug}/tasks/${id}/grade`,
+      stdin ? { stdin } : {},
+    );
     return data?.data;
   },
   cancelSubscription: async (id: string) => {
@@ -1334,7 +1465,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getBookmarks: async (size = 12, skip = 0) => {
     const { data } = await api.get(`/bookmarks?size=${size}&skip=${skip}`);
-    return { bookmarks: data?.data?.bookmarks ?? [], meta: data?.data?.meta ?? { total: 0 } };
+    return {
+      bookmarks: data?.data?.bookmarks ?? [],
+      meta: data?.data?.meta ?? { total: 0 },
+    };
   },
 
   createBookmark: async (input: {
@@ -1349,9 +1483,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  deleteBookmark: async (opts: { mockInterviewTemplateId?: string; courseId?: string; roadmapId?: string; projectId?: string }) => {
+  deleteBookmark: async (opts: {
+    mockInterviewTemplateId?: string;
+    courseId?: string;
+    roadmapId?: string;
+    projectId?: string;
+  }) => {
     const params = new URLSearchParams();
-    if (opts.mockInterviewTemplateId) params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
+    if (opts.mockInterviewTemplateId)
+      params.set("mockInterviewTemplateId", opts.mockInterviewTemplateId);
     if (opts.courseId) params.set("courseId", opts.courseId);
     if (opts.roadmapId) params.set("roadmapId", opts.roadmapId);
     if (opts.projectId) params.set("projectId", opts.projectId);
@@ -1394,7 +1534,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       body: JSON.stringify({ jdText, duration, style }),
     });
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
       throw new Error(err.message || `Request failed: ${response.status}`);
     }
     if (!response.body) throw new Error("No response body");
@@ -1407,13 +1549,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     formData.append("file", file);
     formData.append("duration", String(duration));
     formData.append("style", style);
-    const response = await fetch(`${baseURL}/mock-interviews/analyze-jd/upload`, {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
+    const response = await fetch(
+      `${baseURL}/mock-interviews/analyze-jd/upload`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      },
+    );
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Request failed" }));
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Request failed" }));
       throw new Error(err.message || `Request failed: ${response.status}`);
     }
     if (!response.body) throw new Error("No response body");
@@ -1496,7 +1643,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   returnRecap: null,
   setReturnRecap: (r) => set({ returnRecap: r }),
   getJourneyRecap: async (itemType, itemId) => {
-    const { data } = await api.get(`/journey/recap`, { params: { itemType, itemId } });
+    const { data } = await api.get(`/journey/recap`, {
+      params: { itemType, itemId },
+    });
     return data?.data ?? null;
   },
   getWelcomeBack: async () => {
@@ -1715,8 +1864,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       newXPToNextLevel += 1000;
     }
 
-    patchStoredUser({ xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
-    Object.assign(dataStore.user, { xp: newXP, level: newLevel, xpToNextLevel: newXPToNextLevel });
+    patchStoredUser({
+      xp: newXP,
+      level: newLevel,
+      xpToNextLevel: newXPToNextLevel,
+    });
+    Object.assign(dataStore.user, {
+      xp: newXP,
+      level: newLevel,
+      xpToNextLevel: newXPToNextLevel,
+    });
   },
 
   getPathSession: async (slug) => {
@@ -1747,6 +1904,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Project ↔ GitHub
   getProjectGithub: async (slug: string) => {
+    // Skip for demo project (frontend-only, no database project)
+    if (slug === "playground-demo") {
+      return null;
+    }
     const { data } = await api.get(`/projects/${slug}/github`);
     return data?.data;
   },
@@ -1755,8 +1916,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   // authUrl,message} to drive the install / re-authorize redirect.
   connectProjectGithub: async (
     slug: string,
-    body: { mode: "auto" | "existing"; repoFullName?: string; isPrivate?: boolean },
+    body: {
+      mode: "auto" | "existing";
+      repoFullName?: string;
+      isPrivate?: boolean;
+    },
   ) => {
+    // Skip for demo project (frontend-only, no database project)
+    if (slug === "playground-demo") {
+      return null;
+    }
     const { data } = await api.post(`/projects/${slug}/github`, body);
     return data?.data;
   },
@@ -1772,10 +1941,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data ?? [];
   },
   createGithubRepo: async (owner: string, name: string, isPrivate = false) => {
-    const { data } = await api.post(`/github/repos`, { owner, name, isPrivate });
+    const { data } = await api.post(`/github/repos`, {
+      owner,
+      name,
+      isPrivate,
+    });
     return data?.data?.repo;
   },
-  connectProjectRepo: async (slug: string, repository: string, owner: string) => {
+  connectProjectRepo: async (
+    slug: string,
+    repository: string,
+    owner: string,
+  ) => {
+    // Skip for demo project (frontend-only, no database project)
+    if (slug === "playground-demo") {
+      return null;
+    }
     const { data } = await api.post(`/projects/${slug}/github`, {
       repository,
       owner,
@@ -1783,6 +1964,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data?.repo;
   },
   disconnectProjectGithub: async (slug: string) => {
+    // Skip for demo project (frontend-only, no database project)
+    if (slug === "playground-demo") {
+      return null;
+    }
     const { data } = await api.delete(`/projects/${slug}/github`);
     return data?.data;
   },
@@ -1793,6 +1978,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // subsequent status re-fetch could keep returning a dead-end "install" URL
   // instead of the correct self-healing "reconnect" URL.
   markGithubInstallationInvalid: async (slug: string) => {
+    // Skip for demo project (frontend-only, no database project)
+    if (slug === "playground-demo") {
+      return;
+    }
     await api.post(`/projects/${slug}/github/mark-invalid`);
   },
 

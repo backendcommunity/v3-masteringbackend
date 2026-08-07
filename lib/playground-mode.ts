@@ -39,8 +39,3 @@ export function isDemoMode(
 
   return slug === "playground-demo" || demoForced;
 }
-
-export function canUseDemoMode(): boolean {
-  // Demo mode available in all environments (safe—it's frontend-only, no API)
-  return true;
-}

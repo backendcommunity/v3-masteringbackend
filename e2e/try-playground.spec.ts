@@ -3,7 +3,7 @@
  *
  * Runtime prerequisites (why this test is skipped in CI/local without the stack):
  *   1. A live academy backend (Express + PostgreSQL + Redis) at http://localhost:8000
- *      with the `hello-api-sample` project seeded in the database.
+ *      with the `playground-demo` project seeded in the database.
  *   2. A live Next.js frontend at http://localhost:3000 (playwright.config.ts webServer).
  *   3. A valid `mb_token` JWT cookie accepted by the academy backend (real signed-in session).
  *      The onboarding.spec.ts pattern injects `"test-token"` which is a placeholder — it is
@@ -25,10 +25,10 @@ test.skip(
   true,
   [
     "Skipped: environment prerequisites not met.",
-    "Requires: (1) academy backend + seeded hello-api-sample project,",
+    "Requires: (1) academy backend,",
     "(2) valid signed mb_token JWT (not the placeholder used in onboarding.spec.ts),",
-    "(3) running mb-executor Docker sandbox service so the playground can boot",
-    "and render the sandbox-live state / tour offer banner.",
+    "(3) running mb-executor Docker sandbox service so the playground can boot.",
+    "The playground-demo is frontend-only (no database project needed).",
     "Remove test.skip once a real signed-in test session and the full stack are available.",
   ].join(" ")
 );
@@ -60,7 +60,7 @@ test("Try Playground boots sample sandbox and offers the tour", async ({
   await page.getByRole("button", { name: /try playground/i }).first().click();
 
   // 3. Assert we landed on the sample playground URL with ?tour=offer.
-  await expect(page).toHaveURL(/\/projects\/hello-api-sample\/playground\?tour=offer/, {
+  await expect(page).toHaveURL(/\/projects\/playground-demo\/playground\?tour=offer/, {
     timeout: 15_000,
   });
 
