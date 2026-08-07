@@ -1173,7 +1173,7 @@ export function ProjectPlaygroundPage({
     };
   }, [pgCtx, baseURL]);
 
-  if (loading || loadingFiles) {
+  if (loading || loadingFiles || (!isDemo && !project?.id)) {
     // Boot progress derived purely from existing values — no new logic/state.
     const bootSteps = [
       {
@@ -1231,20 +1231,6 @@ export function ProjectPlaygroundPage({
                 </li>
               ))}
             </ul>
-          </div>
-        }
-      />
-    );
-  }
-  if (!isDemo && !project?.id) {
-    // Project hasn't loaded yet — show loader
-    return (
-      <Loader
-        label={
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-sm font-medium text-foreground">
-              Loading your project
-            </p>
           </div>
         }
       />
