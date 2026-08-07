@@ -327,8 +327,6 @@ export function ProjectPlaygroundPage({
   // Auto-open the first file once when the learner has already started — so a
   // returning learner lands straight in the editor (no start page at all).
   const autoOpenedRef = useRef(false);
-  // Track if tour was auto-launched when editor became visible.
-  const tourAutoLaunchedRef = useRef(false);
   const [fileMenu, setFileMenu] = useState({
     visible: false,
     x: 0,
@@ -1280,15 +1278,6 @@ export function ProjectPlaygroundPage({
     // re-runs the walkthrough.
     relaunch();
   };
-
-  // Auto-launch tour when editor becomes visible (user opened a file or clicked "Start Building").
-  // Only launch once per session to avoid re-triggering when files open/close.
-  // useEffect(() => {
-  //   if (!tourReady || onStartPage || tourAutoLaunchedRef.current) return;
-  //   tourAutoLaunchedRef.current = true;
-  //   relaunch();
-  // }, [tourReady, onStartPage, relaunch]);
-
   // group-based numbering keyed by task id → "1.1", "2.3" …
   const taskNumber: Record<string, string> = {};
   project?.projectTasks?.forEach((g: any, gi: number) =>
