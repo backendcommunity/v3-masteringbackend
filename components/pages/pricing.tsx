@@ -19,18 +19,8 @@ import countriesList from "@/lib/countries.json";
 import {
   formatPrice,
   monthlyEquivalent,
-  type RegionalPricing,
+  type PublicPricing,
 } from "@/lib/pricing";
-
-// The client never needs the payment processor's identity or its price IDs —
-// Next.js serializes every prop passed to a client component into the RSC
-// payload embedded in the raw HTML response, so a full RegionalPricing here
-// would put "PADDLE"/"ASYNCPAY" in the response even though nothing renders
-// it. The server page strips those fields before this component ever sees them.
-type PublicPricing = Omit<
-  RegionalPricing,
-  "provider" | "monthlyPriceId" | "annualPriceId"
->;
 
 interface PricingViewProps {
   pricing: PublicPricing;
@@ -112,7 +102,7 @@ function countryName(code: string): string {
   return match?.name ?? code;
 }
 
-function resolvedLine(pricing: RegionalPricing): string {
+function resolvedLine(pricing: Pick<PublicPricing, "country" | "currency">): string {
   return `Prices shown in ${currencySymbol(pricing.currency)} for ${countryName(
     pricing.country,
   )}`;

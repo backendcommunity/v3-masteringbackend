@@ -1,3 +1,12 @@
+// Client-safe pricing exports only. Nothing here may name a payment
+// processor, read a processor env var, or make a network call — this module
+// is imported by components/pages/pricing.tsx, a client component, and
+// EVERY export here ships in the browser JS bundle, publicly readable.
+//
+// GLOBAL_FALLBACK and fetchPricing live in lib/pricing.server.ts instead —
+// that module names "PADDLE" and reads NEXT_PUBLIC_PADDLE_PRICE_* — and must
+// only ever be imported from server components (app/pricing/page.tsx).
+
 export interface RegionalPricing {
   tier: "NG" | "PPP" | "GLOBAL";
   country: string;
@@ -9,21 +18,16 @@ export interface RegionalPricing {
   annualPriceId: string;
 }
 
-/**
- * Used when the pricing endpoint is unreachable. Deliberately the MOST
- * expensive tier: a network blip must never hand a global visitor the naira
- * or PPP price. Mirrors the backend's fail-closed tierForCountry().
- */
-export const GLOBAL_FALLBACK: RegionalPricing = {
-  tier: "GLOBAL",
-  country: "",
-  provider: "PADDLE",
-  currency: "USD",
-  monthly: 19.99,
-  annual: 199.99,
-  monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY ?? "",
-  annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL ?? "",
-};
+// The client never needs the payment processor's identity or its price IDs —
+// Next.js serializes every prop passed to a client component into the RSC
+// payload embedded in the raw HTML response, so a full RegionalPricing prop
+// would put "PADDLE"/"ASYNCPAY" in the response even though nothing renders
+// it. app/pricing/page.tsx strips those fields (see toPublicPricing) before
+// PricingView ever sees them.
+export type PublicPricing = Omit<
+  RegionalPricing,
+  "provider" | "monthlyPriceId" | "annualPriceId"
+>;
 
 export function formatPrice(amount: number, currency: "NGN" | "USD"): string {
   return new Intl.NumberFormat("en-US", {
@@ -52,26 +56,4 @@ export function monthlyEquivalent(
   const amount =
     cycle === "annual" ? pricing.annual / 12 : pricing.monthly;
   return formatPrice(amount, pricing.currency);
-}
-
-/**
- * Server-side fetch. Geo headers must be FORWARDED from the incoming request —
- * without them the API sees the Netlify function's own IP and everyone in the
- * world gets quoted the GLOBAL price.
- */
-export async function fetchPricing(
-  headers?: Record<string, string>,
-): Promise<RegionalPricing> {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
-  try {
-    const res = await fetch(`${base}/public/pricing`, {
-      headers: headers ?? {},
-      cache: "no-store",
-    });
-    if (!res.ok) return GLOBAL_FALLBACK;
-    const json = await res.json();
-    return (json?.data as RegionalPricing) ?? GLOBAL_FALLBACK;
-  } catch {
-    return GLOBAL_FALLBACK;
-  }
 }

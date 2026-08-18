@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatPrice, monthlyEquivalent, GLOBAL_FALLBACK } from "@/lib/pricing";
+import { formatPrice, monthlyEquivalent } from "@/lib/pricing";
 import type { RegionalPricing } from "@/lib/pricing";
+// GLOBAL_FALLBACK lives in the server-only module (see lib/pricing.server.ts) —
+// it names "PADDLE" and must never be reachable from a client-component
+// import chain. Importing it here (a plain Node test, not a client bundle) is
+// the legitimate case that module's top-of-file comment carves out.
+import { GLOBAL_FALLBACK } from "@/lib/pricing.server";
 import { isPublicPath } from "@/lib/public-paths";
 
 describe("formatPrice", () => {
