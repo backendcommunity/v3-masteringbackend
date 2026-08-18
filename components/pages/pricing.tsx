@@ -721,19 +721,21 @@ export default function PricingView({ pricing }: PricingViewProps) {
             narrower: this is where people who learned here are employed,
             same framing the marketing site uses for this exact company
             list (see app/page.tsx's ALUMNI_COMPANIES in the landing-page
-            repo). Text wordmarks, muted and evenly spaced — no logo
-            assets exist for these companies. White-opacity tokens (not the
-            muted-foreground theme token) because this band sits on the
-            hero's fixed dark navy regardless of site theme. */}
-        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 items-center gap-5 px-4 pb-16 sm:grid-cols-[auto_1fr] sm:gap-10">
-          <p className="whitespace-nowrap text-sm font-semibold text-white/60">
+            repo). Two-column layout after the DataCamp reference: heading
+            large and bold on the left, a 4-per-row grid of large white
+            wordmarks on the right (no logo assets exist for these
+            companies, so type size/weight carries the presence a real
+            logo would). White (not white/opacity) because this band sits
+            on the hero's fixed dark navy regardless of site theme. */}
+        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-8 px-4 pb-16 sm:grid-cols-[minmax(0,280px)_1fr] sm:items-center sm:gap-16">
+          <h2 className="text-3xl font-extrabold leading-[1.15] text-white sm:text-4xl">
             Our learners work at
-          </p>
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          </h2>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
             {TRUSTED_BY_COMPANIES.map((name) => (
               <span
                 key={name}
-                className="text-lg font-bold tracking-tight text-white/50 grayscale"
+                className="text-xl font-bold tracking-tight text-white sm:text-2xl"
               >
                 {name}
               </span>
