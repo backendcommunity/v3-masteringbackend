@@ -986,3 +986,209 @@ describe("resolveCheckoutPrice — Enterprise fails closed", () => {
     }
   });
 });
+
+// ─── TIERED CHANNEL SELECTION ────────────────────────────────────────────────
+
+// A plan seeded the way regionally-priced plans are now seeded: THREE rows,
+// one per tier. PPP and GLOBAL are both PADDLE and deliberately share one
+// price id — the processor's own per-country override produces the charged
+// difference. Matching on the processor alone cannot tell them apart, which
+// is the entire reason `tier` exists.
+const pppProPricing: CheckoutPricing = {
+  country: "IN",
+  provider: "PADDLE",
+  currency: "USD",
+  monthly: 6.99,
+  annual: 69.99,
+  monthlyPriceId: "pri_pro_monthly",
+  annualPriceId: "pri_pro_annual",
+  enterprise: pppEnterprise,
+};
+
+const tieredPlan = {
+  id: "plan_tiered",
+  name: "Tiered",
+  paymentChannels: [
+    {
+      id: "pc_t_ng",
+      channel: "ASYNCPAY",
+      planId: "plan_tiered",
+      tier: "NG",
+      originalMonthlyPrice: 9999,
+      discountedMonthlyPrice: 9999,
+      originalYearlyPrice: 99990,
+      discountedYearlyPrice: 99990,
+      monthlyPlanId: "ap_tiered_monthly",
+      yearlyPlanId: "ap_tiered_yearly",
+    },
+    {
+      id: "pc_t_ppp",
+      channel: "PADDLE",
+      planId: "plan_tiered",
+      tier: "PPP",
+      originalMonthlyPrice: 6.99,
+      discountedMonthlyPrice: 6.99,
+      originalYearlyPrice: 69.99,
+      discountedYearlyPrice: 69.99,
+      monthlyPlanId: "pri_tiered_monthly",
+      yearlyPlanId: "pri_tiered_yearly",
+    },
+    {
+      id: "pc_t_global",
+      channel: "PADDLE",
+      planId: "plan_tiered",
+      tier: "GLOBAL",
+      originalMonthlyPrice: 19.99,
+      discountedMonthlyPrice: 19.99,
+      originalYearlyPrice: 199.99,
+      discountedYearlyPrice: 199.99,
+      monthlyPlanId: "pri_tiered_monthly",
+      yearlyPlanId: "pri_tiered_yearly",
+    },
+  ],
+} as unknown as Plan;
+
+describe("resolveCheckoutPrice — tier-keyed channel selection", () => {
+  it("prices PPP and GLOBAL off THEIR OWN row, not whichever PADDLE row comes first", () => {
+    // The regression this exists to stop: a processor-keyed `find` returns
+    // the PPP row for a global visitor (quoting $19.99 buyers $6.99) or the
+    // GLOBAL row for a PPP visitor. Both rows are PADDLE; only the tier
+    // separates them.
+    const ppp = resolveCheckoutPrice(
+      input({
+        checkoutId: "tiered",
+        pricing: pppProPricing,
+        tier: "PPP",
+        plan: tieredPlan,
+        planResolved: true,
+      }),
+    );
+    const global = resolveCheckoutPrice(
+      input({
+        checkoutId: "tiered",
+        pricing: usProPricing,
+        tier: "GLOBAL",
+        plan: tieredPlan,
+        planResolved: true,
+      }),
+    );
+
+    expect(ppp).toEqual({
+      status: "resolved",
+      price: {
+        amount: 6.99,
+        currency: "USD",
+        provider: "PADDLE",
+        priceId: "pri_tiered_monthly",
+        regional: true,
+      },
+    });
+    expect(global).toEqual({
+      status: "resolved",
+      price: {
+        amount: 19.99,
+        currency: "USD",
+        provider: "PADDLE",
+        priceId: "pri_tiered_monthly",
+        regional: true,
+      },
+    });
+  });
+
+  it("gives PPP and GLOBAL the SAME price id at DIFFERENT amounts", () => {
+    const ids = new Set<string>();
+    const amounts = new Set<number>();
+    for (const [tier, pricing] of [
+      ["PPP", pppProPricing],
+      ["GLOBAL", usProPricing],
+    ] as const) {
+      const r = resolveCheckoutPrice(
+        input({
+          checkoutId: "tiered",
+          pricing,
+          tier,
+          plan: tieredPlan,
+          planResolved: true,
+        }),
+      );
+      expect(r.status).toBe("resolved");
+      if (r.status !== "resolved") continue;
+      ids.add(r.price.priceId);
+      amounts.add(r.price.amount);
+    }
+    expect(ids.size).toBe(1);
+    expect(amounts.size).toBe(2);
+  });
+
+  it("prices the naira tier off its own row, in naira", () => {
+    const result = resolveCheckoutPrice(
+      input({
+        checkoutId: "tiered",
+        cycle: "annual",
+        pricing: ngProPricing,
+        tier: "NG",
+        plan: tieredPlan,
+        planResolved: true,
+      }),
+    );
+
+    expect(result).toEqual({
+      status: "resolved",
+      price: {
+        amount: 99990,
+        currency: "NGN",
+        provider: "ASYNCPAY",
+        priceId: "ap_tiered_yearly",
+        regional: true,
+      },
+    });
+  });
+
+  it("is unavailable — never another tier's row — when this tier has none", () => {
+    // A tier with no row must not fall through to a row that shares its
+    // processor: that is a resolvable-but-wrong amount, the exact failure
+    // this module refuses to produce.
+    const noGlobal = {
+      ...tieredPlan,
+      paymentChannels: (tieredPlan as any).paymentChannels.filter(
+        (pc: any) => pc.tier !== "GLOBAL",
+      ),
+    } as unknown as Plan;
+
+    const result = resolveCheckoutPrice(
+      input({
+        checkoutId: "tiered",
+        pricing: usProPricing,
+        tier: "GLOBAL",
+        plan: noGlobal,
+        planResolved: true,
+      }),
+    );
+
+    expect(result.status).toBe("unavailable");
+  });
+
+  it("still matches untiered rows by processor, exactly as before", () => {
+    // Every plan that predates regional pricing, and every non-regional plan,
+    // has rows with no tier. Their behaviour must not change.
+    for (const [pricing, expected] of [
+      [ngProPricing, { amount: 150000, currency: "NGN", priceId: "asyncpay_bc_monthly" }],
+      [usProPricing, { amount: 99.99, currency: "USD", priceId: "pri_bc_monthly" }],
+    ] as const) {
+      const result = resolveCheckoutPrice(
+        input({
+          checkoutId: "bootcamp",
+          pricing,
+          tier: pricing === ngProPricing ? "NG" : "GLOBAL",
+          plan: bootcampPlan,
+          planResolved: true,
+        }),
+      );
+      expect(result.status).toBe("resolved");
+      if (result.status !== "resolved") continue;
+      expect(result.price.amount).toBe(expected.amount);
+      expect(result.price.currency).toBe(expected.currency);
+      expect(result.price.priceId).toBe(expected.priceId);
+    }
+  });
+});

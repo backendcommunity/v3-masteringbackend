@@ -1,8 +1,7 @@
 // ⚠️ SERVER-ONLY MODULE — never import this from a client component
 // ("use client") or from anything a client component transitively imports.
 //
-// This file names payment processors ("PADDLE") and reads processor env vars
-// (NEXT_PUBLIC_PADDLE_PRICE_*). Next.js inlines every import a client
+// This file names payment processors ("PADDLE"). Next.js inlines every import a client
 // component reaches into the browser JS bundle, so importing this from
 // components/pages/pricing.tsx (or anything it imports) would ship those
 // literals to the browser — publicly readable — even though the UI never
@@ -23,6 +22,20 @@ import type { EnterprisePricing, RegionalPricing } from "@/lib/pricing";
  * Used when the pricing endpoint is unreachable. Deliberately the MOST
  * expensive tier: a network blip must never hand a global visitor the naira
  * or PPP price. Mirrors the backend's fail-closed tierForCountry().
+ *
+ * NO PRICE IDs. They used to be mirrored here from NEXT_PUBLIC_PADDLE_PRICE_*
+ * env vars; they are not any more. Processor price ids now live on the API's
+ * payment-channel rows next to the amount they price, and the API's own
+ * static fallback carries none either (see academy's `pricingForTier`) — so a
+ * copy here would be a third, drift-prone source for one fact, and the
+ * drifting copy would be the one that decides what a buyer is charged.
+ *
+ * The consequence is deliberate and already handled: with the pricing API
+ * unreachable, /pricing still renders honest GLOBAL amounts and /checkout
+ * classifies itself "unavailable" (lib/checkout-readiness.ts) rather than
+ * opening a checkout against an id nothing has confirmed is current. A
+ * checkout that cannot start is recoverable; one that charges the wrong
+ * amount is not.
  */
 export const GLOBAL_FALLBACK: RegionalPricing = {
   tier: "GLOBAL",
@@ -31,8 +44,8 @@ export const GLOBAL_FALLBACK: RegionalPricing = {
   currency: "USD",
   monthly: 19.99,
   annual: 199.99,
-  monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY ?? "",
-  annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL ?? "",
+  monthlyPriceId: "",
+  annualPriceId: "",
   // Enterprise falls back the same way and for the same reason: the most
   // expensive per-seat tier ($25/user/month, $250/user/year). Quoting $15 or
   // ₦15,000 to the whole world because the pricing API blipped is the exact
@@ -47,8 +60,8 @@ export const GLOBAL_FALLBACK: RegionalPricing = {
     annualPerUser: 250,
     minSeats: 2,
     selfServe: true,
-    monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_MONTHLY ?? "",
-    annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_ANNUAL ?? "",
+    monthlyPriceId: "",
+    annualPriceId: "",
   },
 };
 

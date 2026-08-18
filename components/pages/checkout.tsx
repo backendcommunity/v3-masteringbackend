@@ -354,6 +354,10 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     checkoutId,
     cycle,
     pricing,
+    // The tier arrives as its own prop (CheckoutPricing omits it) and is what
+    // selects the plan's own channel row — the only key that separates two
+    // rows sharing a processor and a price id.
+    tier,
     plan,
     planResolved,
     // The live seat count from the selector below, not the raw URL param —

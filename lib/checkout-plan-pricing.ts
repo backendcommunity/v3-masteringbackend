@@ -16,11 +16,23 @@
 // while leaving the Pro path byte-for-byte on the regional object.
 //
 // A non-Pro plan is still REGION-PRICED: it just reads its own record
-// instead of Pro's. The plan's `paymentChannels` hold one row per region
-// (naira and USD), so the channel is selected by the region the request
-// already resolved to. Routing a buyer to the other region's channel while
-// a working one exists is the same class of bug as billing them Pro's
-// amount.
+// instead of Pro's. The plan's `paymentChannels` hold one row per TIER, so
+// the channel is selected by the tier the request already resolved to.
+// Routing a buyer to another tier's channel while a working one exists is
+// the same class of bug as billing them Pro's amount.
+//
+// TIER, NOT PROCESSOR. Selection used to key on the processor (naira row vs
+// USD row), which worked only while each processor backed exactly one
+// region. It no longer does: PPP and GLOBAL are BOTH the USD processor, on
+// the same price id, and differ only in the amount — the processor's own
+// per-country overrides produce the charged difference. A processor-keyed
+// `find` would return whichever of the two happened to come first and quote
+// a PPP visitor $19.99, or a global visitor $6.99. So the tier is matched
+// first, exactly as the backend matches it (academy's
+// src/extensions/payment/pricing/tiers.ts looks a channel up by plan name +
+// tier). Rows with no tier at all — every non-regional plan, and anything
+// seeded before regional pricing — keep the old processor match, so their
+// behaviour is unchanged.
 //
 // ENTERPRISE IS DIFFERENT AGAIN
 // -----------------------------
@@ -173,8 +185,23 @@ function toPriceId(value: unknown): string | null {
 }
 
 /**
- * Which payment channel a visitor in this region buys through, and the
- * currency that channel charges in.
+ * The channel a row is on, and the currency that channel charges in.
+ *
+ * Currency is derived from the CHANNEL, not copied from the Pro object: the
+ * amount being returned comes off that channel's row, so its currency has to
+ * be the channel's own or display and charge could disagree.
+ */
+function currencyForChannel(channel: string): {
+  currency: "NGN" | "USD";
+  provider: "ASYNCPAY" | "PADDLE";
+} {
+  return channel === NGN_CHANNEL
+    ? { currency: "NGN", provider: "ASYNCPAY" }
+    : { currency: "USD", provider: "PADDLE" };
+}
+
+/**
+ * The processor a visitor in this region buys through.
  *
  * The region signal is the one the pricing resolver already computed:
  * `provider`. The backend's tier table (academy's
@@ -183,18 +210,57 @@ function toPriceId(value: unknown): string | null {
  * reading the same regional decision Pro's branch bills from verbatim — no
  * second, drift-prone country list in the frontend.
  *
- * Currency is derived from the CHANNEL, not copied from the Pro object: the
- * amount being returned comes off that channel's row, so its currency has
- * to be the channel's own or display and charge could disagree.
+ * Used only as the fallback key for UNTIERED rows; a tiered plan is matched
+ * on its tier, which distinguishes PPP from GLOBAL where the processor
+ * cannot.
  */
 function channelForRegion(pricing: Pick<CheckoutPricing, "provider">): {
   channel: string;
-  currency: "NGN" | "USD";
-  provider: "ASYNCPAY" | "PADDLE";
 } {
   return pricing.provider === "ASYNCPAY"
-    ? { channel: NGN_CHANNEL, currency: "NGN", provider: "ASYNCPAY" }
-    : { channel: GLOBAL_USD_CHANNEL, currency: "USD", provider: "PADDLE" };
+    ? { channel: NGN_CHANNEL }
+    : { channel: GLOBAL_USD_CHANNEL };
+}
+
+/** The tier a channel row prices, normalised; "" when it carries none. */
+function channelTier(channel: PaymentChannel): string {
+  return String((channel as { tier?: unknown })?.tier ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * The one channel this visitor buys through, or null.
+ *
+ * Tier first — that is the backend's own key, and the only key that can
+ * separate two rows sharing a processor and a price id. Then, ONLY for rows
+ * that carry no tier, the pre-regional processor match.
+ *
+ * The untiered fallback is deliberately restricted to untiered rows. Letting
+ * a GLOBAL visitor fall through to a PPP row because both are PADDLE would
+ * quote $6.99 against a price the processor charges $19.99 on — a
+ * resolvable-but-wrong amount, which this module treats as worse than no
+ * amount at all.
+ */
+function selectChannel(
+  channels: PaymentChannel[],
+  tier: string | null | undefined,
+  regionChannel: string,
+): PaymentChannel | null {
+  const wanted = String(tier ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (wanted !== "") {
+    const byTier = channels.find((pc) => channelTier(pc) === wanted);
+    if (byTier) return byTier;
+  }
+
+  return (
+    channels.find(
+      (pc) => channelTier(pc) === "" && channelName(pc) === regionChannel,
+    ) ?? null
+  );
 }
 
 export interface ResolveCheckoutPriceInput {
@@ -218,6 +284,16 @@ export interface ResolveCheckoutPriceInput {
     | "annualPriceId"
     | "enterprise"
   >;
+  /**
+   * The tier this request resolved to ("NG" | "PPP" | "GLOBAL"). Only used
+   * for the non-Pro path, where it picks the plan's own channel row.
+   *
+   * Carried separately from `pricing` because `CheckoutPricing` deliberately
+   * omits `tier` (see lib/pricing.ts) — /checkout receives it as its own
+   * prop. Optional so a caller that has no tier still gets the pre-regional
+   * processor match rather than an unavailable checkout.
+   */
+  tier?: string | null;
   /** The plan record fetched by name. Only used for the non-Pro path. */
   plan: Plan | null | undefined;
   /** False until the plan fetch has settled (resolved OR failed). */
@@ -372,17 +448,18 @@ export function resolveCheckoutPrice(
   const channels = Array.isArray(plan.paymentChannels)
     ? plan.paymentChannels
     : [];
-  // The region-appropriate channel, and ONLY that one. No `?? channels[0]`,
-  // no "fall back to the USD row" — either this region's channel is present
-  // and billable or the checkout is unavailable.
+  // The tier-appropriate channel, and ONLY that one. No `?? channels[0]`,
+  // no "fall back to the other tier's row" — either this visitor's channel is
+  // present and billable or the checkout is unavailable.
   const region = channelForRegion(input.pricing);
-  const channel = channels.find((pc) => channelName(pc) === region.channel);
+  const channel = selectChannel(channels, input.tier, region.channel);
   if (!channel) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" has no ${region.channel} payment channel`,
+      reason: `plan="${label}" has no payment channel for tier=${input.tier ?? "(none)"} / ${region.channel}`,
     };
   }
+  const selected = currencyForChannel(channelName(channel));
 
   const amount = toBillableAmount(
     isAnnual ? channel.originalYearlyPrice : channel.originalMonthlyPrice,
@@ -390,7 +467,7 @@ export function resolveCheckoutPrice(
   if (amount === null) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" ${region.channel} channel has no billable ${isAnnual ? "annual" : "monthly"} price`,
+      reason: `plan="${label}" ${channelName(channel)} channel has no billable ${isAnnual ? "annual" : "monthly"} price`,
     };
   }
 
@@ -400,7 +477,7 @@ export function resolveCheckoutPrice(
   if (priceId === null) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" ${region.channel} channel has no ${isAnnual ? "annual" : "monthly"} price ID`,
+      reason: `plan="${label}" ${channelName(channel)} channel has no ${isAnnual ? "annual" : "monthly"} price ID`,
     };
   }
 
@@ -408,10 +485,10 @@ export function resolveCheckoutPrice(
     status: "resolved",
     price: {
       amount,
-      // Both from the channel this region buys through — never mixed with
-      // the other region's currency or the Pro object's.
-      currency: region.currency,
-      provider: region.provider,
+      // Both from the channel this visitor buys through — never mixed with
+      // another tier's currency or the Pro object's.
+      currency: selected.currency,
+      provider: selected.provider,
       priceId,
       regional: true,
     },

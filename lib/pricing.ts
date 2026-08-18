@@ -4,8 +4,8 @@
 // EVERY export here ships in the browser JS bundle, publicly readable.
 //
 // GLOBAL_FALLBACK and fetchPricing live in lib/pricing.server.ts instead —
-// that module names "PADDLE" and reads NEXT_PUBLIC_PADDLE_PRICE_* — and must
-// only ever be imported from server components (app/pricing/page.tsx).
+// that module names "PADDLE" — and must only ever be imported from server
+// components (app/pricing/page.tsx).
 
 export interface RegionalPricing {
   tier: "NG" | "PPP" | "GLOBAL";

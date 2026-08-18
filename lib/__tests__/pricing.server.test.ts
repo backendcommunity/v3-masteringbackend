@@ -57,3 +57,24 @@ describe("fetchPricing __geo forwarding", () => {
     expect(result).toEqual(GLOBAL_FALLBACK);
   });
 });
+
+describe("GLOBAL_FALLBACK", () => {
+  it("carries NO price ids — they are the API's to serve, from its channel rows", () => {
+    // A mirrored copy here would be a third source for one fact, and the
+    // stale copy would be the one deciding what a buyer is charged. With no
+    // id, /checkout classifies itself unavailable (lib/checkout-readiness.ts)
+    // instead of opening a checkout against an unconfirmed price.
+    expect(GLOBAL_FALLBACK.monthlyPriceId).toBe("");
+    expect(GLOBAL_FALLBACK.annualPriceId).toBe("");
+    expect(GLOBAL_FALLBACK.enterprise.monthlyPriceId).toBe("");
+    expect(GLOBAL_FALLBACK.enterprise.annualPriceId).toBe("");
+  });
+
+  it("still fails closed to the most expensive tier's AMOUNTS", () => {
+    expect(GLOBAL_FALLBACK.tier).toBe("GLOBAL");
+    expect(GLOBAL_FALLBACK.monthly).toBe(19.99);
+    expect(GLOBAL_FALLBACK.annual).toBe(199.99);
+    expect(GLOBAL_FALLBACK.enterprise.monthlyPerUser).toBe(25);
+    expect(GLOBAL_FALLBACK.enterprise.annualPerUser).toBe(250);
+  });
+});
