@@ -74,6 +74,28 @@ export function formatGrandfatheredSubLabel(
   return `Your current rate · renews ${formatDate(String(expiry), dateFormat)}`;
 }
 
+export type PremiumTierStatus = "none" | "pro" | "enterprise";
+
+/**
+ * Which premium tier (if any) the visitor currently holds — drives what
+ * /pricing's Pro and Enterprise cards each show instead of a buy CTA now
+ * that both tiers are sold from that page.
+ *
+ * Enterprise is the only tier `subscription.name`/`subscription.plan.name`
+ * can disagree with "Pro" on today, so an unnamed/legacy premium
+ * subscription defaults to "pro" — both because Pro is the only tier that
+ * existed before /pricing sold Enterprise, and to mirror
+ * classifyGrandfathered's own "non-Pro premium subscriber == Enterprise"
+ * check in reverse.
+ */
+export function classifyPremiumTierStatus(
+  isPremium: boolean | undefined,
+  subscriptionPlanName: string | undefined,
+): PremiumTierStatus {
+  if (!isPremium) return "none";
+  return subscriptionPlanName === "Enterprise" ? "enterprise" : "pro";
+}
+
 export interface FreeCardCta {
   ctaLabel: string;
   ctaDisabled: boolean;

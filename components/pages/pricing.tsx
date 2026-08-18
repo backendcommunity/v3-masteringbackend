@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Check, X } from "lucide-react";
+import { Check, Crown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -21,10 +21,12 @@ import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
+  ENTERPRISE_PRICING,
   formatPrice,
   monthlyEquivalent,
   type PublicPricing,
 } from "@/lib/pricing";
+import { classifyPremiumTierStatus } from "@/lib/subscription-pricing";
 
 interface PricingViewProps {
   pricing: PublicPricing;
@@ -48,6 +50,19 @@ const PRO_FEATURES: string[] = [
   "AI mock interviews with a scored report",
   "Verified, shareable certificates",
   "Priority support",
+];
+
+// What Enterprise adds ON TOP of Pro — deliberately not a repeat of
+// PRO_FEATURES. Mirrors the delta subscription-plans.tsx's Enterprise plan
+// definition already sells (lib/data.ts: bootcamps, certification exams,
+// 1-on-1 mentorship, career services, team seats).
+const ENTERPRISE_FEATURES: string[] = [
+  "Everything in Pro",
+  "Team seats for up to 5 members",
+  "Structured, cohort-based bootcamps",
+  "Certification exams",
+  "1-on-1 mentorship with industry experts",
+  "Dedicated career placement assistance",
 ];
 
 type CompareCell = "yes" | "no" | string;
@@ -161,7 +176,28 @@ export default function PricingView({ pricing }: PricingViewProps) {
   // routinely — same guard subscription-plans.tsx already applies to its own
   // cards (see classifyFreeCardCta / classifyGrandfathered). /checkout carries
   // the matching guard so a bookmarked or hand-typed URL is covered too.
-  const isPro = Boolean(user?.isPremium);
+  //
+  // tierStatus distinguishes Pro from Enterprise subscribers (see
+  // classifyPremiumTierStatus) now that this page sells both — an Enterprise
+  // subscriber must not see the Pro card's "You're on Pro" badge, and a Pro
+  // subscriber must not see a second "current plan" badge on the Enterprise
+  // card, just a sensible upgrade path.
+  const tierStatus = classifyPremiumTierStatus(
+    user?.isPremium,
+    user?.subscription?.name ?? user?.subscription?.plan?.name,
+  );
+  const isPro = tierStatus === "pro";
+  const isEnterprise = tierStatus === "enterprise";
+
+  // Checkout (components/pages/checkout.tsx) derives its entire price and
+  // Paddle/processor selection from the region-resolved Pro pricing object —
+  // it has no per-plan lookup, so it cannot accept a second, differently
+  // priced global plan without silently charging Enterprise buyers the
+  // regional Pro amount. /subscription/plans already sells Enterprise
+  // through its own card, so the Enterprise CTA here routes there instead of
+  // bodging it through /checkout. See enterprise-report.md for the full
+  // writeup.
+  const enterpriseCtaHref = routes.subscriptionPlans;
 
   return (
     <div className="min-h-screen bg-background">
@@ -222,7 +258,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
         </p>
 
         {/* ── Plan cards ── */}
-        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 justify-items-center gap-6 sm:grid-cols-2">
+        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 justify-items-center gap-6 lg:max-w-[1204px] lg:grid-cols-3">
           {/* Free */}
           <div className="w-full max-w-[380px] rounded-2xl bg-card p-8 text-left text-card-foreground">
             <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -330,6 +366,18 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   Manage your subscription
                 </Link>
               </div>
+            ) : isEnterprise ? (
+              <div className="my-6 space-y-2">
+                <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
+                  Included in your Enterprise plan
+                </div>
+                <Link
+                  href={routes.subscriptionManagement}
+                  className="block text-center text-xs font-semibold text-primary hover:underline"
+                >
+                  Manage your subscription
+                </Link>
+              </div>
             ) : (
               <Button asChild className="my-6 w-full">
                 <Link href={checkoutHref}>Go Pro</Link>
@@ -338,6 +386,71 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
             <ul className="grid gap-3">
               {PRO_FEATURES.map((label) => (
+                <li
+                  key={label}
+                  className="grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed"
+                >
+                  <Check className="h-4 w-4 text-primary" />
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Enterprise */}
+          <div className="w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                For teams &amp; businesses
+              </p>
+              <Crown className="h-4 w-4 text-[#EB5757]" aria-hidden="true" />
+            </div>
+            <h2 className="mb-5 text-2xl font-bold tracking-tight">
+              Enterprise
+            </h2>
+
+            <div className="flex min-h-[62px] items-baseline gap-2.5">
+              <span className="font-mono text-5xl font-bold tracking-tight">
+                {monthlyEquivalent(ENTERPRISE_PRICING, cycle)}
+              </span>
+              <span className="text-sm leading-tight text-muted-foreground">
+                /month
+                {cycle === "annual" && (
+                  <>
+                    <br />
+                    billed annually
+                  </>
+                )}
+              </span>
+            </div>
+            <p className="mt-3 flex items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
+              <span className="h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground/50" />
+              Billed in USD everywhere — Enterprise pricing isn&apos;t
+              region-adjusted
+            </p>
+
+            {isEnterprise ? (
+              <div className="my-6 space-y-2">
+                <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
+                  You&apos;re on Enterprise
+                </div>
+                <Link
+                  href={routes.subscriptionManagement}
+                  className="block text-center text-xs font-semibold text-primary hover:underline"
+                >
+                  Manage your subscription
+                </Link>
+              </div>
+            ) : (
+              <Button asChild className="my-6 w-full" variant="outline">
+                <Link href={enterpriseCtaHref}>
+                  {isPro ? "Upgrade to Enterprise" : "Choose Enterprise"}
+                </Link>
+              </Button>
+            )}
+
+            <ul className="grid gap-3">
+              {ENTERPRISE_FEATURES.map((label) => (
                 <li
                   key={label}
                   className="grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed"
@@ -443,6 +556,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
                       {isPro ? (
                         <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
                           You&apos;re on Pro
+                        </span>
+                      ) : isEnterprise ? (
+                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
+                          Included in Enterprise
                         </span>
                       ) : (
                         <Button size="sm" asChild>

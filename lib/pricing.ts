@@ -36,6 +36,26 @@ export type PublicPricing = Omit<
 // pricing to the client component.
 export type CheckoutPricing = Omit<RegionalPricing, "tier">;
 
+/**
+ * Enterprise is a single global USD price — deliberately NOT regionally
+ * tiered (see components/pages/subscription-plans.tsx's comment on this
+ * same decision, ~line 153). It's a team/B2B plan, so the purchasing-power
+ * rationale behind Pro's PPP tier doesn't transfer, and it already has
+ * working Paddle price IDs provisioned for both channels. These figures are
+ * the same ones seeded in prisma/seed.ts (the academy backend repo) —
+ * $99.99/mo, $999.99/yr — kept here as the one static frontend source
+ * instead of round-tripping through the regional pricing API, which is
+ * specifically the Pro resolver and must keep its current shape.
+ */
+export const ENTERPRISE_PRICING: Pick<
+  RegionalPricing,
+  "monthly" | "annual" | "currency"
+> = {
+  monthly: 99.99,
+  annual: 999.99,
+  currency: "USD",
+};
+
 export function formatPrice(amount: number, currency: "NGN" | "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

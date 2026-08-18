@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   classifyFreeCardCta,
   classifyGrandfathered,
+  classifyPremiumTierStatus,
   formatGrandfatheredSubLabel,
 } from "@/lib/subscription-pricing";
 import type { Subscription } from "@/lib/data";
@@ -135,5 +136,24 @@ describe("classifyFreeCardCta", () => {
     const result = classifyFreeCardCta(false);
     expect(result.ctaLabel).toBe("Current Plan");
     expect(result.ctaDisabled).toBe(true);
+  });
+});
+
+describe("classifyPremiumTierStatus", () => {
+  it("is 'none' for a logged-out or non-premium visitor", () => {
+    expect(classifyPremiumTierStatus(false, undefined)).toBe("none");
+    expect(classifyPremiumTierStatus(undefined, undefined)).toBe("none");
+  });
+
+  it("is 'pro' for a premium subscriber named Pro", () => {
+    expect(classifyPremiumTierStatus(true, "Pro")).toBe("pro");
+  });
+
+  it("is 'enterprise' for a premium subscriber named Enterprise", () => {
+    expect(classifyPremiumTierStatus(true, "Enterprise")).toBe("enterprise");
+  });
+
+  it("defaults an unnamed/legacy premium subscription to 'pro', not a no-CTA state", () => {
+    expect(classifyPremiumTierStatus(true, undefined)).toBe("pro");
   });
 });
