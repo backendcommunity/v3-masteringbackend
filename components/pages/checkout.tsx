@@ -42,6 +42,7 @@ import {
   checkoutSubscribeLabel,
   CHECKOUT_UNAVAILABLE_MESSAGE,
 } from "@/lib/checkout-readiness";
+import { resolveCheckoutPrice } from "@/lib/checkout-plan-pricing";
 import { analytics } from "@/lib/analytics";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 
@@ -85,7 +86,13 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     formatDate(String(date ?? ""), user?.settings?.dateFormat);
   const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [plan, setPlan] = useState<Plan>();
+  const [plan, setPlan] = useState<Plan | null>();
+  // Whether the plan fetch has SETTLED — success, "no such plan", or network
+  // failure alike. Distinct from `plan` being falsy, because "not back yet"
+  // and "came back empty" must lead to different states: the first shows a
+  // skeleton, the second is a hard unavailable. Distinct from `loading` too,
+  // which starts false and so cannot represent "not started yet".
+  const [planResolved, setPlanResolved] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const paddleRef = useRef<HTMLInputElement>(null);
   const [celebration, setCelebration] = useState(false);
@@ -122,6 +129,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
   const cycle = searchParams?.get("cycle") ?? "monthly";
+  // `?plan=free` is the cancellation flow, not a purchase: it early-returns
+  // to the cancellation card below and never prices or charges anything.
+  // There is no Free plan record to look up, so it must not be treated as an
+  // unresolvable purchase and must not page anyone.
+  const isCancellationFlow = Boolean(checkoutId?.includes("free"));
 
   paddleEventCtxRef.current = { country: pricing.country, cycle, checkoutId };
 
@@ -140,12 +152,31 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // hide the button.
   const isPro = Boolean(user?.isPremium);
 
-  // Both intervals are valid for every tier (NG annual ships too) — no
-  // tier-conditional branch here.
-  const priceId =
-    cycle === "annual" ? pricing.annualPriceId : pricing.monthlyPriceId;
-  const amount = cycle === "annual" ? pricing.annual : pricing.monthly;
-  const countryName = countries.find((c) => c.code === pricing.country)?.name;
+  // What the buyer is ACTUALLY charged, for the plan they actually asked
+  // for. Pro keeps the regional object verbatim (both intervals are valid
+  // for every tier — NG annual ships too — so no tier-conditional branch);
+  // every other plan is priced from its own record and can never fall back
+  // to Pro's numbers. See lib/checkout-plan-pricing.ts for the full
+  // rationale and lib/__tests__/checkout-plan-pricing.test.ts for the
+  // regression pin.
+  const resolution = resolveCheckoutPrice({
+    checkoutId,
+    cycle,
+    pricing,
+    plan,
+    planResolved,
+  });
+  const resolved = resolution.status === "resolved" ? resolution.price : null;
+  const priceId = resolved?.priceId ?? "";
+  const amount = resolved?.amount ?? 0;
+  const currency = resolved?.currency ?? pricing.currency;
+  const provider = resolved?.provider ?? pricing.provider;
+  // Only the region-tiered Pro price may claim to be specific to this
+  // visitor's country. A globally-billed plan is the same price everywhere,
+  // so naming a country next to it would be a false claim.
+  const countryName = resolved?.regional
+    ? countries.find((c) => c.code === pricing.country)?.name
+    : undefined;
 
   // A price ID alone is NOT readiness. Each provider also needs its SDK
   // actually resolved:
@@ -160,44 +191,77 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // lib/checkout-readiness.ts) — it must not present as the same "Loading…"
   // state as a merely-not-yet-resolved SDK, which is why classification is
   // pulled into a pure, tested function rather than inlined here.
-  const sdkResolved =
-    pricing.provider === "ASYNCPAY" ? asyncpayReady : Boolean(paddle);
-  const readiness = classifyCheckoutReadiness({
-    hasPriceId: Boolean(priceId),
-    sdkResolved,
-  });
+  const sdkResolved = provider === "ASYNCPAY" ? asyncpayReady : Boolean(paddle);
+  // "pending" is a THIRD condition the classifier doesn't model: the plan
+  // record for a non-Pro checkout hasn't come back yet. It is transient, so
+  // it maps to "loading" — never to "unavailable" (permanent) and never to a
+  // price. The page also renders a skeleton in this state (see below) rather
+  // than a price of 0.
+  const readiness =
+    resolution.status === "pending"
+      ? "loading"
+      : classifyCheckoutReadiness({
+          hasPriceId: Boolean(priceId),
+          sdkResolved,
+        });
   const subscribeReady = readiness === "ready";
   const subscribeLabel = checkoutSubscribeLabel(readiness, isProcessing);
 
-  // Fires once when checkout is permanently unavailable (no price ID for the
-  // selected cycle/tier) so operators find out instead of only a buyer
-  // staring at a dead button. Deliberately does not run for the transient
-  // "loading" state. console.error is the floor; Sentry.captureMessage adds
-  // the tier/provider/cycle tags so this is triageable without reproducing
-  // it locally.
+  // Operator-facing reason this checkout is dead, when it is. Two distinct
+  // causes land here: the regional Pro path having no price ID for the
+  // selected cycle/tier, and a non-Pro plan whose own price or price ID
+  // could not be resolved (lib/checkout-plan-pricing.ts spells out which).
+  // Not rendered to the buyer — CHECKOUT_UNAVAILABLE_MESSAGE is.
+  const unavailableReason = isCancellationFlow
+    ? null
+    : resolution.status === "unavailable"
+      ? resolution.reason
+      : readiness === "unavailable"
+        ? `no usable price ID for plan="${checkoutId}"`
+        : null;
+
+  // Fires once when checkout is permanently unavailable so operators find
+  // out instead of only a buyer staring at a dead button. Deliberately does
+  // not run for the transient "loading"/"pending" states. console.error is
+  // the floor; Sentry.captureMessage adds the tier/provider/cycle tags so
+  // this is triageable without reproducing it locally.
   useEffect(() => {
-    if (readiness !== "unavailable") return;
+    if (!unavailableReason) return;
     console.error(
-      "[checkout] no usable price ID for tier=%s provider=%s cycle=%s — checkout cannot start",
+      "[checkout] %s (tier=%s provider=%s cycle=%s) — checkout cannot start",
+      unavailableReason,
       tier,
-      pricing.provider,
+      provider,
       cycle,
     );
-    Sentry.captureMessage("Checkout unavailable: missing price ID", {
+    Sentry.captureMessage("Checkout unavailable: price could not be resolved", {
       level: "error",
-      tags: { tier, provider: pricing.provider, cycle },
+      tags: { tier, provider, cycle, plan: checkoutId },
+      extra: { reason: unavailableReason },
     });
-  }, [readiness, tier, pricing.provider, cycle]);
+  }, [unavailableReason, tier, provider, cycle, checkoutId]);
 
   useEffect(() => {
     let cancelled = false;
+    setPlanResolved(false);
 
     async function load(name: string) {
       setLoading(true);
-      const plan = await store.getPlan(name);
-      if (!cancelled) {
-        setPlan(plan);
-        setLoading(false);
+      try {
+        const plan = await store.getPlan(name);
+        if (!cancelled) setPlan(plan ?? null);
+      } catch (e) {
+        // A failed lookup must SETTLE, not hang. For a non-Pro checkout this
+        // is what turns an infinite skeleton into the explicit unavailable
+        // state; it must never leave the page free to price the plan off the
+        // regional Pro object instead.
+        console.error("[checkout] plan lookup failed for plan=%s", name, e);
+        if (!cancelled) setPlan(null);
+      } finally {
+        if (!cancelled) {
+          setPlanResolved(true);
+          setLoading(false);
+        }
       }
     }
     load(checkoutId!);
@@ -218,7 +282,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // is so the click doesn't have to wait on the chunk's own network fetch
   // before it can even start the SDK's fetch.
   useEffect(() => {
-    if (pricing.provider !== "ASYNCPAY") return;
+    if (provider !== "ASYNCPAY") return;
     let cancelled = false;
     import("@asyncpay/checkout").then((mod) => {
       if (cancelled) return;
@@ -228,7 +292,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [pricing.provider]);
+  }, [provider]);
 
   // Tears down every part of the pre-modal watchdog: timer, observer, and
   // pagehide listener. Idempotent, so it's safe to call from any exit path
@@ -452,7 +516,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // a later call would be blocked (see openAsyncpayCheckout).
   const handleSubscribeClick = useCallback(() => {
     if (!priceId) return;
-    if (pricing.provider === "ASYNCPAY") {
+    if (provider === "ASYNCPAY") {
       // Still loading the chunk — the button should already be disabled in
       // this state (see subscribeReady below), but guard here too as
       // defense in depth.
@@ -486,7 +550,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     }
   }, [
     priceId,
-    pricing.provider,
+    provider,
     pricing.country,
     cycle,
     asyncpayReady,
@@ -500,10 +564,10 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // is not a buyer action, nothing is disabled waiting on it, and Subscribe
   // stays available to retry explicitly.
   useEffect(() => {
-    if (pricing.provider === "ASYNCPAY") return;
+    if (provider === "ASYNCPAY") return;
     if (isPro) return;
     openPaddleCheckout();
-  }, [openPaddleCheckout, pricing.provider, isPro]);
+  }, [openPaddleCheckout, provider, isPro]);
 
   // Paddle SDK init — mount-once, in an effect.
   //
@@ -726,7 +790,12 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     );
   }
 
-  if (loading) return <PageSkeleton />;
+  // "pending" means a non-Pro plan's record hasn't arrived yet, so there is
+  // no honest number to put in the Order Summary. Show the skeleton rather
+  // than render a placeholder amount for even one frame — a wrong price on
+  // screen is the class of bug this whole path exists to prevent. Pro never
+  // pends, so its render is reached exactly as before.
+  if (loading || resolution.status === "pending") return <PageSkeleton />;
 
   return (
     <div className="container ">
@@ -753,39 +822,51 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                 </p>
               </div>
 
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Billing in {pricing.currency}
-                {countryName ? ` for ${countryName}` : ""}
-              </p>
+              {/* Prices render only when a real one was resolved for THIS
+                  plan. An unresolved non-Pro plan has no amount at all, and
+                  showing a placeholder (or, far worse, Pro's amount) is the
+                  exact failure this page is being fixed for — so the summary
+                  simply omits the figures and the unavailable state below
+                  carries the whole message. The Pro path always resolves, so
+                  it renders exactly as before, including when its price ID
+                  is unset. */}
+              {resolved && (
+                <>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Billing in {currency}
+                    {countryName ? ` for ${countryName}` : ""}
+                  </p>
 
-              <Separator />
+                  <Separator />
 
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>{formatPrice(amount, pricing.currency)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground text-sm">
-                  <span>Tax</span>
-                  <span>{formatPrice(0, pricing.currency)}</span>
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>{formatPrice(amount, currency)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground text-sm">
+                      <span>Tax</span>
+                      <span>{formatPrice(0, currency)}</span>
+                    </div>
+                  </div>
 
-              <Separator />
+                  <Separator />
 
-              <div className="flex justify-between font-medium">
-                <span>Total</span>
-                <span>{formatPrice(amount, pricing.currency)}</span>
-              </div>
+                  <div className="flex justify-between font-medium">
+                    <span>Total</span>
+                    <span>{formatPrice(amount, currency)}</span>
+                  </div>
 
-              <div className="text-sm text-muted-foreground pt-2">
-                <p>
-                  You will be charged{" "}
-                  <span>{formatPrice(amount, pricing.currency)}</span> every{" "}
-                  {cycle === "monthly" ? "month" : "year"}.
-                </p>
-              </div>
+                  <div className="text-sm text-muted-foreground pt-2">
+                    <p>
+                      You will be charged{" "}
+                      <span>{formatPrice(amount, currency)}</span> every{" "}
+                      {cycle === "monthly" ? "month" : "year"}.
+                    </p>
+                  </div>
+                </>
+              )}
 
               {readiness === "unavailable" ? (
                 <Alert variant="destructive">
