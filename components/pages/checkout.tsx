@@ -36,6 +36,8 @@ import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { formatPrice } from "@/lib/pricing";
 import type { CheckoutPricing } from "@/lib/pricing";
+import { analytics } from "@/lib/analytics";
+import { PRICING_EVENTS } from "@/lib/analytics-events";
 
 // The AsyncPay SDK appends its checkout UI as a single element with this id,
 // as a DIRECT child of <body> — verified in
@@ -301,6 +303,10 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
           clearAsyncpayWatchdog();
           setIsProcessing(false);
           setCelebration(true);
+          analytics.track(PRICING_EVENTS.subscribed, {
+            country: pricing.country,
+            cycle,
+          });
           toast.success("You're on Pro. Welcome in.");
         },
         onClose: () => {
@@ -343,7 +349,7 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       // SDK call itself.
       fail("We couldn't start checkout. Please try again.");
     }
-  }, [priceId, user, armAsyncpayWatchdog, clearAsyncpayWatchdog]);
+  }, [priceId, user, pricing.country, cycle, armAsyncpayWatchdog, clearAsyncpayWatchdog]);
 
   // Routes the Subscribe click to the correct processor SDK based on the
   // region-resolved provider. The buyer never chooses this — it's decided
@@ -357,6 +363,15 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       // this state (see subscribeReady below), but guard here too as
       // defense in depth.
       if (!asyncpayReady) return;
+      // `tier` isn't in scope here — CheckoutPricing (see lib/pricing.ts)
+      // deliberately omits it before crossing into this client component,
+      // same boundary that already strips the processor identity from the
+      // pricing page's props. Not worth widening that type just for this
+      // event; country + cycle are what's legitimately available.
+      analytics.track(PRICING_EVENTS.checkoutStarted, {
+        country: pricing.country,
+        cycle,
+      });
       setIsProcessing(true);
       openAsyncpayCheckout();
     } else {
@@ -366,6 +381,8 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   }, [
     priceId,
     pricing.provider,
+    pricing.country,
+    cycle,
     asyncpayReady,
     openAsyncpayCheckout,
     openPaddleCheckout,
@@ -401,6 +418,13 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       switch (data.name) {
         case "checkout.loaded":
           setIsProcessing(true);
+          // Paddle's inline frame opens itself on mount rather than waiting
+          // on our Subscribe button, so this SDK callback — not the click —
+          // is the genuine "buyer can see the payment UI" moment for Paddle.
+          analytics.track(PRICING_EVENTS.checkoutStarted, {
+            country: pricing.country,
+            cycle,
+          });
           break;
         case "checkout.closed":
           setIsProcessing(false);
@@ -409,6 +433,10 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
           // Track payment (GA or Google)
           setIsProcessing(false);
           setCelebration(true);
+          analytics.track(PRICING_EVENTS.subscribed, {
+            country: pricing.country,
+            cycle,
+          });
           toast.success(
             "You have successfully subscribe to " + checkoutId + " plan",
           );

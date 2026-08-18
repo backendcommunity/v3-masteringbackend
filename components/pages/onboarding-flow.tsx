@@ -246,18 +246,31 @@ export function OnboardingFlow() {
         } catch {
           /* already enrolled — proceed */
         }
+        // Only fires when a lesson genuinely starts — keep pathSlug real,
+        // never undefined, so this funnel event stays trustworthy.
+        analytics.track("onboarding_started_lesson", {
+          motivation,
+          technology,
+          pathSlug: slug,
+        });
+      } else {
+        // No recommendation resolved — distinct from "started_lesson" so
+        // the funnel isn't inflated with a slug-less event.
+        analytics.track("onboarding_completed_no_recommendation", {
+          motivation,
+          technology,
+        });
       }
 
-      analytics.track("onboarding_started_lesson", {
-        motivation,
-        technology,
-        pathSlug: slug,
-      });
       // Route through the region-aware pricing upsell before dropping the
-      // learner into their path. The free tier still works either way —
-      // pricing renders a "Continue with the free plan" exit to the
-      // dashboard when arriving with from=onboarding.
-      router.replace("/pricing?from=onboarding");
+      // learner into their path. Carry `redirect` through so a deep link
+      // (OAuth existing-user / share link) survives the upsell instead of
+      // being erased — the pricing page's free-plan exit reads it back off
+      // the URL and falls back to the dashboard when absent.
+      const pricingUrl = redirect
+        ? `/pricing?from=onboarding&redirect=${encodeURIComponent(redirect)}`
+        : "/pricing?from=onboarding";
+      router.replace(pricingUrl);
     } catch {
       toast.error("Couldn't start your lesson. Let's try again.");
       setIsStarting(false);

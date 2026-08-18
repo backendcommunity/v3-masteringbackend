@@ -131,6 +131,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const user = useUser();
   const searchParams = useSearchParams();
   const fromOnboarding = searchParams?.get("from") === "onboarding";
+  // Onboarding forwards its own `redirect` (OAuth existing-user / deep-link
+  // destination — see dashboard-layout.tsx) through the upsell so skipping
+  // doesn't erase it. Falls back to the dashboard when there isn't one.
+  const freePlanHref = searchParams?.get("redirect") || routes.dashboard;
 
   useEffect(() => {
     analytics.track(PRICING_EVENTS.viewed, {
@@ -169,9 +173,11 @@ export default function PricingView({ pricing }: PricingViewProps) {
             fromOnboarding ? (
               // Sticky header keeps this reachable without scrolling on any
               // viewport, including a 667px-tall mobile screen — the free
-              // tier is one tap away, this is a nudge, not a wall.
-              <Button size="sm" variant="ghost" asChild>
-                <Link href={routes.dashboard}>Continue with the free plan</Link>
+              // tier is one tap away, this is a nudge, not a wall. Outline
+              // (not ghost) so it reads as a deliberate choice, not ambient
+              // chrome, at a glance.
+              <Button size="sm" variant="outline" asChild>
+                <Link href={freePlanHref}>Continue with the free plan</Link>
               </Button>
             ) : (
               <Button size="sm" asChild>
