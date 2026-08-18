@@ -7,7 +7,7 @@ import { PaymentDialog } from "@/components/payment-dialog";
 import { PathSession } from "@/lib/path-types";
 import { Lock, Crown, Check } from "lucide-react";
 import { usePricing } from "@/hooks/use-pricing";
-import { formatPrice } from "@/lib/pricing";
+import { formatGoProCtaLabel } from "@/lib/pro-cta";
 
 interface StepPaywallProps {
   payment: PathSession["path"]["payment"];
@@ -121,9 +121,7 @@ export function StepPaywall({
                   style={{ color: "#F2C94C" }}
                   aria-hidden="true"
                 />
-                {pricing
-                  ? `Go Pro — ${formatPrice(pricing.monthly, pricing.currency)}/mo`
-                  : "Go Pro"}
+                {formatGoProCtaLabel(pricing)}
               </Button>
               {canRedeemMB && (
                 <Button

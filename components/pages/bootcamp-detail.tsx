@@ -1018,25 +1018,27 @@ export function BootcampDetailPage({
         </div>
       </div>
 
-      <PaymentDialog
-        onClose={() => setShowPaymentDialog(false)}
-        open={showPaymentDialog}
-        data={{
-          ...bootcamp,
-          type: "bootcamp",
-          plan: "Enterprise",
-          amount: bootcamp?.cohort?.amount,
-          id: bootcamp?.cohort?.id,
-          bootcampId: bootcampId,
-          paddle_price_id: bootcamp?.cohort?.paddle_price_id,
-          asyncpay_plan_id: bootcamp?.cohort?.asyncpay_plan_id,
-        }}
-        disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
-        onHandlePreview={() => {}}
-        onHandlePurchase={(id: string, type: any, success: boolean) =>
-          handlePurchase(id, type, success)
-        }
-      />
+      {showPaymentDialog && (
+        <PaymentDialog
+          onClose={() => setShowPaymentDialog(false)}
+          open={showPaymentDialog}
+          data={{
+            ...bootcamp,
+            type: "bootcamp",
+            plan: "Enterprise",
+            amount: bootcamp?.cohort?.amount,
+            id: bootcamp?.cohort?.id,
+            bootcampId: bootcampId,
+            paddle_price_id: bootcamp?.cohort?.paddle_price_id,
+            asyncpay_plan_id: bootcamp?.cohort?.asyncpay_plan_id,
+          }}
+          disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
+          onHandlePreview={() => {}}
+          onHandlePurchase={(id: string, type: any, success: boolean) =>
+            handlePurchase(id, type, success)
+          }
+        />
+      )}
     </div>
   );
 }

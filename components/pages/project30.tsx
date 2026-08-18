@@ -1652,13 +1652,15 @@ export function Project30Page({
         </TabsContent>
       </Tabs>
 
-      <PaymentDialog
-        onClose={() => setShowPaymentDialog(false)}
-        open={showPaymentDialog}
-        data={project30}
-        onHandlePreview={() => {}}
-        onHandlePurchase={() => {}}
-      />
+      {showPaymentDialog && (
+        <PaymentDialog
+          onClose={() => setShowPaymentDialog(false)}
+          open={showPaymentDialog}
+          data={project30}
+          onHandlePreview={() => {}}
+          onHandlePurchase={() => {}}
+        />
+      )}
       <ConfettiCelebration
         onComplete={() => setCelebration(false)}
         isVisible={celebration}

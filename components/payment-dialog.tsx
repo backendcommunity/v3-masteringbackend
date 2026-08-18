@@ -18,7 +18,8 @@ import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 import { PaymentChannel, Plan } from "@/lib/data";
 import { usePricing } from "@/hooks/use-pricing";
-import { formatPrice, type PublicPricing } from "@/lib/pricing";
+import { type PublicPricing } from "@/lib/pricing";
+import { formatSubscriptionCardPrice } from "@/lib/pro-cta";
 
 interface PaymentDialogProps {
   data: any;
@@ -332,9 +333,7 @@ export function PaymentDialog({
                     <div>
                       <div className="text-right">
                         <div className="font-bold text-sm md:text-base">
-                          {resolvedPricing
-                            ? `${formatPrice(resolvedPricing.monthly, resolvedPricing.currency)}/mo`
-                            : " "}
+                          {formatSubscriptionCardPrice(resolvedPricing) || " "}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Best value

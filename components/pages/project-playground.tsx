@@ -4419,23 +4419,25 @@ app.listen(port, () => console.log("Server listening on port " + port));
         </DialogContent>
       </Dialog>
 
-      <PaymentDialog
-        disableMB={false}
-        disableOnetime={true}
-        onClose={() => setShowPayment(false)}
-        open={showPayment}
-        data={{ ...project, type: "project" }}
-        onHandlePreview={() => {}}
-        onHandlePurchase={async (_id: string, _type: any, success: boolean) => {
-          setShowPayment(false);
-          if (!success) return;
-          // Entitlement was granted server-side (MB redeem / subscription) —
-          // re-fetch so the playground reflects unlocked access without a reload.
-          const fresh = await store.getProject(slug);
-          if (fresh) setProject(fresh);
-          toast.success("Unlocked — enjoy the full project.");
-        }}
-      />
+      {showPayment && (
+        <PaymentDialog
+          disableMB={false}
+          disableOnetime={true}
+          onClose={() => setShowPayment(false)}
+          open={showPayment}
+          data={{ ...project, type: "project" }}
+          onHandlePreview={() => {}}
+          onHandlePurchase={async (_id: string, _type: any, success: boolean) => {
+            setShowPayment(false);
+            if (!success) return;
+            // Entitlement was granted server-side (MB redeem / subscription) —
+            // re-fetch so the playground reflects unlocked access without a reload.
+            const fresh = await store.getProject(slug);
+            if (fresh) setProject(fresh);
+            toast.success("Unlocked — enjoy the full project.");
+          }}
+        />
+      )}
 
       <Dialog
         open={showGithubRequiredModal}
