@@ -301,6 +301,12 @@ function CompareMark({ value }: { value: CompareCell }) {
 
 export default function PricingView({ pricing }: PricingViewProps) {
   const [cycle, setCycle] = useState<BillingCycle>("annual");
+  // Testimonial avatar: try the real headshot first, fall back to the "MO"
+  // initials chip if the asset is missing or fails to load (next/image's
+  // `unoptimized` mode still fires a native `error` event on a 404, so this
+  // catches the file-not-there case cleanly — no need to check existence
+  // ahead of time).
+  const [avatarPhotoFailed, setAvatarPhotoFailed] = useState(false);
   const user = useUser();
   const searchParams = useSearchParams();
   const fromOnboarding = searchParams?.get("from") === "onboarding";
@@ -736,13 +742,16 @@ export default function PricingView({ pricing }: PricingViewProps) {
         </div>
 
         {/* ── Testimonial ── real quote pulled verbatim from the login
-            screen (components/auth/auth-shell.tsx), including the "MO"
-            initials-avatar treatment — reused rather than sourcing a photo
-            we don't have. Redesigned side-by-side (avatar left, quote
-            right) after DataCamp's pricing-page testimonial: a large
-            circular avatar given presence by a solid-colour circle offset
-            behind it, an oversized opening quote mark, the quotation set
-            large, and the attribution beneath it.
+            screen (components/auth/auth-shell.tsx). Redesigned side-by-side
+            (avatar left, quote right) after DataCamp's pricing-page
+            testimonial: a large circular avatar given presence by a
+            solid-colour circle offset behind it, an oversized opening quote
+            mark, the quotation set large, and the attribution beneath it.
+            The avatar renders Maxmillian's real headshot
+            (public/maxmillian-ogbuabor.png) circular-cropped inside the same
+            offset-circle treatment; the "MO" initials chip is a genuine
+            fallback (missing asset / load error), not a placeholder we
+            forgot to swap out.
 
             Position: INSIDE the dark hero block, directly beneath the
             trusted-by band — the reference flow is plan cards → "Compare
@@ -768,19 +777,31 @@ export default function PricingView({ pricing }: PricingViewProps) {
                 aria-hidden="true"
                 className="absolute -bottom-5 -right-5 h-32 w-32 rounded-full bg-[#13AECE]/25 sm:h-40 sm:w-40"
               />
-              <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#13AECE] bg-[#13AECE]/[0.18] text-4xl font-bold text-[#13AECE] sm:h-40 sm:w-40 sm:text-5xl">
-                MO
-              </div>
+              {avatarPhotoFailed ? (
+                <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#13AECE] bg-[#13AECE]/[0.18] text-4xl font-bold text-[#13AECE] sm:h-40 sm:w-40 sm:text-5xl">
+                  MO
+                </div>
+              ) : (
+                <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-[#13AECE] sm:h-40 sm:w-40">
+                  <Image
+                    src="/maxmillian-ogbuabor.png"
+                    alt="Maxmillian Ogbuabor, Full-Stack Developer"
+                    fill
+                    sizes="(min-width: 640px) 160px, 128px"
+                    className="object-cover"
+                    onError={() => setAvatarPhotoFailed(true)}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Quote — oversized opening mark, large quotation held to a
-                readable measure (~45-60 characters per line), attribution
-                beneath. */}
+            {/* Quote — oversized opening mark, quotation held to a readable
+                measure (~45-60 characters per line), attribution beneath. */}
             <div className="max-w-2xl text-center sm:text-left">
               <svg
                 aria-hidden="true"
-                width="48"
-                height="38"
+                width="40"
+                height="32"
                 viewBox="0 0 44 36"
                 fill="none"
                 className="mx-auto mb-3 sm:mx-0"
@@ -791,7 +812,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   fillOpacity="0.55"
                 />
               </svg>
-              <blockquote className="text-2xl font-semibold leading-snug tracking-tight text-white sm:text-3xl">
+              <blockquote className="max-w-md text-xl font-semibold leading-relaxed tracking-tight text-white sm:max-w-lg sm:text-2xl">
                 Immediately after I finished my program at MasteringBackend,
                 I landed a gig to build a full-stack application for an
                 NGO, and everything I learned about building a
