@@ -130,38 +130,46 @@ const COMPARE_GROUPS: {
   {
     // Sourced from lib/data.ts's Enterprise plan record (the same data
     // /subscription/plans reads) — nothing here is claimed that isn't
-    // already sold on that page.
+    // already sold on that page. Every row here is genuinely exclusive to
+    // Enterprise (neither Free nor Pro offers any of it), so Free/Pro cells
+    // read "Enterprise Only" instead of a plain ✗ — more informative, and
+    // truthful for every row in this group.
     name: "Team & enterprise",
     rows: [
       {
         label: "Team seats included",
-        free: "no",
-        pro: "no",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
         enterprise: "5",
       },
       {
         label: "Additional seats",
-        free: "no",
-        pro: "no",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
         enterprise: "$10/seat",
       },
       {
         label: "Structured, cohort-based bootcamps",
-        free: "no",
-        pro: "no",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
         enterprise: "yes",
       },
-      { label: "Certification exams", free: "no", pro: "no", enterprise: "yes" },
+      {
+        label: "Certification exams",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
+        enterprise: "yes",
+      },
       {
         label: "1-on-1 mentorship with industry experts",
-        free: "no",
-        pro: "no",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
         enterprise: "yes",
       },
       {
         label: "Dedicated career placement assistance",
-        free: "no",
-        pro: "no",
+        free: "Enterprise Only",
+        pro: "Enterprise Only",
         enterprise: "yes",
       },
     ],
@@ -193,19 +201,39 @@ function resolvedLine(pricing: Pick<PublicPricing, "country" | "currency">): str
   )}`;
 }
 
+// Table-header price line — "Free", "₦8,333 /month billed annually",
+// "$83.33 /month billed annually". Shared by the Pro and Enterprise header
+// cells so both read identically save for the amount.
+function tablePriceLine(
+  planPricing: Pick<PublicPricing, "monthly" | "annual" | "currency">,
+  cycle: BillingCycle,
+): string {
+  return `${monthlyEquivalent(planPricing, cycle)} /month${
+    cycle === "annual" ? " billed annually" : ""
+  }`;
+}
+
 function CompareMark({ value }: { value: CompareCell }) {
   if (value === "yes") {
-    return <Check className="mx-auto h-4 w-4 text-primary" aria-label="Included" />;
+    return (
+      <Check
+        className="mx-auto h-5 w-5 text-primary"
+        strokeWidth={3}
+        aria-label="Included"
+      />
+    );
   }
   if (value === "no") {
     return (
       <X
-        className="mx-auto h-4 w-4 text-muted-foreground/40"
+        className="mx-auto h-5 w-5 text-muted-foreground/40"
         aria-label="Not included"
       />
     );
   }
-  return <span className="text-sm text-muted-foreground">{value}</span>;
+  return (
+    <span className="text-sm font-medium text-muted-foreground">{value}</span>
+  );
 }
 
 export default function PricingView({ pricing }: PricingViewProps) {
@@ -325,10 +353,17 @@ export default function PricingView({ pricing }: PricingViewProps) {
           in an offer — not another certificate for the pile.
         </p>
 
-        {/* ── Plan cards ── */}
-        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 justify-items-center gap-6 lg:max-w-[1204px] lg:grid-cols-3">
+        {/* ── Plan cards ──
+            Joined into one panel at lg: a single outer border encloses all
+            three, gap-0 + divide-x share the inner edges, and items-center
+            (instead of the default grid stretch) lets each card keep its
+            own natural height — Pro's is taller from its extra content, so
+            it centers proud of Free/Enterprise on both edges without any
+            manual margin/translate hack. Below lg the cards stay stacked
+            and independently rounded, unchanged from before. */}
+        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 items-start justify-items-center gap-6 lg:max-w-[1120px] lg:grid-cols-3 lg:items-center lg:justify-items-stretch lg:gap-0 lg:divide-x lg:divide-white/15 lg:rounded-2xl lg:border lg:border-white/15">
           {/* Free */}
-          <div className="w-full max-w-[380px] rounded-2xl bg-card p-8 text-left text-card-foreground">
+          <div className="w-full max-w-[380px] rounded-2xl bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-l-2xl">
             <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Limited access
             </p>
@@ -378,8 +413,11 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </ul>
           </div>
 
-          {/* Pro */}
-          <div className="relative w-full max-w-[380px] -translate-y-4 rounded-2xl border-2 border-primary bg-card p-8 text-left text-card-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.55)]">
+          {/* Pro — deliberately NOT stretched to the row via its own
+              rounded-2xl/border-2/shadow stack, which is what reads as
+              "lifted out of the panel": it sits on top of (and slightly
+              overlaps) the shared divider between Free and Enterprise. */}
+          <div className="relative z-10 w-full max-w-[380px] rounded-2xl border-2 border-primary bg-card p-8 text-left text-card-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.55)] lg:max-w-none">
             <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary px-3.5 py-1 font-mono text-[11px] font-bold tracking-widest text-primary-foreground">
               MOST POPULAR
             </span>
@@ -465,11 +503,9 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </ul>
           </div>
 
-          {/* Enterprise */}
-          <div className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground">
-            <span className="absolute -top-3 right-6 whitespace-nowrap rounded-md bg-[#EB5757] px-3 py-1 font-mono text-[10px] font-bold tracking-widest text-white">
-              BEST VALUE
-            </span>
+          {/* Enterprise — no "Best Value" ribbon: that claim belongs to Pro
+              ("Most Popular") alone, Enterprise doesn't carry it. */}
+          <div className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-r-2xl lg:border-none">
             <div className="mb-1 flex items-center justify-between">
               <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 For teams &amp; businesses
@@ -539,10 +575,37 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
         <a
           href="#compare"
-          className="mb-20 mt-8 inline-block text-sm font-semibold text-white hover:text-primary"
+          className="mt-8 inline-block text-sm font-semibold text-white hover:text-primary"
         >
           Compare features&nbsp;&nbsp;↓
         </a>
+
+        {/* ── Trusted-by band ── closing part of the dark hero/cards block,
+            same as the reference — not a light-ground element.
+            "Our learners work at" — not "trusted by", which would claim a
+            customer relationship with these companies. What's true is
+            narrower: this is where people who learned here are employed,
+            same framing the marketing site uses for this exact company
+            list (see app/page.tsx's ALUMNI_COMPANIES in the landing-page
+            repo). Text wordmarks, muted and evenly spaced — no logo
+            assets exist for these companies. White-opacity tokens (not the
+            muted-foreground theme token) because this band sits on the
+            hero's fixed dark navy regardless of site theme. */}
+        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 items-center gap-5 px-4 pb-16 sm:grid-cols-[auto_1fr] sm:gap-10">
+          <p className="whitespace-nowrap text-sm font-semibold text-white/60">
+            Our learners work at
+          </p>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            {TRUSTED_BY_COMPANIES.map((name) => (
+              <span
+                key={name}
+                className="text-lg font-bold tracking-tight text-white/50 grayscale"
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Social proof + testimonial + comparison table ── */}
@@ -591,93 +654,99 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </div>
           </figure>
 
-          {/* ── Trusted-by band ──
-              "Our learners work at" — not "trusted by", which would claim a
-              customer relationship with these companies. What's true is
-              narrower: this is where people who learned here are employed,
-              same framing the marketing site uses for this exact company
-              list (see app/page.tsx's ALUMNI_COMPANIES in the landing-page
-              repo). Text wordmarks, muted and evenly spaced — no logo
-              assets exist for these companies. */}
-          <div className="grid grid-cols-1 items-center gap-5 border-b border-border py-10 sm:grid-cols-[auto_1fr] sm:gap-10">
-            <p className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
-              Our learners work at
-            </p>
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-              {TRUSTED_BY_COMPANIES.map((name) => (
-                <span
-                  key={name}
-                  className="text-lg font-bold tracking-tight text-muted-foreground/60 grayscale"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Comparison table ── */}
-          <section id="compare" className="py-2 pb-20">
+          {/* ── Comparison table ── border-t replaces the trusted-by band's
+              old border-b as the divider from the testimonial above, now
+              that the band itself has moved into the dark hero section. */}
+          <section id="compare" className="border-t border-border pb-20 pt-14">
             <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">
               What you get on each plan
             </h2>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[820px] border-collapse text-sm">
+                {/* Sticky header reads as its own bordered panel: a heavier
+                    bottom border separates it from the body, and each cell
+                    keeps a vertical border so the whole row frames like one
+                    card sitting on top of the table. The Pro cell's bg-primary/5
+                    here is the same tint every Pro body cell below uses, so
+                    the tinted column reads continuously from header to
+                    footer — see the tint-continuation cells in tbody. */}
                 <thead>
                   <tr>
-                    <th className="sticky top-14 z-10 w-[34%] border-b border-border bg-muted/60 px-4 py-4 text-left align-top backdrop-blur">
+                    <th className="sticky top-14 z-20 w-[30%] border-b-2 border-border bg-card px-4 py-5 text-left align-top backdrop-blur">
                       <span className="sr-only">Feature</span>
                     </th>
-                    <th className="sticky top-14 z-10 border-b border-border bg-muted/60 px-4 py-4 text-center align-top backdrop-blur">
-                      <div className="text-base font-bold">
+                    <th className="sticky top-14 z-20 border-b-2 border-l border-border bg-card px-4 py-5 text-center align-top backdrop-blur">
+                      <div className="text-xl font-extrabold tracking-tight">
                         Free
                       </div>
-                      <div className="mb-3 mt-0.5 font-mono text-xs text-muted-foreground">
-                        {formatPrice(0, pricing.currency)}
+                      <div className="mb-4 mt-1 text-xs text-muted-foreground">
+                        Free
                       </div>
                       {freeCtaIsCurrent ? (
-                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
-                          Current plan
-                        </span>
+                        <Button
+                          disabled
+                          size="sm"
+                          variant="secondary"
+                          className="w-full cursor-not-allowed"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Current plan
+                        </Button>
                       ) : (
-                        <Button size="sm" variant="outline" asChild>
+                        <Button size="sm" variant="outline" asChild className="w-full">
                           <Link href="/auth/register">Get started</Link>
                         </Button>
                       )}
                     </th>
-                    <th className="sticky top-14 z-10 border-b border-border bg-primary/5 px-4 py-4 text-center align-top backdrop-blur">
-                      <div className="text-base font-bold text-primary">
+                    <th className="sticky top-14 z-20 border-b-2 border-l border-primary/30 bg-primary/5 px-4 py-5 text-center align-top backdrop-blur">
+                      <div className="text-xl font-extrabold tracking-tight text-primary">
                         Pro
                       </div>
-                      <div className="mb-3 mt-0.5 font-mono text-xs text-muted-foreground">
-                        {monthlyEquivalent(pricing, cycle)} /mo
+                      <div className="mb-4 mt-1 text-xs text-muted-foreground">
+                        {tablePriceLine(pricing, cycle)}
                       </div>
                       {isPro ? (
-                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
-                          You&apos;re on Pro
-                        </span>
+                        <div className="space-y-1.5">
+                          <div className="w-full rounded-md bg-secondary px-3 py-2 text-center text-xs font-bold text-secondary-foreground">
+                            You&apos;re on Pro
+                          </div>
+                          <Link
+                            href={routes.subscriptionManagement}
+                            className="block text-center text-xs font-semibold text-primary hover:underline"
+                          >
+                            Manage subscription
+                          </Link>
+                        </div>
                       ) : isEnterprise ? (
-                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
+                        <div className="w-full rounded-md bg-secondary px-3 py-2 text-center text-xs font-bold text-secondary-foreground">
                           Included in Enterprise
-                        </span>
+                        </div>
                       ) : (
-                        <Button size="sm" asChild>
+                        <Button size="sm" asChild className="w-full">
                           <Link href={checkoutHref}>Go Pro</Link>
                         </Button>
                       )}
                     </th>
-                    <th className="sticky top-14 z-10 border-b border-border bg-muted/60 px-4 py-4 text-center align-top backdrop-blur">
-                      <div className="text-base font-bold">
+                    <th className="sticky top-14 z-20 border-b-2 border-l border-border bg-card px-4 py-5 text-center align-top backdrop-blur">
+                      <div className="text-xl font-extrabold tracking-tight">
                         Enterprise
                       </div>
-                      <div className="mb-3 mt-0.5 font-mono text-xs text-muted-foreground">
-                        {monthlyEquivalent(ENTERPRISE_PRICING, cycle)} /mo
+                      <div className="mb-4 mt-1 text-xs text-muted-foreground">
+                        {tablePriceLine(ENTERPRISE_PRICING, cycle)}
                       </div>
                       {isEnterprise ? (
-                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
-                          You&apos;re on Enterprise
-                        </span>
+                        <div className="space-y-1.5">
+                          <div className="w-full rounded-md bg-secondary px-3 py-2 text-center text-xs font-bold text-secondary-foreground">
+                            You&apos;re on Enterprise
+                          </div>
+                          <Link
+                            href={routes.subscriptionManagement}
+                            className="block text-center text-xs font-semibold text-primary hover:underline"
+                          >
+                            Manage subscription
+                          </Link>
+                        </div>
                       ) : (
-                        <Button size="sm" variant="outline" asChild>
+                        <Button size="sm" variant="outline" asChild className="w-full">
                           <Link href={enterpriseCtaHref}>
                             {isPro ? "Upgrade" : "Choose Enterprise"}
                           </Link>
@@ -687,31 +756,59 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {COMPARE_GROUPS.map((group) => (
+                  {COMPARE_GROUPS.map((group, groupIndex) => (
                     <Fragment key={group.name}>
+                      {/* Dashed full-width separator between groups (not
+                          before the first one) — split into per-column
+                          cells, each carrying its own border-dashed
+                          segment, purely so the Pro column's tint isn't
+                          interrupted by crossing a single spanning cell. */}
+                      {groupIndex > 0 && (
+                        <tr aria-hidden="true">
+                          <td className="border-t border-dashed border-border px-4 py-2" />
+                          <td className="border-t border-dashed border-border px-4 py-2" />
+                          <td className="border-t border-dashed border-primary/30 bg-primary/5 px-4 py-2" />
+                          <td className="border-t border-dashed border-border px-4 py-2" />
+                        </tr>
+                      )}
+                      {/* Group heading: left-aligned, bold, with a short
+                          rule under the heading text only (not the full
+                          table width — that's the dashed separator's job).
+                          Split into per-column cells for the same tint-
+                          continuity reason as the separator row above. */}
                       <tr>
                         <th
-                          colSpan={4}
-                          className="bg-muted/30 px-4 pb-2 pt-7 text-left font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
+                          className={cn(
+                            "px-4 pb-3 text-left align-bottom",
+                            groupIndex === 0 ? "pt-8" : "pt-7",
+                          )}
                         >
-                          {group.name}
+                          <span className="text-sm font-bold uppercase tracking-wide text-foreground">
+                            {group.name}
+                          </span>
+                          <span className="mt-2 block h-0.5 w-8 rounded-full bg-primary" />
                         </th>
+                        <td className={groupIndex === 0 ? "pt-8" : "pt-7"} />
+                        <td
+                          className={cn(
+                            "bg-primary/5",
+                            groupIndex === 0 ? "pt-8" : "pt-7",
+                          )}
+                        />
+                        <td className={groupIndex === 0 ? "pt-8" : "pt-7"} />
                       </tr>
                       {group.rows.map((row) => (
-                        <tr
-                          key={row.label}
-                          className="border-t border-border/60"
-                        >
-                          <th className="px-4 py-3 text-left font-normal">
+                        <tr key={row.label} className="border-t border-border/60">
+                          <th className="px-4 py-5 text-left text-sm font-normal">
                             {row.label}
                           </th>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-5 text-center">
                             <CompareMark value={row.free} />
                           </td>
-                          <td className="bg-primary/5 px-4 py-3 text-center">
+                          <td className="bg-primary/5 px-4 py-5 text-center">
                             <CompareMark value={row.pro} />
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-5 text-center">
                             <CompareMark value={row.enterprise} />
                           </td>
                         </tr>
