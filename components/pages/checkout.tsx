@@ -1295,6 +1295,28 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                     </div>
                   </div>
                 )}
+
+                {/* Second entry point for the SAME action as the Order
+                    Summary's Subscribe button — placed here, below the
+                    payment methods, because that's where the eye already is
+                    after reading this panel. Deliberately calls
+                    handleSubscribeClick directly (not a wrapper) so there is
+                    exactly one code path for starting payment, and shares
+                    every prop with the left button — disabled, label — so
+                    it can never enable a click the left button would
+                    refuse. Rendered unconditionally within this branch
+                    (including while isProcessing, when it sits disabled
+                    below the "waiting" state) rather than only in the
+                    non-processing half, so a buyer who tabs down to it
+                    always finds it in the same state as the primary button,
+                    never absent then reappearing. */}
+                <Button
+                  className="w-full"
+                  disabled={isProcessing || !subscribeReady}
+                  onClick={handleSubscribeClick}
+                >
+                  {subscribeLabel}
+                </Button>
               </CardContent>
             </>
           ) : (
