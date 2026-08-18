@@ -4,7 +4,17 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, AlertTriangle, Minus, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Minus,
+  Plus,
+  Lock,
+  CreditCard,
+  Landmark,
+  Smartphone,
+  Loader2,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -1196,6 +1206,93 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                     <p className="mt-1.5 font-mono text-xs text-amber-700 dark:text-amber-400/80">
                       tier={tier} provider={provider} cycle={cycle}
                     </p>
+                  </div>
+                )}
+              </CardContent>
+            </>
+          ) : provider === "ASYNCPAY" ? (
+            // AsyncPay never mounts anything into this page — its SDK opens
+            // its own payment surface on top of the page instead of an
+            // inline frame (see the module-level comment on
+            // ASYNCPAY_WRAPPER_ID). So there is nothing to embed here; this
+            // panel's only job is to tell the buyer what happens when they
+            // press Subscribe (and, while `isProcessing`, that the payment
+            // surface on screen IS the checkout — the page behind it is
+            // deliberately idle, not stuck). Never names the processor —
+            // same constraint as the rest of this page.
+            <>
+              <CardHeader>
+                <CardTitle>
+                  {isProcessing ? "Complete your payment" : "Secure checkout"}
+                </CardTitle>
+                <CardDescription>
+                  {isProcessing
+                    ? "Finish up in the secure payment window on this screen — we'll update this page automatically once you're done."
+                    : "Pressing Subscribe opens a secure payment window right on this screen."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-4">
+                {isProcessing ? (
+                  // Deliberately not a fake progress bar — the page has no
+                  // way to know how far along a buyer is inside the payment
+                  // window, and a bar that isn't tied to real progress would
+                  // be a lie. This only confirms the page is alive and
+                  // waiting, which is the one true thing it knows.
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border px-4 py-12 text-center">
+                    <Loader2
+                      className="h-6 w-6 animate-spin text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <p className="max-w-xs text-sm text-muted-foreground">
+                      Waiting for your payment to complete. It&apos;s safe to
+                      leave this open — nothing else to do here for now.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 rounded-lg border border-border p-4">
+                      <Lock
+                        className="h-5 w-5 flex-none text-primary"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">
+                          Your details never touch this page
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Subscribe opens a secure payment window where you
+                          enter your details directly.
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Accepted payment methods
+                      </p>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-center">
+                          <CreditCard
+                            className="h-5 w-5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span>Card</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-center">
+                          <Landmark
+                            className="h-5 w-5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span>Bank transfer</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-center">
+                          <Smartphone
+                            className="h-5 w-5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span>USSD</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
