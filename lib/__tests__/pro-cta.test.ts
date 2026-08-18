@@ -15,7 +15,6 @@ const ngPricing: PublicPricing = {
     monthlyPerUser: 15000,
     annualPerUser: 150000,
     minSeats: 2,
-    maxSeats: 100,
     selfServe: false,
   },
 };

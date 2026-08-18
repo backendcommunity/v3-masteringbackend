@@ -18,7 +18,6 @@ const ngEnterprise: PublicEnterprisePricing = {
   monthlyPerUser: 15000,
   annualPerUser: 150000,
   minSeats: 2,
-  maxSeats: 100,
   // The naira provider cannot bill a seat quantity — sales-led.
   selfServe: false,
 };
@@ -29,7 +28,6 @@ const globalEnterprise: PublicEnterprisePricing = {
   monthlyPerUser: 25,
   annualPerUser: 250,
   minSeats: 2,
-  maxSeats: 100,
   selfServe: true,
 };
 

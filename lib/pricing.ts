@@ -44,8 +44,15 @@ export interface EnterprisePricing {
   annualPerUser: number;
   /** Smallest team we sell to. 2 — a one-seat "team" is just Pro. */
   minSeats: number;
-  /** Ceiling on the self-serve seat selector. */
-  maxSeats: number;
+  /**
+   * There is deliberately NO `maxSeats` field. Enterprise has no maximum
+   * team size — see academy's tiers.ts, which used to publish
+   * `ENTERPRISE_MAX_SEATS` and no longer does. The checkout seat selector
+   * (components/pages/checkout.tsx's `SeatSelector`) still guards against a
+   * fat-fingered or pasted value via `ENTERPRISE_SEAT_CONFIRM_THRESHOLD`
+   * below, but that is a typo safeguard, not a ceiling: values above it are
+   * confirmed, never rejected.
+   */
   /**
    * Whether this region can complete a per-seat purchase without a human.
    * Decided ENTIRELY by the backend (see enterpriseSelfServe() in academy's
@@ -155,6 +162,36 @@ export function enterprisePerUserMonthlyDisplay(
 }
 
 /**
+ * Paddle's own upper bound on the `quantity` a price can be sold at — see
+ * academy's scripts/provision-pricing.ts, which sets the Enterprise price's
+ * `quantity.maximum` to this exact figure (the highest Paddle's create-price
+ * API accepts; Paddle rejects anything past it with "Quantity maximum must
+ * be equal to or lower than 999999999").
+ *
+ * This is NOT a product limit on team size — there is deliberately no
+ * `maxSeats` anywhere in this codebase any more. It exists purely so
+ * `resolveSeats`/`clampSeats` fail closed on a number Paddle's own price
+ * object is guaranteed to refuse (e.g. a `?seats=` URL param edited by
+ * hand), rather than opening a checkout call doomed to error. No real team
+ * will ever approach it.
+ */
+export const PADDLE_MAX_QUANTITY = 999_999_999;
+
+/**
+ * A typed or pasted seat count at or above this many seats is held back by
+ * the checkout seat selector for an explicit "are you sure?" confirmation
+ * instead of being applied straight away. This is NOT a cap — nothing is
+ * rejected, and confirming applies the value exactly as typed, however
+ * large. It exists only to catch the fat-finger/paste-mishap case (an extra
+ * digit, a pasted phone number) before it silently becomes a five- or
+ * six-figure line item. 1,000 was chosen because it comfortably exceeds any
+ * seat count a buyer would plausibly type by hand without a second thought,
+ * while staying far below anything that would actually inconvenience a
+ * genuinely large team — they simply click "confirm" once.
+ */
+export const ENTERPRISE_SEAT_CONFIRM_THRESHOLD = 1000;
+
+/**
  * A seat count that is safe to charge for, or null.
  *
  * FAILS CLOSED, and that is the entire point: null is not "assume the
@@ -163,11 +200,13 @@ export function enterprisePerUserMonthlyDisplay(
  * charge, in the buyer's favour or ours, and both are the same defect.
  *
  * Rejects: absent, non-numeric, fractional, below `minSeats`, above
- * `maxSeats`. Numeric strings are accepted because this reads a URL param.
+ * `PADDLE_MAX_QUANTITY` (Paddle's own technical ceiling, not a product
+ * limit — see its comment). Numeric strings are accepted because this reads
+ * a URL param.
  */
 export function resolveSeats(
   raw: unknown,
-  pricing: Pick<EnterprisePricing, "minSeats" | "maxSeats">,
+  pricing: Pick<EnterprisePricing, "minSeats">,
 ): number | null {
   const seats =
     typeof raw === "number"
@@ -177,7 +216,7 @@ export function resolveSeats(
         : NaN;
   if (!Number.isInteger(seats)) return null;
   if (seats < pricing.minSeats) return null;
-  if (seats > pricing.maxSeats) return null;
+  if (seats > PADDLE_MAX_QUANTITY) return null;
   return seats;
 }
 
@@ -186,15 +225,16 @@ export function resolveSeats(
  * SELECTOR only — a stepper must not be able to walk below the minimum, and
  * clamping there is friendly rather than dangerous because nothing is
  * charged yet. Never use this on the checkout path; `resolveSeats` is the
- * one that guards money.
+ * one that guards money. Upper bound is `PADDLE_MAX_QUANTITY`, Paddle's own
+ * technical ceiling — not a product maximum, see that constant's comment.
  */
 export function clampSeats(
   seats: number,
-  pricing: Pick<EnterprisePricing, "minSeats" | "maxSeats">,
+  pricing: Pick<EnterprisePricing, "minSeats">,
 ): number {
   if (!Number.isFinite(seats)) return pricing.minSeats;
   return Math.min(
-    pricing.maxSeats,
+    PADDLE_MAX_QUANTITY,
     Math.max(pricing.minSeats, Math.round(seats)),
   );
 }
@@ -210,7 +250,7 @@ export function clampSeats(
 export function enterpriseTotal(
   pricing: Pick<
     EnterprisePricing,
-    "monthlyPerUser" | "annualPerUser" | "minSeats" | "maxSeats"
+    "monthlyPerUser" | "annualPerUser" | "minSeats"
   >,
   cycle: "monthly" | "annual",
   seats: unknown,

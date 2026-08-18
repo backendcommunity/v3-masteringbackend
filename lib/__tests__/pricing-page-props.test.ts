@@ -26,7 +26,6 @@ describe("toPublicPricing", () => {
       monthlyPerUser: 15000,
       annualPerUser: 150000,
       minSeats: 2,
-      maxSeats: 100,
       selfServe: false,
       monthlyPriceId: "pri_ent_monthly_789",
       annualPriceId: "pri_ent_annual_012",
@@ -66,7 +65,6 @@ describe("toPublicPricing", () => {
         monthlyPerUser: 15000,
         annualPerUser: 150000,
         minSeats: 2,
-        maxSeats: 100,
         selfServe: false,
       },
     });

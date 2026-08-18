@@ -298,15 +298,16 @@ export function resolveCheckoutPrice(
       };
     }
 
-    // No seat count, a fractional one, one below the minimum team size or
-    // above the selector's ceiling: all the same answer. Not "assume the
-    // minimum" — a checkout that guesses how many seats it is selling is a
-    // checkout that charges the wrong amount.
+    // No seat count, a fractional one, one below the minimum team size, or
+    // above Paddle's own technical quantity ceiling (there is no product
+    // maximum — see PADDLE_MAX_QUANTITY in lib/pricing.ts): all the same
+    // answer. Not "assume the minimum" — a checkout that guesses how many
+    // seats it is selling is a checkout that charges the wrong amount.
     const seats = resolveSeats(input.seats, enterprise);
     if (seats === null) {
       return {
         status: "unavailable",
-        reason: `enterprise checkout has no usable seat count (got ${JSON.stringify(input.seats)}; need an integer ${enterprise.minSeats}-${enterprise.maxSeats})`,
+        reason: `enterprise checkout has no usable seat count (got ${JSON.stringify(input.seats)}; need an integer >= ${enterprise.minSeats})`,
       };
     }
 

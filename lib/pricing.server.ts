@@ -46,7 +46,6 @@ export const GLOBAL_FALLBACK: RegionalPricing = {
     monthlyPerUser: 25,
     annualPerUser: 250,
     minSeats: 2,
-    maxSeats: 100,
     selfServe: true,
     monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_MONTHLY ?? "",
     annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_ANNUAL ?? "",
@@ -75,7 +74,6 @@ function normalizeEnterprise(value: unknown): EnterprisePricing {
     !numeric(e.monthlyPerUser) ||
     !numeric(e.annualPerUser) ||
     !numeric(e.minSeats) ||
-    !numeric(e.maxSeats) ||
     typeof e.selfServe !== "boolean" ||
     (e.currency !== "NGN" && e.currency !== "USD")
   ) {

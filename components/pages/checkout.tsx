@@ -35,7 +35,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { clampSeats, formatPrice, resolveSeats } from "@/lib/pricing";
+import {
+  clampSeats,
+  ENTERPRISE_SEAT_CONFIRM_THRESHOLD,
+  formatPrice,
+  resolveSeats,
+} from "@/lib/pricing";
 import type { CheckoutPricing, RegionalPricing } from "@/lib/pricing";
 import {
   classifyCheckoutReadiness,
@@ -83,28 +88,61 @@ const CHECKOUT_SUPPORT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeUR
  * rate, and the buyer now picks how many seats to buy right before they
  * pay, with the total below recomputed live from that count.
  *
- * Clamped to [minSeats, maxSeats] on every path in — the buttons, the
- * keyboard, a pasted value — because the seat count is a multiplier on
- * money and an out-of-range one either undercharges or produces a request
- * the processor rejects. Clamping (rather than rejecting) is right here
- * because nothing is charged from this control directly:
- * resolveCheckoutPrice (via resolveSeats, in lib/pricing.ts) is the strict
- * gate that actually decides whether a seat count may be billed, and it
- * fails closed rather than guessing.
+ * There is deliberately no upper bound on team size — Enterprise has no
+ * maximum (see the removed `ENTERPRISE_MAX_SEATS` in academy's tiers.ts).
+ * What this control DOES guard against is a typo: a non-integer, a value
+ * below `minSeats`, or a suspiciously large pasted/typed number (>=
+ * `ENTERPRISE_SEAT_CONFIRM_THRESHOLD`) is never applied silently. The first
+ * two are rejected outright — the field simply reverts to the last good
+ * value, exactly like `resolveCheckoutPrice` (via `resolveSeats`) would
+ * refuse to charge for them anyway. The third is held for one explicit
+ * confirmation click rather than blocked, because a genuinely large team is
+ * a real, valid order this control must never stand in the way of.
  */
 export function SeatSelector({
   seats,
   setSeats,
   minSeats,
-  maxSeats,
 }: {
   seats: number;
   setSeats: (n: number) => void;
   minSeats: number;
-  maxSeats: number;
 }) {
-  const step = (delta: number) =>
-    setSeats(clampSeats(seats + delta, { minSeats, maxSeats }));
+  // A typed/pasted value >= ENTERPRISE_SEAT_CONFIRM_THRESHOLD sits here,
+  // unapplied, until the buyer confirms it. Null the rest of the time.
+  const [pendingSeats, setPendingSeats] = useState<number | null>(null);
+
+  const step = (delta: number) => {
+    setPendingSeats(null);
+    setSeats(clampSeats(seats + delta, { minSeats }));
+  };
+
+  // Single entry point for both onChange and onBlur: parses the raw field
+  // text and either applies it, holds it for confirmation, or rejects it
+  // back to the last good value (by simply not touching `seats` — the
+  // controlled input re-renders from it automatically).
+  const commitTyped = (raw: string) => {
+    if (raw.trim() === "") {
+      setPendingSeats(null);
+      return;
+    }
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < minSeats) {
+      // Reject: not a whole number, or below the minimum team size. Do NOT
+      // clamp a garbled value up to something that looks like an accepted
+      // answer — just fall back to what was last valid.
+      setPendingSeats(null);
+      return;
+    }
+    if (parsed >= ENTERPRISE_SEAT_CONFIRM_THRESHOLD) {
+      setPendingSeats(parsed);
+      return;
+    }
+    setPendingSeats(null);
+    setSeats(parsed);
+  };
+
+  const displaySeats = pendingSeats ?? seats;
 
   return (
     <div>
@@ -131,16 +169,11 @@ export function SeatSelector({
           type="number"
           inputMode="numeric"
           min={minSeats}
-          max={maxSeats}
-          value={seats}
-          onChange={(e) =>
-            setSeats(clampSeats(Number(e.target.value), { minSeats, maxSeats }))
-          }
-          // Re-clamp on blur so a half-typed value ("" or "1") cannot be left
-          // sitting in the field looking like an accepted team size.
-          onBlur={(e) =>
-            setSeats(clampSeats(Number(e.target.value), { minSeats, maxSeats }))
-          }
+          value={displaySeats}
+          onChange={(e) => commitTyped(e.target.value)}
+          // Re-commit on blur so a half-typed value ("" or "1") cannot be
+          // left sitting in the field looking like an accepted team size.
+          onBlur={(e) => commitTyped(e.target.value)}
           className="h-9 w-20 rounded-md border border-input bg-background px-3 text-center font-mono text-sm font-semibold text-foreground [appearance:textfield] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-describedby="enterprise-seats-hint"
         />
@@ -150,7 +183,6 @@ export function SeatSelector({
           size="icon"
           className="h-9 w-9 flex-none"
           onClick={() => step(1)}
-          disabled={seats >= maxSeats}
           aria-label="Add a seat"
         >
           <Plus className="h-4 w-4" />
@@ -162,6 +194,39 @@ export function SeatSelector({
           users (min {minSeats})
         </span>
       </div>
+      {pendingSeats !== null && (
+        <div
+          role="alert"
+          className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+        >
+          <span>
+            That&apos;s {pendingSeats.toLocaleString()} seats — is that
+            right?
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7"
+            onClick={() => {
+              const confirmed = pendingSeats;
+              setPendingSeats(null);
+              setSeats(confirmed);
+            }}
+          >
+            Confirm {pendingSeats.toLocaleString()} seats
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7"
+            onClick={() => setPendingSeats(null)}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -987,7 +1052,6 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                     seats={seats}
                     setSeats={setSeats}
                     minSeats={pricing.enterprise.minSeats}
-                    maxSeats={pricing.enterprise.maxSeats}
                   />
                 </>
               )}

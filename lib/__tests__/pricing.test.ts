@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   clampSeats,
+  ENTERPRISE_SEAT_CONFIRM_THRESHOLD,
   enterprisePerUser,
   enterprisePerUserMonthlyDisplay,
   enterpriseTotal,
   formatPrice,
   monthlyEquivalent,
+  PADDLE_MAX_QUANTITY,
   resolveSeats,
 } from "@/lib/pricing";
 import type { EnterprisePricing, RegionalPricing } from "@/lib/pricing";
@@ -22,19 +24,19 @@ import { isPublicPath } from "@/lib/public-paths";
 const ngEnterprise: EnterprisePricing = {
   tier: "NG", provider: "ASYNCPAY", currency: "NGN",
   monthlyPerUser: 15000, annualPerUser: 150000,
-  minSeats: 2, maxSeats: 100, selfServe: false,
+  minSeats: 2, selfServe: false,
   monthlyPriceId: "ap_ent_m", annualPriceId: "ap_ent_a",
 };
 const pppEnterprise: EnterprisePricing = {
   tier: "PPP", provider: "PADDLE", currency: "USD",
   monthlyPerUser: 15, annualPerUser: 150,
-  minSeats: 2, maxSeats: 100, selfServe: true,
+  minSeats: 2, selfServe: true,
   monthlyPriceId: "pri_ent_m", annualPriceId: "pri_ent_a",
 };
 const globalEnterprise: EnterprisePricing = {
   tier: "GLOBAL", provider: "PADDLE", currency: "USD",
   monthlyPerUser: 25, annualPerUser: 250,
-  minSeats: 2, maxSeats: 100, selfServe: true,
+  minSeats: 2, selfServe: true,
   monthlyPriceId: "pri_ent_m", annualPriceId: "pri_ent_a",
 };
 
@@ -120,16 +122,19 @@ describe("enterprisePerUserMonthlyDisplay", () => {
 });
 
 describe("resolveSeats — the single gate on a chargeable seat count", () => {
-  it("accepts integers within [minSeats, maxSeats], as numbers or URL strings", () => {
+  it("accepts any integer at or above minSeats, as numbers or URL strings — there is no product maximum", () => {
     expect(resolveSeats(2, globalEnterprise)).toBe(2);
     expect(resolveSeats(100, globalEnterprise)).toBe(100);
+    // Well above the OLD 100-seat product cap (removed) — still valid.
+    expect(resolveSeats(250, globalEnterprise)).toBe(250);
+    expect(resolveSeats(10_000, globalEnterprise)).toBe(10_000);
     expect(resolveSeats("7", globalEnterprise)).toBe(7);
     expect(resolveSeats(" 12 ", globalEnterprise)).toBe(12);
   });
 
   it("REFUSES anything it cannot be certain of — never a default, never the minimum", () => {
     for (const bad of [
-      undefined, null, "", "  ", "five", 0, -1, 1, 2.5, 101, 1000,
+      undefined, null, "", "  ", "five", 0, -1, 1, 2.5,
       Number.NaN, Number.POSITIVE_INFINITY, {}, [],
     ]) {
       expect(resolveSeats(bad, globalEnterprise)).toBeNull();
@@ -140,30 +145,60 @@ describe("resolveSeats — the single gate on a chargeable seat count", () => {
     expect(resolveSeats(1, globalEnterprise)).toBeNull();
     expect(resolveSeats(2, globalEnterprise)).toBe(2);
   });
+
+  // PADDLE_MAX_QUANTITY is Paddle's own technical ceiling on a price's
+  // quantity, NOT a product limit — see its comment in lib/pricing.ts. This
+  // pins that resolveSeats fails closed exactly there, rather than handing
+  // Checkout.open a quantity Paddle is guaranteed to reject.
+  it("accepts exactly Paddle's technical quantity ceiling and refuses one seat past it", () => {
+    expect(resolveSeats(PADDLE_MAX_QUANTITY, globalEnterprise)).toBe(
+      PADDLE_MAX_QUANTITY,
+    );
+    expect(resolveSeats(PADDLE_MAX_QUANTITY + 1, globalEnterprise)).toBeNull();
+  });
 });
 
 describe("clampSeats — for the selector only", () => {
-  it("nudges out-of-range values into range instead of rejecting them", () => {
+  it("nudges below-minimum values up to the minimum instead of rejecting them", () => {
     expect(clampSeats(1, globalEnterprise)).toBe(2);
     expect(clampSeats(0, globalEnterprise)).toBe(2);
     expect(clampSeats(-5, globalEnterprise)).toBe(2);
-    expect(clampSeats(500, globalEnterprise)).toBe(100);
     expect(clampSeats(7, globalEnterprise)).toBe(7);
   });
 
-  it("falls to the MINIMUM on non-finite garbage, never to the maximum", () => {
+  it("has no product ceiling — a large finite value passes through unclamped", () => {
+    // Well above the OLD 100-seat product cap (removed).
+    expect(clampSeats(250, globalEnterprise)).toBe(250);
+    expect(clampSeats(999_999, globalEnterprise)).toBe(999_999);
+  });
+
+  it("falls to the MINIMUM on non-finite garbage, never to a large number", () => {
     // NaN and Infinity are both "we have no idea", and the safe answer to
-    // that in a selector is the smallest billable team — not the largest,
-    // which would pre-load the buyer's cart with 100 seats.
+    // that in a selector is the smallest billable team.
     expect(clampSeats(Number.NaN, globalEnterprise)).toBe(2);
     expect(clampSeats(Number.POSITIVE_INFINITY, globalEnterprise)).toBe(2);
-    // A merely-large finite number IS clamped to the ceiling, as intended.
-    expect(clampSeats(999999, globalEnterprise)).toBe(100);
+  });
+
+  it("still clamps at Paddle's own technical quantity ceiling — not a product limit, see PADDLE_MAX_QUANTITY", () => {
+    expect(clampSeats(PADDLE_MAX_QUANTITY + 12345, globalEnterprise)).toBe(
+      PADDLE_MAX_QUANTITY,
+    );
   });
 
   it("rounds a fractional value to a whole seat", () => {
     expect(clampSeats(4.4, globalEnterprise)).toBe(4);
     expect(clampSeats(4.6, globalEnterprise)).toBe(5);
+  });
+});
+
+describe("ENTERPRISE_SEAT_CONFIRM_THRESHOLD", () => {
+  it("is not a cap — resolveSeats and clampSeats both accept values at and above it", () => {
+    expect(resolveSeats(ENTERPRISE_SEAT_CONFIRM_THRESHOLD, globalEnterprise)).toBe(
+      ENTERPRISE_SEAT_CONFIRM_THRESHOLD,
+    );
+    expect(clampSeats(ENTERPRISE_SEAT_CONFIRM_THRESHOLD, globalEnterprise)).toBe(
+      ENTERPRISE_SEAT_CONFIRM_THRESHOLD,
+    );
   });
 });
 
@@ -189,7 +224,9 @@ describe("enterpriseTotal — seats x per-user price", () => {
   it("is exact at every seat count — no binary-float dust in a price", () => {
     // 15 * 3 in naive float arithmetic is fine, but 0.1-style prices are not;
     // the minor-unit multiply is what keeps this true for any price we set.
-    for (let seats = 2; seats <= 100; seats++) {
+    // Runs well past the OLD 100-seat product cap (removed) to 250, proving
+    // there is nothing special about that old boundary any more.
+    for (let seats = 2; seats <= 250; seats++) {
       expect(enterpriseTotal(pppEnterprise, "monthly", seats)).toBe(15 * seats);
       expect(enterpriseTotal(globalEnterprise, "annual", seats)).toBe(250 * seats);
       const total = enterpriseTotal(globalEnterprise, "monthly", seats)!;
@@ -198,10 +235,15 @@ describe("enterpriseTotal — seats x per-user price", () => {
   });
 
   it("returns null — never a number — when the seat count is unusable", () => {
-    for (const bad of [undefined, null, "", "many", 0, 1, -4, 2.5, 101]) {
+    for (const bad of [undefined, null, "", "many", 0, 1, -4, 2.5]) {
       expect(enterpriseTotal(globalEnterprise, "monthly", bad)).toBeNull();
       expect(enterpriseTotal(globalEnterprise, "annual", bad)).toBeNull();
     }
+  });
+
+  it("prices a seat count well above the old 100-seat cap (250) and beyond (10,000)", () => {
+    expect(enterpriseTotal(globalEnterprise, "monthly", 250)).toBe(250 * 25);
+    expect(enterpriseTotal(globalEnterprise, "monthly", 10_000)).toBe(10_000 * 25);
   });
 
   it("returns null when the per-user price is missing, zero or negative", () => {

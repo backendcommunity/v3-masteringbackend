@@ -7,6 +7,7 @@ import {
 } from "@/lib/checkout-plan-pricing";
 import type { Plan } from "@/lib/data";
 import type { CheckoutPricing, EnterprisePricing } from "@/lib/pricing";
+import { PADDLE_MAX_QUANTITY } from "@/lib/pricing";
 
 // Per-user Enterprise pricing as the API returns it, one object per tier.
 // ₦15,000 / $15 / $25 per SEAT per month, annual at exactly 10x.
@@ -17,7 +18,6 @@ const ngEnterprise: EnterprisePricing = {
   monthlyPerUser: 15000,
   annualPerUser: 150000,
   minSeats: 2,
-  maxSeats: 100,
   // The naira provider cannot bill a seat quantity — this tier is sales-led.
   selfServe: false,
   monthlyPriceId: "asyncpay_ent_monthly",
@@ -31,7 +31,6 @@ const pppEnterprise: EnterprisePricing = {
   monthlyPerUser: 15,
   annualPerUser: 150,
   minSeats: 2,
-  maxSeats: 100,
   selfServe: true,
   monthlyPriceId: "pri_ent_monthly",
   annualPriceId: "pri_ent_annual",
@@ -44,7 +43,6 @@ const usEnterprise: EnterprisePricing = {
   monthlyPerUser: 25,
   annualPerUser: 250,
   minSeats: 2,
-  maxSeats: 100,
   selfServe: true,
   monthlyPriceId: "pri_ent_monthly",
   annualPriceId: "pri_ent_annual",
@@ -855,7 +853,11 @@ describe("resolveCheckoutPrice — Enterprise fails closed", () => {
     ["zero", 0],
     ["negative", -3],
     ["below the 2-seat minimum", 1],
-    ["above the maximum", 101],
+    // 101 is deliberately NOT in this list any more — Enterprise has no
+    // product maximum, and 101 seats must resolve successfully (see the
+    // dedicated test below). Only Paddle's own technical quantity ceiling
+    // remains an "unavailable" boundary.
+    ["above Paddle's technical quantity ceiling", PADDLE_MAX_QUANTITY + 1],
     ["NaN", Number.NaN],
     ["Infinity", Number.POSITIVE_INFINITY],
   ])("is unavailable when the seat count is %s", (_label, seats) => {
@@ -877,6 +879,43 @@ describe("resolveCheckoutPrice — Enterprise fails closed", () => {
 
     expect(one.status).toBe("unavailable");
     expect(two.status).toBe("resolved");
+  });
+
+  // Product-level regression guard: seat counts well above the OLD 100-seat
+  // cap (which no longer exists) must resolve and price correctly. 250 is
+  // comfortably above that old ceiling.
+  it("resolves and prices a 250-seat team — well above the old 100-seat product cap", () => {
+    const result = resolveCheckoutPrice(
+      input({ checkoutId: "enterprise", pricing: usProPricing, seats: 250, planResolved: true }),
+    );
+
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
+      expect(result.price.quantity).toBe(250);
+      expect(result.price.amount).toBe(250 * 25);
+    }
+  });
+
+  it("still resolves at exactly Paddle's technical quantity ceiling, and refuses one past it", () => {
+    const atCeiling = resolveCheckoutPrice(
+      input({
+        checkoutId: "enterprise",
+        pricing: usProPricing,
+        seats: PADDLE_MAX_QUANTITY,
+        planResolved: true,
+      }),
+    );
+    const overCeiling = resolveCheckoutPrice(
+      input({
+        checkoutId: "enterprise",
+        pricing: usProPricing,
+        seats: PADDLE_MAX_QUANTITY + 1,
+        planResolved: true,
+      }),
+    );
+
+    expect(atCeiling.status).toBe("resolved");
+    expect(overCeiling.status).toBe("unavailable");
   });
 
   it.each([
@@ -928,7 +967,10 @@ describe("resolveCheckoutPrice — Enterprise fails closed", () => {
     const broken: Array<Partial<ResolveCheckoutPriceInput>> = [
       { seats: undefined },
       { seats: 1 },
-      { seats: 1000 },
+      // Past Paddle's own technical quantity ceiling — not the old, now-
+      // removed 100-seat product cap. 1000 seats alone is a perfectly valid
+      // order now (see the dedicated 250/PADDLE_MAX_QUANTITY tests above).
+      { seats: PADDLE_MAX_QUANTITY + 1 },
       { pricing: ngProPricing, seats: 4 },
       { pricing: { ...usProPricing, enterprise: { ...usEnterprise, monthlyPriceId: "" } }, seats: 4 },
       { pricing: { ...usProPricing, enterprise: { ...usEnterprise, monthlyPerUser: 0 } }, seats: 4 },
