@@ -16,7 +16,6 @@ import {
 import { useUser } from "@/hooks/use-user";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import countriesList from "@/lib/countries.json";
 import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
@@ -90,12 +89,22 @@ type CompareCell = "yes" | "no" | string;
 
 const COMPARE_GROUPS: {
   name: string;
-  rows: { label: string; free: CompareCell; pro: CompareCell; enterprise: CompareCell }[];
+  rows: {
+    label: string;
+    free: CompareCell;
+    pro: CompareCell;
+    enterprise: CompareCell;
+  }[];
 }[] = [
   {
     name: "Learn",
     rows: [
-      { label: "First steps of every path", free: "yes", pro: "yes", enterprise: "yes" },
+      {
+        label: "First steps of every path",
+        free: "yes",
+        pro: "yes",
+        enterprise: "yes",
+      },
       {
         label: "Every path and course, end to end",
         free: "no",
@@ -113,18 +122,48 @@ const COMPARE_GROUPS: {
   {
     name: "Build",
     rows: [
-      { label: "Guided projects", free: "Starter only", pro: "yes", enterprise: "yes" },
-      { label: "Code review on submissions", free: "no", pro: "yes", enterprise: "yes" },
+      {
+        label: "Guided projects",
+        free: "Starter only",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Code review on submissions",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
       { label: "Public portfolio", free: "yes", pro: "yes", enterprise: "yes" },
     ],
   },
   {
     name: "Grow",
     rows: [
-      { label: "AI mock interviews", free: "no", pro: "yes", enterprise: "yes" },
-      { label: "Scored interview reports", free: "no", pro: "yes", enterprise: "yes" },
-      { label: "Verified certificates", free: "no", pro: "yes", enterprise: "yes" },
-      { label: "XP, streaks, leaderboard", free: "yes", pro: "yes", enterprise: "yes" },
+      {
+        label: "AI mock interviews",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Scored interview reports",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Verified certificates",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "XP, streaks, leaderboard",
+        free: "yes",
+        pro: "yes",
+        enterprise: "yes",
+      },
     ],
   },
   {
@@ -185,20 +224,6 @@ const COMPARE_GROUPS: {
 
 function currencySymbol(currency: "NGN" | "USD"): string {
   return currency === "NGN" ? "₦" : "$";
-}
-
-function countryName(code: string): string {
-  if (!code) return "your region";
-  const match = (countriesList as { name: string; code: string }[]).find(
-    (c) => c.code.toUpperCase() === code.toUpperCase(),
-  );
-  return match?.name ?? code;
-}
-
-function resolvedLine(pricing: Pick<PublicPricing, "country" | "currency">): string {
-  return `Prices shown in ${currencySymbol(pricing.currency)} for ${countryName(
-    pricing.country,
-  )}`;
 }
 
 // Table-header price line — "Free", "₦8,333 /month billed annually",
@@ -344,14 +369,16 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
       {/* ── Hero ── */}
       <section className="bg-[#0e1f33] px-4 pb-0 pt-20 text-center text-white">
-        <h1 className="mx-auto max-w-xl text-balance text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">
-          Learn the <span className="text-primary">engineering skills</span>{" "}
-          you need to advance your career.
+        {/* One straight line on desktop (no sub-line beneath it, per the
+            DataCamp reference) — nowrap only kicks in from xl: up, paired
+            with a font-size that's clamped small enough it can never need
+            more than ~1100px, well inside any xl+ viewport. Below xl the
+            headline wraps normally (text-balance) like any stacked
+            headline, so tablet/mobile are untouched. */}
+        <h1 className="mx-auto max-w-xl text-balance text-4xl font-extrabold leading-[1.05] tracking-tight sm:max-w-2xl lg:max-w-3xl lg:text-5xl xl:max-w-none xl:whitespace-nowrap xl:text-[clamp(1.75rem,2.3vw,2.75rem)] xl:leading-tight">
+          Learn the <span className="text-primary">engineering skills</span> you
+          need to advance your career.
         </h1>
-        <p className="mx-auto mt-4 max-w-md text-pretty text-white/70">
-          Paths, real projects with code review, and mock interviews that end
-          in an offer — not another certificate for the pile.
-        </p>
 
         {/* ── Plan cards ──
             Joined into one panel at lg: a single outer border encloses all
@@ -367,9 +394,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
             <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Limited access
             </p>
-            <h2 className="mb-5 text-2xl font-bold tracking-tight">
-              Free
-            </h2>
+            <h2 className="mb-5 text-2xl font-bold tracking-tight">Free</h2>
             <div className="flex min-h-[62px] items-baseline">
               <span className="text-5xl font-extrabold tracking-tight">
                 Free
@@ -455,11 +480,6 @@ export default function PricingView({ pricing }: PricingViewProps) {
                 )}
               </span>
             </div>
-            <p className="mt-3 flex items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
-              <span className="h-1.5 w-1.5 flex-none rounded-full bg-primary" />
-              {resolvedLine(pricing)}
-            </p>
-
             {isPro ? (
               <div className="my-6 space-y-2">
                 <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
@@ -530,12 +550,6 @@ export default function PricingView({ pricing }: PricingViewProps) {
                 )}
               </span>
             </div>
-            <p className="mt-3 flex items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
-              <span className="h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground/50" />
-              Billed in USD everywhere — Enterprise pricing isn&apos;t
-              region-adjusted
-            </p>
-
             {isEnterprise ? (
               <div className="my-6 space-y-2">
                 <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
@@ -638,24 +652,8 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </div>
           </div>
 
-          <figure className="grid grid-cols-1 items-start gap-6 py-14 sm:grid-cols-[64px_1fr]">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-500 text-xl font-bold text-white">
-              AO
-            </div>
-            <div>
-              <blockquote className="text-balance text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
-                &ldquo;I&apos;d done three courses and still froze on system
-                design. The mock interviews were the first thing that showed
-                me exactly where I was losing the room.&rdquo;
-              </blockquote>
-              <cite className="mt-3 block text-sm not-italic text-muted-foreground">
-                Adaeze O. — Backend Engineer, Lagos
-              </cite>
-            </div>
-          </figure>
-
           {/* ── Comparison table ── border-t replaces the trusted-by band's
-              old border-b as the divider from the testimonial above, now
+              old border-b as the divider from the stats row above, now
               that the band itself has moved into the dark hero section. */}
           <section id="compare" className="border-t border-border pb-20 pt-14">
             <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -692,7 +690,12 @@ export default function PricingView({ pricing }: PricingViewProps) {
                           <Check className="h-3.5 w-3.5" /> Current plan
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" asChild className="w-full">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="w-full"
+                        >
                           <Link href="/auth/register">Get started</Link>
                         </Button>
                       )}
@@ -746,7 +749,12 @@ export default function PricingView({ pricing }: PricingViewProps) {
                           </Link>
                         </div>
                       ) : (
-                        <Button size="sm" variant="outline" asChild className="w-full">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="w-full"
+                        >
                           <Link href={enterpriseCtaHref}>
                             {isPro ? "Upgrade" : "Choose Enterprise"}
                           </Link>
@@ -798,7 +806,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         <td className={groupIndex === 0 ? "pt-8" : "pt-7"} />
                       </tr>
                       {group.rows.map((row) => (
-                        <tr key={row.label} className="border-t border-border/60">
+                        <tr
+                          key={row.label}
+                          className="border-t border-border/60"
+                        >
                           <th className="px-4 py-5 text-left text-sm font-normal">
                             {row.label}
                           </th>
@@ -817,6 +828,37 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          {/* ── Testimonial ── real quote pulled verbatim from the login
+              screen (components/auth/auth-shell.tsx), including the "MO"
+              initials-avatar treatment (cyan-tinted fill, cyan border) —
+              reused rather than sourcing a photo we don't have. Sized big
+              on purpose ("real presence") to match how the reference treats
+              its testimonial: large quote, avatar + attribution beneath. */}
+          <section className="border-t border-border py-16 sm:py-20">
+            <div className="mx-auto max-w-3xl text-center">
+              <blockquote className="text-balance text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
+                &ldquo;Immediately after I finished my program at
+                MasteringBackend, I landed a gig to build a full-stack
+                application for an NGO, and everything I learned about
+                building a production-ready application I apply
+                here.&rdquo;
+              </blockquote>
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-2 border-[#13AECE] bg-[#13AECE]/[0.18] text-base font-bold text-[#13AECE]">
+                  MO
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">
+                    Maxmillian Ogbuabor
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Full-Stack Developer · Remote
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -868,10 +910,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                     price) in the server-rendered HTML even while collapsed —
                     without it, Radix unmounts closed content entirely and the
                     price never reaches crawlers or a curl of the page. */}
-                <AccordionContent
-                  forceMount
-                  className="px-4 text-white/70"
-                >
+                <AccordionContent forceMount className="px-4 text-white/70">
                   {item.a}
                 </AccordionContent>
               </AccordionItem>
