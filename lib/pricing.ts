@@ -29,6 +29,13 @@ export type PublicPricing = Omit<
   "provider" | "monthlyPriceId" | "annualPriceId"
 >;
 
+// Checkout is the one client surface that DOES need the processor identity
+// and price IDs — it has to know which SDK to open and which price to hand
+// it. `tier` is the only field nothing in checkout reads, so that's the only
+// one app/checkout/page.tsx strips (see toCheckoutPricing) before handing
+// pricing to the client component.
+export type CheckoutPricing = Omit<RegionalPricing, "tier">;
+
 export function formatPrice(amount: number, currency: "NGN" | "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

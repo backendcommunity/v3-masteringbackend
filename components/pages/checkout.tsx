@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { CreditCard, ArrowLeft, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -13,11 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { routes } from "@/lib/routes";
-import { Badge } from "../ui/badge";
 import { useAppStore } from "@/lib/store";
 import countries from "@/lib/countries.json";
 import { dataStore, Plan } from "@/lib/data";
@@ -37,20 +34,25 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { formatPrice } from "@/lib/pricing";
+import type { CheckoutPricing } from "@/lib/pricing";
 
 interface CheckoutPageProps {
-  onNavigate: (path: string) => void;
+  // Resolved server-side (see app/checkout/page.tsx) from the visitor's
+  // region. The buyer never chooses a processor — it's implied by `provider`
+  // and only ever used to pick which SDK call to make, never rendered.
+  pricing: CheckoutPricing;
 }
 
-export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
+export function CheckoutPage({ pricing }: CheckoutPageProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const store = useAppStore();
   const user = useUser();
   const fmt = (date?: string | Date | null): string =>
     formatDate(String(date ?? ""), user?.settings?.dateFormat);
   const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("paddle");
   const [plan, setPlan] = useState<Plan>();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const paddleRef = useRef<HTMLInputElement>(null);
@@ -58,11 +60,9 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   const [paddle, setPaddle] = useState<Paddle>();
 
   // Extract checkout type and ID from the URL
-  // const checkoutType = searchParams.get("type");
   const checkoutId = searchParams?.get("plan") ?? "pro";
   const cycle = searchParams?.get("cycle") ?? "monthly";
 
-  // const SELLER_ID = Number(process.env.NEXT_PUBLIC_SELLER_ID);
   const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
   const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
   const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
@@ -72,10 +72,12 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   const subscription = user?.subscription;
   const plans = dataStore.plans;
 
-  const getPriceId = (method: string | any) =>
-    cycle?.includes("monthly")
-      ? currentPaymentMethod(method).pc?.monthlyPlanId
-      : currentPaymentMethod(method).pc?.yearlyPlanId;
+  // Both intervals are valid for every tier (NG annual ships too) — no
+  // tier-conditional branch here.
+  const priceId =
+    cycle === "annual" ? pricing.annualPriceId : pricing.monthlyPriceId;
+  const amount = cycle === "annual" ? pricing.annual : pricing.monthly;
+  const countryName = countries.find((c) => c.code === pricing.country)?.name;
 
   useEffect(() => {
     let cancelled = false;
@@ -95,37 +97,74 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
     };
   }, [checkoutId, store]);
 
-  // Callback to open a checkout
-  const openCheckout = (priceId: string | any) => {
-    if (!paddleRef.current) return;
-
+  // Paddle renders an INLINE frame — safe to auto-open on mount, same as
+  // today. AsyncPay opens a popup, and browsers block `window.open` calls
+  // that aren't tied directly to a user gesture, so it must NOT be
+  // auto-invoked — only the Subscribe button's onClick may call it (see
+  // handleSubscribeClick below).
+  const openPaddleCheckout = useCallback(() => {
+    if (!priceId || !paddleRef.current) return;
     paddle?.Checkout?.open({
-      settings: {
-        displayMode: "inline",
-      },
+      settings: { displayMode: "inline" },
       items: [{ priceId }],
       customer: {
         email: user?.email!,
         address: {
-          countryCode:
-            countries.find((c) => c.name.includes(user?.country ?? "Nigeria"))
-              ?.code ?? "",
+          // Comes from the SAME country resolution that produced the price
+          // on screen. Without this, Paddle geo-detects independently and
+          // can bill a different tier than we just quoted.
+          countryCode: pricing.country || "US",
         },
       },
     });
-  };
+  }, [priceId, paddle, user, pricing.country]);
+
+  const openAsyncpayCheckout = useCallback(() => {
+    if (!priceId) return;
+    import("@asyncpay/checkout").then(({ AsyncpayCheckout }) => {
+      AsyncpayCheckout({
+        publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
+        customer: {
+          firstName: user?.name?.split(" ")?.[0],
+          lastName: user?.name?.split(" ")?.[1],
+          email: user?.email,
+        },
+        subscriptionPlanUUID: priceId,
+        onSuccess: () => {
+          setIsProcessing(false);
+          setCelebration(true);
+          toast.success("You're on Pro. Welcome in.");
+        },
+        onClose: () => setIsProcessing(false),
+      });
+    });
+  }, [priceId, user]);
+
+  // Routes the Subscribe click to the correct processor SDK based on the
+  // region-resolved provider. The buyer never chooses this — it's decided
+  // upstream — but for AsyncPay, this click IS the user gesture the popup
+  // needs to avoid being blocked.
+  const handleSubscribeClick = useCallback(() => {
+    if (!priceId) return;
+    setIsProcessing(true);
+    if (pricing.provider === "ASYNCPAY") {
+      openAsyncpayCheckout();
+    } else {
+      openPaddleCheckout();
+    }
+  }, [priceId, pricing.provider, openAsyncpayCheckout, openPaddleCheckout]);
 
   useEffect(() => {
-    if (!paddleRef.current) return;
-    openCheckout(getPriceId(paymentMethod));
-  }, [paddleRef.current, paymentMethod]);
+    if (pricing.provider === "ASYNCPAY") return;
+    openPaddleCheckout();
+  }, [openPaddleCheckout, pricing.provider]);
 
   initializePaddle({
     token: PADDLE_TOKEN,
     checkout: {
       settings: {
         displayMode: "inline",
-        frameTarget: "paddle",
+        frameTarget: "checkout-frame",
         frameInitialHeight: 450,
         variant: "one-page",
         frameStyle:
@@ -139,7 +178,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
           "ideal",
           "paypal",
         ],
-        // theme: theme?.includes("dark") ? "dark" : "light",
       },
     },
     eventCallback: function (data: any) {
@@ -151,7 +189,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
           setIsProcessing(false);
           break;
         case "checkout.completed":
-          const c_data = data?.custom_data;
           // Track payment (GA or Google)
           setIsProcessing(false);
           setCelebration(true);
@@ -166,36 +203,9 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
     .then((paddleInstance: Paddle | undefined) => {
       if (paddleInstance) {
         setPaddle(paddleInstance);
-        openCheckout(getPriceId(paymentMethod));
       }
     })
     .catch((e) => console.error(e));
-
-  const handleCheckout = async (e: React.FormEvent) => {
-    if (typeof window !== "undefined") {
-      e.preventDefault();
-      setIsProcessing(true);
-
-      const { AsyncpayCheckout } = await import("@asyncpay/checkout");
-
-      AsyncpayCheckout({
-        publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
-        customer: {
-          firstName: user?.name?.split(" ")?.[0],
-          lastName: user?.name?.split(" ")?.[1],
-          email: user?.email,
-        },
-        subscriptionPlanUUID: getPriceId(paymentMethod),
-        onSuccess: () => {
-          // Run a function to process the payment
-          alert("Payment successful");
-        },
-        onClose: () => {
-          // Run a function whenever the user closes the popup regardless of the payment status
-        },
-      });
-    }
-  };
 
   const handleCancelSubscription = () => {
     setCancelDialogOpen(false);
@@ -209,7 +219,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
   );
 
   const handleBack = () => {
-    onNavigate(routes.subscriptionPlans);
+    router.push(routes.subscriptionPlans);
   };
 
   if (checkoutId?.includes("free")) {
@@ -225,7 +235,7 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
             </CardDescription>
           </CardHeader>
           <CardFooter className="gap-4">
-            <Button onClick={() => onNavigate(routes.dashboard)}>
+            <Button onClick={() => router.push(routes.dashboard)}>
               Return to Dashboard
             </Button>
 
@@ -289,43 +299,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
     );
   }
   if (loading) return <PageSkeleton />;
-  // if (!plan) {
-  //   return (
-  //     <div className="container max-w-4xl py-12">
-  //       <Card>
-  //         <CardHeader>
-  //           <CardTitle>Checkout Error</CardTitle>
-  //           <CardDescription>The requested item was not found.</CardDescription>
-  //         </CardHeader>
-  //         <CardFooter>
-  //           <Button onClick={() => onNavigate(routes.dashboard)}>
-  //             Return to Dashboard
-  //           </Button>
-  //         </CardFooter>
-  //       </Card>
-  //     </div>
-  //   );
-  // }
-
-  const formatAmount = (amount: number) => {
-    if (typeof window === "undefined") return;
-    const currency = paymentMethod.includes("paddle") ? "USD" : "NGN";
-
-    return Intl.NumberFormat("en-US", {
-      currency,
-      style: "currency",
-    }).format(amount);
-  };
-
-  const currentPaymentMethod = (method: string) => {
-    const pc = plan?.paymentChannels?.find((pc) =>
-      pc.channel.toString().toLowerCase().includes(method),
-    );
-    return {
-      ...plan,
-      pc,
-    };
-  };
 
   return (
     <div className="container ">
@@ -337,61 +310,6 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
       <div className="grid gap-8 md:grid-cols-3">
         <div className="gap-4 flex flex-col">
           {/* Order Summary */}
-          <Card className="md:col-span-1 h-fit">
-            <CardHeader>
-              <CardTitle>Payment platform</CardTitle>
-              <CardDescription>
-                Select your payment platform based on your country.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-4">
-              <RadioGroup
-                defaultValue="card"
-                value={paymentMethod}
-                onValueChange={setPaymentMethod}
-                className=" gap-4"
-              >
-                <div className="">
-                  <RadioGroupItem
-                    value="paddle"
-                    id="paddle"
-                    className="peer sr-only"
-                  />
-                  <Label
-                    htmlFor="paddle"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                  >
-                    <CreditCard className="mb-2 h-6 w-6" />
-                    Paddle
-                  </Label>
-                </div>
-                <Separator />
-                <div className="relative">
-                  <Badge
-                    className="right-0 -top-2 absolute"
-                    variant={"destructive"}
-                  >
-                    Nigerians only
-                  </Badge>
-                  <RadioGroupItem
-                    value="paystack"
-                    id="paystack"
-                    className="peer sr-only"
-                  />
-                  <Label
-                    htmlFor="paystack"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                  >
-                    <div className="mb-2 h-6 w-6 flex items-center justify-center font-bold text-primary">
-                      A
-                    </div>
-                    AsyncPay
-                  </Label>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
           <Card className="md:col-span-1 h-fit">
             <CardHeader className="pb-4">
               <CardTitle>Order Summary</CardTitle>
@@ -407,32 +325,22 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
                 </p>
               </div>
 
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Billing in {pricing.currency}
+                {countryName ? ` for ${countryName}` : ""}
+              </p>
+
               <Separator />
 
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>
-                    {cycle === "monthly"
-                      ? formatAmount(
-                          Number(
-                            currentPaymentMethod(paymentMethod).pc
-                              ?.originalMonthlyPrice,
-                          ),
-                        )
-                      : formatAmount(
-                          Number(
-                            currentPaymentMethod(paymentMethod).pc
-                              ?.originalYearlyPrice,
-                          ),
-                        )}
-                  </span>
+                  <span>{formatPrice(amount, pricing.currency)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground text-sm">
                   <span>Tax</span>
-                  <span>
-                    {paymentMethod.includes("paddle") ? "$" : "NGN"}0.00
-                  </span>
+                  <span>{formatPrice(0, pricing.currency)}</span>
                 </div>
               </div>
 
@@ -440,48 +348,24 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
 
               <div className="flex justify-between font-medium">
                 <span>Total</span>
-                <span>
-                  {cycle === "monthly"
-                    ? formatAmount(
-                        Number(
-                          currentPaymentMethod(paymentMethod).pc
-                            ?.originalMonthlyPrice,
-                        ),
-                      )
-                    : formatAmount(
-                        Number(
-                          currentPaymentMethod(paymentMethod).pc
-                            ?.originalYearlyPrice,
-                        ),
-                      )}
-                </span>
+                <span>{formatPrice(amount, pricing.currency)}</span>
               </div>
 
               <div className="text-sm text-muted-foreground pt-2">
-                {cycle ? (
-                  <p>
-                    You will be charged{" "}
-                    <span>
-                      {cycle === "monthly"
-                        ? formatAmount(
-                            Number(
-                              currentPaymentMethod(paymentMethod).pc
-                                ?.originalMonthlyPrice,
-                            ),
-                          )
-                        : formatAmount(
-                            Number(
-                              currentPaymentMethod(paymentMethod).pc
-                                ?.originalYearlyPrice,
-                            ),
-                          )}
-                    </span>{" "}
-                    every {cycle === "monthly" ? "month" : "year"}.
-                  </p>
-                ) : (
-                  <p>One-time payment. No recurring charges.</p>
-                )}
+                <p>
+                  You will be charged{" "}
+                  <span>{formatPrice(amount, pricing.currency)}</span> every{" "}
+                  {cycle === "monthly" ? "month" : "year"}.
+                </p>
               </div>
+
+              <Button
+                className="w-full"
+                disabled={isProcessing || !priceId}
+                onClick={handleSubscribeClick}
+              >
+                {priceId ? "Subscribe" : "Loading..."}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -490,53 +374,15 @@ export function CheckoutPage({ onNavigate }: CheckoutPageProps) {
           <CardHeader>
             <CardTitle>Complete your subscription</CardTitle>
             <CardDescription>
-              Fill out your card details and complete your subscription.
+              Fill out your details and complete your subscription.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-4">
-            <form className="space-y-6">
-              {paymentMethod === "paddle" && (
-                <>
-                  {openCheckout(getPriceId(paymentMethod))}
-
-                  <div
-                    ref={paddleRef}
-                    className="space-y-5 paddle w-full"
-                    id="paddle"
-                  ></div>
-                </>
-              )}
-
-              {paymentMethod === "paystack" && (
-                <div className="text-center py-10">
-                  <p className="text-muted-foreground mb-4">
-                    You will be redirected to AsyncPay to complete your payment.
-                  </p>
-                  <div className="w-16 h-16 bg-primary rounded-full mx-auto flex items-center justify-center text-white font-bold text-2xl">
-                    A
-                  </div>
-
-                  <div className="py-6 w-full">
-                    <Button className="w-full" onClick={handleCheckout}>
-                      Pay{" "}
-                      {cycle === "monthly"
-                        ? formatAmount(
-                            Number(
-                              currentPaymentMethod(paymentMethod).pc
-                                ?.originalMonthlyPrice,
-                            ),
-                          )
-                        : formatAmount(
-                            Number(
-                              currentPaymentMethod(paymentMethod).pc
-                                ?.originalYearlyPrice,
-                            ),
-                          )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </form>
+            <div
+              ref={paddleRef}
+              className="space-y-5 checkout-frame w-full"
+              id="checkout-frame"
+            />
           </CardContent>
         </Card>
       </div>
