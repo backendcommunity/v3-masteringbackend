@@ -443,7 +443,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
             any stacked headline. The accent span is untouched: same size as
             the rest of the line, only coloured. */}
         <h1 className="mx-auto max-w-xl text-balance text-[1.75rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-3xl lg:max-w-3xl lg:text-[2rem] xl:max-w-none xl:whitespace-nowrap">
-          Learn the <span className="text-primary">engineering skills</span> you
+          Learn the <span className="text-primary">Engineering Skills</span> you
           need to advance your career.
         </h1>
 
@@ -727,15 +727,15 @@ export default function PricingView({ pricing }: PricingViewProps) {
             companies, so type size/weight carries the presence a real
             logo would). White (not white/opacity) because this band sits
             on the hero's fixed dark navy regardless of site theme. */}
-        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-8 px-4 pb-16 sm:grid-cols-[minmax(0,280px)_1fr] sm:items-center sm:gap-16">
-          <h2 className="text-3xl font-extrabold leading-[1.15] text-white sm:text-4xl">
+        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-6 px-4 pb-16 sm:grid-cols-[minmax(0,280px)_1fr] sm:items-center sm:gap-10">
+          <h2 className="text-2xl font-bold leading-[1.2] text-white sm:text-3xl">
             Our learners work at
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
             {TRUSTED_BY_COMPANIES.map((name) => (
               <span
                 key={name}
-                className="text-xl font-bold tracking-tight text-white sm:text-2xl"
+                className="text-xl font-semibold tracking-tight text-white"
               >
                 {name}
               </span>
