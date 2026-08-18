@@ -171,44 +171,46 @@ const COMPARE_GROUPS: {
     // /subscription/plans reads) — nothing here is claimed that isn't
     // already sold on that page. Every row here is genuinely exclusive to
     // Enterprise (neither Free nor Pro offers any of it), so Free/Pro cells
-    // read "Enterprise Only" instead of a plain ✗ — more informative, and
-    // truthful for every row in this group.
+    // carry the same muted mark every other excluded feature uses. They used
+    // to spell out "Enterprise Only", which said nothing the column heading
+    // doesn't already say and broke the scan-down rhythm of the marks
+    // column.
     name: "Team & enterprise",
     rows: [
       {
         label: "Team seats included",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "5",
       },
       {
         label: "Additional seats",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "$10/seat",
       },
       {
         label: "Structured, cohort-based bootcamps",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "yes",
       },
       {
         label: "Certification exams",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "yes",
       },
       {
         label: "1-on-1 mentorship with industry experts",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "yes",
       },
       {
         label: "Dedicated career placement assistance",
-        free: "Enterprise Only",
-        pro: "Enterprise Only",
+        free: "no",
+        pro: "no",
         enterprise: "yes",
       },
     ],
@@ -376,26 +378,37 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
       {/* ── Hero ── */}
       <section className="bg-[#0e1f33] px-4 pb-0 pt-20 text-center text-white">
-        {/* One straight line on desktop (no sub-line beneath it, per the
-            DataCamp reference) — nowrap only kicks in from xl: up, paired
-            with a font-size that's clamped small enough it can never need
-            more than ~1100px, well inside any xl+ viewport. Below xl the
-            headline wraps normally (text-balance) like any stacked
-            headline, so tablet/mobile are untouched. */}
-        <h1 className="mx-auto max-w-xl text-balance text-4xl font-extrabold leading-[1.05] tracking-tight sm:max-w-2xl lg:max-w-3xl lg:text-5xl xl:max-w-none xl:whitespace-nowrap xl:text-[clamp(1.75rem,2.3vw,2.75rem)] xl:leading-tight">
+        {/* A page title, not a billboard — the reference sets this line at
+            roughly 2rem on desktop and never larger, so the size now tops
+            out at text-[2rem] instead of climbing to text-5xl / 2.75rem as
+            it used to (48px at lg, 44px at 1920 — a display size that
+            swallowed the plan cards beneath it). One straight line from xl:
+            up, where 2rem needs ~980px and any xl viewport has that to
+            spare; below xl the headline wraps normally (text-balance) like
+            any stacked headline. The accent span is untouched: same size as
+            the rest of the line, only coloured. */}
+        <h1 className="mx-auto max-w-xl text-balance text-[1.75rem] font-extrabold leading-tight tracking-tight sm:max-w-2xl sm:text-3xl lg:max-w-3xl lg:text-[2rem] xl:max-w-none xl:whitespace-nowrap">
           Learn the <span className="text-primary">engineering skills</span> you
           need to advance your career.
         </h1>
 
         {/* ── Plan cards ──
-            Joined into one panel at lg: a single outer border encloses all
-            three, gap-0 + divide-x share the inner edges, and items-center
-            (instead of the default grid stretch) lets each card keep its
-            own natural height — Pro's is taller from its extra content, so
-            it centers proud of Free/Enterprise on both edges without any
-            manual margin/translate hack. Below lg the cards stay stacked
-            and independently rounded, unchanged from before. */}
-        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 items-start justify-items-center gap-6 lg:max-w-[1120px] lg:grid-cols-3 lg:items-center lg:justify-items-stretch lg:gap-0 lg:divide-x lg:divide-white/15 lg:rounded-2xl lg:border lg:border-white/15">
+            Joined into one panel at lg: gap-0 butts the three cards edge to
+            edge and Free/Enterprise round only their outer corners, so the
+            trio reads as one white panel sitting on the dark ground. There
+            is deliberately NO enclosing outline — the reference has none,
+            and the outer border this used to carry (lg:rounded-2xl
+            lg:border lg:border-white/15) drew a second, larger rectangle
+            around the cards that the eye read as a stray frame. The cards
+            are opaque bg-card, so their own edges are all the definition
+            the grouping needs.
+
+            items-center (instead of the default grid stretch) lets each
+            card keep its own natural height — Pro's is taller from its
+            extra content, so it centers proud of Free/Enterprise on both
+            edges without any manual margin/translate hack. Below lg the
+            cards stay stacked and independently rounded. */}
+        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 items-start justify-items-center gap-6 lg:max-w-[1120px] lg:grid-cols-3 lg:items-center lg:justify-items-stretch lg:gap-0">
           {/* Free */}
           <div className="w-full max-w-[380px] rounded-2xl bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-l-2xl">
             <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -651,9 +664,9 @@ export default function PricingView({ pricing }: PricingViewProps) {
           <div className="mx-auto max-w-3xl">
             <blockquote className="text-balance text-2xl font-semibold leading-snug tracking-tight text-white sm:text-3xl">
               &ldquo;Immediately after I finished my program at
-              MasteringBackend, I landed a gig to build a full-stack
-              application for an NGO, and everything I learned about building
-              a production-ready application I apply here.&rdquo;
+              MasteringBackend, I landed a gig to build a full-stack application
+              for an NGO, and everything I learned about building a
+              production-ready application I apply here.&rdquo;
             </blockquote>
             <div className="mt-8 flex flex-col items-center gap-3">
               <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-2 border-[#13AECE] bg-[#13AECE]/[0.18] text-base font-bold text-[#13AECE]">
@@ -709,21 +722,41 @@ export default function PricingView({ pricing }: PricingViewProps) {
             <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">
               What you get on each plan
             </h2>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* One bordered panel, one ground. bg-card on the wrapper matters
+                for more than looks: the section behind it is bg-muted/30, and
+                the header cells used to paint their own bg-card while the body
+                cells stayed transparent — so the Pro column's bg-primary/5
+                composited over white in the header and over muted grey in the
+                body, and visibly changed shade halfway down. With the whole
+                panel on bg-card, one tint value yields one colour top to
+                bottom. overflow-x-auto keeps the 820px min-width table
+                scrolling inside this box on mobile rather than widening the
+                page. */}
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
               <table className="w-full min-w-[820px] border-collapse text-sm">
-                {/* Sticky header reads as its own bordered panel: a heavier
-                    bottom border separates it from the body, and each cell
-                    keeps a vertical border so the whole row frames like one
-                    card sitting on top of the table. The Pro cell's bg-primary/5
-                    here is the same tint every Pro body cell below uses, so
-                    the tinted column reads continuously from header to
-                    footer — see the tint-continuation cells in tbody. */}
+                {/* Header row: plan name, compact price line, CTA — and
+                    nothing above them. It is deliberately NOT pinned any
+                    more. Pinning these cells (position:sticky, offset under
+                    the site header, raised z-index) was the single cause of
+                    two defects: while pinned the cells shifted out of their
+                    own row and left an empty band above the plan names, and
+                    their raised stacking order painted straight over the
+                    first group heading below, clipping "Learn" down to an
+                    orphaned fragment of its cyan rule. A ~130px-tall header
+                    parked under a 56px site header also ate a third of a
+                    short viewport. The reference's header simply sits at the
+                    top of the panel, so this one does too.
+
+                    No vertical rules either: the single unbroken border-b-2
+                    under the row separates header from body, and the Pro
+                    column's tint — which starts here and never stops — is
+                    what marks the recommended column out. */}
                 <thead>
                   <tr>
-                    <th className="sticky top-14 z-20 w-[30%] border-b-2 border-border bg-card px-4 py-5 text-left align-top backdrop-blur">
+                    <th className="w-[30%] border-b-2 border-border px-4 py-5 text-left align-top">
                       <span className="sr-only">Feature</span>
                     </th>
-                    <th className="sticky top-14 z-20 border-b-2 border-l border-border bg-card px-4 py-5 text-center align-top backdrop-blur">
+                    <th className="border-b-2 border-border px-4 py-5 text-center align-top">
                       <div className="text-xl font-extrabold tracking-tight">
                         Free
                       </div>
@@ -750,7 +783,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         </Button>
                       )}
                     </th>
-                    <th className="sticky top-14 z-20 border-b-2 border-l border-primary/30 bg-primary/5 px-4 py-5 text-center align-top backdrop-blur">
+                    <th className="border-b-2 border-border bg-primary/5 px-4 py-5 text-center align-top">
                       <div className="text-xl font-extrabold tracking-tight text-primary">
                         Pro
                       </div>
@@ -779,7 +812,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         </Button>
                       )}
                     </th>
-                    <th className="sticky top-14 z-20 border-b-2 border-l border-border bg-card px-4 py-5 text-center align-top backdrop-blur">
+                    <th className="border-b-2 border-border px-4 py-5 text-center align-top">
                       <div className="text-xl font-extrabold tracking-tight">
                         Enterprise
                       </div>
@@ -825,7 +858,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         <tr aria-hidden="true">
                           <td className="border-t border-dashed border-border px-4 py-2" />
                           <td className="border-t border-dashed border-border px-4 py-2" />
-                          <td className="border-t border-dashed border-primary/30 bg-primary/5 px-4 py-2" />
+                          <td className="border-t border-dashed border-border bg-primary/5 px-4 py-2" />
                           <td className="border-t border-dashed border-border px-4 py-2" />
                         </tr>
                       )}
