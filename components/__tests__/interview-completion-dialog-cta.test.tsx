@@ -6,6 +6,7 @@ import { InterviewCompletionDialog } from "@/components/pages/mock-interviews/ch
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => "/mock-interviews/demo",
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -56,7 +57,9 @@ describe("InterviewCompletionDialog — access-aware CTA", () => {
       "mock_interview_demo_cta_clicked",
       expect.objectContaining({ path: "start_real" }),
     );
-    expect(mockPush).not.toHaveBeenCalledWith("/subscription/plans");
+    expect(mockPush).not.toHaveBeenCalledWith(
+      "/pricing?redirect=%2Fmock-interviews%2Fdemo",
+    );
   });
 
   it("hasFullAccess=false + source=demo: shows 'Unlock Full Access', pushes /subscription/plans, tracks demo_cta_clicked with path=upgrade", () => {
@@ -75,7 +78,9 @@ describe("InterviewCompletionDialog — access-aware CTA", () => {
 
     fireEvent.click(btn);
 
-    expect(mockPush).toHaveBeenCalledWith("/subscription/plans");
+    expect(mockPush).toHaveBeenCalledWith(
+      "/pricing?redirect=%2Fmock-interviews%2Fdemo",
+    );
     expect(mockTrack).toHaveBeenCalledWith(
       "mock_interview_demo_cta_clicked",
       expect.objectContaining({ path: "upgrade" }),
@@ -97,7 +102,9 @@ describe("InterviewCompletionDialog — access-aware CTA", () => {
 
     fireEvent.click(btn);
 
-    expect(mockPush).toHaveBeenCalledWith("/subscription/plans");
+    expect(mockPush).toHaveBeenCalledWith(
+      "/pricing?redirect=%2Fmock-interviews%2Fdemo",
+    );
     const demoCalls = mockTrack.mock.calls.filter(
       (c) => c[0] === "mock_interview_demo_cta_clicked",
     );

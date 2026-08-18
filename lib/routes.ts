@@ -136,6 +136,8 @@ export const routes = {
   billing: "/billing",
   checkout: (type: string, planId: string, cycle: string) =>
     `/checkout?type=${type}&plan=${planId}&cycle=${cycle}`,
+  pricing: (redirect?: string) =>
+    redirect ? `/pricing?redirect=${encodeURIComponent(redirect)}` : "/pricing",
 
   // Levels
   levels: "/levels",

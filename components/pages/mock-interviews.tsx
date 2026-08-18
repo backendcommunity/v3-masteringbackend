@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +55,7 @@ import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
 import { analytics } from "@/lib/analytics";
+import { routes } from "@/lib/routes";
 
 interface MockInterviewsPageProps {
   onNavigate: (path: string) => void;
@@ -130,7 +131,11 @@ interface TemplateFormData {
 export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const store = useAppStore();
   const user = useUser();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentPathWithQuery = searchParams?.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
   const [templates, setTemplates] = useState<InterviewTemplate[]>([]);
   const [bookedInterviews, setBookedInterviews] = useState<UserInterview[]>([]);
   const [completedInterviews, setCompletedInterviews] = useState<
@@ -743,7 +748,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                           from: "practice_cta_header",
                           tier: "free",
                         });
-                        onNavigate("/subscription/plans");
+                        onNavigate(routes.pricing(currentPathWithQuery));
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                     >
@@ -844,7 +849,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   : "You've used all your mock interviews this month. Upgrade to Enterprise for unlimited sessions."}
               </p>
             </div>
-            <Button size="sm" onClick={() => onNavigate("/subscription/plans")}>
+            <Button size="sm" onClick={() => onNavigate(routes.pricing(currentPathWithQuery))}>
               <Crown className="h-4 w-4 mr-2" />
               Upgrade
             </Button>
@@ -1439,7 +1444,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   from: "upgrade_dialog",
                   tier: interviewAccess?.tier,
                 });
-                onNavigate("/subscription/plans");
+                onNavigate(routes.pricing(currentPathWithQuery));
               }}
             >
               <Crown className="h-4 w-4 mr-2" />

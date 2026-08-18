@@ -276,7 +276,15 @@ export function SubscriptionManagementPage({
                     )}
                   </p>
                 </div>
-                <Button onClick={() => onNavigate(routes.subscriptionPlans)}>
+                <Button
+                  onClick={() =>
+                    onNavigate(
+                      subscription?.plan?.name?.includes("Free")
+                        ? routes.pricing()
+                        : routes.subscriptionPlans,
+                    )
+                  }
+                >
                   {subscription?.plan?.name?.includes("Free")
                     ? "Upgrade to Pro"
                     : "Change Plan"}

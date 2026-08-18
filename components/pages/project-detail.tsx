@@ -104,7 +104,7 @@ export function ProjectDetailPage({
     if (!project || !success) return;
     switch (method) {
       case "subscription":
-        onNavigate(routes.subscriptionPlans);
+        onNavigate(routes.pricing(routes.projectDetail(slug)));
         break;
       case "individual":
         break;

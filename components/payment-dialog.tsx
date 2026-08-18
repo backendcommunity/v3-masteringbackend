@@ -9,7 +9,7 @@ import {
 } from "./ui/dialog";
 import { useUser } from "@/hooks/use-user";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { useTheme } from "next-themes";
 import countries from "@/lib/countries.json";
@@ -18,6 +18,7 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 import { Plan } from "@/lib/data";
+import { routes } from "@/lib/routes";
 import { usePricing } from "@/hooks/use-pricing";
 import { type PublicPricing } from "@/lib/pricing";
 import { formatSubscriptionCardPrice } from "@/lib/pro-cta";
@@ -61,6 +62,7 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const user = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   const store = useAppStore();
   const { theme } = useTheme();
   const [paddle, setPaddle] = useState<Paddle>();
@@ -341,7 +343,7 @@ export function PaymentDialog({
                         </div>
                       </div>
                       <Link
-                        href={"/subscription/plans"}
+                        href={routes.pricing(pathname)}
                         className="text-xs text-primary z-10"
                         // Nested inside the card's own click target — without
                         // this, picking "another plan" ALSO fires the card and

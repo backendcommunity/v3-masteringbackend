@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   X,
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
+import { routes } from "@/lib/routes";
 
 type Template = MockInterviewTemplateCardData;
 
@@ -52,6 +53,7 @@ export function InterviewCompletionDialog({
   source,
 }: InterviewCompletionDialogProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const store = useAppStore();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [courses, setCourses] = useState<CourseItem[]>([]);
@@ -127,7 +129,7 @@ export function InterviewCompletionDialog({
         const status = err?.response?.status;
         if (status === 402 || status === 403) {
           onClose();
-          router.push("/subscription/plans");
+          router.push(routes.pricing(pathname));
         } else {
           toast.error(
             err?.response?.data?.message ?? "Failed to start interview.",
@@ -137,7 +139,7 @@ export function InterviewCompletionDialog({
         setStartingId(null);
       }
     },
-    [startingId, store, router, onClose],
+    [startingId, store, router, onClose, pathname],
   );
 
   const handleSaveTemplate = useCallback(
@@ -428,7 +430,7 @@ export function InterviewCompletionDialog({
                   router.push("/mock-interviews");
                 } else {
                   analytics.track("chat_interview_unlock_full_access_clicked", { from_score: overallScore });
-                  router.push("/subscription/plans");
+                  router.push(routes.pricing(pathname));
                 }
               }}
             >
