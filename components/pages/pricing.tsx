@@ -53,58 +53,124 @@ const PRO_FEATURES: string[] = [
 ];
 
 // What Enterprise adds ON TOP of Pro — deliberately not a repeat of
-// PRO_FEATURES. Mirrors the delta subscription-plans.tsx's Enterprise plan
-// definition already sells (lib/data.ts: bootcamps, certification exams,
-// 1-on-1 mentorship, career services, team seats).
+// PRO_FEATURES; the card leads with an "Everything in Pro, plus:" line (see
+// the Enterprise card below) so this array lists only the delta. Mirrors
+// what lib/data.ts's Enterprise plan record (source of /subscription/plans)
+// already attributes to this tier: an included team allotment beyond which
+// extra seats are billed separately, cohort-based bootcamps, certification
+// exams, 1-on-1 mentorship, and career placement assistance.
 const ENTERPRISE_FEATURES: string[] = [
-  "Everything in Pro",
-  "Team seats for up to 5 members",
+  "Team seats for up to 5 members ($10/seat after that)",
   "Structured, cohort-based bootcamps",
   "Certification exams",
   "1-on-1 mentorship with industry experts",
   "Dedicated career placement assistance",
 ];
 
+// Learners work at these companies — see the trusted-by band below the
+// "Compare features" anchor. Same list as the marketing site's
+// ALUMNI_COMPANIES (app/page.tsx in the landing-page repo); kept as a plain
+// name list here since this page renders them as text wordmarks, not logos.
+const TRUSTED_BY_COMPANIES: string[] = [
+  "Kuda",
+  "Paystack",
+  "Cowrywise",
+  "Flutterwave",
+  "Andela",
+  "Amazon",
+  "Google",
+  "Meta",
+  "Netflix",
+  "Shopify",
+  "Stripe",
+  "Uber",
+];
+
 type CompareCell = "yes" | "no" | string;
 
 const COMPARE_GROUPS: {
   name: string;
-  rows: { label: string; free: CompareCell; pro: CompareCell }[];
+  rows: { label: string; free: CompareCell; pro: CompareCell; enterprise: CompareCell }[];
 }[] = [
   {
     name: "Learn",
     rows: [
-      { label: "First steps of every path", free: "yes", pro: "yes" },
-      { label: "Every path and course, end to end", free: "no", pro: "yes" },
+      { label: "First steps of every path", free: "yes", pro: "yes", enterprise: "yes" },
+      {
+        label: "Every path and course, end to end",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
       {
         label: "Coding exercises in the playground",
         free: "Limited",
         pro: "yes",
+        enterprise: "yes",
       },
     ],
   },
   {
     name: "Build",
     rows: [
-      { label: "Guided projects", free: "Starter only", pro: "yes" },
-      { label: "Code review on submissions", free: "no", pro: "yes" },
-      { label: "Public portfolio", free: "yes", pro: "yes" },
+      { label: "Guided projects", free: "Starter only", pro: "yes", enterprise: "yes" },
+      { label: "Code review on submissions", free: "no", pro: "yes", enterprise: "yes" },
+      { label: "Public portfolio", free: "yes", pro: "yes", enterprise: "yes" },
     ],
   },
   {
     name: "Grow",
     rows: [
-      { label: "AI mock interviews", free: "no", pro: "yes" },
-      { label: "Scored interview reports", free: "no", pro: "yes" },
-      { label: "Verified certificates", free: "no", pro: "yes" },
-      { label: "XP, streaks, leaderboard", free: "yes", pro: "yes" },
+      { label: "AI mock interviews", free: "no", pro: "yes", enterprise: "yes" },
+      { label: "Scored interview reports", free: "no", pro: "yes", enterprise: "yes" },
+      { label: "Verified certificates", free: "no", pro: "yes", enterprise: "yes" },
+      { label: "XP, streaks, leaderboard", free: "yes", pro: "yes", enterprise: "yes" },
+    ],
+  },
+  {
+    // Sourced from lib/data.ts's Enterprise plan record (the same data
+    // /subscription/plans reads) — nothing here is claimed that isn't
+    // already sold on that page.
+    name: "Team & enterprise",
+    rows: [
+      {
+        label: "Team seats included",
+        free: "no",
+        pro: "no",
+        enterprise: "5",
+      },
+      {
+        label: "Additional seats",
+        free: "no",
+        pro: "no",
+        enterprise: "$10/seat",
+      },
+      {
+        label: "Structured, cohort-based bootcamps",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
+      { label: "Certification exams", free: "no", pro: "no", enterprise: "yes" },
+      {
+        label: "1-on-1 mentorship with industry experts",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
+      {
+        label: "Dedicated career placement assistance",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
     ],
   },
   {
     name: "Support",
     rows: [
-      { label: "Community", free: "yes", pro: "yes" },
-      { label: "Priority support", free: "no", pro: "yes" },
+      { label: "Community", free: "yes", pro: "yes", enterprise: "yes" },
+      { label: "Priority support", free: "no", pro: "yes", enterprise: "yes" },
     ],
   },
 ];
@@ -189,15 +255,17 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const isPro = tierStatus === "pro";
   const isEnterprise = tierStatus === "enterprise";
 
-  // Checkout (components/pages/checkout.tsx) derives its entire price and
-  // Paddle/processor selection from the region-resolved Pro pricing object —
-  // it has no per-plan lookup, so it cannot accept a second, differently
-  // priced global plan without silently charging Enterprise buyers the
-  // regional Pro amount. /subscription/plans already sells Enterprise
-  // through its own card, so the Enterprise CTA here routes there instead of
-  // bodging it through /checkout. See enterprise-report.md for the full
-  // writeup.
-  const enterpriseCtaHref = routes.subscriptionPlans;
+  // Checkout used to derive its entire price and processor selection from
+  // the region-resolved Pro pricing object alone, so it had no way to price
+  // a second, differently-priced global plan — routing Enterprise through it
+  // would have silently charged Enterprise buyers the regional Pro amount.
+  // lib/checkout-plan-pricing.ts (see resolveCheckoutPrice) fixed that: a
+  // non-Pro `?plan=` is now priced from that plan's OWN record, with no path
+  // back to the regional numbers (25 tests, including a regression pin that
+  // an Enterprise-shaped checkout never returns Pro's amount or price ID).
+  // Enterprise can now sell end-to-end from this page, the same way Pro
+  // does.
+  const enterpriseCtaHref = `/checkout?plan=enterprise&cycle=${cycle}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -249,8 +317,8 @@ export default function PricingView({ pricing }: PricingViewProps) {
       {/* ── Hero ── */}
       <section className="bg-[#0e1f33] px-4 pb-0 pt-20 text-center text-white">
         <h1 className="mx-auto max-w-xl text-balance text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl">
-          Go from writing endpoints to{" "}
-          <span className="text-primary">designing systems</span>.
+          Learn the <span className="text-primary">engineering skills</span>{" "}
+          you need to advance your career.
         </h1>
         <p className="mx-auto mt-4 max-w-md text-pretty text-white/70">
           Paths, real projects with code review, and mock interviews that end
@@ -398,7 +466,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
           </div>
 
           {/* Enterprise */}
-          <div className="w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground">
+          <div className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground">
+            <span className="absolute -top-3 right-6 whitespace-nowrap rounded-md bg-[#EB5757] px-3 py-1 font-mono text-[10px] font-bold tracking-widest text-white">
+              BEST VALUE
+            </span>
             <div className="mb-1 flex items-center justify-between">
               <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 For teams &amp; businesses
@@ -449,6 +520,9 @@ export default function PricingView({ pricing }: PricingViewProps) {
               </Button>
             )}
 
+            <p className="mb-3 text-sm font-semibold">
+              Everything in Pro, plus:
+            </p>
             <ul className="grid gap-3">
               {ENTERPRISE_FEATURES.map((label) => (
                 <li
@@ -517,16 +591,40 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </div>
           </figure>
 
+          {/* ── Trusted-by band ──
+              "Our learners work at" — not "trusted by", which would claim a
+              customer relationship with these companies. What's true is
+              narrower: this is where people who learned here are employed,
+              same framing the marketing site uses for this exact company
+              list (see app/page.tsx's ALUMNI_COMPANIES in the landing-page
+              repo). Text wordmarks, muted and evenly spaced — no logo
+              assets exist for these companies. */}
+          <div className="grid grid-cols-1 items-center gap-5 border-b border-border py-10 sm:grid-cols-[auto_1fr] sm:gap-10">
+            <p className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
+              Our learners work at
+            </p>
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+              {TRUSTED_BY_COMPANIES.map((name) => (
+                <span
+                  key={name}
+                  className="text-lg font-bold tracking-tight text-muted-foreground/60 grayscale"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {/* ── Comparison table ── */}
           <section id="compare" className="py-2 pb-20">
             <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">
               What you get on each plan
             </h2>
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[620px] border-collapse text-sm">
+              <table className="w-full min-w-[820px] border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="sticky top-14 z-10 w-[44%] border-b border-border bg-muted/60 px-4 py-4 text-left align-top backdrop-blur">
+                    <th className="sticky top-14 z-10 w-[34%] border-b border-border bg-muted/60 px-4 py-4 text-left align-top backdrop-blur">
                       <span className="sr-only">Feature</span>
                     </th>
                     <th className="sticky top-14 z-10 border-b border-border bg-muted/60 px-4 py-4 text-center align-top backdrop-blur">
@@ -567,6 +665,25 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         </Button>
                       )}
                     </th>
+                    <th className="sticky top-14 z-10 border-b border-border bg-muted/60 px-4 py-4 text-center align-top backdrop-blur">
+                      <div className="text-base font-bold">
+                        Enterprise
+                      </div>
+                      <div className="mb-3 mt-0.5 font-mono text-xs text-muted-foreground">
+                        {monthlyEquivalent(ENTERPRISE_PRICING, cycle)} /mo
+                      </div>
+                      {isEnterprise ? (
+                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
+                          You&apos;re on Enterprise
+                        </span>
+                      ) : (
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={enterpriseCtaHref}>
+                            {isPro ? "Upgrade" : "Choose Enterprise"}
+                          </Link>
+                        </Button>
+                      )}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -574,7 +691,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                     <Fragment key={group.name}>
                       <tr>
                         <th
-                          colSpan={3}
+                          colSpan={4}
                           className="bg-muted/30 px-4 pb-2 pt-7 text-left font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
                         >
                           {group.name}
@@ -593,6 +710,9 @@ export default function PricingView({ pricing }: PricingViewProps) {
                           </td>
                           <td className="bg-primary/5 px-4 py-3 text-center">
                             <CompareMark value={row.pro} />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <CompareMark value={row.enterprise} />
                           </td>
                         </tr>
                       ))}

@@ -415,7 +415,7 @@ export function SubscriptionManagementPage({
             <CardFooter className="flex justify-between border-t pt-4">
               <Button
                 variant="outline"
-                onClick={() => onNavigate(routes.subscriptionPlans)}
+                onClick={() => onNavigate(routes.pricing())}
               >
                 View Available Plans
               </Button>
@@ -811,7 +811,7 @@ export function SubscriptionManagementPage({
               <div className="text-center md:text-right">
                 <Button
                   size="lg"
-                  onClick={() => onNavigate(routes.subscriptionPlans)}
+                  onClick={() => onNavigate(routes.pricing())}
                 >
                   <Crown className="mr-2 h-4 w-4" />
                   Upgrade Now
