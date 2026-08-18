@@ -93,10 +93,24 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   const asyncpayWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const asyncpayWrapperObserverRef = useRef<MutationObserver | null>(null);
   const asyncpayPagehideRef = useRef<(() => void) | null>(null);
+  // Paddle's equivalent pre-frame watchdog. Paddle needs no MutationObserver:
+  // the SDK's own eventCallback fires the moment anything happens to the
+  // checkout (loaded / closed / completed / error), so ANY event is proof the
+  // buyer is no longer stranded and cancels the timer.
+  const paddleWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest values for Paddle's eventCallback, which is registered once on
+  // mount (see the init effect) and must not capture a stale render's props.
+  const paddleEventCtxRef = useRef({
+    country: "",
+    cycle: "monthly",
+    checkoutId: "pro",
+  });
 
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
   const cycle = searchParams?.get("cycle") ?? "monthly";
+
+  paddleEventCtxRef.current = { country: pricing.country, cycle, checkoutId };
 
   const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
   const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
@@ -106,6 +120,12 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
 
   const subscription = user?.subscription;
   const plans = dataStore.plans;
+  // A subscriber must never be able to complete a SECOND purchase. /pricing
+  // guards its CTAs the same way, but this page is directly reachable (a
+  // bookmark, a hand-typed URL, a stale tab), so the guard has to live here
+  // too — and it has to also stop the payment SDK initialising, not merely
+  // hide the button.
+  const isPro = Boolean(user?.isPremium);
 
   // Both intervals are valid for every tier (NG annual ships too) — no
   // tier-conditional branch here.
@@ -114,13 +134,17 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   const amount = cycle === "annual" ? pricing.annual : pricing.monthly;
   const countryName = countries.find((c) => c.code === pricing.country)?.name;
 
-  // For Paddle, ready as soon as we have a price ID. For AsyncPay, also
-  // wait on the eager chunk prefetch — see the effect below — purely so the
-  // Subscribe click doesn't have to wait on a network fetch of its own
-  // before the SDK call can start.
+  // A price ID alone is NOT readiness. Each provider also needs its SDK
+  // actually resolved:
+  //   - Paddle: `paddle` stays undefined while initializePaddle is in flight,
+  //     and forever if the CDN is blocked or the token is bad. Subscribe used
+  //     to be enabled in that state, so clicking it set "Processing..." and
+  //     then silently did nothing — the buyer sat on a dead disabled button.
+  //   - AsyncPay: waits on the eager chunk prefetch (see the effect below) so
+  //     the click doesn't have to fetch a chunk before it can start.
   const subscribeReady =
     Boolean(priceId) &&
-    (pricing.provider !== "ASYNCPAY" || asyncpayReady);
+    (pricing.provider === "ASYNCPAY" ? asyncpayReady : Boolean(paddle));
   const subscribeLabel = !subscribeReady
     ? "Loading..."
     : isProcessing
@@ -236,6 +260,32 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
     return () => clearAsyncpayWatchdog();
   }, [clearAsyncpayWatchdog]);
 
+  const clearPaddleWatchdog = useCallback(() => {
+    if (paddleWatchdogRef.current) {
+      clearTimeout(paddleWatchdogRef.current);
+      paddleWatchdogRef.current = null;
+    }
+  }, []);
+
+  // Same contract as the AsyncPay watchdog: guard the click -> checkout-UI
+  // window only, so Subscribe can never sit disabled on "Processing..."
+  // forever when the SDK never comes back. Cancelled by the first Paddle
+  // event of any kind (see the eventCallback in the init effect below).
+  const armPaddleWatchdog = useCallback(() => {
+    clearPaddleWatchdog();
+    paddleWatchdogRef.current = setTimeout(() => {
+      paddleWatchdogRef.current = null;
+      setIsProcessing(false);
+      toast.error(
+        "We couldn't start checkout. Check your connection and try again.",
+      );
+    }, CHECKOUT_OPEN_TIMEOUT_MS);
+  }, [clearPaddleWatchdog]);
+
+  useEffect(() => {
+    return () => clearPaddleWatchdog();
+  }, [clearPaddleWatchdog]);
+
   // Paddle renders an INLINE frame — safe to auto-open on mount, same as
   // today. AsyncPay is intentionally NOT auto-invoked on mount — not for
   // any popup/gesture reason (this SDK never opens a popup; see the note
@@ -243,9 +293,14 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   // deliberate Subscribe button, not a payment modal that ambushes the
   // buyer the instant the page loads. Only the Subscribe button's onClick
   // opens AsyncPay's checkout (see handleSubscribeClick below).
-  const openPaddleCheckout = useCallback(() => {
-    if (!priceId || !paddleRef.current) return;
-    paddle?.Checkout?.open({
+  /**
+   * Returns true only if the checkout was actually handed to the SDK. The
+   * callers rely on that: a silent `return` here used to leave Subscribe
+   * disabled on "Processing..." with no frame and no error.
+   */
+  const openPaddleCheckout = useCallback((): boolean => {
+    if (!priceId || !paddleRef.current || !paddle?.Checkout?.open) return false;
+    paddle.Checkout.open({
       settings: { displayMode: "inline" },
       items: [{ priceId }],
       customer: {
@@ -258,6 +313,7 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
         },
       },
     });
+    return true;
   }, [priceId, paddle, user, pricing.country]);
 
   // Called from the Subscribe click. The chunk is normally already
@@ -375,8 +431,20 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       setIsProcessing(true);
       openAsyncpayCheckout();
     } else {
+      // Paddle's inline frame fires checkout.loaded, which is what cancels
+      // the watchdog and is also where checkout_started is tracked (the
+      // click is not the moment the buyer can see a payment UI here).
       setIsProcessing(true);
-      openPaddleCheckout();
+      armPaddleWatchdog();
+      if (!openPaddleCheckout()) {
+        // The SDK was not in a state to open anything — never leave the
+        // button stranded on "Processing..." with no frame and no message.
+        clearPaddleWatchdog();
+        setIsProcessing(false);
+        toast.error(
+          "We couldn't start checkout. Please refresh the page and try again.",
+        );
+      }
     }
   }, [
     priceId,
@@ -386,71 +454,114 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
     asyncpayReady,
     openAsyncpayCheckout,
     openPaddleCheckout,
+    armPaddleWatchdog,
+    clearPaddleWatchdog,
   ]);
 
+  // Auto-open the inline frame on mount for Paddle. No watchdog here: this
+  // is not a buyer action, nothing is disabled waiting on it, and Subscribe
+  // stays available to retry explicitly.
   useEffect(() => {
     if (pricing.provider === "ASYNCPAY") return;
+    if (isPro) return;
     openPaddleCheckout();
-  }, [openPaddleCheckout, pricing.provider]);
+  }, [openPaddleCheckout, pricing.provider, isPro]);
 
-  initializePaddle({
-    token: PADDLE_TOKEN,
-    checkout: {
-      settings: {
-        displayMode: "inline",
-        frameTarget: "checkout-frame",
-        frameInitialHeight: 450,
-        variant: "one-page",
-        frameStyle:
-          "width: 100%; min-width: 312px; background-color: transparent; border: none;",
-        allowedPaymentMethods: [
-          "alipay",
-          "apple_pay",
-          "bancontact",
-          "card",
-          "google_pay",
-          "ideal",
-          "paypal",
-        ],
+  // Paddle SDK init — mount-once, in an effect.
+  //
+  // This used to run in the render body, so every re-render registered a
+  // fresh eventCallback and kicked off another initializePaddle. With
+  // checkout_started now firing from checkout.loaded, that meant a duplicated
+  // funnel event per render and a checkout frame that could re-open itself.
+  //
+  // eventCallback must still see CURRENT country/cycle/plan values without
+  // becoming a dependency of the effect (which would defeat mount-once), so
+  // it reads them from a ref that every render keeps up to date.
+  useEffect(() => {
+    // Never spin up a payment SDK for someone who already has a
+    // subscription — the render below shows them a manage-subscription
+    // screen instead of a checkout.
+    if (isPro) return;
+
+    let cancelled = false;
+    let instance: Paddle | undefined;
+
+    initializePaddle({
+      token: PADDLE_TOKEN,
+      checkout: {
+        settings: {
+          displayMode: "inline",
+          frameTarget: "checkout-frame",
+          frameInitialHeight: 450,
+          variant: "one-page",
+          frameStyle:
+            "width: 100%; min-width: 312px; background-color: transparent; border: none;",
+          allowedPaymentMethods: [
+            "alipay",
+            "apple_pay",
+            "bancontact",
+            "card",
+            "google_pay",
+            "ideal",
+            "paypal",
+          ],
+        },
       },
-    },
-    eventCallback: function (data: any) {
-      switch (data.name) {
-        case "checkout.loaded":
-          setIsProcessing(true);
-          // Paddle's inline frame opens itself on mount rather than waiting
-          // on our Subscribe button, so this SDK callback — not the click —
-          // is the genuine "buyer can see the payment UI" moment for Paddle.
-          analytics.track(PRICING_EVENTS.checkoutStarted, {
-            country: pricing.country,
-            cycle,
-          });
-          break;
-        case "checkout.closed":
-          setIsProcessing(false);
-          break;
-        case "checkout.completed":
-          // Track payment (GA or Google)
-          setIsProcessing(false);
-          setCelebration(true);
-          analytics.track(PRICING_EVENTS.subscribed, {
-            country: pricing.country,
-            cycle,
-          });
-          toast.success(
-            "You have successfully subscribe to " + checkoutId + " plan",
-          );
-          break;
-      }
-    },
-    environment: PADDLE_ENVIRONMENT,
-  })
-    .then((paddleInstance: Paddle | undefined) => {
-      if (paddleInstance) {
-        setPaddle(paddleInstance);
-      }
+      eventCallback: function (data: any) {
+        // ANY Paddle event proves the SDK came back, so the pre-frame
+        // watchdog has nothing left to guard.
+        clearPaddleWatchdog();
+        const { country, cycle, checkoutId } = paddleEventCtxRef.current;
+        switch (data.name) {
+          case "checkout.loaded":
+            setIsProcessing(true);
+            // Paddle's inline frame opens itself on mount rather than waiting
+            // on our Subscribe button, so this SDK callback — not the click —
+            // is the genuine "buyer can see the payment UI" moment for Paddle.
+            analytics.track(PRICING_EVENTS.checkoutStarted, { country, cycle });
+            break;
+          case "checkout.closed":
+            setIsProcessing(false);
+            break;
+          case "checkout.error":
+            setIsProcessing(false);
+            toast.error(
+              "Something went wrong with checkout. Please try again.",
+            );
+            break;
+          case "checkout.completed":
+            // Track payment (GA or Google)
+            setIsProcessing(false);
+            setCelebration(true);
+            analytics.track(PRICING_EVENTS.subscribed, { country, cycle });
+            toast.success(
+              "You have successfully subscribe to " + checkoutId + " plan",
+            );
+            break;
+        }
+      },
+      environment: PADDLE_ENVIRONMENT,
     })
-    .catch((e) => console.error(e));
+      .then((paddleInstance: Paddle | undefined) => {
+        instance = paddleInstance;
+        if (cancelled || !paddleInstance) return;
+        setPaddle(paddleInstance);
+      })
+      .catch((e) => console.error(e));
+
+    return () => {
+      cancelled = true;
+      clearPaddleWatchdog();
+      // No destroy() in paddle-js; closing any open checkout is the whole of
+      // the teardown available, and it stops an orphaned inline frame
+      // outliving this page.
+      try {
+        instance?.Checkout?.close?.();
+      } catch {
+        /* nothing to close */
+      }
+    };
+  }, [PADDLE_TOKEN, PADDLE_ENVIRONMENT, isPro, clearPaddleWatchdog]);
 
   const handleCancelSubscription = () => {
     setCancelDialogOpen(false);
@@ -543,6 +654,40 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       </div>
     );
   }
+  // Already subscribed: no second purchase, no payment SDK (the init effect
+  // bails on the same flag), no Subscribe button. Rendered AFTER the
+  // `plan=free` branch above so a subscriber can still reach the cancellation
+  // flow, which is the one thing they legitimately come to /checkout for.
+  if (isPro) {
+    return (
+      <div className="container max-w-4xl py-12">
+        <Card>
+          <CardHeader>
+            <CardTitle>You&apos;re on Pro</CardTitle>
+            <CardDescription>
+              {subscription?.expiry
+                ? `Your subscription is already active and renews on ${fmt(subscription.expiry)}.`
+                : "Your subscription is already active."}{" "}
+              There&apos;s nothing to buy here — manage your plan any time from
+              your subscription settings.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="gap-4">
+            <Button onClick={() => router.push(routes.subscriptionManagement)}>
+              Manage subscription
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.dashboard)}
+            >
+              Return to Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) return <PageSkeleton />;
 
   return (

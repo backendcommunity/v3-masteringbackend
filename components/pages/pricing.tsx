@@ -18,6 +18,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import countriesList from "@/lib/countries.json";
 import { analytics } from "@/lib/analytics";
+import { sanitizeRedirect } from "@/lib/safe-redirect";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
   formatPrice,
@@ -131,10 +132,16 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const user = useUser();
   const searchParams = useSearchParams();
   const fromOnboarding = searchParams?.get("from") === "onboarding";
-  // Onboarding forwards its own `redirect` (OAuth existing-user / deep-link
-  // destination — see dashboard-layout.tsx) through the upsell so skipping
-  // doesn't erase it. Falls back to the dashboard when there isn't one.
-  const freePlanHref = searchParams?.get("redirect") || routes.dashboard;
+  // Onboarding forwards its own `redirect` (the learner's just-enrolled
+  // lesson, or an OAuth existing-user / deep-link destination — see
+  // onboarding-flow.tsx and dashboard-layout.tsx) through the upsell so
+  // skipping doesn't erase it.
+  //
+  // MUST stay sanitised: this value is rendered as an <a href>, not passed to
+  // router.push, so `?redirect=javascript:alert(1)` would be a
+  // script-executing link. sanitizeRedirect accepts same-origin relative
+  // paths only and falls back to the dashboard for everything else.
+  const freePlanHref = sanitizeRedirect(searchParams?.get("redirect"));
 
   useEffect(() => {
     analytics.track(PRICING_EVENTS.viewed, {
@@ -149,6 +156,12 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
   const checkoutHref = `/checkout?plan=pro&cycle=${cycle}`;
   const freeCtaIsCurrent = Boolean(user && !user.isPremium);
+  // A subscriber must never be offered a SECOND subscription. Onboarding now
+  // routes everyone through this page, so a grandfathered Pro user lands here
+  // routinely — same guard subscription-plans.tsx already applies to its own
+  // cards (see classifyFreeCardCta / classifyGrandfathered). /checkout carries
+  // the matching guard so a bookmarked or hand-typed URL is covered too.
+  const isPro = Boolean(user?.isPremium);
 
   return (
     <div className="min-h-screen bg-background">
@@ -305,9 +318,23 @@ export default function PricingView({ pricing }: PricingViewProps) {
               {resolvedLine(pricing)}
             </p>
 
-            <Button asChild className="my-6 w-full">
-              <Link href={checkoutHref}>Go Pro</Link>
-            </Button>
+            {isPro ? (
+              <div className="my-6 space-y-2">
+                <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
+                  You&apos;re on Pro
+                </div>
+                <Link
+                  href={routes.subscriptionManagement}
+                  className="block text-center text-xs font-semibold text-primary hover:underline"
+                >
+                  Manage your subscription
+                </Link>
+              </div>
+            ) : (
+              <Button asChild className="my-6 w-full">
+                <Link href={checkoutHref}>Go Pro</Link>
+              </Button>
+            )}
 
             <ul className="grid gap-3">
               {PRO_FEATURES.map((label) => (
@@ -413,9 +440,15 @@ export default function PricingView({ pricing }: PricingViewProps) {
                       <div className="mb-3 mt-0.5 font-mono text-xs text-muted-foreground">
                         {monthlyEquivalent(pricing, cycle)} /mo
                       </div>
-                      <Button size="sm" asChild>
-                        <Link href={checkoutHref}>Go Pro</Link>
-                      </Button>
+                      {isPro ? (
+                        <span className="inline-block rounded-md bg-secondary px-3.5 py-1.5 text-xs font-bold text-secondary-foreground">
+                          You&apos;re on Pro
+                        </span>
+                      ) : (
+                        <Button size="sm" asChild>
+                          <Link href={checkoutHref}>Go Pro</Link>
+                        </Button>
+                      )}
                     </th>
                   </tr>
                 </thead>

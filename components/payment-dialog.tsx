@@ -9,6 +9,7 @@ import {
 } from "./ui/dialog";
 import { useUser } from "@/hooks/use-user";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { useTheme } from "next-themes";
 import countries from "@/lib/countries.json";
@@ -16,7 +17,7 @@ import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import Link from "next/link";
-import { PaymentChannel, Plan } from "@/lib/data";
+import { Plan } from "@/lib/data";
 import { usePricing } from "@/hooks/use-pricing";
 import { type PublicPricing } from "@/lib/pricing";
 import { formatSubscriptionCardPrice } from "@/lib/pro-cta";
@@ -59,11 +60,11 @@ export function PaymentDialog({
   onClose,
 }: PaymentDialogProps) {
   const user = useUser();
+  const router = useRouter();
   const store = useAppStore();
   const { theme } = useTheme();
   const [paddle, setPaddle] = useState<Paddle>();
   const [plan, setPlan] = useState<Plan>();
-  const [channel, setChannel] = useState<PaymentChannel>();
   // Only fetch our own copy when the caller didn't already hand us one and
   // the subscription card (the only thing here that shows this price) is
   // actually going to render.
@@ -115,12 +116,6 @@ export function PaymentDialog({
     const load = async () => {
       const plan = await store.getPlan(data?.plan ?? "Pro");
       setPlan(plan);
-
-      //TODO: Select channel based on user country
-      const paymentChannel = plan?.paymentChannels?.find(
-        (pp: any) => pp.channel === "PADDLE",
-      );
-      setChannel(paymentChannel);
     };
     load();
   }, [data?.plan]);
@@ -213,23 +208,9 @@ export function PaymentDialog({
     }
   };
 
+  // One-time purchases and MB redemption ONLY. Subscriptions deliberately do
+  // NOT route through here any more — see startSubscriptionCheckout below.
   const handlePayment = async (id: string, type: string) => {
-    if (type?.includes("subscription")) {
-      if (NODE_ENV === "dev") {
-        const priceId = "pri_01k049swct0nvgdsw8zwh6ys64";
-        openCheckout(priceId, {});
-        return;
-      }
-
-      if (!channel?.monthlyPlanId) {
-        toast.error("Subscription plan is not available. Please try again.");
-        return;
-      }
-      const priceId = channel.monthlyPlanId;
-      openCheckout(priceId, {});
-      return;
-    }
-
     if (type?.includes("individual")) {
       // Validate price ID first
       let priceId: string | undefined;
@@ -261,6 +242,32 @@ export function PaymentDialog({
       const purchased = await handleMBPayment();
       onHandlePurchase(id, type, purchased);
     }
+  };
+
+  /**
+   * Subscription CTA. Hands the buyer to /checkout instead of opening Paddle
+   * from here.
+   *
+   * Why not open a checkout inline: this dialog now DISPLAYS the
+   * region-resolved Pro price (see formatSubscriptionCardPrice above), but the
+   * only place that knows which processor and which price ID that price
+   * actually corresponds to is the checkout page — its pricing is resolved
+   * server-side from the visitor's country (app/checkout/page.tsx). Opening
+   * Paddle here with the legacy `paymentChannel.monthlyPlanId` showed a
+   * Nigerian "₦9,999/mo" and then charged them the legacy USD price. Rather
+   * than duplicate processor selection in a dialog, route to the one surface
+   * that already gets it right.
+   *
+   * Monthly is the cycle this card quotes ("/mo"), so that's what we ask for —
+   * the checkout page still lets the buyer see the total before paying.
+   */
+  const startSubscriptionCheckout = () => {
+    analytics.track("payment_plan_selected", {
+      plan: "subscription",
+      contentId: data.id,
+    });
+    router.push("/checkout?plan=pro&cycle=monthly");
+    onClose();
   };
 
   const handleAsyncpayPayment = async () => {
@@ -311,13 +318,7 @@ export function PaymentDialog({
             {!disableSubscription && (
               <Card
                 className="border hover:border-primary hover:bg-muted/50 cursor-pointer"
-                onClick={() => {
-                  analytics.track("payment_plan_selected", {
-                    plan: "subscription",
-                    contentId: data.id,
-                  });
-                  handlePayment(data.id, "subscription");
-                }}
+                onClick={startSubscriptionCheckout}
               >
                 <CardContent className="p-3 md:p-4">
                   <div className="flex items-center gap-3">
@@ -342,6 +343,10 @@ export function PaymentDialog({
                       <Link
                         href={"/subscription/plans"}
                         className="text-xs text-primary z-10"
+                        // Nested inside the card's own click target — without
+                        // this, picking "another plan" ALSO fires the card and
+                        // races a second navigation to /checkout.
+                        onClick={(e) => e.stopPropagation()}
                       >
                         Choose another plan
                       </Link>

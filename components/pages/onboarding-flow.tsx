@@ -8,6 +8,7 @@ import { useAuth } from "@/store/auth";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import { safeRedirectPath, sanitizeRedirect } from "@/lib/safe-redirect";
 import type {
   ExperienceLevel,
   LearningGoal,
@@ -195,7 +196,11 @@ function Card({
 export function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams?.get("redirect") ?? undefined;
+  // Attacker-controllable, and forwarded into a URL we then hand to
+  // /pricing, which renders it as an <a href>. Normalise it to a safe
+  // same-origin relative path (or nothing) at the point it enters the
+  // component so no downstream consumer has to remember to.
+  const redirect = safeRedirectPath(searchParams?.get("redirect")) ?? undefined;
   const { completeOnboarding } = useAuth();
   const enrollInRoadmap = useAppStore((s) => s.enrollInRoadmap);
 
@@ -263,12 +268,21 @@ export function OnboardingFlow() {
       }
 
       // Route through the region-aware pricing upsell before dropping the
-      // learner into their path. Carry `redirect` through so a deep link
-      // (OAuth existing-user / share link) survives the upsell instead of
-      // being erased — the pricing page's free-plan exit reads it back off
-      // the URL and falls back to the dashboard when absent.
-      const pricingUrl = redirect
-        ? `/pricing?from=onboarding&redirect=${encodeURIComponent(redirect)}`
+      // learner into their path — but never at the cost of the path itself.
+      // The lesson they just enrolled in is the destination this flow exists
+      // to deliver, so it takes priority as the free-plan exit; an incoming
+      // `redirect` (OAuth existing-user / share deep link) is the fallback,
+      // and the pricing page falls back to the dashboard when there is
+      // neither. Without this, the upsell silently swallowed the enrollment
+      // and a brand-new learner never reached lesson 1.
+      //
+      // safeRedirectPath again on the way out: routes.pathWorkspace builds a
+      // trusted path, but `redirect` came off the URL, and the value we
+      // append here is what /pricing renders as an href.
+      const exitPath =
+        safeRedirectPath(slug ? routes.pathWorkspace(slug) : redirect) ?? "";
+      const pricingUrl = exitPath
+        ? `/pricing?from=onboarding&redirect=${encodeURIComponent(exitPath)}`
         : "/pricing?from=onboarding";
       router.replace(pricingUrl);
     } catch {
@@ -295,7 +309,7 @@ export function OnboardingFlow() {
     } catch {
       /* non-fatal — still let the user through */
     }
-    router.replace(redirect || routes.dashboard);
+    router.replace(sanitizeRedirect(redirect));
   }, [isStarting, step, completeOnboarding, router, redirect]);
 
   return (
