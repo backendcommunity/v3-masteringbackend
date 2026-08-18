@@ -124,79 +124,37 @@ describe("Enterprise card — per-user pricing", () => {
   });
 });
 
-describe("Enterprise seat selector — self-serve regions", () => {
-  it("starts at the 2-seat minimum and shows the computed total", () => {
-    render(<PricingView pricing={usPricing} />);
-    selectMonthly();
-    const card = enterpriseCard();
+// The team-size stepper, its clamping behaviour, and the live total it used
+// to drive on THIS card have all moved to /checkout — the reference's team
+// card is price, CTA, features, nothing else; the buyer now picks seats at
+// checkout, where the total is computed and shown before they pay. Those
+// behaviours are covered by:
+//   - components/pages/__tests__/checkout-seat-selector.test.tsx (the
+//     stepper component itself: default value, +/- buttons, min-disabled,
+//     typed-value clamping)
+//   - lib/__tests__/checkout-plan-pricing.test.ts (the seats x per-user
+//     arithmetic resolveCheckoutPrice performs — 2-seat, 10-seat, monthly
+//     vs. annual, PPP vs. GLOBAL, all already pinned there)
+// This describe block is deliberately gone from here, not deleted outright —
+// see the two files above for where each assertion now lives.
+describe("Enterprise card — no in-card seat machinery", () => {
+  it("shows no seat selector and no total on the card, self-serve or not", () => {
+    for (const pricing of [usPricing, inPricing, ngPricing]) {
+      const { unmount } = render(<PricingView pricing={pricing} />);
+      const card = enterpriseCard();
 
-    expect(within(card).getByLabelText(/team size/i)).toHaveValue(2);
-    // 2 x $25.
-    expect(within(card).getByText("$50.00")).toBeInTheDocument();
-    expect(within(card).getByText(/2 users x \$25\.00 per user/i)).toBeInTheDocument();
+      expect(within(card).queryByLabelText(/team size/i)).toBeNull();
+      expect(within(card).queryByText(/^Total$/)).toBeNull();
+      unmount();
+    }
   });
 
-  it("recomputes the total as seats change — 10 seats is 10x one seat", () => {
-    render(<PricingView pricing={usPricing} />);
-    selectMonthly();
-    const card = enterpriseCard();
-
-    fireEvent.change(within(card).getByLabelText(/team size/i), {
-      target: { value: "10" },
-    });
-
-    expect(within(card).getByText("$250.00")).toBeInTheDocument();
-    expect(within(card).getByText(/10 users x \$25\.00 per user/i)).toBeInTheDocument();
-  });
-
-  it("totals the ANNUAL cycle per year, not per month", () => {
+  it("links a self-serve region straight to checkout, with no seat count on the URL — checkout owns seat selection now", () => {
     render(<PricingView pricing={usPricing} />);
     const card = enterpriseCard();
-
-    fireEvent.change(within(card).getByLabelText(/team size/i), {
-      target: { value: "10" },
-    });
-
-    // 10 seats x $250/user/year.
-    expect(within(card).getByText("$2,500.00")).toBeInTheDocument();
-    expect(within(card).getByText("/year")).toBeInTheDocument();
-  });
-
-  it("cannot be walked below 2 seats — the stepper's minus is disabled there", () => {
-    render(<PricingView pricing={usPricing} />);
-    const card = enterpriseCard();
-
-    expect(within(card).getByLabelText(/remove a seat/i)).toBeDisabled();
-    fireEvent.click(within(card).getByLabelText(/add a seat/i));
-    expect(within(card).getByLabelText(/team size/i)).toHaveValue(3);
-    fireEvent.click(within(card).getByLabelText(/remove a seat/i));
-    expect(within(card).getByLabelText(/team size/i)).toHaveValue(2);
-  });
-
-  it("clamps a typed value below the minimum back up to 2", () => {
-    render(<PricingView pricing={usPricing} />);
-    const card = enterpriseCard();
-    const input = within(card).getByLabelText(/team size/i);
-
-    fireEvent.change(input, { target: { value: "1" } });
-    expect(input).toHaveValue(2);
-    fireEvent.change(input, { target: { value: "999" } });
-    expect(input).toHaveValue(100);
-  });
-
-  it("carries the chosen seat count and cycle to checkout", () => {
-    render(<PricingView pricing={usPricing} />);
-    const card = enterpriseCard();
-
-    fireEvent.change(within(card).getByLabelText(/team size/i), {
-      target: { value: "6" },
-    });
 
     const cta = within(card).getByRole("link", { name: /choose enterprise/i });
-    expect(cta).toHaveAttribute(
-      "href",
-      "/checkout?plan=enterprise&cycle=annual&seats=6",
-    );
+    expect(cta).toHaveAttribute("href", "/checkout?plan=enterprise&cycle=annual");
   });
 });
 

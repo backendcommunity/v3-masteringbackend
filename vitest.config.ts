@@ -47,6 +47,7 @@ export default defineConfig({
       "components/atoms/__tests__/terminal-run-api.test.tsx",
       "components/pages/__tests__/project-playground-terminal-mode.test.tsx",
       "components/pages/__tests__/pricing-enterprise-card.test.tsx",
+      "components/pages/__tests__/checkout-seat-selector.test.tsx",
     ],
   },
   resolve: {

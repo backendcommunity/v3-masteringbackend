@@ -4,7 +4,7 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Minus, Plus } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { formatPrice } from "@/lib/pricing";
+import { clampSeats, formatPrice, resolveSeats } from "@/lib/pricing";
 import type { CheckoutPricing, RegionalPricing } from "@/lib/pricing";
 import {
   classifyCheckoutReadiness,
@@ -76,6 +76,95 @@ const CHECKOUT_OPEN_TIMEOUT_MS = 8000;
 const CHECKOUT_SUPPORT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeURIComponent(
   "Checkout unavailable",
 )}`;
+
+/**
+ * Team-size stepper — lives HERE, not on /pricing. Seat selection is a
+ * checkout-time decision: the pricing card only ever quotes a per-user
+ * rate, and the buyer now picks how many seats to buy right before they
+ * pay, with the total below recomputed live from that count.
+ *
+ * Clamped to [minSeats, maxSeats] on every path in — the buttons, the
+ * keyboard, a pasted value — because the seat count is a multiplier on
+ * money and an out-of-range one either undercharges or produces a request
+ * the processor rejects. Clamping (rather than rejecting) is right here
+ * because nothing is charged from this control directly:
+ * resolveCheckoutPrice (via resolveSeats, in lib/pricing.ts) is the strict
+ * gate that actually decides whether a seat count may be billed, and it
+ * fails closed rather than guessing.
+ */
+export function SeatSelector({
+  seats,
+  setSeats,
+  minSeats,
+  maxSeats,
+}: {
+  seats: number;
+  setSeats: (n: number) => void;
+  minSeats: number;
+  maxSeats: number;
+}) {
+  const step = (delta: number) =>
+    setSeats(clampSeats(seats + delta, { minSeats, maxSeats }));
+
+  return (
+    <div>
+      <label
+        htmlFor="enterprise-seats"
+        className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+      >
+        Team size
+      </label>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 flex-none"
+          onClick={() => step(-1)}
+          disabled={seats <= minSeats}
+          aria-label="Remove a seat"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <input
+          id="enterprise-seats"
+          type="number"
+          inputMode="numeric"
+          min={minSeats}
+          max={maxSeats}
+          value={seats}
+          onChange={(e) =>
+            setSeats(clampSeats(Number(e.target.value), { minSeats, maxSeats }))
+          }
+          // Re-clamp on blur so a half-typed value ("" or "1") cannot be left
+          // sitting in the field looking like an accepted team size.
+          onBlur={(e) =>
+            setSeats(clampSeats(Number(e.target.value), { minSeats, maxSeats }))
+          }
+          className="h-9 w-20 rounded-md border border-input bg-background px-3 text-center font-mono text-sm font-semibold text-foreground [appearance:textfield] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-describedby="enterprise-seats-hint"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 flex-none"
+          onClick={() => step(1)}
+          disabled={seats >= maxSeats}
+          aria-label="Add a seat"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <span
+          id="enterprise-seats-hint"
+          className="text-xs text-muted-foreground"
+        >
+          users (min {minSeats})
+        </span>
+      </div>
+    </div>
+  );
+}
 
 interface CheckoutPageProps {
   // Resolved server-side (see app/checkout/page.tsx) from the visitor's
@@ -143,10 +232,20 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
   const cycle = searchParams?.get("cycle") ?? "monthly";
-  // Per-seat plans only. Passed through raw — resolveCheckoutPrice owns the
-  // validation, so there is exactly one gate deciding whether a seat count
-  // may be charged, and it is the same one the tests pin.
+  // Per-seat plans only. Used ONLY to seed the initial seat count below —
+  // resolveCheckoutPrice validates the LIVE `seats` state on every render
+  // (via resolveSeats), so there is still exactly one gate deciding whether
+  // a seat count may be charged, and it is the same one the tests pin.
   const seatsParam = searchParams?.get("seats");
+  // Team size the buyer is quoting for — a checkout-time decision now (see
+  // SeatSelector above). Seeded from `?seats=` when it arrives already
+  // valid (e.g. a shared link, or a back/forward nav within this page), and
+  // from the plan's own minimum otherwise — the pricing card no longer
+  // decides a seat count, so this is the ONLY place that does, and it
+  // always starts at a real, payable number rather than nothing.
+  const [seats, setSeats] = useState<number>(
+    () => resolveSeats(seatsParam, pricing.enterprise) ?? pricing.enterprise.minSeats,
+  );
   // `?plan=free` is the cancellation flow, not a purchase: it early-returns
   // to the cancellation card below and never prices or charges anything.
   // There is no Free plan record to look up, so it must not be treated as an
@@ -192,7 +291,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     pricing,
     plan,
     planResolved,
-    seats: seatsParam,
+    // The live seat count from the selector below, not the raw URL param —
+    // resolveCheckoutPrice re-validates it via resolveSeats either way, but
+    // the amount shown and the amount charged must come from the SAME
+    // number the buyer is currently looking at, not a stale query string.
+    seats,
   });
   const resolved = resolution.status === "resolved" ? resolution.price : null;
   const priceId = resolved?.priceId ?? "";
@@ -867,6 +970,27 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                   } subscription to MasteringBackend ${plan?.name}`}
                 </p>
               </div>
+
+              {/* Seat selector — Enterprise only, and only once a real
+                  per-seat price actually resolved. That's the same
+                  condition the breakdown line below uses (quantity is
+                  present ONLY on a resolved per-seat plan), which is exactly
+                  what keeps this off a sales-led region (NG never resolves
+                  a quantity — see resolveCheckoutPrice) and off the
+                  "Checkout unavailable" state (an unresolved plan has no
+                  quantity either). The total below recomputes live as this
+                  changes, before Subscribe is ever enabled. */}
+              {quantity !== undefined && unitAmount !== undefined && (
+                <>
+                  <Separator />
+                  <SeatSelector
+                    seats={seats}
+                    setSeats={setSeats}
+                    minSeats={pricing.enterprise.minSeats}
+                    maxSeats={pricing.enterprise.maxSeats}
+                  />
+                </>
+              )}
 
               {/* Prices render only when a real one was resolved for THIS
                   plan. An unresolved non-Pro plan has no amount at all, and
