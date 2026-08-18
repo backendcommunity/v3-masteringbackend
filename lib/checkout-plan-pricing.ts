@@ -18,10 +18,20 @@
 // A non-Pro plan is still REGION-PRICED: it just reads its own record
 // instead of Pro's. The plan's `paymentChannels` hold one row per region
 // (naira and USD), so the channel is selected by the region the request
-// already resolved to, and a Nigerian buying Enterprise pays naira through
-// the naira channel exactly as a Nigerian buying Pro does. Routing a
-// Nigerian to the USD channel while a working naira channel exists is the
-// same class of bug as billing them Pro's amount.
+// already resolved to. Routing a buyer to the other region's channel while
+// a working one exists is the same class of bug as billing them Pro's
+// amount.
+//
+// ENTERPRISE IS DIFFERENT AGAIN
+// -----------------------------
+// Enterprise is now sold PER USER with a minimum team size, and its prices
+// come from the SAME region-resolved pricing object Pro's do (the nested
+// `enterprise` block, see lib/pricing.ts) — NOT from the plan record's
+// payment channels. Those seeded channels hold the superseded flat amounts
+// ($99.99/mo, ₦150,000/mo) and must never be charged again; reading them
+// would resurrect exactly the pricing this change replaces. Enterprise gets
+// its own branch below, before the generic plan-record path, so it can
+// never fall through to them.
 //
 // THE INVARIANT
 // -------------
@@ -35,9 +45,13 @@
 
 import type { PaymentChannel, Plan } from "@/lib/data";
 import type { CheckoutPricing } from "@/lib/pricing";
+import { enterprisePerUser, enterpriseTotal, resolveSeats } from "@/lib/pricing";
 
 /** The `?plan=` value that means "the regionally-tiered Pro plan". */
 export const PRO_PLAN_SLUG = "pro";
+
+/** The `?plan=` value that means "the per-user, per-seat Enterprise plan". */
+export const ENTERPRISE_PLAN_SLUG = "enterprise";
 
 /**
  * The backend seeds every sellable plan with BOTH channels — the naira one
@@ -77,6 +91,22 @@ export interface ResolvedCheckoutPrice {
    * resolved at all.
    */
   regional: boolean;
+  /**
+   * Seat count handed to the processor as the line item's `quantity`.
+   *
+   * Present ONLY for per-seat plans. Absent means "one of this thing", which
+   * is every non-seat plan including Pro — deliberately absent rather than
+   * `1`, so Pro's resolution is byte-for-byte what it always was and no
+   * existing assertion about it changes meaning.
+   */
+  quantity?: number;
+  /**
+   * Price of ONE seat, when `quantity` is present. `amount` is already
+   * quantity x this; keeping the unit alongside it lets the order summary
+   * show the buyer the arithmetic ("6 seats x $25") instead of a bare total
+   * they cannot check.
+   */
+  unitAmount?: number;
 }
 
 export type CheckoutPriceResolution =
@@ -94,6 +124,17 @@ export type CheckoutPriceResolution =
 export function isProCheckout(checkoutId: string | null | undefined): boolean {
   const id = (checkoutId ?? PRO_PLAN_SLUG).trim().toLowerCase();
   return id === "" || id === PRO_PLAN_SLUG;
+}
+
+/**
+ * Whether this checkout is the per-seat Enterprise plan. Unlike Pro, an
+ * absent `?plan=` is NEVER Enterprise — a plan that charges per seat must be
+ * asked for explicitly.
+ */
+export function isEnterpriseCheckout(
+  checkoutId: string | null | undefined,
+): boolean {
+  return (checkoutId ?? "").trim().toLowerCase() === ENTERPRISE_PLAN_SLUG;
 }
 
 /**
@@ -169,12 +210,24 @@ export interface ResolveCheckoutPriceInput {
    */
   pricing: Pick<
     CheckoutPricing,
-    "provider" | "currency" | "monthly" | "annual" | "monthlyPriceId" | "annualPriceId"
+    | "provider"
+    | "currency"
+    | "monthly"
+    | "annual"
+    | "monthlyPriceId"
+    | "annualPriceId"
+    | "enterprise"
   >;
   /** The plan record fetched by name. Only used for the non-Pro path. */
   plan: Plan | null | undefined;
   /** False until the plan fetch has settled (resolved OR failed). */
   planResolved: boolean;
+  /**
+   * Raw `?seats=` value from the URL. Per-seat plans only. Left unvalidated
+   * on the way in on purpose — `resolveSeats` is the single gate, so there
+   * is exactly one place that decides whether a seat count may be charged.
+   */
+  seats?: string | number | null;
 }
 
 /**
@@ -202,6 +255,100 @@ export function resolveCheckoutPrice(
         provider: pricing.provider,
         priceId: isAnnual ? pricing.annualPriceId : pricing.monthlyPriceId,
         regional: true,
+      },
+    };
+  }
+
+  // ---- Enterprise: per user, per seat ----------------------------------
+  //
+  // Priced entirely off the region-resolved `enterprise` block. Never off
+  // the plan record (whose seeded channels hold the superseded flat prices),
+  // and never off Pro. Every failure below returns "unavailable" — there is
+  // no branch here that produces a number when any input is in doubt,
+  // because the only wrong-but-plausible total is worse than no total.
+  if (isEnterpriseCheckout(input.checkoutId)) {
+    const enterprise = input.pricing.enterprise;
+    if (!enterprise) {
+      return {
+        status: "unavailable",
+        reason: "no enterprise pricing in the region-resolved pricing object",
+      };
+    }
+
+    // ══ THE NG BRANCH, frontend side — one condition, no country logic ══
+    //
+    // `selfServe` is computed once, in the backend's tier table, from
+    // whether that region's payment provider can accept a seat QUANTITY at
+    // all (see enterpriseSelfServe() in academy's
+    // src/extensions/payment/pricing/tiers.ts, which documents exactly which
+    // SDK cannot and why). This repo does not know or care which region that
+    // is — it reads the flag.
+    //
+    // A region that cannot be charged per seat must not reach a checkout at
+    // all: the pricing page routes it to sales instead, and this stops the
+    // hand-typed URL, the stale bookmark and the shared link. The
+    // alternative — opening a checkout that charges one seat, or a flat
+    // amount, or the old price — is the precise failure this whole branch
+    // exists to prevent.
+    if (!enterprise.selfServe) {
+      return {
+        status: "unavailable",
+        reason:
+          "enterprise is sales-led in this region — its provider cannot bill a seat quantity",
+      };
+    }
+
+    // No seat count, a fractional one, one below the minimum team size or
+    // above the selector's ceiling: all the same answer. Not "assume the
+    // minimum" — a checkout that guesses how many seats it is selling is a
+    // checkout that charges the wrong amount.
+    const seats = resolveSeats(input.seats, enterprise);
+    if (seats === null) {
+      return {
+        status: "unavailable",
+        reason: `enterprise checkout has no usable seat count (got ${JSON.stringify(input.seats)}; need an integer ${enterprise.minSeats}-${enterprise.maxSeats})`,
+      };
+    }
+
+    const unitAmount = enterprisePerUser(enterprise, isAnnual ? "annual" : "monthly");
+    const amount = enterpriseTotal(
+      enterprise,
+      isAnnual ? "annual" : "monthly",
+      seats,
+    );
+    if (amount === null) {
+      return {
+        status: "unavailable",
+        reason: `enterprise has no billable ${isAnnual ? "annual" : "monthly"} per-user price`,
+      };
+    }
+
+    const enterprisePriceId = toPriceId(
+      isAnnual ? enterprise.annualPriceId : enterprise.monthlyPriceId,
+    );
+    if (enterprisePriceId === null) {
+      return {
+        status: "unavailable",
+        reason: `enterprise has no ${isAnnual ? "annual" : "monthly"} price ID`,
+      };
+    }
+
+    return {
+      status: "resolved",
+      price: {
+        // The TOTAL — seats x per-seat price. What the buyer is shown and
+        // what the processor charges, computed once, here.
+        amount,
+        currency: enterprise.currency,
+        provider: enterprise.provider,
+        priceId: enterprisePriceId,
+        regional: true,
+        // The processor multiplies the per-seat price by this. `amount`
+        // above is the same multiplication done locally so the page can show
+        // the total BEFORE the buyer pays; if the two ever disagree, this
+        // module is where they were computed together.
+        quantity: seats,
+        unitAmount,
       },
     };
   }

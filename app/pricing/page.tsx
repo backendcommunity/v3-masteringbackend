@@ -29,9 +29,25 @@ export const metadata = {
  * change first, making the leak a deliberate edit instead of a silent one.
  */
 export function toPublicPricing(pricing: RegionalPricing): PublicPricing {
-  const { provider: _provider, monthlyPriceId: _m, annualPriceId: _a, ...publicPricing } =
-    pricing;
-  return publicPricing;
+  const {
+    provider: _provider,
+    monthlyPriceId: _m,
+    annualPriceId: _a,
+    enterprise,
+    ...publicPricing
+  } = pricing;
+  // Enterprise carries its OWN processor identity and price IDs, and a
+  // top-level destructure does not reach inside a nested object — so without
+  // this second strip, "PADDLE" and the Enterprise price IDs would ride into
+  // the RSC payload untouched while the top-level strip looked like it was
+  // doing its job. Same three fields, same reason.
+  const {
+    provider: _eProvider,
+    monthlyPriceId: _em,
+    annualPriceId: _ea,
+    ...publicEnterprise
+  } = enterprise;
+  return { ...publicPricing, enterprise: publicEnterprise };
 }
 
 interface PricingPageProps {

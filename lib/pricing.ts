@@ -16,6 +16,46 @@ export interface RegionalPricing {
   annual: number;
   monthlyPriceId: string;
   annualPriceId: string;
+  /**
+   * Enterprise, nested — NOT flattened alongside Pro's fields. The two plans
+   * are priced in different units: Pro's `monthly` is what one subscriber
+   * pays, Enterprise's `monthlyPerUser` is what ONE SEAT costs and means
+   * nothing until multiplied by a seat count. Nesting makes it impossible to
+   * read one as the other, and keeps Pro's field names exactly where every
+   * existing consumer already expects them.
+   */
+  enterprise: EnterprisePricing;
+}
+
+/**
+ * Per-user Enterprise pricing for the region this request resolved to.
+ * Mirrors the backend's EnterpriseTierPricing verbatim (academy's
+ * src/extensions/payment/pricing/tiers.ts) — this is a wire type, not a
+ * second opinion about pricing. Nothing in this repo may invent, adjust, or
+ * default these amounts; the API is the only source.
+ */
+export interface EnterprisePricing {
+  tier: RegionalPricing["tier"];
+  provider: "ASYNCPAY" | "PADDLE";
+  currency: "NGN" | "USD";
+  /** ONE SEAT for one month, in major units. Never a team total. */
+  monthlyPerUser: number;
+  /** ONE SEAT for one year, in major units. Always 10x the monthly figure. */
+  annualPerUser: number;
+  /** Smallest team we sell to. 2 — a one-seat "team" is just Pro. */
+  minSeats: number;
+  /** Ceiling on the self-serve seat selector. */
+  maxSeats: number;
+  /**
+   * Whether this region can complete a per-seat purchase without a human.
+   * Decided ENTIRELY by the backend (see enterpriseSelfServe() in academy's
+   * tiers.ts, which explains why one region cannot) — this repo reads the
+   * flag and holds no country logic of its own. When the underlying
+   * limitation lifts, nothing in this repo changes.
+   */
+  selfServe: boolean;
+  monthlyPriceId: string;
+  annualPriceId: string;
 }
 
 // The client never needs the payment processor's identity or its price IDs —
@@ -26,6 +66,19 @@ export interface RegionalPricing {
 // PricingView ever sees them.
 export type PublicPricing = Omit<
   RegionalPricing,
+  "provider" | "monthlyPriceId" | "annualPriceId" | "enterprise"
+> & { enterprise: PublicEnterprisePricing };
+
+/**
+ * The Enterprise half of the same strip. Nesting hid these from the original
+ * Omit — `Omit<RegionalPricing, "provider">` does not reach inside
+ * `enterprise`, so without this the processor name and Enterprise's price IDs
+ * would have gone straight into the RSC payload the moment Enterprise pricing
+ * started arriving from the API. app/pricing/page.tsx's toPublicPricing does
+ * the actual stripping; lib/__tests__/pricing-page-props.test.ts pins it.
+ */
+export type PublicEnterprisePricing = Omit<
+  EnterprisePricing,
   "provider" | "monthlyPriceId" | "annualPriceId"
 >;
 
@@ -37,49 +90,140 @@ export type PublicPricing = Omit<
 export type CheckoutPricing = Omit<RegionalPricing, "tier">;
 
 /**
- * Enterprise IS regionally priced, exactly as Pro is. The backend seeds it
- * with two payment channels (academy's prisma/seed.ts, the Enterprise
- * block): a naira channel at ₦150,000/mo and ₦1,500,000/yr, and a USD
- * channel at $99.99/mo and $999.99/yr — both with real provider price IDs
- * for sandbox and production. Quoting a Nigerian $99.99 while a working
- * naira channel exists is precisely the mispricing regional pricing exists
- * to eliminate.
+ * ── Enterprise seat maths ──────────────────────────────────────────────
  *
- * These are the `original*` figures on those channels — the same ones
- * /checkout bills from (see lib/checkout-plan-pricing.ts, which selects the
- * channel by the same resolved region). The plan record carries
- * `hasDiscount: false`, so the discounted columns are not in play; display
- * and charge must agree, and they do only if both read `original*`.
+ * Enterprise is priced PER USER with a minimum team size, so every figure
+ * the buyer sees is one of two things: a per-seat rate, or that rate times a
+ * seat count. Both live here, pure and tested, because getting them wrong is
+ * a money bug — and because /pricing (which quotes) and /checkout (which
+ * charges) must compute them the same way or display and charge disagree.
  *
- * Kept as a static frontend mirror rather than round-tripping through the
- * public pricing API, which is specifically the *Pro* resolver and must keep
- * its current shape. If the seeded Enterprise amounts change, change them
- * here in the same commit.
+ * There is deliberately NO static price table in this file any more. The
+ * amounts used to be mirrored here from the seeded plan channels; they now
+ * come from the API on every request, and a stale mirror would be exactly
+ * the drift the mirror was meant to prevent.
  */
-const ENTERPRISE_NGN: Pick<RegionalPricing, "monthly" | "annual" | "currency"> =
-  { monthly: 150000, annual: 1500000, currency: "NGN" };
-
-const ENTERPRISE_USD: Pick<RegionalPricing, "monthly" | "annual" | "currency"> =
-  { monthly: 99.99, annual: 999.99, currency: "USD" };
 
 /**
- * Enterprise's price for the region this request already resolved to.
+ * Per-seat amount for the billing cycle, in major units.
  *
- * Keyed on `tier` because that is the region signal the client actually
- * receives — PublicPricing strips `provider` (see the comment above it), and
- * the backend's tier table maps NG to the naira channel and PPP/GLOBAL alike
- * to the USD one (academy's src/extensions/payment/pricing/tiers.ts). That
- * is the same regional decision /checkout reads off `provider`, so the price
- * shown here is the price billed there.
- *
- * Fails to the more expensive USD tier for any unrecognised tier, mirroring
- * the backend's fail-closed tierForCountry(): a bad region read must never
- * hand a global visitor the naira price.
+ * This is the amount CHARGED per seat per cycle — the annual figure is the
+ * full year's per-seat price (10x monthly), not a monthly slice of it. Use
+ * `enterprisePerUserMonthlyDisplay` for the "per user /month billed
+ * annually" line the card shows.
  */
-export function enterprisePricingForTier(
-  tier: RegionalPricing["tier"] | string | null | undefined,
+export function enterprisePerUser(
+  pricing: Pick<EnterprisePricing, "monthlyPerUser" | "annualPerUser">,
+  cycle: "monthly" | "annual",
+): number {
+  return cycle === "annual" ? pricing.annualPerUser : pricing.monthlyPerUser;
+}
+
+/**
+ * Adapts Enterprise's per-user amounts into the {monthly, annual, currency}
+ * shape `monthlyEquivalent` and `tablePriceLine` already take, so the card
+ * and the comparison table render Enterprise through exactly the same
+ * formatting path as Pro rather than a parallel one that could drift.
+ */
+export function enterpriseDisplayAmounts(
+  pricing: Pick<
+    EnterprisePricing,
+    "monthlyPerUser" | "annualPerUser" | "currency"
+  >,
 ): Pick<RegionalPricing, "monthly" | "annual" | "currency"> {
-  return tier === "NG" ? ENTERPRISE_NGN : ENTERPRISE_USD;
+  return {
+    monthly: pricing.monthlyPerUser,
+    annual: pricing.annualPerUser,
+    currency: pricing.currency,
+  };
+}
+
+/**
+ * The big number on the Enterprise card: per user, per MONTH — on the annual
+ * cycle that is the yearly seat price divided across twelve months, shown
+ * with "billed annually" beneath it. Same treatment Pro gets, and the same
+ * treatment the reference card uses ("$28 per user /month billed annually").
+ */
+export function enterprisePerUserMonthlyDisplay(
+  pricing: Pick<
+    EnterprisePricing,
+    "monthlyPerUser" | "annualPerUser" | "currency"
+  >,
+  cycle: "monthly" | "annual",
+): string {
+  return monthlyEquivalent(enterpriseDisplayAmounts(pricing), cycle);
+}
+
+/**
+ * A seat count that is safe to charge for, or null.
+ *
+ * FAILS CLOSED, and that is the entire point: null is not "assume the
+ * minimum" and never "assume 1". A checkout that cannot establish how many
+ * seats it is selling must not take money — a wrong quantity is a wrong
+ * charge, in the buyer's favour or ours, and both are the same defect.
+ *
+ * Rejects: absent, non-numeric, fractional, below `minSeats`, above
+ * `maxSeats`. Numeric strings are accepted because this reads a URL param.
+ */
+export function resolveSeats(
+  raw: unknown,
+  pricing: Pick<EnterprisePricing, "minSeats" | "maxSeats">,
+): number | null {
+  const seats =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && raw.trim() !== ""
+        ? Number(raw)
+        : NaN;
+  if (!Number.isInteger(seats)) return null;
+  if (seats < pricing.minSeats) return null;
+  if (seats > pricing.maxSeats) return null;
+  return seats;
+}
+
+/**
+ * Nudges a seat count into range instead of rejecting it. For the seat
+ * SELECTOR only — a stepper must not be able to walk below the minimum, and
+ * clamping there is friendly rather than dangerous because nothing is
+ * charged yet. Never use this on the checkout path; `resolveSeats` is the
+ * one that guards money.
+ */
+export function clampSeats(
+  seats: number,
+  pricing: Pick<EnterprisePricing, "minSeats" | "maxSeats">,
+): number {
+  if (!Number.isFinite(seats)) return pricing.minSeats;
+  return Math.min(
+    pricing.maxSeats,
+    Math.max(pricing.minSeats, Math.round(seats)),
+  );
+}
+
+/**
+ * What the team actually pays this cycle: seats x per-seat price.
+ *
+ * Returns null — never a number — when the seat count is unusable or the
+ * per-seat price is missing/zero/negative. Callers must render nothing and
+ * charge nothing in that case. Returning a "best effort" total here is the
+ * single most dangerous thing this module could do.
+ */
+export function enterpriseTotal(
+  pricing: Pick<
+    EnterprisePricing,
+    "monthlyPerUser" | "annualPerUser" | "minSeats" | "maxSeats"
+  >,
+  cycle: "monthly" | "annual",
+  seats: unknown,
+): number | null {
+  const resolvedSeats = resolveSeats(seats, pricing);
+  if (resolvedSeats === null) return null;
+
+  const perUser = enterprisePerUser(pricing, cycle);
+  if (!Number.isFinite(perUser) || perUser <= 0) return null;
+
+  // Currency-safe multiply: $15 x 3 in binary floats is 45.00000000000001.
+  // Round to minor units, multiply as integers, convert back.
+  return Math.round(perUser * 100) * resolvedSeats / 100;
 }
 
 export function formatPrice(amount: number, currency: "NGN" | "USD"): string {

@@ -17,7 +17,7 @@
 // break the legitimate test that imports GLOBAL_FALLBACK from this file to
 // assert its shape. This comment is the guard; enforce it at review time.
 
-import type { RegionalPricing } from "@/lib/pricing";
+import type { EnterprisePricing, RegionalPricing } from "@/lib/pricing";
 
 /**
  * Used when the pricing endpoint is unreachable. Deliberately the MOST
@@ -33,7 +33,56 @@ export const GLOBAL_FALLBACK: RegionalPricing = {
   annual: 199.99,
   monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY ?? "",
   annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL ?? "",
+  // Enterprise falls back the same way and for the same reason: the most
+  // expensive per-seat tier ($25/user/month, $250/user/year). Quoting $15 or
+  // ₦15,000 to the whole world because the pricing API blipped is the exact
+  // leak the fail-closed rule exists to stop. `selfServe: true` matches the
+  // GLOBAL tier it is standing in for — the fallback must not invent a
+  // sales-led flow for a region that has self-serve checkout.
+  enterprise: {
+    tier: "GLOBAL",
+    provider: "PADDLE",
+    currency: "USD",
+    monthlyPerUser: 25,
+    annualPerUser: 250,
+    minSeats: 2,
+    maxSeats: 100,
+    selfServe: true,
+    monthlyPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_MONTHLY ?? "",
+    annualPriceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ENTERPRISE_ANNUAL ?? "",
+  },
 };
+
+/**
+ * A payload from an API that predates Enterprise per-seat pricing — or one
+ * whose `enterprise` object is malformed — must not reach the UI with a
+ * missing or half-built price. It is normalised to the GLOBAL fallback here,
+ * at the boundary, so every downstream consumer can rely on `enterprise`
+ * being present and complete rather than each inventing its own guard (and
+ * each getting the fail-closed direction subtly wrong).
+ *
+ * Deliberately strict: a single missing or non-finite amount discards the
+ * whole object rather than patching the hole, because a half-trusted price
+ * is not a price.
+ */
+function normalizeEnterprise(value: unknown): EnterprisePricing {
+  const e = value as Partial<EnterprisePricing> | null | undefined;
+  const numeric = (n: unknown): n is number =>
+    typeof n === "number" && Number.isFinite(n) && n > 0;
+
+  if (
+    !e ||
+    !numeric(e.monthlyPerUser) ||
+    !numeric(e.annualPerUser) ||
+    !numeric(e.minSeats) ||
+    !numeric(e.maxSeats) ||
+    typeof e.selfServe !== "boolean" ||
+    (e.currency !== "NGN" && e.currency !== "USD")
+  ) {
+    return GLOBAL_FALLBACK.enterprise;
+  }
+  return e as EnterprisePricing;
+}
 
 /**
  * Server-side fetch. Geo headers must be FORWARDED from the incoming request —
@@ -63,7 +112,12 @@ export async function fetchPricing(
     });
     if (!res.ok) return GLOBAL_FALLBACK;
     const json = await res.json();
-    return (json?.data as RegionalPricing) ?? GLOBAL_FALLBACK;
+    const data = json?.data as RegionalPricing | undefined;
+    if (!data) return GLOBAL_FALLBACK;
+    // Pro's fields pass through untouched, exactly as before. Only the newer
+    // nested Enterprise object is validated, because only it can be absent
+    // from an older API deployment.
+    return { ...data, enterprise: normalizeEnterprise(data.enterprise) };
   } catch {
     return GLOBAL_FALLBACK;
   }

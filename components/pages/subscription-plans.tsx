@@ -153,13 +153,18 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
             // Enterprise — this card keeps its existing "talk to sales"
             // framing rather than a number. NOT because the tier is
             // unpriced or global-only: Enterprise is region-priced like Pro
-            // (naira and USD channels, see lib/pricing.ts's
-            // enterprisePricingForTier and lib/checkout-plan-pricing.ts).
-            // /pricing shows the regional figure; this surface simply
-            // hasn't been switched over to it.
+            // and now sold PER USER (see lib/pricing.ts's enterprise block).
+            // This surface simply hasn't been switched over to it.
+            //
+            // The CTA goes to /pricing rather than straight to /checkout,
+            // and that is now load-bearing: a per-seat checkout needs a seat
+            // count, and this card has no way to collect one. Sending it to
+            // checkout without `seats` would land on the (correct, but dead)
+            // unavailable state — so it goes to the surface that actually
+            // has the seat selector, which then carries the count through.
             priceLabel = "Contact us";
             ctaLabel = plan.cta ?? "Choose Enterprise";
-            onSelect = () => handleSelectPlan(plan.id, billingCycle);
+            onSelect = () => router.push(routes.pricing());
           }
 
           return (

@@ -20,6 +20,18 @@ describe("toCheckoutPricing", () => {
     annual: 99990,
     monthlyPriceId: "pri_monthly_123",
     annualPriceId: "pri_annual_456",
+    enterprise: {
+      tier: "NG",
+      provider: "ASYNCPAY",
+      currency: "NGN",
+      monthlyPerUser: 15000,
+      annualPerUser: 150000,
+      minSeats: 2,
+      maxSeats: 100,
+      selfServe: false,
+      monthlyPriceId: "pri_ent_monthly_789",
+      annualPriceId: "pri_ent_annual_012",
+    },
   };
 
   it("drops only `tier`", () => {
@@ -39,13 +51,23 @@ describe("toCheckoutPricing", () => {
       annual: 99990,
       monthlyPriceId: "pri_monthly_123",
       annualPriceId: "pri_annual_456",
+      // Enterprise's price IDs and provider survive here on purpose:
+      // checkout is the surface that opens the SDK and must hand it a price.
+      enterprise: full.enterprise,
     });
   });
 
-  it("never lets `tier` ride along into the hydration payload", () => {
+  it("never lets the top-level `tier` ride along into the hydration payload", () => {
     const result = toCheckoutPricing(full);
-    const serialized = JSON.stringify(result);
 
-    expect(serialized).not.toContain('"tier"');
+    expect(Object.keys(result)).not.toContain("tier");
+    // Asserted on the key list rather than the serialized string: the nested
+    // `enterprise` object carries its OWN `tier`, which is a different field
+    // — checkout is free to receive it, and a substring match on the whole
+    // payload would fail on it while saying nothing about the field this
+    // test is actually about.
+    expect(JSON.stringify({ ...result, enterprise: undefined })).not.toContain(
+      '"tier"',
+    );
   });
 });

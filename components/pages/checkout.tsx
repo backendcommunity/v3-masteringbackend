@@ -129,6 +129,10 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
   const cycle = searchParams?.get("cycle") ?? "monthly";
+  // Per-seat plans only. Passed through raw — resolveCheckoutPrice owns the
+  // validation, so there is exactly one gate deciding whether a seat count
+  // may be charged, and it is the same one the tests pin.
+  const seatsParam = searchParams?.get("seats");
   // `?plan=free` is the cancellation flow, not a purchase: it early-returns
   // to the cancellation card below and never prices or charges anything.
   // There is no Free plan record to look up, so it must not be treated as an
@@ -166,10 +170,16 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     pricing,
     plan,
     planResolved,
+    seats: seatsParam,
   });
   const resolved = resolution.status === "resolved" ? resolution.price : null;
   const priceId = resolved?.priceId ?? "";
   const amount = resolved?.amount ?? 0;
+  // Seat count for a per-seat plan; absent for everything else, including
+  // Pro. `?? 1` at the point of use, never here — an unresolved per-seat
+  // checkout must reach the unavailable state, not silently bill one seat.
+  const quantity = resolved?.quantity;
+  const unitAmount = resolved?.unitAmount;
   const currency = resolved?.currency ?? pricing.currency;
   const provider = resolved?.provider ?? pricing.provider;
   // Every resolved price is now region-selected — Pro from the regional
@@ -407,7 +417,18 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     if (!priceId || !paddleRef.current || !paddle?.Checkout?.open) return false;
     paddle.Checkout.open({
       settings: { displayMode: "inline" },
-      items: [{ priceId }],
+      // `quantity` is how a per-seat plan is actually charged: the processor
+      // multiplies the per-seat price by it, so the transaction total equals
+      // seats x per-user price — the same number the order summary shows,
+      // because both come from the one resolution above.
+      //
+      // Defaulting to 1 here is safe ONLY because a per-seat plan can never
+      // arrive here without a quantity: resolveCheckoutPrice returns
+      // "unavailable" (not a price) when the seat count is missing or out of
+      // range, so `priceId` is "" and this function returns false before
+      // reaching this line. The default therefore only ever applies to
+      // single-unit plans like Pro, where 1 is what Paddle assumes anyway.
+      items: [{ priceId, quantity: quantity ?? 1 }],
       customer: {
         email: user?.email!,
         address: {
@@ -419,7 +440,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
       },
     });
     return true;
-  }, [priceId, paddle, user, pricing.country]);
+  }, [priceId, quantity, paddle, user, pricing.country]);
 
   // Called from the Subscribe click. The chunk is normally already
   // resolved (see the eager-prefetch effect above) so this is instant, but
@@ -842,6 +863,22 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                   </p>
 
                   <Separator />
+
+                  {/* Per-seat plans show the arithmetic, not just the
+                      total: a buyer who cannot check "6 x $25 = $150" has to
+                      take the number on faith, and the seat count is the one
+                      input they chose themselves. Rendered only when this
+                      resolution actually carries a quantity, so Pro's
+                      summary is unchanged. */}
+                  {quantity !== undefined && unitAmount !== undefined && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        {quantity} users x {formatPrice(unitAmount, currency)}{" "}
+                        per user
+                      </span>
+                      <span>{formatPrice(amount, currency)}</span>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <div className="flex justify-between">

@@ -19,6 +19,18 @@ describe("toPublicPricing", () => {
     annual: 99990,
     monthlyPriceId: "pri_monthly_123",
     annualPriceId: "pri_annual_456",
+    enterprise: {
+      tier: "NG",
+      provider: "ASYNCPAY",
+      currency: "NGN",
+      monthlyPerUser: 15000,
+      annualPerUser: 150000,
+      minSeats: 2,
+      maxSeats: 100,
+      selfServe: false,
+      monthlyPriceId: "pri_ent_monthly_789",
+      annualPriceId: "pri_ent_annual_012",
+    },
   };
 
   it("drops the processor identity and price IDs", () => {
@@ -27,6 +39,16 @@ describe("toPublicPricing", () => {
     expect(result).not.toHaveProperty("provider");
     expect(result).not.toHaveProperty("monthlyPriceId");
     expect(result).not.toHaveProperty("annualPriceId");
+  });
+
+  it("drops the SAME three fields from the nested enterprise object", () => {
+    // A top-level destructure does not reach inside `enterprise`, so this is
+    // a second, separate strip — and the one most likely to be forgotten.
+    const result = toPublicPricing(full);
+
+    expect(result.enterprise).not.toHaveProperty("provider");
+    expect(result.enterprise).not.toHaveProperty("monthlyPriceId");
+    expect(result.enterprise).not.toHaveProperty("annualPriceId");
   });
 
   it("keeps every field the UI actually renders", () => {
@@ -38,6 +60,15 @@ describe("toPublicPricing", () => {
       currency: "NGN",
       monthly: 9999,
       annual: 99990,
+      enterprise: {
+        tier: "NG",
+        currency: "NGN",
+        monthlyPerUser: 15000,
+        annualPerUser: 150000,
+        minSeats: 2,
+        maxSeats: 100,
+        selfServe: false,
+      },
     });
   });
 
@@ -49,5 +80,7 @@ describe("toPublicPricing", () => {
     expect(serialized.toLowerCase()).not.toContain("asyncpay");
     expect(serialized).not.toContain("pri_monthly_123");
     expect(serialized).not.toContain("pri_annual_456");
+    expect(serialized).not.toContain("pri_ent_monthly_789");
+    expect(serialized).not.toContain("pri_ent_annual_012");
   });
 });

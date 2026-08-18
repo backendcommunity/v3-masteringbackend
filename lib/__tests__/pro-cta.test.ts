@@ -8,6 +8,16 @@ const ngPricing: PublicPricing = {
   currency: "NGN",
   monthly: 9999,
   annual: 99990,
+  // Present because the type requires it; nothing in the Pro CTA reads it.
+  enterprise: {
+    tier: "NG",
+    currency: "NGN",
+    monthlyPerUser: 15000,
+    annualPerUser: 150000,
+    minSeats: 2,
+    maxSeats: 100,
+    selfServe: false,
+  },
 };
 
 describe("formatGoProCtaLabel", () => {

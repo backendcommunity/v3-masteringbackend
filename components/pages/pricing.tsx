@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Check, Crown, X } from "lucide-react";
+import { Check, Crown, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -20,9 +20,13 @@ import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
-  enterprisePricingForTier,
+  clampSeats,
+  enterprisePerUser,
+  enterprisePerUserMonthlyDisplay,
+  enterpriseTotal,
   formatPrice,
   monthlyEquivalent,
+  type PublicEnterprisePricing,
   type PublicPricing,
 } from "@/lib/pricing";
 import { classifyPremiumTierStatus } from "@/lib/subscription-pricing";
@@ -59,7 +63,10 @@ const PRO_FEATURES: string[] = [
 // extra seats are billed separately, cohort-based bootcamps, certification
 // exams, 1-on-1 mentorship, and career placement assistance.
 const ENTERPRISE_FEATURES: string[] = [
-  "Team seats for up to 5 members ($10/seat after that)",
+  // Was "Team seats for up to 5 members ($10/seat after that)" — that
+  // allotment-plus-overage model is gone. Enterprise is priced per user from
+  // the first seat, so the feature line says what the buyer now controls.
+  "A seat for every team member, priced per user",
   "Structured, cohort-based bootcamps",
   "Certification exams",
   "1-on-1 mentorship with industry experts",
@@ -177,17 +184,17 @@ const COMPARE_GROUPS: {
     // column.
     name: "Team & enterprise",
     rows: [
+      // Per-user pricing replaced the old "5 included, $10/seat after"
+      // model, so there is no allotment to state and no overage rate — the
+      // seat count IS the price. The single row that remains says the one
+      // thing a buyer needs from this table; the exact per-seat figure is on
+      // the column header above, region-priced, and would only drift if
+      // restated here.
       {
-        label: "Team seats included",
+        label: "Per-user pricing, from 2 seats",
         free: "no",
         pro: "no",
-        enterprise: "5",
-      },
-      {
-        label: "Additional seats",
-        free: "no",
-        pro: "no",
-        enterprise: "$10/seat",
+        enterprise: "yes",
       },
       {
         label: "Structured, cohort-based bootcamps",
@@ -238,6 +245,116 @@ function tablePriceLine(
   return `${monthlyEquivalent(planPricing, cycle)} /month${
     cycle === "annual" ? " billed annually" : ""
   }`;
+}
+
+/**
+ * Where a team goes when they cannot buy per-seat online.
+ *
+ * There is no contact/support route in lib/routes.ts (checked — the routes
+ * table has dashboard, courses, billing, subscription, XP store and auth, and
+ * nothing sales- or contact-shaped), and no /contact page exists under app/.
+ * So this is a mailto to the address the site already publishes as its own
+ * (lib/seo.ts's organization email) rather than an invented route that would
+ * 404. Replace with a real route the moment one exists.
+ *
+ * The subject line is pre-filled so the reply lands with context instead of
+ * an empty "Enterprise" thread.
+ */
+const SALES_CONTACT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeURIComponent(
+  "Enterprise plan — team pricing",
+)}`;
+
+/**
+ * Enterprise's line in the comparison-table header. Must read the same as the
+ * card's price block, because a buyer who scrolls from one to the other and
+ * sees two different numbers stops trusting both — hence the shared
+ * per-user-monthly formatter and the identical "per user" qualifier.
+ */
+function enterpriseTablePriceLine(
+  enterprise: PublicEnterprisePricing,
+  cycle: BillingCycle,
+): string {
+  return `${enterprisePerUserMonthlyDisplay(enterprise, cycle)} per user /month${
+    cycle === "annual" ? " billed annually" : ""
+  }`;
+}
+
+/**
+ * Team-size stepper. Clamped to [minSeats, maxSeats] on every path in — the
+ * buttons, the keyboard, a pasted value — because the seat count is a
+ * multiplier on money and an out-of-range one either undercharges or produces
+ * a checkout the processor rejects.
+ *
+ * Clamping (rather than rejecting) is right HERE and only here: nothing is
+ * charged from this control, so nudging 1 up to 2 is helpful. The checkout
+ * path uses resolveSeats instead, which refuses out-of-range values outright.
+ */
+function SeatSelector({
+  seats,
+  setSeats,
+  enterprise,
+}: {
+  seats: number;
+  setSeats: (n: number) => void;
+  enterprise: PublicEnterprisePricing;
+}) {
+  const step = (delta: number) =>
+    setSeats(clampSeats(seats + delta, enterprise));
+
+  return (
+    <div className="mt-4">
+      <label
+        htmlFor="enterprise-seats"
+        className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+      >
+        Team size
+      </label>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 flex-none"
+          onClick={() => step(-1)}
+          disabled={seats <= enterprise.minSeats}
+          aria-label="Remove a seat"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <input
+          id="enterprise-seats"
+          type="number"
+          inputMode="numeric"
+          min={enterprise.minSeats}
+          max={enterprise.maxSeats}
+          value={seats}
+          onChange={(e) => setSeats(clampSeats(Number(e.target.value), enterprise))}
+          // Re-clamp on blur so a half-typed value ("" or "1") cannot be left
+          // sitting in the field looking like an accepted team size.
+          onBlur={(e) => setSeats(clampSeats(Number(e.target.value), enterprise))}
+          className="h-9 w-20 rounded-md border border-input bg-background px-3 text-center font-mono text-sm font-semibold text-foreground [appearance:textfield] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-describedby="enterprise-seats-hint"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 flex-none"
+          onClick={() => step(1)}
+          disabled={seats >= enterprise.maxSeats}
+          aria-label="Add a seat"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <span
+          id="enterprise-seats-hint"
+          className="text-xs text-muted-foreground"
+        >
+          users (min {enterprise.minSeats})
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function CompareMark({ value }: { value: CompareCell }) {
@@ -310,12 +427,40 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const isPro = tierStatus === "pro";
   const isEnterprise = tierStatus === "enterprise";
 
-  // Enterprise is region-priced too — it has its own naira and USD channels
-  // seeded (see enterprisePricingForTier), so a Nigerian must see the naira
-  // figure here, not $99.99. These are the same `original*` amounts
-  // /checkout bills from once the same region picks the same channel, so
-  // what this card shows is what the buyer is charged.
-  const enterprisePricing = enterprisePricingForTier(pricing.tier);
+  // Enterprise is region-priced too, and now PER USER — the figures arrive
+  // on the same region-resolved object Pro's do (see lib/pricing.ts's nested
+  // `enterprise`), so a Nigerian sees ₦15,000/user and a US visitor $25/user
+  // from one source of truth rather than a static mirror that could drift
+  // from what checkout charges.
+  const enterprise = pricing.enterprise;
+
+  // Team size the buyer is quoting for. Starts at the minimum so the card
+  // always shows a real, payable total rather than a per-user figure with no
+  // context — the reference card does the same.
+  const [seats, setSeats] = useState(enterprise.minSeats);
+
+  // The whole regional branch, in one place: can this visitor's region be
+  // charged per seat at all?
+  //
+  // `selfServe` is decided once, on the backend, from whether that region's
+  // payment provider accepts a seat quantity (see enterpriseSelfServe() in
+  // academy's src/extensions/payment/pricing/tiers.ts — it names the SDK that
+  // cannot and why). This component holds NO country list and NO tier
+  // comparison; it reads the flag. When the limitation lifts, the backend
+  // flips one boolean and this page becomes self-serve everywhere with no
+  // edit here.
+  //
+  // What changes when it is false: no seat selector, no total, and the CTA
+  // goes to sales instead of checkout. The PRICE is still shown — the per-user
+  // rate is the same real ₦15,000 either way, and hiding it would make the
+  // card useless to exactly the buyers it is for.
+  const enterpriseSelfServe = enterprise.selfServe;
+
+  // seats x per-user, computed here and shown before anyone pays. null only
+  // if the seat count or the price is unusable, in which case no total is
+  // rendered at all — never a guess.
+  const enterpriseCycleTotal = enterpriseTotal(enterprise, cycle, seats);
+  const enterprisePerSeat = enterprisePerUser(enterprise, cycle);
 
   // Checkout used to derive its entire price and processor selection from
   // the region-resolved Pro pricing object alone, so it had no way to price
@@ -327,7 +472,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
   // an Enterprise-shaped checkout never returns Pro's amount or price ID).
   // Enterprise can now sell end-to-end from this page, the same way Pro
   // does.
-  const enterpriseCtaHref = `/checkout?plan=enterprise&cycle=${cycle}`;
+  // Seats travel to checkout on the URL, so the page that charges resolves
+  // the same quantity this card just quoted. /checkout re-validates it
+  // (lib/checkout-plan-pricing.ts) rather than trusting the link.
+  const enterpriseCtaHref = `/checkout?plan=enterprise&cycle=${cycle}&seats=${seats}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -547,8 +695,13 @@ export default function PricingView({ pricing }: PricingViewProps) {
               ("Most Popular") alone, Enterprise doesn't carry it. */}
           <div className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-r-2xl lg:border-none">
             <div className="mb-1 flex items-center justify-between">
+              {/* Eyebrow states the minimum team size, from the API's own
+                  minSeats — the card's headline constraint, and the first
+                  thing that tells a solo buyer this plan is not for them.
+                  Derived rather than hard-coded so it cannot contradict the
+                  seat selector below it. */}
               <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                For teams &amp; businesses
+                For teams of {enterprise.minSeats} and up
               </p>
               <Crown className="h-4 w-4 text-[#EB5757]" aria-hidden="true" />
             </div>
@@ -556,20 +709,73 @@ export default function PricingView({ pricing }: PricingViewProps) {
               Enterprise
             </h2>
 
+            {/* Price block. The "per user" qualifier is deliberately NOT
+                subordinate to "/month": it sits on the first line of the
+                stack, at the same weight as the interval, because a per-seat
+                figure read as a team total is the single most expensive
+                misunderstanding this card can cause. */}
             <div className="flex min-h-[62px] items-baseline gap-2.5">
               <span className="font-mono text-5xl font-bold tracking-tight">
-                {monthlyEquivalent(enterprisePricing, cycle)}
+                {enterprisePerUserMonthlyDisplay(enterprise, cycle)}
               </span>
-              <span className="text-sm leading-tight text-muted-foreground">
-                /month
-                {cycle === "annual" && (
-                  <>
-                    <br />
-                    billed annually
-                  </>
-                )}
+              <span className="text-sm font-semibold leading-tight text-foreground">
+                per user
+                <br />
+                <span className="font-normal text-muted-foreground">
+                  /month
+                  {cycle === "annual" && (
+                    <>
+                      <br />
+                      billed annually
+                    </>
+                  )}
+                </span>
               </span>
             </div>
+
+            {enterpriseSelfServe ? (
+              <>
+                <SeatSelector
+                  seats={seats}
+                  setSeats={setSeats}
+                  enterprise={enterprise}
+                />
+                {/* The total, before anyone pays. A per-user rate with no
+                    total is how a 10-person team talks itself into a number
+                    it never actually computed. Rendered only when the maths
+                    resolved — enterpriseTotal returns null rather than a
+                    best guess, and a missing total must show nothing at
+                    all. */}
+                {enterpriseCycleTotal !== null && (
+                  <div className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold">Total</span>
+                      <span className="font-mono text-lg font-bold tracking-tight">
+                        {formatPrice(enterpriseCycleTotal, enterprise.currency)}
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          /{cycle === "annual" ? "year" : "month"}
+                        </span>
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {seats} users x{" "}
+                      {formatPrice(enterprisePerSeat, enterprise.currency)} per
+                      user /{cycle === "annual" ? "year" : "month"}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Sales-led region: no seat selector and no total, because we
+              // cannot take a per-seat payment here and quoting a total we
+              // cannot charge would be a promise the checkout breaks. The
+              // per-user rate above is still the real rate.
+              <p className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                Priced per user, from {enterprise.minSeats} users. Tell us your
+                team size and we&apos;ll set it up and invoice you.
+              </p>
+            )}
+
             {isEnterprise ? (
               <div className="my-6 space-y-2">
                 <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
@@ -582,11 +788,21 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   Manage your subscription
                 </Link>
               </div>
-            ) : (
+            ) : enterpriseSelfServe ? (
+              // Outline, never solid — Pro keeps the one solid primary button
+              // on this page, and two solid CTAs side by side would make the
+              // recommended plan indistinguishable from the upsell.
               <Button asChild className="my-6 w-full" variant="outline">
                 <Link href={enterpriseCtaHref}>
                   {isPro ? "Upgrade to Enterprise" : "Choose Enterprise"}
                 </Link>
+              </Button>
+            ) : (
+              // Labelled for what it actually does. Not "Choose Enterprise" /
+              // "Get started", which would promise a checkout that cannot
+              // charge this team correctly.
+              <Button asChild className="my-6 w-full" variant="outline">
+                <a href={SALES_CONTACT_HREF}>Talk to sales</a>
               </Button>
             )}
 
@@ -816,8 +1032,11 @@ export default function PricingView({ pricing }: PricingViewProps) {
                       <div className="text-xl font-extrabold tracking-tight">
                         Enterprise
                       </div>
+                      {/* Matches the card's price block word for word —
+                          per-user rate, same monthly-equivalent treatment,
+                          same "billed annually" suffix. */}
                       <div className="mb-4 mt-1 text-xs text-muted-foreground">
-                        {tablePriceLine(enterprisePricing, cycle)}
+                        {enterpriseTablePriceLine(enterprise, cycle)}
                       </div>
                       {isEnterprise ? (
                         <div className="space-y-1.5">
@@ -831,7 +1050,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                             Manage subscription
                           </Link>
                         </div>
-                      ) : (
+                      ) : enterpriseSelfServe ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -841,6 +1060,18 @@ export default function PricingView({ pricing }: PricingViewProps) {
                           <Link href={enterpriseCtaHref}>
                             {isPro ? "Upgrade" : "Choose Enterprise"}
                           </Link>
+                        </Button>
+                      ) : (
+                        // Same sales-led branch as the card above, off the
+                        // same `selfServe` flag — the table must not offer a
+                        // checkout the card just declined to offer.
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="w-full"
+                        >
+                          <a href={SALES_CONTACT_HREF}>Talk to sales</a>
                         </Button>
                       )}
                     </th>
