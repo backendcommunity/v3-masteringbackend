@@ -39,13 +39,25 @@ export const GLOBAL_FALLBACK: RegionalPricing = {
  * Server-side fetch. Geo headers must be FORWARDED from the incoming request —
  * without them the API sees the Netlify function's own IP and everyone in the
  * world gets quoted the GLOBAL price.
+ *
+ * `geoOverride`, when present, is forwarded verbatim as the `__geo` query
+ * param — a developer-only affordance (`?__geo=NG` on /pricing or /checkout)
+ * for exercising regional pricing on localhost, where no edge geo header
+ * exists at all. It is safe to forward unconditionally in every environment:
+ * the API only honours it when ITS OWN context is LOCAL/DEVELOP and ignores
+ * it outright in STAGING/PRODUCTION (see academy's resolveCountryWithOverride
+ * in src/extensions/payment/pricing/resolve-country.ts) — this file has no
+ * gating to do and must not attempt to duplicate that decision.
  */
 export async function fetchPricing(
   headers?: Record<string, string>,
+  geoOverride?: string,
 ): Promise<RegionalPricing> {
   const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
+  const url = new URL(`${base}/public/pricing`);
+  if (geoOverride) url.searchParams.set("__geo", geoOverride);
   try {
-    const res = await fetch(`${base}/public/pricing`, {
+    const res = await fetch(url.toString(), {
       headers: headers ?? {},
       cache: "no-store",
     });

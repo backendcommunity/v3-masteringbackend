@@ -34,7 +34,15 @@ export function toPublicPricing(pricing: RegionalPricing): PublicPricing {
   return publicPricing;
 }
 
-export default async function PricingPage() {
+interface PricingPageProps {
+  // Next.js 15: searchParams is async. `__geo` is a developer-only override
+  // (see lib/pricing.server.ts's fetchPricing) — the API enforces it is
+  // honoured ONLY in LOCAL/DEVELOP, so simply forwarding whatever is on the
+  // URL here is safe in every environment.
+  searchParams: Promise<{ __geo?: string | string[] }>;
+}
+
+export default async function PricingPage({ searchParams }: PricingPageProps) {
   const incoming = await headers();
   // Forward geo headers so the API resolves the VISITOR's country, not the
   // Netlify function's.
@@ -44,6 +52,9 @@ export default async function PricingPage() {
     if (value) forwarded[key] = value;
   }
 
-  const pricing = await fetchPricing(forwarded);
+  const { __geo } = await searchParams;
+  const geoOverride = typeof __geo === "string" ? __geo : undefined;
+
+  const pricing = await fetchPricing(forwarded, geoOverride);
   return <PricingView pricing={toPublicPricing(pricing)} />;
 }

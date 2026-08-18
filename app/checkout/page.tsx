@@ -28,10 +28,16 @@ export function toCheckoutPricing(pricing: RegionalPricing): CheckoutPricing {
 
 interface CheckoutPageRouteProps {
   params: {};
+  // Next.js 15: searchParams is async. `__geo` is a developer-only override
+  // (see lib/pricing.server.ts's fetchPricing) — the API enforces it is
+  // honoured ONLY in LOCAL/DEVELOP, so simply forwarding whatever is on the
+  // URL here is safe in every environment.
+  searchParams: Promise<{ __geo?: string | string[] }>;
 }
 
 export default async function CheckoutPageRoute({
   params,
+  searchParams,
 }: CheckoutPageRouteProps) {
   const incoming = await headers();
   // Forward geo headers so the API resolves the VISITOR's country, not the
@@ -42,11 +48,14 @@ export default async function CheckoutPageRoute({
     if (value) forwarded[key] = value;
   }
 
-  const pricing = await fetchPricing(forwarded);
+  const { __geo } = await searchParams;
+  const geoOverride = typeof __geo === "string" ? __geo : undefined;
+
+  const pricing = await fetchPricing(forwarded, geoOverride);
 
   return (
     <DashboardLayout>
-      <CheckoutPage pricing={toCheckoutPricing(pricing)} />
+      <CheckoutPage pricing={toCheckoutPricing(pricing)} tier={pricing.tier} />
     </DashboardLayout>
   );
 }

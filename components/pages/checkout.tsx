@@ -3,6 +3,7 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import {
   Card,
@@ -35,7 +36,12 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { formatPrice } from "@/lib/pricing";
-import type { CheckoutPricing } from "@/lib/pricing";
+import type { CheckoutPricing, RegionalPricing } from "@/lib/pricing";
+import {
+  classifyCheckoutReadiness,
+  checkoutSubscribeLabel,
+  CHECKOUT_UNAVAILABLE_MESSAGE,
+} from "@/lib/checkout-readiness";
 import { analytics } from "@/lib/analytics";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 
@@ -61,9 +67,16 @@ interface CheckoutPageProps {
   // region. The buyer never chooses a processor — it's implied by `provider`
   // and only ever used to pick which SDK call to make, never rendered.
   pricing: CheckoutPricing;
+  // Passed as its OWN prop rather than folded into `pricing`: CheckoutPricing
+  // (lib/pricing.ts) deliberately strips `tier` before crossing into this
+  // client component, and lib/__tests__/checkout-page-props.test.ts pins
+  // that. This is used only for the operator-facing unavailable report
+  // below (never rendered to the buyer), so it goes through a separate,
+  // narrower channel instead of reopening that boundary.
+  tier: RegionalPricing["tier"];
 }
 
-export function CheckoutPage({ pricing }: CheckoutPageProps) {
+export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const store = useAppStore();
@@ -142,14 +155,39 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   //     then silently did nothing — the buyer sat on a dead disabled button.
   //   - AsyncPay: waits on the eager chunk prefetch (see the effect below) so
   //     the click doesn't have to fetch a chunk before it can start.
-  const subscribeReady =
-    Boolean(priceId) &&
-    (pricing.provider === "ASYNCPAY" ? asyncpayReady : Boolean(paddle));
-  const subscribeLabel = !subscribeReady
-    ? "Loading..."
-    : isProcessing
-      ? "Processing..."
-      : "Subscribe";
+  //
+  // A missing price ID is a DIFFERENT, PERMANENT condition (see
+  // lib/checkout-readiness.ts) — it must not present as the same "Loading…"
+  // state as a merely-not-yet-resolved SDK, which is why classification is
+  // pulled into a pure, tested function rather than inlined here.
+  const sdkResolved =
+    pricing.provider === "ASYNCPAY" ? asyncpayReady : Boolean(paddle);
+  const readiness = classifyCheckoutReadiness({
+    hasPriceId: Boolean(priceId),
+    sdkResolved,
+  });
+  const subscribeReady = readiness === "ready";
+  const subscribeLabel = checkoutSubscribeLabel(readiness, isProcessing);
+
+  // Fires once when checkout is permanently unavailable (no price ID for the
+  // selected cycle/tier) so operators find out instead of only a buyer
+  // staring at a dead button. Deliberately does not run for the transient
+  // "loading" state. console.error is the floor; Sentry.captureMessage adds
+  // the tier/provider/cycle tags so this is triageable without reproducing
+  // it locally.
+  useEffect(() => {
+    if (readiness !== "unavailable") return;
+    console.error(
+      "[checkout] no usable price ID for tier=%s provider=%s cycle=%s — checkout cannot start",
+      tier,
+      pricing.provider,
+      cycle,
+    );
+    Sentry.captureMessage("Checkout unavailable: missing price ID", {
+      level: "error",
+      tags: { tier, provider: pricing.provider, cycle },
+    });
+  }, [readiness, tier, pricing.provider, cycle]);
 
   useEffect(() => {
     let cancelled = false;
@@ -749,13 +787,23 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
                 </p>
               </div>
 
-              <Button
-                className="w-full"
-                disabled={isProcessing || !subscribeReady}
-                onClick={handleSubscribeClick}
-              >
-                {subscribeLabel}
-              </Button>
+              {readiness === "unavailable" ? (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Checkout unavailable</AlertTitle>
+                  <AlertDescription>
+                    {CHECKOUT_UNAVAILABLE_MESSAGE}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Button
+                  className="w-full"
+                  disabled={isProcessing || !subscribeReady}
+                  onClick={handleSubscribeClick}
+                >
+                  {subscribeLabel}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
