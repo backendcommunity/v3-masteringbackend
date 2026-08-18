@@ -287,6 +287,15 @@ export interface Subscription {
   switchToBasicDate?: Date | string;
   paymentChannel?: PaymentChannel;
   plan?: Plan;
+  // The amount actually being billed, already referenced elsewhere as an
+  // untyped field (see subscription-management.tsx). Used to detect
+  // grandfathered pricing: compared against the CURRENT regional tier price,
+  // a mismatch means this subscriber is on a legacy rate.
+  amount?: number;
+  // Absent on subscriptions created before regional pricing shipped — those
+  // were always billed in USD, so callers should default to "USD" rather
+  // than treat a missing value as unknown.
+  currency?: "NGN" | "USD";
 }
 
 export interface Level {
