@@ -18,6 +18,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
+import { withGeoOverride } from "@/lib/geo-override";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
   enterprisePerUserMonthlyDisplay,
@@ -67,25 +68,16 @@ type BillingCycle = "monthly" | "annual";
  * src/modules/mock-interview/helpers/subscription-access.ts, which is the only
  * thing that actually grants or refuses a session. Change them there first.
  *
- * ⚠️ PENDING BACKEND — Pro's unlimited mock interviews.
+ * The tiers this page sells, verbatim from that PLAN_CONFIG:
  *
- * This page now advertises UNLIMITED AI mock interviews on Pro. As of this
- * change the backend still caps Pro at four a month:
+ *     free:       { maxSessions: 1,  allowedDurations: [15] },
+ *     pro:        { maxSessions: -1, allowedDurations: [15, 30] },
+ *     enterprise: { maxSessions: -1, allowedDurations: [15, 30, 45, 60] },
  *
- *     // academy/src/modules/mock-interview/helpers/subscription-access.ts
- *     pro: { maxSessions: 4, allowedDurations: [15, 30] },   // → -1
- *
- * Until that becomes `maxSessions: -1`, a Pro subscriber's fifth interview
- * in a calendar month is refused with 403 SESSION_LIMIT_REACHED — i.e. the
- * page is selling something the product declines to deliver. The backend
- * change must ship BEFORE or WITH this one, never after.
- *
- * Grep `PENDING BACKEND` to find every frontend site that made this promise
- * early; there are four, and they are all listed at the greps below:
- *   1. PRO_FEATURES, this file
- *   2. COMPARE_GROUPS "AI mock interviews", this file
- *   3. the FAQ answer, this file
- *   4. the free-tier upsell banner in components/pages/mock-interviews.tsx
+ * Session COUNT no longer separates Pro from Enterprise — both are
+ * unlimited. Session LENGTH does, and it is the only thing that does, so
+ * every surface quoting an interview allowance has to carry the duration
+ * with it or it implies the two tiers offer the same product.
  */
 const FREE_FEATURES: string[] = [
   "Free courses and the first steps of every path",
@@ -108,10 +100,7 @@ const PRO_FEATURES: string[] = [
   // exercises in the playground" while the table called the same thing
   // something else — the exact card/table drift the table exists to settle.
   "Unlimited bite-size practice exercises",
-  // ⚠️ PENDING BACKEND (1/4) — the "unlimited" half is true only once
-  // PLAN_CONFIG.pro.maxSessions is -1. See the header comment above.
-  //
-  // The duration qualifier is NOT pending and is load-bearing: with session
+  // The duration qualifier is load-bearing: with session
   // COUNT now identical on Pro and Enterprise, length is the only thing left
   // separating them on interviews (PLAN_CONFIG.allowedDurations — Pro 15/30,
   // Enterprise up to 60). Without it this card reads as though Pro and
@@ -347,8 +336,6 @@ const COMPARE_GROUPS: {
     name: "Grow",
     rows: [
       {
-        // ⚠️ PENDING BACKEND (2/4) — Pro reads "Unlimited" here ahead of
-        // PLAN_CONFIG.pro.maxSessions becoming -1. See the header comment.
         label: "AI mock interviews",
         free: "1 / month",
         pro: "Unlimited",
@@ -680,7 +667,17 @@ export default function PricingView({ pricing }: PricingViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const checkoutHref = `/checkout?plan=pro&cycle=${cycle}`;
+  // __geo (dev-only region override — see resolveCountryWithOverride in
+  // academy's src/extensions/payment/pricing/resolve-country.ts, which the
+  // backend only honours in LOCAL/DEVELOP) rides along on every internal
+  // link this page builds, so a developer who set it here doesn't lose the
+  // region the moment they click through to checkout. Production visitors
+  // never carry this param, so withGeoOverride is a no-op for them and
+  // these hrefs stay byte-identical to today's.
+  const checkoutHref = withGeoOverride(
+    `/checkout?plan=pro&cycle=${cycle}`,
+    searchParams,
+  );
   const freeCtaIsCurrent = Boolean(user && !user.isPremium);
   // A subscriber must never be offered a SECOND subscription. Onboarding now
   // routes everyone through this page, so a grandfathered Pro user lands here
@@ -730,7 +727,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
   // SeatSelector). This card only ever quotes the per-user rate, so no seat
   // count travels on the link — checkout defaults to the plan's minimum and
   // lets the buyer change it there.
-  const enterpriseCtaHref = `/checkout?plan=enterprise&cycle=${cycle}`;
+  const enterpriseCtaHref = withGeoOverride(
+    `/checkout?plan=enterprise&cycle=${cycle}`,
+    searchParams,
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -1493,11 +1493,6 @@ export default function PricingView({ pricing }: PricingViewProps) {
             {[
               {
                 q: "What's the difference between Free and Pro?",
-                // ⚠️ PENDING BACKEND (3/4) — "unlimited mock interviews" on
-                // Pro lands ahead of PLAN_CONFIG.pro.maxSessions = -1. The
-                // "up to 30 minutes" qualifier is NOT pending: session
-                // length is unchanged and still separates Pro from
-                // Enterprise, so it stays.
                 // Bootcamps and certification exams stay named here — this
                 // answer is the page's only prose description of Pro, and
                 // omitting them would leave the FAQ selling a smaller tier
