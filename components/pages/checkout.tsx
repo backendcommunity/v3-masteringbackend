@@ -63,6 +63,20 @@ const ASYNCPAY_WRAPPER_ID = "asyncpay-checkout-sdk-wrapper";
 // while the modal was open, which is the bug this replaces.
 const CHECKOUT_OPEN_TIMEOUT_MS = 8000;
 
+/**
+ * Where a buyer goes when checkout itself is unavailable and they want a
+ * human. Same reasoning as pricing.tsx's SALES_CONTACT_HREF: there is no
+ * contact/support route in lib/routes.ts (checked — dashboard, courses,
+ * billing, subscription, XP store and auth, nothing support-shaped) and no
+ * /contact page under app/, so this is a mailto to the address the site
+ * already publishes as its own (lib/seo.ts's organization email) rather
+ * than an invented route that would 404. Replace with a real route the
+ * moment one exists.
+ */
+const CHECKOUT_SUPPORT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeURIComponent(
+  "Checkout unavailable",
+)}`;
+
 interface CheckoutPageProps {
   // Resolved server-side (see app/checkout/page.tsx) from the visitor's
   // region. The buyer never chooses a processor — it's implied by `provider`
@@ -146,6 +160,14 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
     ? "sandbox"
     : "production";
+  // Same "is this a real production deploy" gate as sentry.server.config.ts,
+  // instrumentation-client.ts and posthog-provider.tsx — NEXT_PUBLIC_NODE_ENV
+  // (falling back to NODE_ENV) is only ever "production" for a real
+  // production build, so a developer-only diagnostic gated on `!== "production"`
+  // can never render there, regardless of exactly which non-prod value
+  // ("dev" / "development" / "staging") this deploy happens to use.
+  const isNonProductionEnv =
+    (NODE_ENV ?? process.env.NODE_ENV) !== "production";
 
   const subscription = user?.subscription;
   const plans = dataStore.plans;
@@ -898,51 +920,111 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                     <span>{formatPrice(amount, currency)}</span>
                   </div>
 
-                  <div className="text-sm text-muted-foreground pt-2">
-                    <p>
-                      You will be charged{" "}
-                      <span>{formatPrice(amount, currency)}</span> every{" "}
-                      {cycle === "monthly" ? "month" : "year"}.
-                    </p>
-                  </div>
+                  {/* This is a forward-looking promise to charge — it must
+                      not appear when checkout is unavailable, or the page
+                      says "we will bill you" and "we can't take your money"
+                      in the same breath. The full explanation lives in the
+                      right-hand panel; this column keeps only the figures,
+                      which stay true (this IS what the plan costs) even
+                      though we can't collect them right now. */}
+                  {readiness !== "unavailable" && (
+                    <div className="text-sm text-muted-foreground pt-2">
+                      <p>
+                        You will be charged{" "}
+                        <span>{formatPrice(amount, currency)}</span> every{" "}
+                        {cycle === "monthly" ? "month" : "year"}.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
-              {readiness === "unavailable" ? (
+              {/* Deliberately just the button, in every readiness state —
+                  including "unavailable", where subscribeLabel already
+                  reads "Checkout unavailable" and subscribeReady is false.
+                  The full explanation (reason, retry, support) lives once,
+                  in the right-hand panel, where the reader is actually
+                  looking; duplicating it here as a second Alert box would
+                  put two competing messages on screen for one condition. */}
+              <Button
+                className="w-full"
+                disabled={isProcessing || !subscribeReady}
+                onClick={handleSubscribeClick}
+              >
+                {subscribeLabel}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        {/* Payment Form — or, when checkout is unavailable, the ONE place
+            that carries the full explanation. This panel is where the eye
+            actually lands, so it must never be an empty card under a
+            heading that promises a form we have nothing to mount into it. */}
+        <Card className="md:col-span-2 ">
+          {readiness === "unavailable" ? (
+            <>
+              <CardHeader>
+                <CardTitle>Checkout unavailable</CardTitle>
+                <CardDescription>
+                  We can&apos;t open the payment form for this plan right
+                  now.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-4">
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Checkout unavailable</AlertTitle>
+                  <AlertTitle>We can&apos;t process this payment</AlertTitle>
                   <AlertDescription>
                     {CHECKOUT_UNAVAILABLE_MESSAGE}
                   </AlertDescription>
                 </Alert>
-              ) : (
-                <Button
-                  className="w-full"
-                  disabled={isProcessing || !subscribeReady}
-                  onClick={handleSubscribeClick}
-                >
-                  {subscribeLabel}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        {/* Payment Form */}
-        <Card className="md:col-span-2 ">
-          <CardHeader>
-            <CardTitle>Complete your subscription</CardTitle>
-            <CardDescription>
-              Fill out your details and complete your subscription.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5 pt-4">
-            <div
-              ref={paddleRef}
-              className="space-y-5 checkout-frame w-full"
-              id="checkout-frame"
-            />
-          </CardContent>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" onClick={() => router.refresh()}>
+                    Try again
+                  </Button>
+                  <Button variant="ghost" asChild>
+                    <a href={CHECKOUT_SUPPORT_HREF}>Contact support</a>
+                  </Button>
+                </div>
+
+                {/* Developer-only diagnostic. Gated on isNonProductionEnv
+                    (see its definition above) so this can never render on a
+                    real production deploy — a buyer must never see internal
+                    configuration detail. Styled deliberately unlike the
+                    customer-facing alert above (dashed border, monospace,
+                    amber) so nobody mistakes one for the other. */}
+                {isNonProductionEnv && unavailableReason && (
+                  <div className="rounded-md border border-dashed border-amber-400 bg-amber-50 p-3 dark:border-amber-500/40 dark:bg-amber-500/10">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-400">
+                      Dev diagnostic — hidden in production
+                    </p>
+                    <p className="mt-1.5 font-mono text-xs text-amber-900 break-words dark:text-amber-300">
+                      {unavailableReason}
+                    </p>
+                    <p className="mt-1.5 font-mono text-xs text-amber-700 dark:text-amber-400/80">
+                      tier={tier} provider={provider} cycle={cycle}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </>
+          ) : (
+            <>
+              <CardHeader>
+                <CardTitle>Complete your subscription</CardTitle>
+                <CardDescription>
+                  Fill out your details and complete your subscription.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-4">
+                <div
+                  ref={paddleRef}
+                  className="space-y-5 checkout-frame w-full"
+                  id="checkout-frame"
+                />
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
 
