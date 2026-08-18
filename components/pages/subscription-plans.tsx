@@ -23,8 +23,12 @@ import {
 import { routes } from "@/lib/routes";
 import { dataStore } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
-import { formatDate } from "@/lib/utils";
 import { formatPrice, type PublicPricing } from "@/lib/pricing";
+import {
+  classifyFreeCardCta,
+  classifyGrandfathered,
+  formatGrandfatheredSubLabel,
+} from "@/lib/subscription-pricing";
 
 interface SubscriptionPlansPageProps {
   pricing: PublicPricing;
@@ -38,25 +42,10 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
 
   const subscription = user?.subscription;
-  const isProSubscriber =
-    Boolean(user?.isPremium) &&
-    (subscription?.name === "Pro" || subscription?.plan?.name === "Pro");
-
-  // Legacy subscriptions predate regional pricing and were always billed in
-  // USD — `currency` only exists on subscriptions created after this
-  // feature shipped, so a missing value means "USD", not "unknown".
-  const legacyAmount = subscription?.amount ?? subscription?.plan?.monthlyPrice;
-  const legacyCurrency = subscription?.currency ?? "USD";
-
-  // A grandfathered subscriber's rate doesn't match what the current tier
-  // would charge them today — either a different amount, or (more commonly
-  // here) a different currency because they signed up before regional
-  // pricing existed. Never show them a control that would move them onto
-  // the new tier.
-  const isGrandfathered =
-    isProSubscriber &&
-    legacyAmount != null &&
-    (legacyCurrency !== pricing.currency || legacyAmount !== pricing.monthly);
+  // See lib/subscription-pricing.ts for the full matrix + why this never
+  // claims a billing period for a grandfathered amount.
+  const { isProSubscriber, isGrandfathered, legacyAmount, legacyCurrency } =
+    classifyGrandfathered(subscription, user?.isPremium, pricing);
 
   const proPrice = billingCycle === "monthly" ? pricing.monthly : pricing.annual;
 
@@ -115,12 +104,13 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
 
           if (isProPlan && isGrandfathered) {
             priceLabel = formatPrice(legacyAmount!, legacyCurrency);
-            subLabel = subscription?.expiry
-              ? `per month · renews ${formatDate(
-                  String(subscription.expiry),
-                  user?.settings?.dateFormat,
-                )}`
-              : "per month";
+            // Never "per month" here — we don't know the billing period of
+            // a legacy amount (see classifyGrandfathered's doc comment).
+            // The renewal date is the fact we actually have.
+            subLabel = formatGrandfatheredSubLabel(
+              subscription?.expiry,
+              user?.settings?.dateFormat,
+            );
             ctaLabel = "Manage subscription";
             ctaDisabled = false;
             onSelect = () => router.push(routes.subscriptionManagement);
@@ -148,17 +138,16 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
             onSelect = () => handleSelectPlan("pro", billingCycle);
           } else if (isFreePlan) {
             priceLabel = "Free";
-            if (user?.isPremium) {
-              // Known gap this closes: a premium user used to see "Get
-              // started" on the Free card, as if they were a new signup.
-              // Routing through checkout reuses its existing cancellation
-              // confirmation dialog (see components/pages/checkout.tsx),
-              // so this never downgrades anyone with a single click.
-              ctaLabel = "Downgrade to Free";
+            // Known gap this closes: a premium user used to see "Get
+            // started" on the Free card, as if they were a new signup.
+            // Routing through checkout reuses its existing cancellation
+            // confirmation dialog (see components/pages/checkout.tsx), so
+            // this never downgrades anyone with a single click.
+            const freeCta = classifyFreeCardCta(user?.isPremium);
+            ctaLabel = freeCta.ctaLabel;
+            ctaDisabled = freeCta.ctaDisabled;
+            if (!ctaDisabled) {
               onSelect = () => handleSelectPlan("free", billingCycle);
-            } else {
-              ctaLabel = "Current Plan";
-              ctaDisabled = true;
             }
           } else {
             // Enterprise — no regional pricing for this tier; keep the
