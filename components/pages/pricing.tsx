@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -34,41 +34,190 @@ interface PricingViewProps {
 
 type BillingCycle = "monthly" | "annual";
 
-const FREE_FEATURES: { label: string; included: boolean }[] = [
-  { label: "First steps of every path and course", included: true },
-  { label: "Public portfolio and profile", included: true },
-  { label: "XP, streaks, and the leaderboard", included: true },
-  { label: "Premium path and course steps", included: false },
-  { label: "AI mock interviews and reports", included: false },
-  { label: "Verified certificates", included: false },
+/**
+ * ── What belongs on a card, and what belongs in the table ─────────────────
+ *
+ * The card's job is the at-a-glance decision: who the tier is for, what it
+ * costs, the shortest honest answer to "what do I get", and the CTA. The
+ * comparison table below is what answers the exhaustive question, and it now
+ * does that across 21 rows in five groups with real quotas.
+ *
+ * So these lists are SUMMARIES, deliberately capped, and they are all
+ * POSITIVE. Two things moved out to the table when the lists grew:
+ *
+ *   * The Free card's excluded ("✗") rows. Two hand-picked crosses were a
+ *     worse comparison than the table's 21 rows — and arbitrary: they named
+ *     two of the ten things Free lacks and stayed silent on the rest. With
+ *     the crosses gone every card list is uniform, so the ticks are
+ *     decorative on all three (see PlanFeatureList) instead of the Free card
+ *     alone needing per-item accessible names.
+ *
+ *   * Enterprise's per-item programme lines and its interview quota. The
+ *     table states "Unlimited" and "Up to 60 min" precisely; the card only
+ *     needs to say a team gets more.
+ *
+ * The counts are 5 / 6 / 5 on purpose. Pro carries the most lines because it
+ * is the recommended plan, and on a row that centers each card on its own
+ * height (lg:items-center) the line count IS the visual hierarchy — when
+ * Enterprise grew to eight items it stood taller than Pro and quietly
+ * out-ranked the card wearing the "MOST POPULAR" ribbon.
+ *
+ * Every quota named here is the backend's, not a marketing estimate: the
+ * mock-interview figures come from PLAN_CONFIG in academy's
+ * src/modules/mock-interview/helpers/subscription-access.ts, which is the only
+ * thing that actually grants or refuses a session. Change them there first.
+ *
+ * ⚠️ PENDING BACKEND — Pro's unlimited mock interviews.
+ *
+ * This page now advertises UNLIMITED AI mock interviews on Pro. As of this
+ * change the backend still caps Pro at four a month:
+ *
+ *     // academy/src/modules/mock-interview/helpers/subscription-access.ts
+ *     pro: { maxSessions: 4, allowedDurations: [15, 30] },   // → -1
+ *
+ * Until that becomes `maxSessions: -1`, a Pro subscriber's fifth interview
+ * in a calendar month is refused with 403 SESSION_LIMIT_REACHED — i.e. the
+ * page is selling something the product declines to deliver. The backend
+ * change must ship BEFORE or WITH this one, never after.
+ *
+ * Grep `PENDING BACKEND` to find every frontend site that made this promise
+ * early; there are four, and they are all listed at the greps below:
+ *   1. PRO_FEATURES, this file
+ *   2. COMPARE_GROUPS "AI mock interviews", this file
+ *   3. the FAQ answer, this file
+ *   4. the free-tier upsell banner in components/pages/mock-interviews.tsx
+ */
+const FREE_FEATURES: string[] = [
+  "Free courses and the first steps of every path",
+  // Free is NOT shut out of mock interviews — PLAN_CONFIG gives the free tier
+  // maxSessions: 1 on a calendar-month window, and nothing gates the scored
+  // report behind a tier once the session is allowed. This line used to say
+  // "AI mock interviews and reports — not included", which understated the
+  // free tier and made the whole column look less trustworthy than it is.
+  "One AI mock interview a month, scored",
+  "Community forum access",
+  "Public portfolio and profile",
+  "XP, streaks, and the leaderboard",
 ];
 
 const PRO_FEATURES: string[] = [
-  "Every path, course, and premium step",
+  "Every learning path and premium course, end to end",
   "All projects, with code review on each submission",
-  "Unlimited coding exercises in the playground",
-  "AI mock interviews with a scored report",
+  // Same noun phrase as the table's Build row ("Bite-size practice
+  // exercises"), with Pro's qualifier in front. It read "Unlimited coding
+  // exercises in the playground" while the table called the same thing
+  // something else — the exact card/table drift the table exists to settle.
+  "Unlimited bite-size practice exercises",
+  // ⚠️ PENDING BACKEND (1/4) — the "unlimited" half is true only once
+  // PLAN_CONFIG.pro.maxSessions is -1. See the header comment above.
+  //
+  // The duration qualifier is NOT pending and is load-bearing: with session
+  // COUNT now identical on Pro and Enterprise, length is the only thing left
+  // separating them on interviews (PLAN_CONFIG.allowedDurations — Pro 15/30,
+  // Enterprise up to 60). Without it this card reads as though Pro and
+  // Enterprise offer the same interview product.
+  "Unlimited AI mock interviews, up to 30 minutes each",
   "Verified, shareable certificates",
+  // "Community forum access" is deliberately NOT repeated here. Free has it
+  // too, so on the card that has to justify an upgrade it is a wasted line;
+  // the table carries it under Support, marked for all three tiers.
   "Priority support",
 ];
 
-// What Enterprise adds ON TOP of Pro — deliberately not a repeat of
-// PRO_FEATURES; the card leads with an "Everything in Pro, plus:" line (see
-// the Enterprise card below) so this array lists only the delta. Mirrors
-// what lib/data.ts's Enterprise plan record (source of /subscription/plans)
-// already attributes to this tier: an included team allotment beyond which
-// extra seats are billed separately, cohort-based bootcamps, certification
-// exams, 1-on-1 mentorship, and career placement assistance.
+/**
+ * What Enterprise adds ON TOP of Pro — deliberately not a repeat of
+ * PRO_FEATURES; the card leads with an "Everything in Pro, plus:" line (see
+ * the Enterprise card below) so this array lists only the delta.
+ *
+ * These five are a SUMMARY, not the tier's full inventory. Bootcamps and
+ * certification exams are still genuine Enterprise features — they remain in
+ * the comparison table's "Team & enterprise" group and in lib/data.ts's
+ * Enterprise plan record — they simply are not among the five lines this card
+ * spends. The card points at the table; the table enumerates.
+ */
 const ENTERPRISE_FEATURES: string[] = [
-  // Was "Team seats for up to 5 members ($10/seat after that)" — that
-  // allotment-plus-overage model is gone. Enterprise is priced per user from
-  // the first seat, so the feature line says what the buyer now controls.
-  "A seat for every team member, priced per user",
-  "Structured, cohort-based bootcamps",
-  "Certification exams",
-  "1-on-1 mentorship with industry experts",
-  "Dedicated career placement assistance",
+  // NO seat/pricing line here, deliberately. The card states the commercial
+  // model twice already, in larger type and closer to the decision: the
+  // eyebrow reads "For teams of {minSeats} and up" and the price block reads
+  // "$X per user /month". A third restatement in the feature list spent a
+  // slot repeating what the buyer had just read.
+  //
+  // Historical warning, still load-bearing: this tier was once sold as
+  // "Team seats for up to 5 members ($10/seat after that)". That
+  // allotment-plus-overage model is GONE — Enterprise is priced per user
+  // from the first seat with no cap (lib/pricing.ts's EnterprisePricing).
+  // Do not reintroduce a seat-allotment or per-seat-rate line here; the
+  // rate is region-priced and belongs to the price block alone.
+  //
+  // The group-admin lines lead instead, because they are what an Enterprise
+  // buyer is actually getting over Pro: not more content, but oversight of a
+  // team's use of it. Same strings as the table's rows — these were
+  // "Manage your group from one place" / "See each member's learning
+  // activity and progress" until the table consolidated onto the concrete
+  // artefact names, and a card that kept the old wording would have looked
+  // like a different set of features.
+  "Admin dashboard",
+  "Team performance reports",
+  "Co-branded landing page",
+  // "team mentorship", not plain "1-on-1 mentorship": on a per-seat plan the
+  // buyer is purchasing it for people other than themselves, and the table
+  // row carries the same wording so the two surfaces cannot drift.
+  "1-on-1 team mentorship with industry experts",
+  // Replaces "Dedicated career placement assistance" rather than joining it.
+  // Both would have been a career line, and the card has five slots; see the
+  // matching table row for the same claim.
+  "Hiring services",
 ];
+
+/**
+ * ── Feature status, in one place ──────────────────────────────────────────
+ *
+ * Both of these are keyed by the EXACT feature label, and both are consulted
+ * by the plan cards AND the comparison table. That is the point: a feature
+ * cannot be marked "Coming soon" in one surface and shipped in the other,
+ * and the lookup only matches when the card and the table use the same
+ * wording — so the sets quietly enforce the naming agreement this page has
+ * had to be corrected on twice.
+ */
+
+/**
+ * Announced, sold, and NOT YET BUILT. Nothing in this set exists in the
+ * codebase — no route, no model, no module — so every surface that names one
+ * must say so rather than let a buyer assume it ships today.
+ *
+ * Remove a label from this set the moment the feature lands; leaving it here
+ * understates a real capability, which is its own kind of wrong.
+ */
+const COMING_SOON = new Set<string>([
+  "Hiring services",
+  "Ship live backend products",
+  "Co-branded landing page",
+]);
+
+/**
+ * Status chip shown beside a feature label.
+ *
+ * Deliberately quiet — muted and outlined. This is a caveat, not a selling
+ * point, and a loud chip on three rows would pull the eye away from what the
+ * tier actually delivers today.
+ *
+ * Inline text rather than an icon, so it survives a screen reader and a
+ * monochrome print with no extra markup.
+ *
+ * There was briefly a second "New" variant here, chipping the two features
+ * that moved from Enterprise into Pro. It is gone by request along with the
+ * banner that announced them — the tier change itself stands, and the table
+ * simply shows bootcamps and certification exams marked for Pro like any
+ * other included feature, with nothing calling attention to when that
+ * started.
+ */
+function FeatureBadge() {
+  return (
+    <span className="ml-2 inline-block whitespace-nowrap rounded border border-border px-1.5 py-0.5 align-middle font-mono text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+      Coming soon
+    </span>
+  );
+}
 
 // Learners work at these companies — see the trusted-by band below the
 // "Compare features" anchor. Same list as the marketing site's
@@ -101,34 +250,82 @@ const COMPARE_GROUPS: {
   }[];
 }[] = [
   {
+    // Free vs. premium COURSES and basic vs. full PATHS are two separate
+    // questions, and this group used to answer them with one conflated row
+    // ("Every path and course, end to end"). A visitor comparing on content
+    // wants to know which of the two they're being cut off from, so each now
+    // gets its own row.
     name: "Learn",
     rows: [
       {
-        label: "First steps of every path",
+        label: "Free courses",
         free: "yes",
         pro: "yes",
         enterprise: "yes",
       },
       {
-        label: "Every path and course, end to end",
+        label: "Premium courses",
         free: "no",
         pro: "yes",
         enterprise: "yes",
       },
       {
-        label: "Coding exercises in the playground",
-        free: "Limited",
+        label: "Learning paths",
+        free: "First steps",
+        pro: "Full access",
+        enterprise: "Full access",
+      },
+      {
+        label: "Create your own custom paths",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
+      // ⚠️ TIER CHANGE, not a re-labelling: these two were Enterprise-ONLY
+      // until now (they sat in the "Team & enterprise" group below, marked
+      // no / no / yes). Pro now includes both. That narrows what Enterprise
+      // sells over Pro, and it contradicts lib/data.ts unless that file
+      // moves with it — Pro's record there has been flipped to match. If
+      // this was not intended, revert BOTH files together.
+      {
+        label: "Structured, cohort-based bootcamps",
+        free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Certification exams",
+        free: "no",
         pro: "yes",
         enterprise: "yes",
       },
     ],
   },
   {
+    // Everything a learner produces. "Coding exercises in the playground"
+    // used to sit under Learn; it is something you BUILD, and it belongs
+    // beside the projects it feeds. It is the same row, renamed to
+    // "Bite-size practice exercises" — not a second, competing claim.
     name: "Build",
     rows: [
       {
-        label: "Guided projects",
+        // Renamed from "Guided projects". Free's cell keeps its precise
+        // "Starter only" rather than a flat "Limited", because that is the
+        // actual boundary — the starter projects, not a metered allowance.
+        label: "Step-by-step coding projects",
         free: "Starter only",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Bite-size practice exercises",
+        free: "Limited",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Ship live backend products",
+        free: "Limited",
         pro: "yes",
         enterprise: "yes",
       },
@@ -138,27 +335,70 @@ const COMPARE_GROUPS: {
         pro: "yes",
         enterprise: "yes",
       },
-      { label: "Public portfolio", free: "yes", pro: "yes", enterprise: "yes" },
     ],
   },
   {
+    // Interview access is a QUOTA, not a yes/no — and the yes/no this group
+    // used to print was wrong in the one direction that costs signups: it
+    // showed Free a cross for mock interviews when the free tier has always
+    // had one session a month (PLAN_CONFIG.free.maxSessions === 1). The
+    // numbers below, session lengths included, are read straight off that
+    // same PLAN_CONFIG so the table cannot drift from what the API grants.
     name: "Grow",
     rows: [
       {
+        // ⚠️ PENDING BACKEND (2/4) — Pro reads "Unlimited" here ahead of
+        // PLAN_CONFIG.pro.maxSessions becoming -1. See the header comment.
         label: "AI mock interviews",
-        free: "no",
-        pro: "yes",
-        enterprise: "yes",
+        free: "1 / month",
+        pro: "Unlimited",
+        enterprise: "Unlimited",
       },
       {
-        label: "Scored interview reports",
-        free: "no",
+        // With session COUNT now equal on Pro and Enterprise, this row is
+        // the only thing left separating the two on interviews — Pro tops
+        // out at 30-minute sessions, Enterprise books up to 60. Both halves
+        // come from the same PLAN_CONFIG.allowedDurations, and nothing in
+        // the confirmed change touches them, so the differentiator holds.
+        label: "Interview session length",
+        free: "15 min",
+        pro: "15 or 30 min",
+        enterprise: "Up to 60 min",
+      },
+      {
+        // Included with every session on every tier — the report is not
+        // separately gated anywhere in the mock-interview module; the only
+        // gate is on starting a session, which the row above prices.
+        label: "Scored interview report",
+        free: "yes",
         pro: "yes",
         enterprise: "yes",
       },
       {
         label: "Verified certificates",
         free: "no",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        label: "Create a professional profile",
+        free: "yes",
+        pro: "yes",
+        enterprise: "yes",
+      },
+      {
+        // This absorbed the old "Public portfolio" row from the Build group
+        // rather than joining it — two rows both promising a public
+        // portfolio, one group apart, would read as two products.
+        //
+        // Wording note: this was specced as "your portfolio of ANALYSES".
+        // Changed to "projects". Nothing on this platform produces an
+        // analysis — learners ship backend services, and the portfolio
+        // surface (components/portfolio, app/portfolios) is built around
+        // projects. "Analyses" is data-analytics vocabulary and would be
+        // the only line on the page that does not describe this product.
+        label: "Build and share your portfolio of projects",
+        free: "yes",
         pro: "yes",
         enterprise: "yes",
       },
@@ -193,20 +433,45 @@ const COMPARE_GROUPS: {
         pro: "no",
         enterprise: "yes",
       },
+      // Group administration — the actual reason a team buys this tier
+      // rather than N individual Pro subscriptions.
+      //
+      // CONSOLIDATED, deliberately. The spec asked to ADD "Admin dashboard"
+      // and "Team performance reports" alongside the existing "Manage your
+      // group from one place" and "See each member's learning activity and
+      // progress". Those are the same two capabilities under two names, and
+      // shipping all four would have given this group four Enterprise-only
+      // rows answering two questions — the padding pattern that makes a
+      // comparison table stop being believed. The newer names win because
+      // they name the artefact the buyer gets rather than describing it,
+      // and the Enterprise CARD was moved onto the same two strings so the
+      // surfaces still agree.
       {
-        label: "Structured, cohort-based bootcamps",
+        label: "Admin dashboard",
         free: "no",
         pro: "no",
         enterprise: "yes",
       },
       {
-        label: "Certification exams",
+        label: "Team performance reports",
         free: "no",
         pro: "no",
         enterprise: "yes",
       },
       {
-        label: "1-on-1 mentorship with industry experts",
+        label: "Co-branded landing page",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
+      // Bootcamps and certification exams have LEFT this group for Learn,
+      // where they are now marked as included in Pro. See the tier-change
+      // warning there.
+      {
+        // Same wording as the card's line — a buyer who scrolls from one to
+        // the other must not have to work out whether "1-on-1 mentorship"
+        // and "1-on-1 team mentorship" are two different things.
+        label: "1-on-1 team mentorship with industry experts",
         free: "no",
         pro: "no",
         enterprise: "yes",
@@ -217,12 +482,27 @@ const COMPARE_GROUPS: {
         pro: "no",
         enterprise: "yes",
       },
+      {
+        // Carried here because the Enterprise CARD now advertises it. A
+        // claim that appears on a card and not in the table is the drift
+        // this table exists to prevent — the visitor who scrolls down to
+        // check it would find it missing and trust neither surface.
+        label: "Hiring services",
+        free: "no",
+        pro: "no",
+        enterprise: "yes",
+      },
     ],
   },
   {
     name: "Support",
     rows: [
-      { label: "Community", free: "yes", pro: "yes", enterprise: "yes" },
+      {
+        label: "Community forum access",
+        free: "yes",
+        pro: "yes",
+        enterprise: "yes",
+      },
       { label: "Priority support", free: "no", pro: "yes", enterprise: "yes" },
     ],
   },
@@ -276,12 +556,19 @@ function enterpriseTablePriceLine(
   }`;
 }
 
+// role="img" alongside the aria-label is load-bearing, not belt-and-braces:
+// a bare aria-label on an <svg> is not reliably announced, because an SVG's
+// default role is generic in several engines and a generic element's label is
+// ignored. Without it, an assistive-technology user scanning this table hears
+// the row label and then silence in all three plan columns — the entire
+// comparison, conveyed by colour and glyph shape alone.
 function CompareMark({ value }: { value: CompareCell }) {
   if (value === "yes") {
     return (
       <Check
         className="mx-auto h-5 w-5 text-primary"
         strokeWidth={3}
+        role="img"
         aria-label="Included"
       />
     );
@@ -290,12 +577,73 @@ function CompareMark({ value }: { value: CompareCell }) {
     return (
       <X
         className="mx-auto h-5 w-5 text-muted-foreground/40"
+        role="img"
         aria-label="Not included"
       />
     );
   }
   return (
     <span className="text-sm font-medium text-muted-foreground">{value}</span>
+  );
+}
+
+/**
+ * A plan card's feature summary. One implementation for all three cards now
+ * that none of them carries excluded rows — the Free card used to need its
+ * own mixed-list markup with per-item accessible names ("Included" /
+ * "Not included") because a muted cross was the only thing distinguishing
+ * the two halves. With every item included, the tick carries no information
+ * a sighted user gets that a screen-reader user doesn't, so it is decorative
+ * and announcing it seven times would be noise.
+ */
+function PlanFeatureList({
+  heading,
+  features,
+}: {
+  /**
+   * The "Everything in <lower tier>, plus:" line. Omitted on Free, which is
+   * the base tier and has no lower tier to inherit from — a header there
+   * would have nothing to name. Pro and Enterprise both carry one, so the
+   * three cards read as a ladder: Free states what you get, Pro and
+   * Enterprise each state what they ADD.
+   *
+   * Only pass this when the tier really is a superset. Pro's is checked: it
+   * matches or beats every one of Free's five lines (the mock-interview
+   * quota goes 1/month → 4/month, path access goes First steps → Full
+   * access, and the other three are marked for all tiers in the table).
+   */
+  heading?: string;
+  features: string[];
+}) {
+  // Two cards render this on the same page, so a hardcoded id would collide
+  // and point both lists' aria-labelledby at whichever <p> won.
+  const headingId = useId();
+  return (
+    <>
+      {heading && (
+        <p id={headingId} className="mb-3 text-sm font-semibold">
+          {heading}
+        </p>
+      )}
+      {/* aria-labelledby, so the list is announced WITH its qualifier —
+          otherwise a screen reader reads Pro's six items as a bare list and
+          the "Everything in Free, plus" framing, which is the whole point of
+          the line, is lost between the two elements. */}
+      <ul className="grid gap-3" aria-labelledby={heading ? headingId : undefined}>
+        {features.map((label) => (
+          <li
+            key={label}
+            className="grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed"
+          >
+            <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span>
+              {label}
+              {COMING_SOON.has(label) && <FeatureBadge />}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -463,7 +811,63 @@ export default function PricingView({ pricing }: PricingViewProps) {
             extra content, so it centers proud of Free/Enterprise on both
             edges without any manual margin/translate hack. Below lg the
             cards stay stacked and independently rounded. */}
-        <div className="mx-auto mt-14 grid max-w-[796px] grid-cols-1 items-start justify-items-center gap-6 lg:max-w-[1120px] lg:grid-cols-3 lg:items-center lg:justify-items-stretch lg:gap-0">
+        {/* ── Billing cycle ──
+            A PAGE-level control, and deliberately no longer inside the Pro
+            card. What it actually governs: Pro's price, Enterprise's
+            per-seat price, BOTH price lines in the comparison-table header,
+            and the `cycle` query param on both checkout links. Housing a
+            control with that reach inside one of the three cards it
+            reprices made it read as a Pro-only option, and buried the
+            annual saving under the recommended card's ribbon where a
+            visitor comparing Enterprise never looked. Above the row it
+            reads as what it is: the switch that reprices the page.
+
+            Fixed white/amber values, not theme tokens — this sits on the
+            hero's fixed navy in both light and dark theme, the same
+            reasoning the trusted-by band and testimonial below already
+            spell out. The aria-label stays "Bill yearly": the flanking
+            Monthly/Yearly words are visual state, and a switch still needs
+            a name that says what turning it ON does. */}
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+          <span
+            className={cn(
+              "text-sm font-semibold transition-colors",
+              cycle === "monthly" ? "text-white" : "text-white/60",
+            )}
+          >
+            Monthly
+          </span>
+          <Switch
+            checked={cycle === "annual"}
+            onCheckedChange={(checked) =>
+              setCycle(checked ? "annual" : "monthly")
+            }
+            aria-label="Bill yearly"
+          />
+          <span
+            className={cn(
+              "text-sm font-semibold transition-colors",
+              cycle === "annual" ? "text-white" : "text-white/60",
+            )}
+          >
+            Yearly
+          </span>
+          {/* Outlined, not filled: a solid amber block next to the switch
+              read as a muddy disabled button against the navy, and a solid
+              fill would also compete with the primary-filled "MOST POPULAR"
+              ribbon directly below it. The border defines the shape; the
+              amber carries the meaning. */}
+          <span className="rounded-md border border-amber-400/40 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-amber-300">
+            SAVE 2 MONTHS
+          </span>
+        </div>
+
+        {/* A "New in Pro" banner sat here, announcing that bootcamps and
+            certification exams had moved into Pro. Removed by request. The
+            tier change itself stands — both are still marked for Pro in the
+            comparison table — it is only the announcement that is gone, so
+            the cards follow the cycle toggle directly again. */}
+        <div className="mx-auto mt-10 grid max-w-[796px] grid-cols-1 items-start justify-items-center gap-6 lg:max-w-[1120px] lg:grid-cols-3 lg:items-center lg:justify-items-stretch lg:gap-0">
           {/* Free */}
           <div className="w-full max-w-[380px] rounded-2xl bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-l-2xl">
             {/* Name first, eyebrow beneath — the reference's order. Default
@@ -495,24 +899,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
               </Button>
             )}
 
-            <ul className="grid gap-3">
-              {FREE_FEATURES.map((f) => (
-                <li
-                  key={f.label}
-                  className={cn(
-                    "grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed",
-                    !f.included && "text-muted-foreground",
-                  )}
-                >
-                  {f.included ? (
-                    <Check className="h-4 w-4 text-primary" />
-                  ) : (
-                    <X className="h-4 w-4 text-muted-foreground/40" />
-                  )}
-                  <span>{f.label}</span>
-                </li>
-              ))}
-            </ul>
+            <PlanFeatureList features={FREE_FEATURES} />
           </div>
 
           {/* Pro — deliberately NOT stretched to the row via its own
@@ -520,26 +907,20 @@ export default function PricingView({ pricing }: PricingViewProps) {
               "lifted out of the panel": it sits on top of (and slightly
               overlaps) the shared divider between Free and Enterprise. */}
           <div className="relative z-10 w-full max-w-[380px] rounded-2xl border-2 border-primary bg-card p-8 text-left text-card-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.55)] lg:max-w-none">
+            {/* "Most popular" only. This ribbon briefly read "MOST POPULAR ·
+                BEST VALUE"; the value claim now belongs to Enterprise (see
+                its chip below), so the two superlatives sit on different
+                cards and each says one thing. */}
             <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary px-3.5 py-1 font-mono text-[11px] font-bold tracking-widest text-primary-foreground">
               MOST POPULAR
             </span>
 
-            {/* Savings pill + billing toggle, top of card, directly under
-                the ribbon — recommended-card-only placement per the
-                reference. Everything else (name, eyebrow, price) follows
-                below it. */}
-            <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <span className="text-sm font-semibold text-amber-800 dark:text-amber-400">
-                Save 2 months with Yearly
-              </span>
-              <Switch
-                checked={cycle === "annual"}
-                onCheckedChange={(checked) =>
-                  setCycle(checked ? "annual" : "monthly")
-                }
-                aria-label="Bill yearly"
-              />
-            </div>
+            {/* The savings pill and billing toggle that used to sit here,
+                between the ribbon and the plan name, are now the page-level
+                control above the card row — they repriced Enterprise and
+                the comparison table too, so they never belonged to this
+                card. Pro now opens on its name, exactly like Free and
+                Enterprise, which is what lets the three headers line up. */}
 
             {/* Name first, eyebrow beneath. Pro is the recommended plan, so
                 its name carries the brand accent (primary). */}
@@ -594,32 +975,45 @@ export default function PricingView({ pricing }: PricingViewProps) {
               </Button>
             )}
 
-            <ul className="grid gap-3">
-              {PRO_FEATURES.map((label) => (
-                <li
-                  key={label}
-                  className="grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed"
-                >
-                  <Check className="h-4 w-4 text-primary" />
-                  <span>{label}</span>
-                </li>
-              ))}
-            </ul>
+            <PlanFeatureList
+              heading="Everything in Free, plus:"
+              features={PRO_FEATURES}
+            />
           </div>
 
           {/* Enterprise — no "Best Value" ribbon: that claim belongs to Pro
-              ("Most Popular") alone, Enterprise doesn't carry it. */}
+              ("Most Popular") alone. Enterprise now carries the "Best Value"
+              claim instead, as an amber chip beside its name — see below. */}
           <div className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-8 text-left text-card-foreground lg:max-w-none lg:rounded-none lg:rounded-r-2xl lg:border-none">
             {/* Name first, eyebrow beneath. Enterprise gets a distinct
                 secondary accent — reusing the same coral/red already on this
                 card's Crown badge (#EB5757) rather than inventing a new hex
                 value, so the name and the "premium tier" badge read as one
-                deliberate colour choice instead of two unrelated ones. */}
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight text-[#EB5757]">
-                Enterprise
-              </h2>
-              <Crown className="h-4 w-4 text-[#EB5757]" aria-hidden="true" />
+                deliberate colour choice instead of two unrelated ones.
+
+                The "Best Value" chip is an amber CHIP, not a ribbon like
+                Pro's: a second ribbon would want the same centred position
+                above the card and would read as two cards competing for the
+                same crown. Inline beside the name it reads as a property of
+                this tier instead. Amber is the page's existing "saving"
+                colour — the same family as the SAVE 2 MONTHS badge on the
+                cycle toggle — so value claims stay one colour throughout,
+                and it sits clear of both the brand cyan and this card's
+                coral. min-w-0 + truncate on the heading so the chip never
+                gets pushed out of the card on a narrow viewport. */}
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-2xl font-bold tracking-tight text-[#EB5757]">
+                  Enterprise
+                </h2>
+                <span className="inline-block flex-none whitespace-nowrap rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                  Best Value
+                </span>
+              </div>
+              <Crown
+                className="h-4 w-4 flex-none text-[#EB5757]"
+                aria-hidden="true"
+              />
             </div>
             {/* Eyebrow states the minimum team size, from the API's own
                 minSeats — the card's headline constraint, and the first
@@ -633,7 +1027,20 @@ export default function PricingView({ pricing }: PricingViewProps) {
                 stack, at the same weight as the interval, because a per-seat
                 figure read as a team total is the single most expensive
                 misunderstanding this card can cause. */}
-            <div className="flex min-h-[62px] items-baseline gap-2.5">
+            {/* min-h-[80px], not the [62px] Free and Pro use: this stack is
+                one line taller than theirs ("per user" sits ABOVE "/month",
+                then "billed annually" below it), so on the annual cycle it
+                measured 80px and overflowed a 62px floor. The card then
+                changed height every time the billing toggle flipped —
+                500px annual, 482px monthly — and because the row centres
+                each card on its own height (lg:items-center), Enterprise
+                visibly jumped 9px up and down against its neighbours on a
+                control the user is expected to click.
+
+                Reserving the TALLEST state makes both cycles render in the
+                same box. Free and Pro keep 62px, which already fits their
+                shorter stacks in both cycles. */}
+            <div className="flex min-h-[80px] items-baseline gap-2.5">
               <span className="font-mono text-5xl font-bold tracking-tight">
                 {enterprisePerUserMonthlyDisplay(enterprise, cycle)}
               </span>
@@ -690,20 +1097,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
               </Button>
             )}
 
-            <p className="mb-3 text-sm font-semibold">
-              Everything in Pro, plus:
-            </p>
-            <ul className="grid gap-3">
-              {ENTERPRISE_FEATURES.map((label) => (
-                <li
-                  key={label}
-                  className="grid grid-cols-[20px_1fr] items-start gap-2.5 text-sm leading-relaxed"
-                >
-                  <Check className="h-4 w-4 text-primary" />
-                  <span>{label}</span>
-                </li>
-              ))}
-            </ul>
+            <PlanFeatureList
+              heading="Everything in Pro, plus:"
+              features={ENTERPRISE_FEATURES}
+            />
           </div>
         </div>
 
@@ -1056,8 +1453,15 @@ export default function PricingView({ pricing }: PricingViewProps) {
                           key={row.label}
                           className="border-t border-border/60"
                         >
+                          {/* The status chip rides the LABEL, not the tier
+                              cells: "coming soon" and "new" are facts about
+                              the feature, identical down all three columns.
+                              Putting one in each cell would triple the
+                              wording and still say the same thing, and would
+                              wreck the scan-down rhythm of the marks. */}
                           <th className="px-4 py-5 text-left text-sm font-normal">
                             {row.label}
+                            {COMING_SOON.has(row.label) && <FeatureBadge />}
                           </th>
                           <td className="px-4 py-5 text-center">
                             <CompareMark value={row.free} />
@@ -1089,7 +1493,19 @@ export default function PricingView({ pricing }: PricingViewProps) {
             {[
               {
                 q: "What's the difference between Free and Pro?",
-                a: "Free gets you the first steps of every path, a public portfolio, and the full XP and leaderboard system. Pro unlocks every premium step, all projects with code review, unlimited playground exercises, AI mock interviews, and verified certificates.",
+                // ⚠️ PENDING BACKEND (3/4) — "unlimited mock interviews" on
+                // Pro lands ahead of PLAN_CONFIG.pro.maxSessions = -1. The
+                // "up to 30 minutes" qualifier is NOT pending: session
+                // length is unchanged and still separates Pro from
+                // Enterprise, so it stays.
+                // Bootcamps and certification exams stay named here — this
+                // answer is the page's only prose description of Pro, and
+                // omitting them would leave the FAQ selling a smaller tier
+                // than the table does. The "— new —" aside that used to
+                // flag them went with the banner: they are simply part of
+                // what Pro includes now, with nothing marking when that
+                // began.
+                a: "Free gets you the free courses, the first steps of every path, one scored AI mock interview a month, the community forum, a public portfolio, and the full XP and leaderboard system. Pro unlocks every premium course and path step, all projects with code review, unlimited playground exercises, unlimited scored mock interviews at up to 30 minutes each, verified certificates, cohort-based bootcamps, and certification exams.",
               },
               {
                 q: "How will I be charged?",

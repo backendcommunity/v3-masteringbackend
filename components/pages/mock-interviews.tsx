@@ -841,12 +841,25 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     : "Access 1 Free Trial Interview"
                   : "Monthly Limit Reached"}
               </p>
+              {/* ⚠️ PENDING BACKEND (4/4) — these lines quote Pro's mock
+                  interview allowance to a FREE user, so they are a pricing
+                  claim in-product and have to say the same thing /pricing
+                  says. Pro is moving to unlimited sessions
+                  (PLAN_CONFIG.pro.maxSessions → -1); the copy below is
+                  written for that state. Longer sessions, not more of them,
+                  is what Enterprise now adds — which is exactly what
+                  allowedDurations already encodes (Pro 15/30, Enterprise up
+                  to 60), so this stays true either way.
+
+                  The third branch is for a PAID user who ran out. Once Pro
+                  is unlimited it can only be reached by a tier that is
+                  still metered, so it no longer names a specific upgrade. */}
               <p className="text-xs text-muted-foreground mt-0.5">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
-                    ? "You've used your free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
-                    : "You have 1 free trial interview. Upgrade to Pro for 4 sessions/month or Enterprise for unlimited access."
-                  : "You've used all your mock interviews this month. Upgrade to Enterprise for unlimited sessions."}
+                    ? "You've used your free trial interview. Upgrade to Pro for unlimited sessions, or Enterprise for sessions up to 60 minutes."
+                    : "You have 1 free trial interview. Upgrade to Pro for unlimited sessions, or Enterprise for sessions up to 60 minutes."
+                  : "You've used all your mock interviews this month. Upgrade for unlimited sessions."}
               </p>
             </div>
             <Button size="sm" onClick={() => onNavigate(routes.pricing(currentPathWithQuery))}>

@@ -1394,13 +1394,14 @@ export const dataStore = {
   //     paid plan must not advertise access to a product whose only page
   //     tells you it no longer exists.
   //
-  //   * "Additional 5 team members ($10 each)". That allotment-plus-overage
-  //     model is gone: Enterprise is priced PER USER from the first seat
-  //     with a two-seat minimum, and has no seat cap at all (see
-  //     lib/pricing.ts's EnterprisePricing and academy's
-  //     src/extensions/payment/pricing/tiers.ts). The line below states the
-  //     model without restating the rate, which is region-priced and lives
-  //     on /pricing.
+  //   * Any seat or per-user PRICING line. "Additional 5 team members ($10
+  //     each)" used to live here; that allotment-plus-overage model is gone
+  //     (Enterprise is priced PER USER from the first seat, two-seat
+  //     minimum, no cap — see lib/pricing.ts's EnterprisePricing and
+  //     academy's src/extensions/payment/pricing/tiers.ts). Its replacement
+  //     was dropped too: these records feed a card whose price block already
+  //     states the model, and the rate itself is region-resolved per request
+  //     and must never be hardcoded in this static list.
   plans: [
     {
       id: "free",
@@ -1411,7 +1412,7 @@ export const dataStore = {
       features: [
         { name: "Access to free courses", included: true },
         { name: "Basic learning paths", included: true },
-        { name: "Limited project access", included: true },
+        { name: "Access to Free projects", included: true },
         // One scored mock interview per calendar month — PLAN_CONFIG.free in
         // academy's mock-interview subscription-access helper.
         { name: "Limited interview access", included: true },
@@ -1420,10 +1421,12 @@ export const dataStore = {
         { name: "Bootcamps", included: false },
         { name: "Interview preparation", included: false },
         { name: "Certification exams", included: false },
-        { name: "1-on-1 mentorship", included: false },
+        { name: "1-on-1 team mentorship", included: false },
         { name: "Career services", included: false },
-        { name: "Manage your group", included: false },
-        { name: "View learning activity and track progress", included: false },
+        { name: "Hiring services", included: false },
+        { name: "Admin dashboard", included: false },
+        { name: "Team performance reports", included: false },
+        { name: "Co-branded landing page", included: false },
       ],
       popular: false,
       cta: "Current Plan",
@@ -1440,12 +1443,14 @@ export const dataStore = {
         { name: "Unlimited project access", included: true },
         { name: "Interview preparation", included: true },
         { name: "Community forum access", included: true },
-        { name: "Bootcamps", included: false },
-        { name: "Certification exams", included: false },
-        { name: "1-on-1 mentorship", included: false },
+        { name: "Bootcamps", included: true },
+        { name: "Certification exams", included: true },
+        { name: "1-on-1 team mentorship", included: false },
         { name: "Career services", included: false },
-        { name: "Manage your group", included: false },
-        { name: "View learning activity and track progress", included: false },
+        { name: "Hiring services", included: false },
+        { name: "Admin dashboard", included: false },
+        { name: "Team performance reports", included: false },
+        { name: "Co-branded landing page", included: false },
       ],
       popular: true,
       cta: "Choose Pro",
@@ -1464,11 +1469,12 @@ export const dataStore = {
         { name: "Community forum access", included: true },
         { name: "Bootcamps", included: true },
         { name: "Certification exams", included: true },
-        { name: "1-on-1 mentorship", included: true },
+        { name: "1-on-1 team mentorship", included: true },
         { name: "Career services", included: true },
-        { name: "A seat for every team member, priced per user", included: true },
-        { name: "Manage your group", included: true },
-        { name: "View learning activity and track progress", included: true },
+        { name: "Hiring services", included: true, comingSoon: true },
+        { name: "Admin dashboard", included: true },
+        { name: "Team performance reports", included: true },
+        { name: "Co-branded landing page", included: true, comingSoon: true },
       ],
       popular: false,
       cta: "Choose Enterprise",

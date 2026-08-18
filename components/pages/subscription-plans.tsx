@@ -244,8 +244,23 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
                         }
                       >
                         {feature.name}
+                        {/* Mirrors /pricing's COMING_SOON set. A capability
+                            marked "coming soon" on one purchase surface and
+                            shipped-looking on the other is worse than not
+                            flagging it at all — the buyer who compared both
+                            now has cause to doubt each. */}
+                        {feature.comingSoon && (
+                          <span className="ml-2 inline-block whitespace-nowrap rounded border border-border px-1.5 py-0.5 align-middle font-mono text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            Coming soon
+                          </span>
+                        )}
                       </span>
-                      {feature.name === "1-on-1 mentorship" &&
+                      {/* Keyed on the feature NAME, so it must track
+                          lib/data.ts exactly — the string was renamed to
+                          "1-on-1 team mentorship" to match /pricing, and a
+                          stale key here would silently drop the tooltip
+                          rather than error. */}
+                      {feature.name === "1-on-1 team mentorship" &&
                         plan?.name === "Enterprise" && (
                           <TooltipProvider>
                             <Tooltip>
