@@ -37,6 +37,23 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { formatPrice } from "@/lib/pricing";
 import type { CheckoutPricing } from "@/lib/pricing";
 
+// The AsyncPay SDK appends its checkout UI as a single element with this id,
+// as a DIRECT child of <body> — verified in
+// node_modules/@asyncpay/checkout/dist/bundle.js (`e.id =
+// "asyncpay-checkout-sdk-wrapper"` ... `document.body.appendChild(e)`).
+// Watching for that node is how we know the checkout is actually on screen.
+const ASYNCPAY_WRAPPER_ID = "asyncpay-checkout-sdk-wrapper";
+
+// The watchdog guards exactly one window: Subscribe click -> checkout UI on
+// screen. Inside that window the SDK does a single POST to
+// /v1/sdk/initialize-payment-request and nothing else, so this is sized for
+// one API round trip, not for a buyer typing card details. ~8s is roughly
+// double a pessimistic slow-mobile round trip for a single request, while
+// being short enough that a genuinely hung request doesn't leave Subscribe
+// dead for an uncomfortable stretch. It used to be 20s and stayed armed
+// while the modal was open, which is the bug this replaces.
+const CHECKOUT_OPEN_TIMEOUT_MS = 8000;
+
 interface CheckoutPageProps {
   // Resolved server-side (see app/checkout/page.tsx) from the visitor's
   // region. The buyer never chooses a processor — it's implied by `provider`
@@ -62,11 +79,18 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   // — a latency optimization only (see the prefetch effect below), not a
   // correctness requirement: this SDK never calls `window.open`, so there
   // is no popup/gesture chain to preserve.
-  const asyncpayModuleRef = useRef<{ AsyncpayCheckout: (...args: any[]) => void } | null>(
-    null,
-  );
+  const asyncpayModuleRef = useRef<{
+    // Returns a promise that rejects on every SDK error path — see the
+    // `.catch()` on the call site in openAsyncpayCheckout.
+    AsyncpayCheckout: (...args: any[]) => unknown;
+  } | null>(null);
   const [asyncpayReady, setAsyncpayReady] = useState(false);
+  // Pre-modal watchdog, in three parts: the timer itself, the observer that
+  // cancels it once the checkout UI appears, and the pagehide listener that
+  // cancels it when the SDK redirects the whole page away instead.
   const asyncpayWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const asyncpayWrapperObserverRef = useRef<MutationObserver | null>(null);
+  const asyncpayPagehideRef = useRef<(() => void) | null>(null);
 
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
@@ -142,12 +166,73 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
     };
   }, [pricing.provider]);
 
-  // Clear any pending checkout-stalled watchdog on unmount.
-  useEffect(() => {
-    return () => {
-      if (asyncpayWatchdogRef.current) clearTimeout(asyncpayWatchdogRef.current);
-    };
+  // Tears down every part of the pre-modal watchdog: timer, observer, and
+  // pagehide listener. Idempotent, so it's safe to call from any exit path
+  // and more than once.
+  const clearAsyncpayWatchdog = useCallback(() => {
+    if (asyncpayWatchdogRef.current) {
+      clearTimeout(asyncpayWatchdogRef.current);
+      asyncpayWatchdogRef.current = null;
+    }
+    if (asyncpayWrapperObserverRef.current) {
+      asyncpayWrapperObserverRef.current.disconnect();
+      asyncpayWrapperObserverRef.current = null;
+    }
+    if (asyncpayPagehideRef.current) {
+      window.removeEventListener("pagehide", asyncpayPagehideRef.current);
+      asyncpayPagehideRef.current = null;
+    }
   }, []);
+
+  // Arms the watchdog for the pre-modal window ONLY.
+  //
+  // Its single job is to stop Subscribe sticking disabled forever if the
+  // SDK's initialize call hangs and no callback ever fires. Once the
+  // checkout UI is on screen the buyer can see the state of things for
+  // themselves, so the watchdog has no remaining purpose — and card entry
+  // legitimately takes far longer than any timeout we'd want on an API
+  // call. So it is cancelled the moment the checkout UI appears.
+  const armAsyncpayWatchdog = useCallback(() => {
+    clearAsyncpayWatchdog();
+
+    // Already on screen — nothing to wait for. (The SDK refuses concurrent
+    // sessions anyway, so this is belt-and-braces.)
+    if (document.getElementById(ASYNCPAY_WRAPPER_ID)) return;
+
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById(ASYNCPAY_WRAPPER_ID)) return;
+      // Checkout UI is up. The watchdog's window has closed; isProcessing
+      // stays true deliberately (the buyer is inside the modal) and is
+      // cleared by onSuccess / onClose / onError.
+      clearAsyncpayWatchdog();
+    });
+    // The SDK appends the wrapper as a direct child of <body>, so observing
+    // body's childList is sufficient — no subtree walk needed.
+    observer.observe(document.body, { childList: true });
+    asyncpayWrapperObserverRef.current = observer;
+
+    // The should_redirect branch never creates that wrapper — it assigns
+    // location.href and the page navigates away. Timers keep running until
+    // the new document commits, so cancel on unload to make sure a slow
+    // redirect can't trip a spurious error on the way out. This also covers
+    // full-page navigations, where React unmount cleanup never runs.
+    const onPageHide = () => clearAsyncpayWatchdog();
+    asyncpayPagehideRef.current = onPageHide;
+    window.addEventListener("pagehide", onPageHide);
+
+    asyncpayWatchdogRef.current = setTimeout(() => {
+      clearAsyncpayWatchdog();
+      setIsProcessing(false);
+      toast.error(
+        "We couldn't start checkout. Check your connection and try again.",
+      );
+    }, CHECKOUT_OPEN_TIMEOUT_MS);
+  }, [clearAsyncpayWatchdog]);
+
+  // Clear any pending watchdog (and its observer/listener) on unmount.
+  useEffect(() => {
+    return () => clearAsyncpayWatchdog();
+  }, [clearAsyncpayWatchdog]);
 
   // Paddle renders an INLINE frame — safe to auto-open on mount, same as
   // today. AsyncPay is intentionally NOT auto-invoked on mount — not for
@@ -180,25 +265,31 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   // shows anything, so there's an unavoidable network round trip either
   // way. It's click-driven for UX (a deliberate Subscribe action, matching
   // the approved design), not because a delayed call would be blocked.
+  //
+  // isProcessing is cleared on every exit: onSuccess, onClose, onError, the
+  // promise rejection backstop, the synchronous catch below, and the
+  // pre-modal watchdog. The one path that leaves it true is the intended
+  // one — the checkout UI is open on top of the page, and the SDK's own
+  // callbacks close it out.
   const openAsyncpayCheckout = useCallback(() => {
     const mod = asyncpayModuleRef.current;
     if (!priceId || !mod) return;
 
-    const clearWatchdog = () => {
-      if (asyncpayWatchdogRef.current) {
-        clearTimeout(asyncpayWatchdogRef.current);
-        asyncpayWatchdogRef.current = null;
-      }
-    };
-
     const fail = (message: string) => {
-      clearWatchdog();
+      clearAsyncpayWatchdog();
       setIsProcessing(false);
       toast.error(message);
     };
 
+    // Armed BEFORE the SDK call, deliberately. AsyncpayCheckout runs its
+    // "already in session" and field-validation checks synchronously, before
+    // its first `await` — so onError can fire during this very call. Arming
+    // afterwards would re-arm a timer that onError had just cleared, leaving
+    // a stale watchdog to fire later over an error the buyer already saw.
+    armAsyncpayWatchdog();
+
     try {
-      mod.AsyncpayCheckout({
+      const started = mod.AsyncpayCheckout({
         publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
         customer: {
           firstName: user?.name?.split(" ")?.[0],
@@ -207,46 +298,52 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
         },
         subscriptionPlanUUID: priceId,
         onSuccess: () => {
-          clearWatchdog();
+          clearAsyncpayWatchdog();
           setIsProcessing(false);
           setCelebration(true);
           toast.success("You're on Pro. Welcome in.");
         },
         onClose: () => {
-          clearWatchdog();
+          clearAsyncpayWatchdog();
           setIsProcessing(false);
         },
         // The SDK invokes this on validation errors and non-ok API
         // responses (see bundle.js's `x()`/`t()` helpers) — this is the
         // real "something went wrong" signal, not a guess based on a
         // timer.
-        onError: (err?: { error_description?: string }) => {
+        onError: (err?: { error_description?: unknown }) => {
+          // `error_description` is only a string on the SDK's own
+          // validation and API-error paths. When `fetch` itself rejects
+          // (offline, DNS, CORS) the SDK's `t()` fallback passes the raw
+          // thrown value straight through as `error_description`, so this
+          // can be a TypeError object — never hand that to toast.
+          const description =
+            typeof err?.error_description === "string"
+              ? err.error_description
+              : "";
           fail(
-            err?.error_description ||
-              "Something went wrong starting checkout. Please try again.",
+            description || "We couldn't start checkout. Please try again.",
           );
         },
       });
-      // Backstop only, not a popup-blocked signal (this SDK never opens a
-      // popup). It exists purely in case onSuccess/onClose/onError somehow
-      // never fire, so isProcessing can't stay stuck forever. Kept
-      // deliberately long — the SDK's own `await fetch(...)` can
-      // legitimately take several seconds on a slow connection, and firing
-      // early would show a false "something's wrong" message while the
-      // checkout modal is still genuinely loading.
-      asyncpayWatchdogRef.current = setTimeout(() => {
-        fail(
-          "This is taking longer than expected — check your connection and try again.",
-        );
-      }, 20000);
+
+      // Every SDK error path rejects the returned promise, and does so
+      // AFTER invoking onError (verified in bundle.js: `x()` calls onError,
+      // then throws). onError has therefore already messaged the buyer and
+      // reset the button, so this only keeps the rejection from surfacing
+      // as an unhandled promise rejection — it must not toast again.
+      void Promise.resolve(started).catch(() => {
+        clearAsyncpayWatchdog();
+        setIsProcessing(false);
+      });
     } catch {
       // Narrow safety net: AsyncpayCheckout is itself an async function, so
       // a real SDK error surfaces via onError above, not a synchronous
       // throw here. This only guards a caller-side mistake reaching the
       // SDK call itself.
-      fail("Something went wrong starting checkout. Please try again.");
+      fail("We couldn't start checkout. Please try again.");
     }
-  }, [priceId, user]);
+  }, [priceId, user, armAsyncpayWatchdog, clearAsyncpayWatchdog]);
 
   // Routes the Subscribe click to the correct processor SDK based on the
   // region-resolved provider. The buyer never chooses this — it's decided
