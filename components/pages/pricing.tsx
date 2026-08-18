@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +17,8 @@ import { useUser } from "@/hooks/use-user";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import countriesList from "@/lib/countries.json";
+import { analytics } from "@/lib/analytics";
+import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
   formatPrice,
   monthlyEquivalent,
@@ -126,6 +129,19 @@ function CompareMark({ value }: { value: CompareCell }) {
 export default function PricingView({ pricing }: PricingViewProps) {
   const [cycle, setCycle] = useState<BillingCycle>("annual");
   const user = useUser();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams?.get("from") === "onboarding";
+
+  useEffect(() => {
+    analytics.track(PRICING_EVENTS.viewed, {
+      tier: pricing.tier,
+      country: pricing.country,
+      cycle,
+    });
+    // Fire once per page view, on the cycle the page loaded with — toggling
+    // the switch afterward shouldn't re-fire "viewed".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const checkoutHref = `/checkout?plan=pro&cycle=${cycle}`;
   const freeCtaIsCurrent = Boolean(user && !user.isPremium);
@@ -150,9 +166,18 @@ export default function PricingView({ pricing }: PricingViewProps) {
             </span>
           </Link>
           {user ? (
-            <Button size="sm" asChild>
-              <Link href={routes.dashboard}>Go to dashboard</Link>
-            </Button>
+            fromOnboarding ? (
+              // Sticky header keeps this reachable without scrolling on any
+              // viewport, including a 667px-tall mobile screen — the free
+              // tier is one tap away, this is a nudge, not a wall.
+              <Button size="sm" variant="ghost" asChild>
+                <Link href={routes.dashboard}>Continue with the free plan</Link>
+              </Button>
+            ) : (
+              <Button size="sm" asChild>
+                <Link href={routes.dashboard}>Go to dashboard</Link>
+              </Button>
+            )
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" asChild>
