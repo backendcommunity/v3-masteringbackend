@@ -58,6 +58,14 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   const paddleRef = useRef<HTMLInputElement>(null);
   const [celebration, setCelebration] = useState(false);
   const [paddle, setPaddle] = useState<Paddle>();
+  // Holds the resolved @asyncpay/checkout module once its chunk has loaded,
+  // so the click handler can call it synchronously — see the eager-prefetch
+  // effect below and the comment on openAsyncpayCheckout.
+  const asyncpayModuleRef = useRef<{ AsyncpayCheckout: (...args: any[]) => void } | null>(
+    null,
+  );
+  const [asyncpayReady, setAsyncpayReady] = useState(false);
+  const asyncpayWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
@@ -79,6 +87,19 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
   const amount = cycle === "annual" ? pricing.annual : pricing.monthly;
   const countryName = countries.find((c) => c.code === pricing.country)?.name;
 
+  // For Paddle, ready as soon as we have a price ID. For AsyncPay, also
+  // wait on the eager chunk prefetch — see the effect below — so the
+  // Subscribe click never fires a call that arrives after the gesture
+  // window has closed.
+  const subscribeReady =
+    Boolean(priceId) &&
+    (pricing.provider !== "ASYNCPAY" || asyncpayReady);
+  const subscribeLabel = !subscribeReady
+    ? "Loading..."
+    : isProcessing
+      ? "Processing..."
+      : "Subscribe";
+
   useEffect(() => {
     let cancelled = false;
 
@@ -96,6 +117,33 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
       cancelled = true;
     };
   }, [checkoutId, store]);
+
+  // Eagerly prefetch the AsyncPay chunk as soon as we know it's the
+  // resolved provider, instead of waiting for the Subscribe click to start
+  // the dynamic import. A `.then()` after the click puts the SDK call in a
+  // later microtask — outside the synchronous gesture context — and Safari
+  // in particular blocks `window.open` at that point. Holding the resolved
+  // module in a ref means the click handler can call it directly with zero
+  // await between the gesture and the widget opening.
+  useEffect(() => {
+    if (pricing.provider !== "ASYNCPAY") return;
+    let cancelled = false;
+    import("@asyncpay/checkout").then((mod) => {
+      if (cancelled) return;
+      asyncpayModuleRef.current = mod;
+      setAsyncpayReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pricing.provider]);
+
+  // Clear any pending "did the popup actually open" watchdog on unmount.
+  useEffect(() => {
+    return () => {
+      if (asyncpayWatchdogRef.current) clearTimeout(asyncpayWatchdogRef.current);
+    };
+  }, []);
 
   // Paddle renders an INLINE frame — safe to auto-open on mount, same as
   // today. AsyncPay opens a popup, and browsers block `window.open` calls
@@ -119,10 +167,27 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
     });
   }, [priceId, paddle, user, pricing.country]);
 
+  // Called directly from the Subscribe click — no import(), no `.then()`,
+  // no `await` between the gesture and the SDK call. The chunk is already
+  // resolved (see the eager-prefetch effect above); the caller
+  // (handleSubscribeClick) only invokes this once asyncpayReady is true.
   const openAsyncpayCheckout = useCallback(() => {
-    if (!priceId) return;
-    import("@asyncpay/checkout").then(({ AsyncpayCheckout }) => {
-      AsyncpayCheckout({
+    const mod = asyncpayModuleRef.current;
+    if (!priceId || !mod) return;
+
+    const failOpen = () => {
+      if (asyncpayWatchdogRef.current) {
+        clearTimeout(asyncpayWatchdogRef.current);
+        asyncpayWatchdogRef.current = null;
+      }
+      setIsProcessing(false);
+      toast.error(
+        "We couldn't open the payment window. Please allow pop-ups for this site and try again.",
+      );
+    };
+
+    try {
+      mod.AsyncpayCheckout({
         publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
         customer: {
           firstName: user?.name?.split(" ")?.[0],
@@ -131,28 +196,58 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
         },
         subscriptionPlanUUID: priceId,
         onSuccess: () => {
+          if (asyncpayWatchdogRef.current) {
+            clearTimeout(asyncpayWatchdogRef.current);
+            asyncpayWatchdogRef.current = null;
+          }
           setIsProcessing(false);
           setCelebration(true);
           toast.success("You're on Pro. Welcome in.");
         },
-        onClose: () => setIsProcessing(false),
+        onClose: () => {
+          if (asyncpayWatchdogRef.current) {
+            clearTimeout(asyncpayWatchdogRef.current);
+            asyncpayWatchdogRef.current = null;
+          }
+          setIsProcessing(false);
+        },
       });
-    });
+      // Neither onSuccess nor onClose fires if the popup itself was blocked
+      // (no window ever opened for the buyer to close). Without this
+      // watchdog, isProcessing would stay true forever with no way to
+      // retry — the button would be disabled but the popup never appeared.
+      asyncpayWatchdogRef.current = setTimeout(failOpen, 4000);
+    } catch {
+      failOpen();
+    }
   }, [priceId, user]);
 
   // Routes the Subscribe click to the correct processor SDK based on the
   // region-resolved provider. The buyer never chooses this — it's decided
   // upstream — but for AsyncPay, this click IS the user gesture the popup
-  // needs to avoid being blocked.
+  // needs to avoid being blocked, so the SDK call must happen synchronously
+  // inside this handler (see openAsyncpayCheckout).
   const handleSubscribeClick = useCallback(() => {
     if (!priceId) return;
-    setIsProcessing(true);
     if (pricing.provider === "ASYNCPAY") {
+      // Still loading the chunk — the button should already be disabled in
+      // this state (see subscribeReady below), but guard here too rather
+      // than firing a call that would arrive too late to count as a
+      // gesture.
+      if (!asyncpayReady) return;
+      setIsProcessing(true);
       openAsyncpayCheckout();
     } else {
+      setIsProcessing(true);
       openPaddleCheckout();
     }
-  }, [priceId, pricing.provider, openAsyncpayCheckout, openPaddleCheckout]);
+  }, [
+    priceId,
+    pricing.provider,
+    asyncpayReady,
+    openAsyncpayCheckout,
+    openPaddleCheckout,
+  ]);
 
   useEffect(() => {
     if (pricing.provider === "ASYNCPAY") return;
@@ -361,10 +456,10 @@ export function CheckoutPage({ pricing }: CheckoutPageProps) {
 
               <Button
                 className="w-full"
-                disabled={isProcessing || !priceId}
+                disabled={isProcessing || !subscribeReady}
                 onClick={handleSubscribeClick}
               >
-                {priceId ? "Subscribe" : "Loading..."}
+                {subscribeLabel}
               </Button>
             </CardContent>
           </Card>
