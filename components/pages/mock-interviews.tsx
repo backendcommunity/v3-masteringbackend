@@ -56,6 +56,12 @@ import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
+import {
+  DURATION_UNLOCKED_BY,
+  isDurationLocked,
+  sessionAllowanceLabel,
+  type InterviewAccess,
+} from "@/lib/interview-access";
 
 interface MockInterviewsPageProps {
   onNavigate: (path: string) => void;
@@ -94,16 +100,6 @@ interface UserInterview {
   createdAt: string;
   template: InterviewTemplate;
   completedSessionId?: string;
-}
-
-interface InterviewAccess {
-  tier: "free" | "pro" | "enterprise";
-  hasAccess: boolean;
-  maxSessions: number;
-  usedSessions: number;
-  remainingSessions: number;
-  allowedDurations: number[];
-  message?: string;
 }
 
 interface CustomInterviewFormData {
@@ -770,25 +766,24 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   )}
                 </div>
 
-                {/* Session access */}
-                {interviewAccess &&
-                  (interviewAccess.tier === "free" ||
-                    interviewAccess.tier === "pro") && (
-                    <p
-                      className={cn(
-                        "text-xs mt-2",
-                        interviewAccess.remainingSessions === 0
-                          ? "text-red-300"
-                          : "text-white/[.55]",
-                      )}
-                    >
-                      {interviewAccess.tier === "free"
-                        ? interviewAccess.remainingSessions === 0
-                          ? "Free trial used"
-                          : "1 free trial interview available"
-                        : `${interviewAccess.remainingSessions} of ${interviewAccess.maxSessions} sessions remaining this month`}
-                    </p>
-                  )}
+                {/* Session access — every tier, not just free and pro.
+                    Enterprise was excluded here, so the one tier paying most
+                    for interview access was the only one never told what it
+                    had. sessionAllowanceLabel handles the -1 sentinel, so
+                    "Unlimited sessions, up to 60 min each" replaces what
+                    would otherwise have printed "-1 of -1". */}
+                {interviewAccess && sessionAllowanceLabel(interviewAccess) && (
+                  <p
+                    className={cn(
+                      "text-xs mt-2",
+                      interviewAccess.remainingSessions === 0
+                        ? "text-red-300"
+                        : "text-white/[.55]",
+                    )}
+                  >
+                    {sessionAllowanceLabel(interviewAccess)}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -841,19 +836,17 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                     : "Access 1 Free Trial Interview"
                   : "Monthly Limit Reached"}
               </p>
-              {/* ⚠️ PENDING BACKEND (4/4) — these lines quote Pro's mock
-                  interview allowance to a FREE user, so they are a pricing
-                  claim in-product and have to say the same thing /pricing
-                  says. Pro is moving to unlimited sessions
-                  (PLAN_CONFIG.pro.maxSessions → -1); the copy below is
-                  written for that state. Longer sessions, not more of them,
-                  is what Enterprise now adds — which is exactly what
-                  allowedDurations already encodes (Pro 15/30, Enterprise up
-                  to 60), so this stays true either way.
+              {/* These lines quote Pro's allowance to a FREE user, so they
+                  are a pricing claim rendered in-product and have to match
+                  /pricing exactly. Both now do: Pro is unlimited
+                  (PLAN_CONFIG.pro.maxSessions === -1), and longer sessions —
+                  not more of them — are what Enterprise adds, which is what
+                  allowedDurations encodes (Pro 15/30, Enterprise up to 60).
 
-                  The third branch is for a PAID user who ran out. Once Pro
-                  is unlimited it can only be reached by a tier that is
-                  still metered, so it no longer names a specific upgrade. */}
+                  The third branch is for a PAID user who ran out. With both
+                  paid tiers unlimited it is now unreachable, and is kept
+                  only as a defensive fallback, so it names no specific
+                  upgrade it might get wrong. */}
               <p className="text-xs text-muted-foreground mt-0.5">
                 {interviewAccess.tier === "free"
                   ? interviewAccess.remainingSessions === 0
@@ -1423,10 +1416,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <Crown className="h-5 w-5 text-yellow-500" />
                   <h3 className="font-semibold">Pro Plan</h3>
                 </div>
+                {/* Was "4 mock interviews per month" — stale since Pro went
+                    unlimited. Pro and Enterprise now offer the SAME count,
+                    so the session-length line below is what actually
+                    distinguishes these two cards; both state it. */}
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>4 mock interviews per month</li>
-                  <li>15 & 30 minute sessions</li>
-                  <li>AI-powered feedback & reports</li>
+                  <li>Unlimited mock interviews</li>
+                  <li>15 &amp; 30 minute sessions</li>
+                  <li>AI-powered feedback &amp; reports</li>
                 </ul>
               </CardContent>
             </Card>
@@ -1438,7 +1435,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>Unlimited mock interviews</li>
-                  <li>15, 30, 45 & 60 minute sessions</li>
+                  <li>15, 30, 45 &amp; 60 minute sessions</li>
                   <li>Full access to all features</li>
                 </ul>
               </CardContent>
@@ -1642,21 +1639,22 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   <SelectValue placeholder="Select duration" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[15, 30, 45, 60].map((d) => (
-                    <SelectItem
-                      key={d}
-                      value={d + ""}
-                      disabled={
-                        interviewAccess?.hasAccess === true &&
-                        !interviewAccess.allowedDurations.includes(d)
-                      }
-                    >
-                      {d} min
-                      {interviewAccess?.hasAccess &&
-                        !interviewAccess.allowedDurations.includes(d) &&
-                        " (Enterprise)"}
-                    </SelectItem>
-                  ))}
+                  {[15, 30, 45, 60].map((d) => {
+                    const locked = isDurationLocked(interviewAccess, d);
+                    return (
+                      <SelectItem key={d} value={d + ""} disabled={locked}>
+                        {d} min
+                        {/* Names the LOWEST tier that unlocks this length.
+                            Everything unavailable used to be labelled
+                            "(Enterprise)", which told a free user that
+                            30-minute sessions needed Enterprise when Pro
+                            grants them — an upsell aimed at the wrong plan. */}
+                        {locked && DURATION_UNLOCKED_BY[d]
+                          ? ` (${DURATION_UNLOCKED_BY[d]})`
+                          : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
