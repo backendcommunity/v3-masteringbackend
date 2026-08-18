@@ -738,8 +738,11 @@ export default function PricingView({ pricing }: PricingViewProps) {
         {/* ── Testimonial ── real quote pulled verbatim from the login
             screen (components/auth/auth-shell.tsx), including the "MO"
             initials-avatar treatment — reused rather than sourcing a photo
-            we don't have. Sized big on purpose ("real presence"), matching
-            how the reference treats its testimonial.
+            we don't have. Redesigned side-by-side (avatar left, quote
+            right) after DataCamp's pricing-page testimonial: a large
+            circular avatar given presence by a solid-colour circle offset
+            behind it, an oversized opening quote mark, the quotation set
+            large, and the attribution beneath it.
 
             Position: INSIDE the dark hero block, directly beneath the
             trusted-by band — the reference flow is plan cards → "Compare
@@ -753,21 +756,49 @@ export default function PricingView({ pricing }: PricingViewProps) {
             resolve to near-black in light theme and the quote would vanish
             here. Same reasoning the trusted-by band above already spells
             out. The cyan avatar is the brand primary and reads on navy
-            unchanged. */}
+            unchanged. No new colour introduced — the offset backing circle
+            is the same brand cyan at low opacity. */}
         <div className="border-t border-white/10 pb-20 pt-16 sm:pt-20">
-          <div className="mx-auto max-w-3xl">
-            <blockquote className="text-balance text-2xl font-semibold leading-snug tracking-tight text-white sm:text-3xl">
-              &ldquo;Immediately after I finished my program at
-              MasteringBackend, I landed a gig to build a full-stack application
-              for an NGO, and everything I learned about building a
-              production-ready application I apply here.&rdquo;
-            </blockquote>
-            <div className="mt-8 flex flex-col items-center gap-3">
-              <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-2 border-[#13AECE] bg-[#13AECE]/[0.18] text-base font-bold text-[#13AECE]">
+          <div className="mx-auto flex max-w-4xl flex-col items-center gap-10 px-4 sm:flex-row sm:items-center sm:gap-14">
+            {/* Avatar — layered offset-circle treatment, scaled well past
+                the login screen's 52px chip so it carries real weight next
+                to the quote. */}
+            <div className="relative flex-none">
+              <div
+                aria-hidden="true"
+                className="absolute -bottom-5 -right-5 h-32 w-32 rounded-full bg-[#13AECE]/25 sm:h-40 sm:w-40"
+              />
+              <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#13AECE] bg-[#13AECE]/[0.18] text-4xl font-bold text-[#13AECE] sm:h-40 sm:w-40 sm:text-5xl">
                 MO
               </div>
-              <div>
-                <div className="text-sm font-semibold text-white">
+            </div>
+
+            {/* Quote — oversized opening mark, large quotation held to a
+                readable measure (~45-60 characters per line), attribution
+                beneath. */}
+            <div className="max-w-2xl text-center sm:text-left">
+              <svg
+                aria-hidden="true"
+                width="48"
+                height="38"
+                viewBox="0 0 44 36"
+                fill="none"
+                className="mx-auto mb-3 sm:mx-0"
+              >
+                <path
+                  d="M0 36V20C0 9 6.5 1.8 18 0L20 6C13.5 7.6 10 11.4 10 17H18V36H0ZM24 36V20C24 9 30.5 1.8 42 0L44 6C37.5 7.6 34 11.4 34 17H42V36H24Z"
+                  fill="#13AECE"
+                  fillOpacity="0.55"
+                />
+              </svg>
+              <blockquote className="text-2xl font-semibold leading-snug tracking-tight text-white sm:text-3xl">
+                Immediately after I finished my program at MasteringBackend,
+                I landed a gig to build a full-stack application for an
+                NGO, and everything I learned about building a
+                production-ready application I apply here.
+              </blockquote>
+              <div className="mt-6">
+                <div className="text-base font-bold text-white">
                   Maxmillian Ogbuabor
                 </div>
                 <div className="text-sm text-white/60">
