@@ -15,12 +15,22 @@
 // the app store's `getPlan`, priced from its own `paymentChannels` row —
 // while leaving the Pro path byte-for-byte on the regional object.
 //
+// A non-Pro plan is still REGION-PRICED: it just reads its own record
+// instead of Pro's. The plan's `paymentChannels` hold one row per region
+// (naira and USD), so the channel is selected by the region the request
+// already resolved to, and a Nigerian buying Enterprise pays naira through
+// the naira channel exactly as a Nigerian buying Pro does. Routing a
+// Nigerian to the USD channel while a working naira channel exists is the
+// same class of bug as billing them Pro's amount.
+//
 // THE INVARIANT
 // -------------
-// A non-Pro plan NEVER falls back to regional pricing. If its own price or
-// price ID cannot be resolved, this returns "unavailable" and the page
-// renders its existing unavailable state. Charging a resolvable-but-wrong
-// amount is exactly the failure being eliminated here; a fallback would
+// A non-Pro plan NEVER falls back to Pro's regional numbers, and never
+// falls back to the OTHER region's channel. If the region-appropriate
+// channel, its price, or its price ID cannot be resolved, this returns
+// "unavailable" and the page renders its existing unavailable state.
+// Charging (or displaying) a resolvable-but-wrong amount or currency is
+// exactly the failure being eliminated here; either fallback would
 // reintroduce it.
 
 import type { PaymentChannel, Plan } from "@/lib/data";
@@ -30,19 +40,20 @@ import type { CheckoutPricing } from "@/lib/pricing";
 export const PRO_PLAN_SLUG = "pro";
 
 /**
- * Non-Pro plans are billed globally in USD — deliberately NOT regionally
- * tiered (see the same decision recorded on ENTERPRISE_PRICING in
- * lib/pricing.ts and on the Enterprise card in
- * components/pages/subscription-plans.tsx). The USD channel is the one
- * named PADDLE in the backend's PaymentChannel rows, so that is the channel
- * this resolver reads. The seed also provisions an NGN ASYNCPAY channel for
- * Enterprise; it is intentionally unused, because using it would make
- * Enterprise region-priced, which is the opposite of the product decision.
+ * The backend seeds every sellable plan with BOTH channels — the naira one
+ * and the USD one — each carrying its own prices and its own provider-side
+ * price IDs for sandbox and production (see academy's prisma/seed.ts: the
+ * Enterprise block provisions ASYNCPAY at ₦150,000/mo, ₦1,500,000/yr
+ * alongside PADDLE at $99.99/mo, $999.99/yr). A non-Pro plan is therefore
+ * region-priced in exactly the same way Pro is, and this resolver picks the
+ * channel that matches the visitor's resolved region.
  *
- * Internal identifier only — never rendered. No user-visible string in this
- * codebase names a payment processor.
+ * These are the channel names as the backend serializes
+ * PaymentChannel.channel. Internal identifiers only — never rendered. No
+ * user-visible string in this codebase names a payment processor.
  */
 export const GLOBAL_USD_CHANNEL = "PADDLE";
+export const NGN_CHANNEL = "ASYNCPAY";
 
 export interface ResolvedCheckoutPrice {
   /** The amount the buyer is actually charged, in `currency`. */
@@ -58,8 +69,12 @@ export interface ResolvedCheckoutPrice {
    */
   priceId: string;
   /**
-   * True only for the region-tiered Pro path. The page uses this to decide
-   * whether it may claim the price is specific to the visitor's country.
+   * True when this price was selected for the visitor's resolved region —
+   * which is now every resolved price, Pro from the regional object and
+   * every other plan from its region-matched channel. The page uses this to
+   * decide whether it may claim the price is specific to the visitor's
+   * country; it is still absent (via `resolved?.regional`) whenever nothing
+   * resolved at all.
    */
   regional: boolean;
 }
@@ -116,12 +131,42 @@ function toPriceId(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
+/**
+ * Which payment channel a visitor in this region buys through, and the
+ * currency that channel charges in.
+ *
+ * The region signal is the one the pricing resolver already computed:
+ * `provider`. The backend's tier table (academy's
+ * src/extensions/payment/pricing/tiers.ts) maps the NG tier to ASYNCPAY/NGN
+ * and both PPP and GLOBAL to PADDLE/USD, so reading `provider` here is
+ * reading the same regional decision Pro's branch bills from verbatim — no
+ * second, drift-prone country list in the frontend.
+ *
+ * Currency is derived from the CHANNEL, not copied from the Pro object: the
+ * amount being returned comes off that channel's row, so its currency has
+ * to be the channel's own or display and charge could disagree.
+ */
+function channelForRegion(pricing: Pick<CheckoutPricing, "provider">): {
+  channel: string;
+  currency: "NGN" | "USD";
+  provider: "ASYNCPAY" | "PADDLE";
+} {
+  return pricing.provider === "ASYNCPAY"
+    ? { channel: NGN_CHANNEL, currency: "NGN", provider: "ASYNCPAY" }
+    : { channel: GLOBAL_USD_CHANNEL, currency: "USD", provider: "PADDLE" };
+}
+
 export interface ResolveCheckoutPriceInput {
   /** Raw `?plan=` value from the URL. */
   checkoutId: string | null | undefined;
   /** Raw `?cycle=` value from the URL; anything but "annual" is monthly. */
   cycle: string | null | undefined;
-  /** The region-resolved PRO pricing object. Only used for the Pro path. */
+  /**
+   * The region-resolved PRO pricing object. The Pro path is priced straight
+   * off it; every other path reads only its `provider` — the resolver's own
+   * decision about which processor this visitor pays through — to pick the
+   * matching channel on the plan's own record.
+   */
   pricing: Pick<
     CheckoutPricing,
     "provider" | "currency" | "monthly" | "annual" | "monthlyPriceId" | "annualPriceId"
@@ -138,7 +183,8 @@ export interface ResolveCheckoutPriceInput {
  * Pro keeps exactly the regional behaviour: price, currency, provider and
  * price ID all come from `pricing`, including the "" price ID case that the
  * readiness classifier already handles. Every other plan is priced from its
- * own record, with no path back to the regional numbers.
+ * own record — from the channel matching the SAME resolved region — with no
+ * path back to Pro's numbers and none to the other region's channel.
  */
 export function resolveCheckoutPrice(
   input: ResolveCheckoutPriceInput,
@@ -178,11 +224,15 @@ export function resolveCheckoutPrice(
   const channels = Array.isArray(plan.paymentChannels)
     ? plan.paymentChannels
     : [];
-  const channel = channels.find((pc) => channelName(pc) === GLOBAL_USD_CHANNEL);
+  // The region-appropriate channel, and ONLY that one. No `?? channels[0]`,
+  // no "fall back to the USD row" — either this region's channel is present
+  // and billable or the checkout is unavailable.
+  const region = channelForRegion(input.pricing);
+  const channel = channels.find((pc) => channelName(pc) === region.channel);
   if (!channel) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" has no ${GLOBAL_USD_CHANNEL} payment channel`,
+      reason: `plan="${label}" has no ${region.channel} payment channel`,
     };
   }
 
@@ -192,7 +242,7 @@ export function resolveCheckoutPrice(
   if (amount === null) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" has no billable ${isAnnual ? "annual" : "monthly"} price`,
+      reason: `plan="${label}" ${region.channel} channel has no billable ${isAnnual ? "annual" : "monthly"} price`,
     };
   }
 
@@ -202,7 +252,7 @@ export function resolveCheckoutPrice(
   if (priceId === null) {
     return {
       status: "unavailable",
-      reason: `plan="${label}" has no ${isAnnual ? "annual" : "monthly"} price ID`,
+      reason: `plan="${label}" ${region.channel} channel has no ${isAnnual ? "annual" : "monthly"} price ID`,
     };
   }
 
@@ -210,10 +260,12 @@ export function resolveCheckoutPrice(
     status: "resolved",
     price: {
       amount,
-      currency: "USD",
-      provider: GLOBAL_USD_CHANNEL,
+      // Both from the channel this region buys through — never mixed with
+      // the other region's currency or the Pro object's.
+      currency: region.currency,
+      provider: region.provider,
       priceId,
-      regional: false,
+      regional: true,
     },
   };
 }

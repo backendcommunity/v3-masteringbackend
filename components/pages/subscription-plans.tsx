@@ -150,8 +150,13 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
               onSelect = () => handleSelectPlan("free", billingCycle);
             }
           } else {
-            // Enterprise — no regional pricing for this tier; keep the
-            // existing "talk to sales" framing rather than a number.
+            // Enterprise — this card keeps its existing "talk to sales"
+            // framing rather than a number. NOT because the tier is
+            // unpriced or global-only: Enterprise is region-priced like Pro
+            // (naira and USD channels, see lib/pricing.ts's
+            // enterprisePricingForTier and lib/checkout-plan-pricing.ts).
+            // /pricing shows the regional figure; this surface simply
+            // hasn't been switched over to it.
             priceLabel = "Contact us";
             ctaLabel = plan.cta ?? "Choose Enterprise";
             onSelect = () => handleSelectPlan(plan.id, billingCycle);

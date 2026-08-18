@@ -155,8 +155,9 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // What the buyer is ACTUALLY charged, for the plan they actually asked
   // for. Pro keeps the regional object verbatim (both intervals are valid
   // for every tier — NG annual ships too — so no tier-conditional branch);
-  // every other plan is priced from its own record and can never fall back
-  // to Pro's numbers. See lib/checkout-plan-pricing.ts for the full
+  // every other plan is priced from its own record, off the channel that
+  // matches this same region, and can never fall back to Pro's numbers nor
+  // to the other region's channel. See lib/checkout-plan-pricing.ts for the full
   // rationale and lib/__tests__/checkout-plan-pricing.test.ts for the
   // regression pin.
   const resolution = resolveCheckoutPrice({
@@ -171,9 +172,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   const amount = resolved?.amount ?? 0;
   const currency = resolved?.currency ?? pricing.currency;
   const provider = resolved?.provider ?? pricing.provider;
-  // Only the region-tiered Pro price may claim to be specific to this
-  // visitor's country. A globally-billed plan is the same price everywhere,
-  // so naming a country next to it would be a false claim.
+  // Every resolved price is now region-selected — Pro from the regional
+  // object, other plans from the channel matching that same region — so
+  // naming the visitor's country beside it is an accurate claim. It stays
+  // undefined whenever nothing resolved (pending / unavailable), which is
+  // what this optional chain guards.
   const countryName = resolved?.regional
     ? countries.find((c) => c.code === pricing.country)?.name
     : undefined;

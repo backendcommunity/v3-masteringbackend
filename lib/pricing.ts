@@ -37,24 +37,50 @@ export type PublicPricing = Omit<
 export type CheckoutPricing = Omit<RegionalPricing, "tier">;
 
 /**
- * Enterprise is a single global USD price — deliberately NOT regionally
- * tiered (see components/pages/subscription-plans.tsx's comment on this
- * same decision, ~line 153). It's a team/B2B plan, so the purchasing-power
- * rationale behind Pro's PPP tier doesn't transfer, and it already has
- * working Paddle price IDs provisioned for both channels. These figures are
- * the same ones seeded in prisma/seed.ts (the academy backend repo) —
- * $99.99/mo, $999.99/yr — kept here as the one static frontend source
- * instead of round-tripping through the regional pricing API, which is
- * specifically the Pro resolver and must keep its current shape.
+ * Enterprise IS regionally priced, exactly as Pro is. The backend seeds it
+ * with two payment channels (academy's prisma/seed.ts, the Enterprise
+ * block): a naira channel at ₦150,000/mo and ₦1,500,000/yr, and a USD
+ * channel at $99.99/mo and $999.99/yr — both with real provider price IDs
+ * for sandbox and production. Quoting a Nigerian $99.99 while a working
+ * naira channel exists is precisely the mispricing regional pricing exists
+ * to eliminate.
+ *
+ * These are the `original*` figures on those channels — the same ones
+ * /checkout bills from (see lib/checkout-plan-pricing.ts, which selects the
+ * channel by the same resolved region). The plan record carries
+ * `hasDiscount: false`, so the discounted columns are not in play; display
+ * and charge must agree, and they do only if both read `original*`.
+ *
+ * Kept as a static frontend mirror rather than round-tripping through the
+ * public pricing API, which is specifically the *Pro* resolver and must keep
+ * its current shape. If the seeded Enterprise amounts change, change them
+ * here in the same commit.
  */
-export const ENTERPRISE_PRICING: Pick<
-  RegionalPricing,
-  "monthly" | "annual" | "currency"
-> = {
-  monthly: 99.99,
-  annual: 999.99,
-  currency: "USD",
-};
+const ENTERPRISE_NGN: Pick<RegionalPricing, "monthly" | "annual" | "currency"> =
+  { monthly: 150000, annual: 1500000, currency: "NGN" };
+
+const ENTERPRISE_USD: Pick<RegionalPricing, "monthly" | "annual" | "currency"> =
+  { monthly: 99.99, annual: 999.99, currency: "USD" };
+
+/**
+ * Enterprise's price for the region this request already resolved to.
+ *
+ * Keyed on `tier` because that is the region signal the client actually
+ * receives — PublicPricing strips `provider` (see the comment above it), and
+ * the backend's tier table maps NG to the naira channel and PPP/GLOBAL alike
+ * to the USD one (academy's src/extensions/payment/pricing/tiers.ts). That
+ * is the same regional decision /checkout reads off `provider`, so the price
+ * shown here is the price billed there.
+ *
+ * Fails to the more expensive USD tier for any unrecognised tier, mirroring
+ * the backend's fail-closed tierForCountry(): a bad region read must never
+ * hand a global visitor the naira price.
+ */
+export function enterprisePricingForTier(
+  tier: RegionalPricing["tier"] | string | null | undefined,
+): Pick<RegionalPricing, "monthly" | "annual" | "currency"> {
+  return tier === "NG" ? ENTERPRISE_NGN : ENTERPRISE_USD;
+}
 
 export function formatPrice(amount: number, currency: "NGN" | "USD"): string {
   return new Intl.NumberFormat("en-US", {

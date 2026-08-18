@@ -20,7 +20,7 @@ import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
-  ENTERPRISE_PRICING,
+  enterprisePricingForTier,
   formatPrice,
   monthlyEquivalent,
   type PublicPricing,
@@ -308,6 +308,13 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const isPro = tierStatus === "pro";
   const isEnterprise = tierStatus === "enterprise";
 
+  // Enterprise is region-priced too — it has its own naira and USD channels
+  // seeded (see enterprisePricingForTier), so a Nigerian must see the naira
+  // figure here, not $99.99. These are the same `original*` amounts
+  // /checkout bills from once the same region picks the same channel, so
+  // what this card shows is what the buyer is charged.
+  const enterprisePricing = enterprisePricingForTier(pricing.tier);
+
   // Checkout used to derive its entire price and processor selection from
   // the region-resolved Pro pricing object alone, so it had no way to price
   // a second, differently-priced global plan — routing Enterprise through it
@@ -538,7 +545,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
             <div className="flex min-h-[62px] items-baseline gap-2.5">
               <span className="font-mono text-5xl font-bold tracking-tight">
-                {monthlyEquivalent(ENTERPRISE_PRICING, cycle)}
+                {monthlyEquivalent(enterprisePricing, cycle)}
               </span>
               <span className="text-sm leading-tight text-muted-foreground">
                 /month
@@ -620,9 +627,52 @@ export default function PricingView({ pricing }: PricingViewProps) {
             ))}
           </div>
         </div>
+
+        {/* ── Testimonial ── real quote pulled verbatim from the login
+            screen (components/auth/auth-shell.tsx), including the "MO"
+            initials-avatar treatment — reused rather than sourcing a photo
+            we don't have. Sized big on purpose ("real presence"), matching
+            how the reference treats its testimonial.
+
+            Position: INSIDE the dark hero block, directly beneath the
+            trusted-by band — the reference flow is plan cards → "Compare
+            features ↓" → trusted-by → testimonial → comparison table → FAQ.
+            It used to sit after the table on the light band.
+
+            Styling follows that move: this ground is a FIXED navy in both
+            light and dark theme, so the quote and attribution use
+            white-opacity values, not the foreground / muted-foreground
+            theme tokens they carried on the light band — those tokens
+            resolve to near-black in light theme and the quote would vanish
+            here. Same reasoning the trusted-by band above already spells
+            out. The cyan avatar is the brand primary and reads on navy
+            unchanged. */}
+        <div className="border-t border-white/10 pb-20 pt-16 sm:pt-20">
+          <div className="mx-auto max-w-3xl">
+            <blockquote className="text-balance text-2xl font-semibold leading-snug tracking-tight text-white sm:text-3xl">
+              &ldquo;Immediately after I finished my program at
+              MasteringBackend, I landed a gig to build a full-stack
+              application for an NGO, and everything I learned about building
+              a production-ready application I apply here.&rdquo;
+            </blockquote>
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-2 border-[#13AECE] bg-[#13AECE]/[0.18] text-base font-bold text-[#13AECE]">
+                MO
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white">
+                  Maxmillian Ogbuabor
+                </div>
+                <div className="text-sm text-white/60">
+                  Full-Stack Developer · Remote
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* ── Social proof + testimonial + comparison table ── */}
+      {/* ── Social proof + comparison table ── */}
       <div className="bg-muted/30">
         <div className="mx-auto max-w-6xl px-4">
           <div className="grid grid-cols-1 gap-8 border-b border-border py-14 sm:grid-cols-3">
@@ -734,7 +784,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         Enterprise
                       </div>
                       <div className="mb-4 mt-1 text-xs text-muted-foreground">
-                        {tablePriceLine(ENTERPRISE_PRICING, cycle)}
+                        {tablePriceLine(enterprisePricing, cycle)}
                       </div>
                       {isEnterprise ? (
                         <div className="space-y-1.5">
@@ -828,37 +878,6 @@ export default function PricingView({ pricing }: PricingViewProps) {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </section>
-
-          {/* ── Testimonial ── real quote pulled verbatim from the login
-              screen (components/auth/auth-shell.tsx), including the "MO"
-              initials-avatar treatment (cyan-tinted fill, cyan border) —
-              reused rather than sourcing a photo we don't have. Sized big
-              on purpose ("real presence") to match how the reference treats
-              its testimonial: large quote, avatar + attribution beneath. */}
-          <section className="border-t border-border py-16 sm:py-20">
-            <div className="mx-auto max-w-3xl text-center">
-              <blockquote className="text-balance text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
-                &ldquo;Immediately after I finished my program at
-                MasteringBackend, I landed a gig to build a full-stack
-                application for an NGO, and everything I learned about
-                building a production-ready application I apply
-                here.&rdquo;
-              </blockquote>
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-2 border-[#13AECE] bg-[#13AECE]/[0.18] text-base font-bold text-[#13AECE]">
-                  MO
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    Maxmillian Ogbuabor
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Full-Stack Developer · Remote
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
         </div>
