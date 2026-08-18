@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { PathSession } from "@/lib/path-types";
 import { Lock, Crown, Check } from "lucide-react";
+import { usePricing } from "@/hooks/use-pricing";
+import { formatPrice } from "@/lib/pricing";
 
 interface StepPaywallProps {
   payment: PathSession["path"]["payment"];
@@ -23,6 +25,11 @@ export function StepPaywall({
   onUnlock,
 }: StepPaywallProps) {
   const [open, setOpen] = useState(false);
+  // This is the highest-intent surface in the product — a learner who is
+  // already invested hits this wall. `pricing` is null while the client-side
+  // fetch is in flight (see hooks/use-pricing.ts); the CTA below renders
+  // WITHOUT a price in that state rather than flash a wrong one.
+  const pricing = usePricing();
 
   const canRedeemMB = !!payment.amount && payment.amount > 0;
 
@@ -114,7 +121,9 @@ export function StepPaywall({
                   style={{ color: "#F2C94C" }}
                   aria-hidden="true"
                 />
-                Go Pro
+                {pricing
+                  ? `Go Pro — ${formatPrice(pricing.monthly, pricing.currency)}/mo`
+                  : "Go Pro"}
               </Button>
               {canRedeemMB && (
                 <Button
@@ -141,6 +150,7 @@ export function StepPaywall({
 
       <PaymentDialog
         data={dialogData}
+        pricing={pricing ?? undefined}
         open={open}
         disableOnetime={true}
         disableMB={!canRedeemMB}

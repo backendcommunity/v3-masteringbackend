@@ -17,9 +17,18 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 import { PaymentChannel, Plan } from "@/lib/data";
+import { usePricing } from "@/hooks/use-pricing";
+import { formatPrice, type PublicPricing } from "@/lib/pricing";
 
 interface PaymentDialogProps {
   data: any;
+  // Region-resolved Pro price for the subscription card below. Optional
+  // because most callers don't have one already fetched — when omitted,
+  // this dialog fetches its own copy (see the usePricing call below), so
+  // every "Upgrade to Pro" surface stays region-aware regardless of caller.
+  // Pass it through when a parent (e.g. StepPaywall) already has it, so the
+  // gate CTA and this dialog never show two different numbers.
+  pricing?: PublicPricing;
   disableMB?: boolean;
   disableOnetime?: boolean;
   disableSubscription?: boolean;
@@ -39,6 +48,7 @@ const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
 
 export function PaymentDialog({
   data,
+  pricing,
   open,
   disableMB,
   disableOnetime,
@@ -53,6 +63,11 @@ export function PaymentDialog({
   const [paddle, setPaddle] = useState<Paddle>();
   const [plan, setPlan] = useState<Plan>();
   const [channel, setChannel] = useState<PaymentChannel>();
+  // Only fetch our own copy when the caller didn't already hand us one and
+  // the subscription card (the only thing here that shows this price) is
+  // actually going to render.
+  const ownPricing = usePricing(!pricing && !disableSubscription);
+  const resolvedPricing = pricing ?? ownPricing;
 
   useEffect(() => {
     initializePaddle({
@@ -317,7 +332,9 @@ export function PaymentDialog({
                     <div>
                       <div className="text-right">
                         <div className="font-bold text-sm md:text-base">
-                          ${channel?.originalMonthlyPrice}/mo
+                          {resolvedPricing
+                            ? `${formatPrice(resolvedPricing.monthly, resolvedPricing.currency)}/mo`
+                            : " "}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Best value
