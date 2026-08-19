@@ -4,9 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { OnboardingUpsell } from "@/components/onboarding/onboarding-upsell";
+import { useUser } from "@/hooks/use-user";
 import { useAuth } from "@/store/auth";
 import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
+import { withGeoOverride } from "@/lib/geo-override";
 import { routes } from "@/lib/routes";
 import { safeRedirectPath, sanitizeRedirect } from "@/lib/safe-redirect";
 import type {
@@ -203,12 +206,25 @@ export function OnboardingFlow() {
   const redirect = safeRedirectPath(searchParams?.get("redirect")) ?? undefined;
   const { completeOnboarding } = useAuth();
   const enrollInRoadmap = useAppStore((s) => s.enrollInRoadmap);
+  const user = useUser();
 
-  // step: 1 = motivation, 2 = technology, 3 = ready
+  // step: 1 = motivation, 2 = technology
   const [step, setStep] = useState(1);
   const [motivation, setMotivation] = useState<string | null>(null);
   const [technology, setTechnology] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  /**
+   * The payment step. Non-null once the learner's path is enrolled and the
+   * upsell is what's on screen; `exitPath` is where "Continue with the free
+   * plan" (and Go Pro's eventual return) has to deliver them.
+   *
+   * Enrolment has ALREADY happened by the time this is set — the upsell is a
+   * nudge in front of a lesson the learner owns, never a gate on getting it.
+   */
+  const [upsell, setUpsell] = useState<{
+    pathTitle: string;
+    exitPath: string;
+  } | null>(null);
 
   const isQuestion = step === 1 || step === 2;
   const current = step === 1 ? motivation : technology;
@@ -267,24 +283,40 @@ export function OnboardingFlow() {
         });
       }
 
-      // Route through the region-aware pricing upsell before dropping the
-      // learner into their path — but never at the cost of the path itself.
-      // The lesson they just enrolled in is the destination this flow exists
-      // to deliver, so it takes priority as the free-plan exit; an incoming
-      // `redirect` (OAuth existing-user / share deep link) is the fallback,
-      // and the pricing page falls back to the dashboard when there is
-      // neither. Without this, the upsell silently swallowed the enrollment
-      // and a brand-new learner never reached lesson 1.
+      // Show the region-aware upsell before dropping the learner into their
+      // path — but never at the cost of the path itself. The lesson they just
+      // enrolled in is the destination this flow exists to deliver, so it is
+      // the free-plan exit; an incoming `redirect` (OAuth existing-user /
+      // share deep link) is the fallback, and the dashboard covers neither.
+      // Without this, the upsell silently swallowed the enrollment and a
+      // brand-new learner never reached lesson 1.
       //
       // safeRedirectPath again on the way out: routes.pathWorkspace builds a
-      // trusted path, but `redirect` came off the URL, and the value we
-      // append here is what /pricing renders as an href.
+      // trusted path, but `redirect` came off the URL, so it is normalised
+      // before anything navigates to it.
       const exitPath =
         safeRedirectPath(slug ? routes.pathWorkspace(slug) : redirect) ?? "";
-      const pricingUrl = exitPath
-        ? `/pricing?from=onboarding&redirect=${encodeURIComponent(exitPath)}`
-        : "/pricing?from=onboarding";
-      router.replace(pricingUrl);
+
+      // A subscriber must never be offered a subscription they already have.
+      // Onboarding is reachable by existing users (re-run, OAuth relink), so
+      // this guard is load-bearing — the same one /pricing and /checkout
+      // already apply.
+      if (user?.isPremium) {
+        router.replace(exitPath || routes.dashboard);
+        return;
+      }
+
+      const pathTitle: string =
+        res?.data?.recommendation?.roadmap?.title ?? "your learning path";
+
+      analytics.track("onboarding_upsell_viewed", {
+        pathSlug: slug ?? null,
+        motivation,
+        technology,
+      });
+      setUpsell({ pathTitle, exitPath });
+      // Hand control back: the upsell owns both of its own actions from here.
+      setIsStarting(false);
     } catch {
       toast.error("Couldn't start your lesson. Let's try again.");
       setIsStarting(false);
@@ -297,7 +329,28 @@ export function OnboardingFlow() {
     enrollInRoadmap,
     router,
     redirect,
+    user?.isPremium,
   ]);
+
+  // Upsell → checkout. withGeoOverride keeps a developer's `?__geo=NG` alive
+  // across the hop, the same way /pricing already does for its own CTAs.
+  const handleGoPro = useCallback(() => {
+    if (!upsell) return;
+    analytics.track("onboarding_upsell_go_pro", { pathTitle: upsell.pathTitle });
+    router.push(
+      withGeoOverride("/checkout?plan=pro&cycle=monthly", searchParams),
+    );
+  }, [upsell, router, searchParams]);
+
+  // Upsell → the lesson. This is the path they already enrolled in, so it
+  // must always resolve to something; the dashboard is the last resort.
+  const handleUpsellSkip = useCallback(() => {
+    if (!upsell) return;
+    analytics.track("onboarding_upsell_skipped", {
+      pathTitle: upsell.pathTitle,
+    });
+    router.replace(upsell.exitPath || routes.dashboard);
+  }, [upsell, router]);
 
   // Skip onboarding: mark as skipped so we don't re-prompt, then go to the
   // dashboard. Never block the user on a failed persist.
@@ -330,19 +383,33 @@ export function OnboardingFlow() {
           }}
           draggable={false}
         />
-        <button
-          type="button"
-          className={styles.skip}
-          disabled={isStarting}
-          onClick={handleSkip}
-        >
-          Skip for now
-        </button>
+        {/* Hidden on the upsell step: that card carries its own, clearer exit
+            ("Continue with the free plan"), and two competing skips next to a
+            price reads as a dark pattern in one direction or the other. */}
+        {!upsell && (
+          <button
+            type="button"
+            className={styles.skip}
+            disabled={isStarting}
+            onClick={handleSkip}
+          >
+            Skip for now
+          </button>
+        )}
       </header>
 
       <main className={styles.body}>
         <div className={styles.panel}>
-          {isQuestion && (
+          {upsell && (
+            <div className={styles.stepEnter} key="upsell">
+              <OnboardingUpsell
+                pathTitle={upsell.pathTitle}
+                onGoPro={handleGoPro}
+                onSkip={handleUpsellSkip}
+              />
+            </div>
+          )}
+          {!upsell && isQuestion && (
             <>
               <div
                 className={styles.stepEnter}

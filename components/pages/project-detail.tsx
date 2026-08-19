@@ -45,7 +45,7 @@ import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { Project } from "@/lib/data";
 import { toast } from "sonner";
 import ConfettiCelebration from "@/components/confetti-celebration";
@@ -70,7 +70,7 @@ export function ProjectDetailPage({
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
   const [celebration, setCelebration] = useState(false);
 
   useEffect(() => {
@@ -132,7 +132,7 @@ export function ProjectDetailPage({
       });
       // Free user on a premium project → payment dialog (the gate).
       if (!user?.isPremium && project?.isPremium) {
-        setShowPaymentDialog(!showPaymentDialog);
+        setShowPaymentGate(!showPaymentGate);
         return;
       }
       // add from here inside dialog
@@ -582,16 +582,17 @@ export function ProjectDetailPage({
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
-          {showPaymentDialog && (
-            <PaymentDialog
-              disableMB={false}
-              disableOnetime={true}
-              onClose={() => setShowPaymentDialog(false)}
-              open={showPaymentDialog}
-              data={{ ...project, type: "project" }}
-              onHandlePreview={() => {}}
-              onHandlePurchase={(id: string, type: any, success: boolean) =>
-                handlePurchase(id, type, success)
+          {showPaymentGate && (
+            <PaymentGateOverlay
+              open={showPaymentGate}
+              onClose={() => setShowPaymentGate(false)}
+              itemTitle={project?.title ?? "this project"}
+              stage="build"
+              variant="centered"
+              purchasable={{ ...project, type: "project" }}
+              allowOneTime={false}
+              onPurchased={(id: string, method: string, success: boolean) =>
+                handlePurchase(id, method as any, success)
               }
             />
           )}

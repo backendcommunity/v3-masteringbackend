@@ -25,7 +25,7 @@ import type { PublicPricing, RegionalPricing } from "@/lib/pricing";
  * component. Callers must render their CTA WITHOUT a price while this is
  * null rather than flash a guessed one.
  *
- * @param enabled - Pass false to skip the fetch entirely (e.g. PaymentDialog
+ * @param enabled - Pass false to skip the fetch entirely (e.g. the payment gate
  * already received pricing as a prop, or its subscription card is disabled)
  * — several callers mount this dialog unconditionally even when it's never
  * opened, so an unguarded fetch would fire on every page that renders one.

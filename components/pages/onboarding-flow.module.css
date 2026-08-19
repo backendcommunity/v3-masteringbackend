@@ -571,7 +571,107 @@
   font-size: 14px;
 }
 
+/* ── Post-onboarding Pro upsell ──────────────────────────────────────
+   The last step of the wizard, shown once the learner's path is already
+   enrolled. Deliberately a nudge and not a wall: the free exit sits below
+   the CTA and stays reachable without scrolling at 667px tall.
+   Colours come from the wizard's own local variables at the top of this
+   file (--cyan / --ox / --light-blue) — this surface is dark in both
+   themes by design, because the whole onboarding chrome is. */
+.upsell {
+  /* Restated rather than inherited from .wiz above. In the real flow this
+     card is a descendant of .wiz and would inherit these anyway, but the
+     component is also mounted on its own (the /preview route), and a card
+     whose entire palette collapses to invalid values outside one ancestor
+     class is a trap. Same values, so nothing changes inside the wizard. */
+  --cyan: #19aace;
+  --ox: #0e1f33;
+  --light-blue: #97c3cc;
+  --text-body: rgba(255, 255, 255, 0.72);
+
+  text-align: center;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  padding: 40px 28px;
+}
+.upsellH2 {
+  margin: 0 0 10px;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: #fff;
+}
+/* The second sentence of the headline, in brand cyan. */
+.upsellAccent {
+  color: var(--cyan);
+}
+.upsellLede {
+  margin: 0 auto 24px;
+  max-width: 46ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+.upsellPrice {
+  /* Inherits the wizard's Satoshi rather than the design harness's mono.
+     In mono, "₦9,999" sets with a full character cell around the comma and
+     reads as "₦9 , 999" — a broken-looking number on the one element that
+     has to look exactly right. tabular-nums keeps the digits aligned, which
+     is the only thing mono was buying here. */
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  /* Holds its height while the price fetch is in flight so the CTA below
+     doesn't jump when the number arrives. */
+  min-height: 42px;
+}
+.upsellQual {
+  margin: 8px 0 22px;
+  font-size: 14px;
+  color: var(--light-blue);
+  min-height: 21px;
+}
+.upsellSkip {
+  display: inline-block;
+  margin-top: 18px;
+  background: none;
+  border: 0;
+  padding: 6px 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--light-blue);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.upsellSkip:hover:not(:disabled) {
+  color: #fff;
+  text-decoration: underline;
+}
+.upsellSkip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (max-width: 720px) {
+  .upsell {
+    padding: 30px 20px;
+  }
+  .upsellH2 {
+    font-size: 25px;
+  }
+  .upsellLede {
+    font-size: 15px;
+  }
+  .upsellPrice {
+    font-size: 34px;
+    min-height: 34px;
+  }
+
   .header {
     padding: 20px;
   }

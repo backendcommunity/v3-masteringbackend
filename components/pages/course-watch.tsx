@@ -61,7 +61,6 @@ import {
   Share2,
   ChevronLeft,
   ChevronRight,
-  Lock,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -93,7 +92,7 @@ import { SimpleEditor } from "./SimpleEditor";
 import { Separator } from "../ui/separator";
 import { NextContentOverlay } from "../next-content-overlay";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 
 interface CourseWatchPageProps {
   slug: string;
@@ -167,6 +166,12 @@ export function CourseWatchPage({
       .catch(() => {});
   }, [course?.id]);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  // A premium lesson the learner cannot open is an unavoidable wall, so the
+  // gate shows itself. Keyed on the lesson id so moving between a free and a
+  // premium lesson re-arms it.
+  useEffect(() => {
+    if (currentVideo?.isPremium && !user?.isPremium) setShowUpgradeDialog(true);
+  }, [currentVideo?.id, currentVideo?.isPremium, user?.isPremium]);
 
   async function loadNotes(courseId: string, videoId: string) {
     setLoadingNotes(true);
@@ -513,15 +518,45 @@ export function CourseWatchPage({
                 <div className="aspect-video bg-black relative">
 
                   {currentVideo?.isPremium && !user?.isPremium ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-xl">
-                      <div className="text-center space-y-3 p-6 max-w-sm">
-                        <Lock className="h-10 w-10 mx-auto text-muted-foreground" />
-                        <h3 className="font-semibold text-lg">Premium Content</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Upgrade your plan to watch this lesson
-                        </p>
-                        <Button onClick={() => setShowUpgradeDialog(true)}>Upgrade to Pro</Button>
+                    // The gated lesson rendered as itself — a frozen player
+                    // poster carrying the REAL title, chapter and duration, so
+                    // the learner recognises what they've hit the wall on.
+                    // Everything here is metadata already on the client; the
+                    // stream (`videoUrl` / `video`) is deliberately never put
+                    // in the DOM and VimeoPlayer never mounts.
+                    //
+                    // No CTA: the gate below owns the offer, and a button that
+                    // merely opens it would be a second paywall in front of
+                    // the real one.
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden rounded-xl bg-[#0e1f33]"
+                    >
+                      {currentVideo?.banner && (
+                        <img
+                          src={currentVideo.banner}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover opacity-30"
+                        />
+                      )}
+                      <div className="relative max-w-2xl px-8 text-center">
+                        <h3 className="text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">
+                          {currentVideo?.title}
+                        </h3>
+                        {chapter?.title && (
+                          <p className="mt-2 text-xs font-medium uppercase tracking-[0.2em] text-white/40">
+                            {chapter.title}
+                          </p>
+                        )}
+                        {currentVideo?.duration && (
+                          <p className="mt-3 text-sm text-white/50">
+                            {currentVideo.duration}
+                          </p>
+                        )}
                       </div>
+                      <span className="absolute flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
+                        <Play className="h-7 w-7 translate-x-0.5 fill-white/70 text-white/70" />
+                      </span>
                     </div>
                   ) : (
                     /* Vimeo Player */
@@ -621,12 +656,16 @@ export function CourseWatchPage({
               </Card>
             )}
             {showUpgradeDialog && (
-              <PaymentDialog
+              <PaymentGateOverlay
                 open={showUpgradeDialog}
                 onClose={() => setShowUpgradeDialog(false)}
-                data={{ ...course, type: "course" }}
-                onHandlePreview={() => {}}
-                onHandlePurchase={(_id: string, _type: any, success: boolean) => {
+                itemTitle={course.title}
+                stage="learn"
+                variant="sheet"
+                exitLabel="Back to course"
+                exitHref={routes.courseDetail(slug)}
+                purchasable={{ ...course, type: "course" }}
+                onPurchased={(_id: string, _method: string, success: boolean) => {
                   if (success) {
                     setShowUpgradeDialog(false);
                     store.getUserCourse(slug).then((uc: any) => {

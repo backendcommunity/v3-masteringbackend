@@ -142,8 +142,8 @@ vi.mock("@/components/pages/playground/github-connect", () => ({
 vi.mock("@/components/pages/kap/kap-tutor-panel", () => ({
   KapTutorPanel: () => null,
 }));
-vi.mock("@/components/payment-dialog", () => ({
-  PaymentDialog: () => null,
+vi.mock("@/components/payment-gate-overlay", () => ({
+  PaymentGateOverlay: () => null,
 }));
 vi.mock("@/components/confetti-celebration", () => ({
   default: () => null,

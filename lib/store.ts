@@ -474,7 +474,15 @@ interface AppState {
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
   submitFeedback: (input: {
     message: string;
-    source: "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+    // Mirrors the server whitelist in academy's
+    // src/modules/feedback/validator.ts — anything not listed there 422s, so
+    // the two must be edited together.
+    source:
+      | "playground"
+      | "tasks-page"
+      | "path-lesson"
+      | "error-boundary"
+      | "payment-gate";
     context?: { projectSlug?: string; lessonSlug?: string; url?: string };
   }) => Promise<void>;
 
