@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/accordion";
 import { useUser } from "@/hooks/use-user";
 import { routes } from "@/lib/routes";
+import { DowngradeButton } from "@/components/pricing/downgrade-button";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { sanitizeRedirect } from "@/lib/safe-redirect";
@@ -697,6 +698,23 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const isPro = tierStatus === "pro";
   const isEnterprise = tierStatus === "enterprise";
 
+  // Downgrade targets. Scope agreed with the product owner: TIER changes only —
+  // Enterprise -> Pro and Pro -> Free. Switching billing cycle on the same tier
+  // is deliberately not a downgrade here.
+  //
+  // The subscription row id (not the processor's id) is what the downgrade
+  // endpoint keys on. Absent it there is nothing to act on, so the buttons stay
+  // hidden rather than rendering a control that cannot work.
+  const subscriptionRowId: string | undefined = (user as any)?.subscription?.id;
+  const currentPlanName = isEnterprise ? "Enterprise" : "Pro";
+  const renewsOn = (user as any)?.subscription?.expiry
+    ? new Date((user as any).subscription.expiry).toLocaleDateString()
+    : null;
+  const canDowngradeToFree = Boolean(
+    subscriptionRowId && (isPro || isEnterprise),
+  );
+  const canDowngradeToPro = Boolean(subscriptionRowId && isEnterprise);
+
   // Enterprise is region-priced too, and now PER USER — the figures arrive
   // on the same region-resolved object Pro's do (see lib/pricing.ts's nested
   // `enterprise`), so a Nigerian sees ₦15,000/user and a US visitor $25/user
@@ -885,7 +903,21 @@ export default function PricingView({ pricing }: PricingViewProps) {
               Forever. No card.
             </p>
 
-            {freeCtaIsCurrent ? (
+            {/* One CTA per card. A subscriber offered "Downgrade to Free"
+                must not also be offered "Get started" — that is a sign-up
+                action they already completed, and showing both leaves them
+                guessing which one changes their plan. */}
+            {canDowngradeToFree ? (
+              <DowngradeButton
+                className="my-6 w-full"
+                subscriptionId={subscriptionRowId!}
+                target="free"
+                label="Downgrade to Free"
+                currentPlanName={currentPlanName}
+                renewsOn={renewsOn}
+                onDone={() => window.location.reload()}
+              />
+            ) : freeCtaIsCurrent ? (
               <Button
                 disabled
                 variant="secondary"
@@ -959,9 +991,24 @@ export default function PricingView({ pricing }: PricingViewProps) {
               </div>
             ) : isEnterprise ? (
               <div className="my-6 space-y-2">
-                <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
-                  Included in your Enterprise plan
-                </div>
+                {/* The "included in Enterprise" pill and the downgrade button
+                    say contradictory things about the same card, so only one
+                    shows: the actionable one wins. */}
+                {canDowngradeToPro ? (
+                  <DowngradeButton
+                    className="w-full"
+                    subscriptionId={subscriptionRowId!}
+                    target="pro"
+                    label="Downgrade to Pro"
+                    currentPlanName="Enterprise"
+                    renewsOn={renewsOn}
+                    onDone={() => window.location.reload()}
+                  />
+                ) : (
+                  <div className="w-full rounded-md bg-secondary px-4 py-2.5 text-center text-sm font-bold text-secondary-foreground">
+                    Included in your Enterprise plan
+                  </div>
+                )}
                 <Link
                   href={routes.subscriptionManagement}
                   className="block text-center text-xs font-semibold text-primary hover:underline"
@@ -1317,6 +1364,15 @@ export default function PricingView({ pricing }: PricingViewProps) {
                         >
                           <Check className="h-3.5 w-3.5" /> Current plan
                         </Button>
+                      ) : canDowngradeToFree ? (
+                        // A current subscriber must not be offered "Get
+                        // started" here either. The downgrade action lives on
+                        // the plan card above; duplicating it into a table
+                        // header cell would give the same choice two places to
+                        // live, so this column simply states where they stand.
+                        <span className="block text-center text-xs font-semibold text-muted-foreground">
+                          Available on downgrade
+                        </span>
                       ) : (
                         <Button
                           size="sm"

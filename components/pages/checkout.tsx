@@ -905,7 +905,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   );
 
   const handleBack = () => {
-    router.push(routes.subscriptionPlans);
+    // Back to /pricing, not /subscription/plans. Pricing is where every upgrade
+    // path in the app now starts, and it is the only page that shows
+    // region-correct amounts — sending a buyer who backs out to the old plans
+    // page dropped them somewhere they never came from.
+    router.push(routes.pricing());
   };
 
   if (checkoutId?.includes("free")) {
