@@ -77,6 +77,13 @@ const ASYNCPAY_WRAPPER_ID = "asyncpay-checkout-sdk-wrapper";
 // dead for an uncomfortable stretch. It used to be 20s and stayed armed
 // while the modal was open, which is the bug this replaces.
 const CHECKOUT_OPEN_TIMEOUT_MS = 8000;
+/**
+ * How long the inline frame may sit blank after a successful open() before we
+ * call it stalled. Longer than the click watchdog: Paddle has to fetch and
+ * paint a whole iframe here, and a false "try again" on a slow connection is
+ * worse than a couple of extra seconds of skeleton.
+ */
+const CHECKOUT_FRAME_STALL_MS = 12000;
 
 /**
  * Where a buyer goes when checkout itself is unavailable and they want a
@@ -272,7 +279,18 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // which starts false and so cannot represent "not started yet".
   const [planResolved, setPlanResolved] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const paddleRef = useRef<HTMLInputElement>(null);
+  // Deliberately state, not a ref: the auto-open effect below has to re-run
+  // the instant this node attaches, and a ref assignment cannot do that.
+  const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
+  // Proof the buyer can actually SEE a payment form, from Paddle's own
+  // checkout.loaded event — not merely that we called open().
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [frameStalled, setFrameStalled] = useState(false);
+  // Which priceId we have already handed to Paddle, so a re-render cannot
+  // open a second frame over the first.
+  const openedForRef = useRef<string | null>(null);
+  const frameStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const frameLoadedRef = useRef(false);
   const [celebration, setCelebration] = useState(false);
   const [paddle, setPaddle] = useState<Paddle>();
   // Holds the resolved @asyncpay/checkout module once its chunk has loaded
@@ -618,7 +636,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
    * disabled on "Processing..." with no frame and no error.
    */
   const openPaddleCheckout = useCallback((): boolean => {
-    if (!priceId || !paddleRef.current || !paddle?.Checkout?.open) return false;
+    if (!priceId || !frameEl || !paddle?.Checkout?.open) return false;
     paddle.Checkout.open({
       settings: { displayMode: "inline" },
       // `quantity` is how a per-seat plan is actually charged: the processor
@@ -644,7 +662,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
       },
     });
     return true;
-  }, [priceId, quantity, paddle, user, pricing.country]);
+  }, [priceId, quantity, paddle, user, pricing.country, frameEl]);
 
   // Called from the Subscribe click. The chunk is normally already
   // resolved (see the eager-prefetch effect above) so this is instant, but
@@ -788,14 +806,50 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
     clearPaddleWatchdog,
   ]);
 
-  // Auto-open the inline frame on mount for Paddle. No watchdog here: this
-  // is not a buyer action, nothing is disabled waiting on it, and Subscribe
-  // stays available to retry explicitly.
+  // Auto-open the inline frame for Paddle.
+  //
+  // `frameEl` is in the dep list on purpose: it is the piece that used to be a
+  // ref, and its absence was the whole bug. This effect now re-runs whenever
+  // ANY precondition becomes true — SDK ready, price resolved, or the frame
+  // node attaching — so the open cannot be permanently missed by ordering.
+  //
+  // Guarded by openedForRef so re-renders cannot stack a second frame on the
+  // first, and followed by a stall timer: calling open() is not proof the
+  // buyer can see anything, so if checkout.loaded never arrives we surface a
+  // retry rather than leaving the panel silently empty (which is exactly the
+  // reported symptom).
   useEffect(() => {
     if (provider === "ASYNCPAY") return;
     if (isPro) return;
+    if (openedForRef.current === priceId) return;
+    if (!openPaddleCheckout()) return;
+
+    openedForRef.current = priceId;
+    setFrameStalled(false);
+    if (frameStallTimerRef.current) clearTimeout(frameStallTimerRef.current);
+    frameStallTimerRef.current = setTimeout(() => {
+      frameStallTimerRef.current = null;
+      setFrameStalled((stalled) => stalled || !frameLoadedRef.current);
+    }, CHECKOUT_FRAME_STALL_MS);
+  }, [openPaddleCheckout, provider, isPro, priceId]);
+
+  useEffect(
+    () => () => {
+      if (frameStallTimerRef.current) clearTimeout(frameStallTimerRef.current);
+    },
+    [],
+  );
+
+  // Explicit retry for the stalled case: forget what we opened, clear the
+  // error, and let the effect above run again from scratch.
+  const retryPaddleFrame = useCallback(() => {
+    openedForRef.current = null;
+    setFrameStalled(false);
+    setFrameLoaded(false);
+    frameLoadedRef.current = false;
+    if (frameEl) frameEl.innerHTML = "";
     openPaddleCheckout();
-  }, [openPaddleCheckout, provider, isPro]);
+  }, [frameEl, openPaddleCheckout]);
 
   // Paddle SDK init — mount-once, in an effect.
   //
@@ -844,6 +898,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
         const { country, cycle, checkoutId } = paddleEventCtxRef.current;
         switch (data.name) {
           case "checkout.loaded":
+            // The only honest proof a payment form is on screen; open()
+            // returning true says nothing about what the buyer can see.
+            frameLoadedRef.current = true;
+            setFrameLoaded(true);
+            setFrameStalled(false);
             setIsProcessing(true);
             // Paddle's inline frame opens itself on mount rather than waiting
             // on our Subscribe button, so this SDK callback — not the click —
@@ -1333,10 +1392,31 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 <div
-                  ref={paddleRef}
+                  ref={setFrameEl}
                   className="space-y-5 checkout-frame w-full"
                   id="checkout-frame"
                 />
+                {/* A blank panel with no explanation was the reported bug.
+                    Whatever the cause — SDK down, blocked by an extension,
+                    network — the buyer gets something to act on. */}
+                {frameStalled && !frameLoaded && (
+                  <div className="rounded-lg border border-border p-5 text-center">
+                    <p className="text-sm font-medium text-foreground">
+                      The payment form didn&rsquo;t load.
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This is usually a slow connection or a browser extension
+                      blocking the payment provider.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={retryPaddleFrame}
+                    >
+                      Try again
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </>
           )}
