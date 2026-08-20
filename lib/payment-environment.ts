@@ -56,14 +56,27 @@ export const PADDLE_ENVIRONMENT: "sandbox" | "production" = IS_PRODUCTION
     ? "production"
     : "sandbox";
 
-// TEMPORARY: pinned to "prod" so a live AsyncPay key reaches the live API
-// while Paddle stays on its sandbox token — a combination the shared
-// NEXT_PUBLIC_NODE_ENV switch cannot express. Restore the line below it
-// before merging; as written, EVERY build (CI, previews, teammates) points
-// AsyncPay at live money, and the "unset means test money" default is gone.
+/**
+ * ALWAYS "prod" — this is not an oversight, and it is not a leftover from
+ * local testing.
+ *
+ * AsyncPay does not run a customer-facing sandbox host. Test and live keys
+ * BOTH authenticate against https://api.asyncpay.io; which mode you are in is
+ * decided by the key you send (async_pkt_… test vs async_pk_… live), not by
+ * the host. Verified directly against their API with a TEST key:
+ *
+ *   api.dev.asyncpay.io  → 401 INCORRECT_PUBLIC_KEY   (key rejected outright)
+ *   api.asyncpay.io      → 400 CUSTOMER_ALREADY_...   (key accepted)
+ *
+ * api.dev.asyncpay.io is AsyncPay's own internal deployment; our keys do not
+ * exist there. Deriving this from NEXT_PUBLIC_NODE_ENV — as PADDLE_ENVIRONMENT
+ * correctly does — sends every local build to a host that rejects our keys,
+ * which surfaces as INCORRECT_PUBLIC_KEY and reads like a bad credential.
+ *
+ * Safety still holds, because it lives in the key: a dev machine configured
+ * with async_pkt_… cannot take real money no matter what this says.
+ */
 export const ASYNCPAY_ENVIRONMENT: "dev" | "local" | "prod" = "prod";
-// = IS_PRODUCTION ? "prod"
-//   : process.env.NEXT_PUBLIC_ASYNCPAY_ENV === "prod" ? "prod" : "dev";
 
 /**
  * The fields every AsyncPay checkout shares: the key, who is buying, and
@@ -79,10 +92,6 @@ export function asyncpayBaseOptions(user: {
   name?: string | null;
   email?: string | null;
 }) {
-  console.log(
-    "AsyncPay base options initialized.",
-    process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
-  );
   return {
     publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
     environment: ASYNCPAY_ENVIRONMENT,

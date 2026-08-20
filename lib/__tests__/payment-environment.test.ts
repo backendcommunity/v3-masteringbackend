@@ -49,24 +49,15 @@ describe("payment environment", () => {
     expect(m.PADDLE_ENVIRONMENT).toBe("production");
   });
 
-  // ASYNCPAY_ENVIRONMENT is currently pinned to "prod" in the source so a live
-  // key can be tested against the live API while Paddle stays on sandbox.
-  // These two assert the safety default that pin bypasses — un-skip them the
-  // moment the pin is reverted, which is what they exist to enforce.
-  it.skip("[pinned] AsyncPay falls back to dev when unconfigured", async () => {
-    const m = await load({
-      NEXT_PUBLIC_NODE_ENV: undefined,
-      NEXT_PUBLIC_ASYNCPAY_ENV: undefined,
-    });
-    expect(m.ASYNCPAY_ENVIRONMENT).toBe("dev");
-  });
-
-  it.skip("[pinned] AsyncPay ignores a junk override", async () => {
-    const m = await load({
-      NEXT_PUBLIC_NODE_ENV: "dev",
-      NEXT_PUBLIC_ASYNCPAY_ENV: "PROD",
-    });
-    expect(m.ASYNCPAY_ENVIRONMENT).toBe("dev");
+  it("always points AsyncPay at the host our keys actually exist on", async () => {
+    // Not environment-derived, deliberately. AsyncPay has no customer sandbox
+    // host: test and live keys both authenticate against api.asyncpay.io, and
+    // api.dev.asyncpay.io rejects our keys outright with INCORRECT_PUBLIC_KEY.
+    // Safety lives in the KEY (async_pkt_ vs async_pk_), not the host.
+    for (const env of [undefined, "dev", "development", "production"]) {
+      const m = await load({ NEXT_PUBLIC_NODE_ENV: env });
+      expect(m.ASYNCPAY_ENVIRONMENT).toBe("prod");
+    }
   });
 
   it("lets one processor go live WITHOUT dragging the other with it", async () => {
@@ -75,11 +66,11 @@ describe("payment environment", () => {
     // forcing both live breaks whichever one holds test credentials.
     const m = await load({
       NEXT_PUBLIC_NODE_ENV: "dev",
-      NEXT_PUBLIC_ASYNCPAY_ENV: "prod",
       NEXT_PUBLIC_PADDLE_ENV: undefined,
     });
-    expect(m.ASYNCPAY_ENVIRONMENT).toBe("prod");
+    // Paddle DOES have a real sandbox, so it stays environment-derived.
     expect(m.PADDLE_ENVIRONMENT).toBe("sandbox");
+    expect(m.ASYNCPAY_ENVIRONMENT).toBe("prod");
   });
 
   it("ignores a junk override rather than passing it to the SDK", async () => {

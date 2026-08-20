@@ -64,12 +64,52 @@ export interface PurchasableContent {
   asyncpay_plan_id?: string | null;
 }
 
+/**
+ * Tokens a processor uses to say "this buyer already pays you".
+ *
+ * Matched against a stringified error because the two SDKs bury it in
+ * different shapes — AsyncPay in a rejection body, Paddle in
+ * `event.data.error` — and neither shape is contractual enough to path into.
+ *
+ * Paddle may well never emit its entry: its billing model permits a customer
+ * to hold two subscriptions, so it usually lets the duplicate through rather
+ * than refusing it. Listed anyway because a silent mismatch here costs a
+ * paying customer their access, while a token that never matches costs
+ * nothing.
+ */
+const ALREADY_SUBSCRIBED_SIGNALS = [
+  "ALREADY_SUBSCRIBED",
+  "SUBSCRIPTION_ALREADY_EXISTS",
+];
+
+/**
+ * Whether a processor failure means "you already paid" rather than "it broke".
+ *
+ * Shared by both rails on purpose. This started as an AsyncPay-only branch,
+ * and the Paddle side had no error handling at all — so a buyer whose payment
+ * had in fact landed was told to try again, or told nothing whatsoever. The
+ * distinction is worth getting right in one place: treating a paid customer's
+ * success as an error sends them round the same loop forever.
+ */
+export function isAlreadySubscribed(err: unknown): boolean {
+  let blob: string;
+  try {
+    blob = JSON.stringify(err ?? "").toUpperCase();
+  } catch {
+    // Circular structures (SDK error objects carrying a reference to the SDK)
+    // would otherwise throw here and turn a recoverable state into a crash.
+    blob = String(err).toUpperCase();
+  }
+  return ALREADY_SUBSCRIBED_SIGNALS.some((signal) => blob.includes(signal));
+}
+
 export function useContentPurchase({
   data,
   pricing,
   planName = "Pro",
   onPurchased,
   onCheckoutOpened,
+  onPremiumConfirmed,
 }: {
   data: PurchasableContent;
   /**
@@ -83,6 +123,16 @@ export function useContentPurchase({
   onPurchased: (id: string, method: string, success: boolean) => void;
   /** Lets the caller dismiss its own modal once Paddle's overlay is up. */
   onCheckoutOpened?: () => void;
+  /**
+   * Runs once the BACKEND confirms the buyer is premium, in place of the
+   * default hard reload.
+   *
+   * The reload is right for a paywall — entitlement changes the whole page,
+   * and re-booting with isPremium already true beats re-deriving it in place.
+   * It is wrong anywhere the current page is not where the buyer should end
+   * up, or where reloading destroys state they cannot get back.
+   */
+  onPremiumConfirmed?: () => void;
 }) {
   const user = useUser();
   const store = useAppStore();
@@ -129,6 +179,26 @@ export function useContentPurchase({
             // the same mounted hook is not mistaken for a subscription.
             subscriptionInFlightRef.current = false;
             break;
+          case "checkout.error": {
+            // There was NO error case here at all, so every Paddle failure —
+            // a declined card, a rejected price, a network drop mid-checkout —
+            // reached the buyer as complete silence. They clicked Subscribe
+            // and nothing happened. checkout.tsx has handled this event all
+            // along; the inline rail never did.
+            //
+            // The flag is deliberately NOT cleared here. checkout.error can
+            // fire BEFORE checkout.loaded, and clearing it would make the
+            // later loaded event look like a one-off purchase and dismiss the
+            // caller's paywall — stranding the buyer on content they still
+            // cannot open. checkout.closed clears it, and always follows.
+            if (isAlreadySubscribed(event?.data)) {
+              toast.success("You're already subscribed — checking your access…");
+              void confirmPremiumThenReload();
+              break;
+            }
+            toast.error("Something went wrong with checkout. Please try again.");
+            break;
+          }
           case "checkout.completed": {
             analytics.track("payment_completed", {
               contentId: custom.id,
@@ -286,6 +356,15 @@ export function useContentPurchase({
         const { data: fresh } = await fetchUser();
         if (fresh) setStoredUser(fresh);
         if (fresh?.isPremium) {
+          // A caller that has somewhere better to send the buyer takes over
+          // here. Onboarding is the case that forced this: reloading mid-wizard
+          // re-mounts the questionnaire and throws away everything they just
+          // answered, when what they actually want is the lesson they were
+          // one step away from.
+          if (onPremiumConfirmed) {
+            onPremiumConfirmed();
+            return;
+          }
           window.location.reload();
           return;
         }
@@ -333,6 +412,27 @@ export function useContentPurchase({
 
     if (pricing.provider === "ASYNCPAY") {
       subscriptionInFlightRef.current = true;
+      // The SDK reports a failed start through either onError or a rejected
+      // promise depending on where it failed; both must reach the buyer, and
+      // neither should tell them twice.
+      let reported = false;
+      const reportAsyncpayFailure = (err?: unknown) => {
+        if (reported) return;
+        reported = true;
+
+        // "Already subscribed" is not a failure — it means the buyer HAS paid
+        // and our side simply has not caught up (a webhook that never arrived,
+        // or one still in flight). Telling them to try again sends them round
+        // the same loop forever, which is exactly what it did. Re-check
+        // entitlement instead: if it has landed, this reloads them straight
+        // into the content they already own.
+        if (isAlreadySubscribed(err)) {
+          toast.success("You're already subscribed — checking your access…");
+          void confirmPremiumThenReload();
+          return;
+        }
+        toast.error("We couldn't start checkout. Please try again.");
+      };
       let mod: typeof import("@asyncpay/checkout");
       try {
         mod = await import("@asyncpay/checkout");
@@ -360,14 +460,18 @@ export function useContentPurchase({
           // which is still mounted. Dismissing it here would be the same bug
           // as closing on checkout.loaded.
           onClose: () => {},
-          onError: () =>
-            toast.error("We couldn't start checkout. Please try again."),
+          onError: (err?: unknown) => reportAsyncpayFailure(err),
         });
 
-        // Rejections are surfaced by the SDK's own onError; this only stops an
-        // unhandled rejection and releases the flag. It must NOT navigate.
-        void Promise.resolve(started).catch(() => {
+        // A rejection here does NOT always come with an onError call: an HTTP
+        // failure from initialize-payment-request (a 401 on a bad key, say)
+        // rejects the promise having rendered nothing, and the buyer would
+        // otherwise click Subscribe and get complete silence. Reported here
+        // too, deduped so the paths that DO call onError toast only once.
+        // Still must NOT navigate: /checkout would fail the same way.
+        void Promise.resolve(started).catch((err: unknown) => {
           subscriptionInFlightRef.current = false;
+          reportAsyncpayFailure(err);
         });
       } catch {
         // Synchronous throw — validation, before anything was rendered.

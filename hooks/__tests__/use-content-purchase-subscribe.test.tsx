@@ -21,11 +21,20 @@ vi.mock("@asyncpay/checkout", () => ({
   AsyncpayCheckout: (opts: unknown) => asyncpayCheckout(opts),
 }));
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), warning: vi.fn(), info: vi.fn(), success: vi.fn() } }));
+const toastError = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    error: (m: string) => toastError(m),
+    success: (m: string) => toastSuccess(m),
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
+}));
 vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light" }) }));
 vi.mock("@/lib/analytics", () => ({ analytics: { track: vi.fn() } }));
 vi.mock("@/lib/store", () => ({ useAppStore: () => ({}) }));
-const fetchUser = vi.fn(async () => ({ data: { isPremium: false } }));
+const fetchUser = vi.fn(async () => ({ data: { isPremium: false } as any }));
 vi.mock("@/lib/auth", () => ({ fetchUser: () => fetchUser() }));
 vi.mock("@/lib/user-store", () => ({ setStoredUser: vi.fn() }));
 vi.mock("@/hooks/use-user", () => ({
@@ -390,5 +399,322 @@ describe("AsyncPay — a late rejection must not look like a failed start", () =
 
     // Nothing was shown, so routing to /checkout is the honest outcome.
     expect(started).toBe(false);
+  });
+});
+
+
+describe("AsyncPay — a failed start always reaches the buyer", () => {
+  beforeEach(() => {
+    asyncpayCheckout.mockClear();
+    toastError.mockClear();
+  });
+
+  it("reports an HTTP failure that rejects WITHOUT calling onError", async () => {
+    // A 401 from initialize-payment-request (bad key) rejects the promise
+    // having rendered nothing and never calls onError. That combination used
+    // to be completely silent: click Subscribe, nothing happens at all.
+    asyncpayCheckout.mockRejectedValueOnce(new Error("401"));
+    const { result } = await setup(NG);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(toastError).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not tell the buyer twice when onError AND the rejection both fire", async () => {
+    asyncpayCheckout.mockImplementationOnce((opts: any) => {
+      opts?.onError?.({ error_description: "declined" });
+      return Promise.reject(new Error("declined"));
+    });
+    const { result } = await setup(NG);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(toastError).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("AsyncPay — already subscribed is recovery, not failure", () => {
+  beforeEach(() => {
+    asyncpayCheckout.mockClear();
+    toastError.mockClear();
+    toastSuccess.mockClear();
+  });
+
+  it("re-checks entitlement instead of telling a paying buyer to try again", async () => {
+    // The exact loop this fixes: the buyer HAS paid, AsyncPay refuses a second
+    // subscription, and "couldn't start checkout, try again" sends them round
+    // the same circle forever while our side has simply not caught up.
+    asyncpayCheckout.mockRejectedValueOnce({
+      error: "CUSTOMER_ALREADY_SUBSCRIBED_TO_PLAN",
+      error_description: "This resource requires the customer not to have an active subscription",
+    });
+
+    const { result } = await setup(NG);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(toastError).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith(
+      expect.stringMatching(/already subscribed/i),
+    );
+  });
+
+  it("still reports a genuine failure as a failure", async () => {
+    asyncpayCheckout.mockRejectedValueOnce({ error: "INCORRECT_PUBLIC_KEY" });
+    const { result } = await setup(NG);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(toastError).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("Paddle — a failed checkout always reaches the buyer", () => {
+  beforeEach(() => {
+    paddleOpen.mockClear();
+    toastError.mockClear();
+    toastSuccess.mockClear();
+    fetchUser.mockReset();
+    fetchUser.mockResolvedValue({ data: { isPremium: false } });
+  });
+
+  it("says something when Paddle errors, instead of nothing at all", async () => {
+    // The regression. This hook handled checkout.loaded, closed and completed
+    // and had NO error case, so a declined card or a rejected price left the
+    // buyer staring at a Subscribe button that had visibly done nothing.
+    const { result } = await setup(GLOBAL);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+
+    act(() =>
+      paddleEvents.fire?.({
+        name: "checkout.error",
+        data: { error: { code: "transaction_payment_declined" } },
+      }),
+    );
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an already-subscribed error as recovery, exactly as AsyncPay does", async () => {
+    // Symmetry with the AsyncPay suite above. A buyer whose payment HAS landed
+    // must not be told to try again on either rail.
+    fetchUser.mockResolvedValue({ data: { isPremium: true } });
+    const { result } = await setup(GLOBAL);
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+
+    act(() =>
+      paddleEvents.fire?.({
+        name: "checkout.error",
+        data: { error: { code: "subscription_already_exists" } },
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(toastError).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith(
+      expect.stringMatching(/already subscribed/i),
+    );
+  });
+
+  it("keeps the wall up when the error arrives BEFORE the frame loads", async () => {
+    // Ordering trap: checkout.error can precede checkout.loaded. Clearing the
+    // in-flight flag on error would make that later loaded event look like a
+    // one-off purchase, dismissing the caller's paywall and stranding the
+    // buyer on content they still cannot open — the same class of bug as
+    // reading custom_data off the wrong level of the payload.
+    const onCheckoutOpened = vi.fn();
+    const { result } = await (async () => {
+      const r = renderHook(() =>
+        useContentPurchase({
+          data: {},
+          pricing: GLOBAL,
+          onPurchased: vi.fn(),
+          onCheckoutOpened,
+        }),
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      return r;
+    })();
+
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+
+    act(() =>
+      paddleEvents.fire?.({
+        name: "checkout.error",
+        data: { error: { code: "transaction_payment_declined" } },
+      }),
+    );
+    act(() =>
+      paddleEvents.fire?.({
+        name: "checkout.loaded",
+        data: { custom_data: { method: "subscription", id: "pro" } },
+      }),
+    );
+
+    expect(onCheckoutOpened).not.toHaveBeenCalled();
+  });
+});
+
+describe("post-purchase destination", () => {
+  beforeEach(() => {
+    asyncpayCheckout.mockClear();
+    fetchUser.mockReset();
+  });
+
+  it("hands control to the caller instead of reloading, when it asks", async () => {
+    // Onboarding is why this exists: a hard reload there re-mounts the wizard
+    // and throws away every answer the learner just gave, when the page they
+    // want is the lesson their path was built around.
+    fetchUser.mockResolvedValue({ data: { isPremium: true } });
+    const onPremiumConfirmed = vi.fn();
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, reload },
+    });
+
+    const { result } = renderHook(() =>
+      useContentPurchase({
+        data: {},
+        pricing: NG,
+        onPurchased: vi.fn(),
+        onPremiumConfirmed,
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+
+    const opts = asyncpayCheckout.mock.calls[0]?.[0] as
+      | { onSuccess?: () => void }
+      | undefined;
+    await act(async () => {
+      opts?.onSuccess?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onPremiumConfirmed).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: original,
+    });
+  });
+
+  it("applies to PADDLE too, not just AsyncPay", async () => {
+    // Both providers funnel into the same confirm step, but they arrive by
+    // completely different routes — AsyncPay through its onSuccess callback,
+    // Paddle through a checkout.completed event on a callback registered once
+    // at mount. Proving one says nothing about the other.
+    fetchUser.mockResolvedValue({ data: { isPremium: true } });
+    const onPremiumConfirmed = vi.fn();
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, reload },
+    });
+
+    const { result } = renderHook(() =>
+      useContentPurchase({
+        data: {},
+        pricing: GLOBAL,
+        onPurchased: vi.fn(),
+        onPremiumConfirmed,
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+
+    // Paddle's real payload shape: custom_data nested under data.
+    await act(async () => {
+      paddleEvents.fire?.({
+        name: "checkout.completed",
+        data: { custom_data: { method: "subscription", id: "pro" } },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onPremiumConfirmed).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: original,
+    });
+  });
+
+  it("still reloads by default when no destination is given", async () => {
+    // The paywall relies on this: entitlement changes the whole page, and
+    // re-booting with isPremium already true beats re-deriving it in place.
+    fetchUser.mockResolvedValue({ data: { isPremium: true } });
+    const reload = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, reload },
+    });
+
+    const { result } = renderHook(() =>
+      useContentPurchase({ data: {}, pricing: GLOBAL, onPurchased: vi.fn() }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.subscribe("monthly");
+    });
+    await act(async () => {
+      paddleEvents.fire?.({
+        name: "checkout.completed",
+        data: { custom_data: { method: "subscription", id: "pro" } },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(reload).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: original,
+    });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -339,15 +339,22 @@ export function OnboardingFlow() {
   // Only fetched once the upsell step is actually showing — this flow runs
   // for every new learner and most never reach it.
   const checkoutPricing = useCheckoutPricing(Boolean(upsell));
+  // The purchase hook holds onto its callbacks, so read the upsell through a
+  // ref rather than closing over the render that created it.
+  const upsellRef = useRef(upsell);
+  upsellRef.current = upsell;
   const { subscribe } = useContentPurchase({
     data: {},
     pricing: checkoutPricing,
-    onPurchased: (_id, _method, success) => {
-      if (!success || !upsell) return;
-      // Straight into the lesson they already enrolled in. They just paid for
-      // it; a celebration screen here would put a wall in front of the thing
-      // they bought.
-      router.replace(upsell.exitPath || routes.dashboard);
+    onPurchased: () => {},
+    // Fires once the BACKEND confirms premium. Overrides the hook's default
+    // hard reload, which is right for a paywall sitting on the page the buyer
+    // wants, and wrong here twice over: reloading re-mounts the wizard and
+    // discards every answer they just gave, and the page they actually want
+    // is the lesson their path was built around — one step away, already
+    // enrolled, and now paid for.
+    onPremiumConfirmed: () => {
+      router.replace(upsellRef.current?.exitPath || routes.dashboard);
     },
   });
 
