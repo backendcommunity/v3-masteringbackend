@@ -177,13 +177,9 @@ export function PathPreviewDialog({
                   <button
                     key={course.id}
                     onClick={() =>
-                      navigate(
-                        routes.pathCoursePreview(
-                          pathId,
-                          course.topicId,
-                          course.slug,
-                        ),
-                      )
+                      // Into the workspace, which resolves where to start.
+                      // The old per-course preview route is gone.
+                      navigate(routes.pathWorkspace(pathId))
                     }
                     className="w-full text-left rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors group"
                   >

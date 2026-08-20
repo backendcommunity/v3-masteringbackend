@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PathGlyph } from "@/components/path-glyph";
-import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { routes } from "@/lib/routes";
 import { stripHtmlTags } from "@/lib/html-utils";
@@ -18,10 +17,8 @@ interface ResumeHeroProps {
 }
 
 export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
-  const store = useAppStore();
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
-  const milestoneCache = useRef<Record<string, any>>({});
 
   // ---- empty state: no active path → start the journey ----
   if (!item) {
@@ -51,7 +48,7 @@ export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
   }
 
   const handleResume = async () => {
-    const { slug, currentTopicId } = item;
+    const { slug } = item;
     analytics.track("click_resume_learning_path", {
       id: item.id,
       slug,
@@ -76,64 +73,14 @@ export function ResumeHero({ item, pathSession }: ResumeHeroProps) {
       return;
     }
 
-    // Fallback (no live session): first-uncompleted-video walk via the milestone.
-    if (!currentTopicId) {
-      router.push(routes.pathContinue(slug));
-      return;
-    }
+    // No session cursor yet (first visit, or it has not loaded). The
+    // workspace resolves its own resume point server-side, so hand it the path
+    // and let it decide — this used to fetch the milestone and walk
+    // courses→chapters→videos here to find the first incomplete lesson, which
+    // duplicated that resolution client-side AND could only ever land on a
+    // VIDEO, never the quiz or exercise the learner actually stopped on.
+    router.push(routes.pathWorkspace(slug));
 
-    try {
-      const milestone =
-        milestoneCache.current[currentTopicId] ??
-        (await store.getMilestone(slug, currentTopicId));
-      milestoneCache.current[currentTopicId] = milestone;
-
-      const completedVideoIds = new Set<string>(
-        (milestone?.userTopic?.completedItems ?? [])
-          .filter((ci: any) => ci.itemType === "VIDEO")
-          .map((ci: any) => ci.itemId),
-      );
-
-      const courses: any[] = milestone?.courses ?? [];
-      for (const course of courses) {
-        for (const chapter of course.chapters ?? []) {
-          for (const video of chapter.videos ?? []) {
-            if (!completedVideoIds.has(video.id)) {
-              router.push(
-                routes.pathVideoWatch(
-                  slug,
-                  currentTopicId,
-                  course.slug,
-                  chapter.slug,
-                  video.slug,
-                ),
-              );
-              return;
-            }
-          }
-        }
-      }
-
-      const lastCourse = courses[courses.length - 1];
-      const lastChapter =
-        lastCourse?.chapters?.[lastCourse.chapters.length - 1];
-      const lastVideo = lastChapter?.videos?.[lastChapter.videos.length - 1];
-      if (lastVideo) {
-        router.push(
-          routes.pathVideoWatch(
-            slug,
-            currentTopicId,
-            lastCourse.slug,
-            lastChapter.slug,
-            lastVideo.slug,
-          ),
-        );
-      } else {
-        router.push(routes.pathContinue(slug));
-      }
-    } catch {
-      router.push(routes.pathContinue(slug));
-    }
     // No finally reset: every branch above navigates, so the spinner should
     // stay until this component unmounts on the new route.
   };
