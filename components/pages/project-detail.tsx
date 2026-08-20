@@ -246,7 +246,12 @@ export function ProjectDetailPage({
                   >
                     <Play className="w-4 h-4" /> Continue Building
                   </button>
-                  <TryPlaygroundButton source="detail" slug={slug} />
+                  <TryPlaygroundButton
+                    source="detail"
+                    slug={slug}
+                    premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                    onPremiumRequired={() => setShowPaymentGate(true)}
+                  />
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -262,19 +267,18 @@ export function ProjectDetailPage({
                     )}
                     {enrolling ? "Starting…" : "Start Building"}
                   </button>
-                  <TryPlaygroundButton source="detail" slug={slug} />
-                  <span className="text-sm text-white/[.65]">
-                    {!project?.isPremium || user?.isPremium ? (
-                      <>
-                        Free with{" "}
-                        <span className="font-semibold text-white">Pro</span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-white">
-                        Premium membership required
-                      </span>
-                    )}
-                  </span>
+                  <TryPlaygroundButton
+                    source="detail"
+                    slug={slug}
+                    premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                    onPremiumRequired={() => setShowPaymentGate(true)}
+                  />
+                  {(!project?.isPremium || user?.isPremium) && (
+                    <span className="text-sm text-white/[.65]">
+                      Free with{" "}
+                      <span className="font-semibold text-white">Pro</span>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -626,6 +630,8 @@ export function ProjectDetailPage({
                   source="detail-sidebar"
                   slug={slug}
                   className="mt-2 w-full"
+                  premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                  onPremiumRequired={() => setShowPaymentGate(true)}
                 />
 
                 {(project?.PRDLink || project?.frontendURL) && (
@@ -710,12 +716,14 @@ export function ProjectDetailPage({
                 source="detail-sidebar"
                 slug={slug}
                 className="mt-2 w-full"
+                premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                onPremiumRequired={() => setShowPaymentGate(true)}
               />
 
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 {!project?.isPremium || user?.isPremium
                   ? "Build at your own pace · Earn a verified certificate"
-                  : "Cancel anytime · Earn a verified certificate"}
+                  : "Earn a verified certificate"}
               </p>
 
               {(project?.PRDLink || project?.frontendURL) && (

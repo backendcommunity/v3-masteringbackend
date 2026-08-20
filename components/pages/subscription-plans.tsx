@@ -61,7 +61,7 @@ export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
         </h1>
         <p className="text-muted-foreground mt-1 max-w-2xl mx-auto">
           Invest in your backend engineering career with our flexible
-          subscription plans. Cancel anytime.
+          subscription plans.
         </p>
       </div>
 
