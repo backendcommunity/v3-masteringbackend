@@ -287,6 +287,15 @@ export interface Subscription {
   switchToBasicDate?: Date | string;
   paymentChannel?: PaymentChannel;
   plan?: Plan;
+  // The amount actually being billed, already referenced elsewhere as an
+  // untyped field (see subscription-management.tsx). Used to detect
+  // grandfathered pricing: compared against the CURRENT regional tier price,
+  // a mismatch means this subscriber is on a legacy rate.
+  amount?: number;
+  // Absent on subscriptions created before regional pricing shipped — those
+  // were always billed in USD, so callers should default to "USD" rather
+  // than treat a missing value as unknown.
+  currency?: "NGN" | "USD";
 }
 
 export interface Level {
@@ -323,6 +332,17 @@ export interface PaymentChannel {
   discountYearlyDate?: Date | string;
   monthlyPlanId?: string;
   yearlyPlanId?: string;
+  /**
+   * Regional pricing tier this row prices: "NG" | "PPP" | "GLOBAL". Absent
+   * on every non-regional plan and on rows that predate regional pricing —
+   * those are still matched by processor, exactly as they always were.
+   *
+   * It exists because two rows can share ONE processor price and still
+   * charge different amounts: PPP and GLOBAL are both PADDLE/USD on the same
+   * price id, with the processor's own per-country overrides producing the
+   * difference. Matching on the processor alone cannot tell them apart.
+   */
+  tier?: string | null;
   plan: Plan;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -1358,6 +1378,30 @@ export const dataStore = {
     },
   ],
 
+  // ── Subscription plans ──────────────────────────────────────────────────
+  // Rendered by components/pages/subscription-plans.tsx (/subscription/plans)
+  // as three side-by-side cards. The three feature lists are deliberately
+  // kept in the SAME ORDER — content, then career, then team — so the cards
+  // read row-for-row across and a buyer can scan horizontally for the one
+  // line that differs instead of re-reading three unrelated lists.
+  //
+  // Two things are deliberately absent, and should stay absent:
+  //
+  //   * "Limited / Unlimited land access". MB Lands was archived on
+  //     Feb 28, 2026 and folded into Courses — app/lands/page.tsx is now a
+  //     deprecation notice pointing at Courses/Projects/Bootcamps/Interviews,
+  //     and the sidebar entry is commented out (dashboard-sidebar.tsx). A
+  //     paid plan must not advertise access to a product whose only page
+  //     tells you it no longer exists.
+  //
+  //   * Any seat or per-user PRICING line. "Additional 5 team members ($10
+  //     each)" used to live here; that allotment-plus-overage model is gone
+  //     (Enterprise is priced PER USER from the first seat, two-seat
+  //     minimum, no cap — see lib/pricing.ts's EnterprisePricing and
+  //     academy's src/extensions/payment/pricing/tiers.ts). Its replacement
+  //     was dropped too: these records feed a card whose price block already
+  //     states the model, and the rate itself is region-resolved per request
+  //     and must never be hardcoded in this static list.
   plans: [
     {
       id: "free",
@@ -1367,17 +1411,22 @@ export const dataStore = {
       annualPrice: 0,
       features: [
         { name: "Access to free courses", included: true },
-        { name: "Limited project access", included: true },
-        { name: "Limited land access", included: true },
+        { name: "Basic learning paths", included: true },
+        { name: "Access to Free projects", included: true },
+        // One scored mock interview per calendar month — PLAN_CONFIG.free in
+        // academy's mock-interview subscription-access helper.
         { name: "Limited interview access", included: true },
         { name: "Community forum access", included: true },
-        { name: "Basic learning paths", included: true },
         { name: "Premium courses", included: false },
         { name: "Bootcamps", included: false },
         { name: "Interview preparation", included: false },
         { name: "Certification exams", included: false },
-        { name: "1-on-1 mentorship", included: false },
+        { name: "1-on-1 team mentorship", included: false },
         { name: "Career services", included: false },
+        { name: "Hiring services", included: false },
+        { name: "Admin dashboard", included: false },
+        { name: "Team performance reports", included: false },
+        { name: "Co-branded landing page", included: false },
       ],
       popular: false,
       cta: "Current Plan",
@@ -1389,16 +1438,19 @@ export const dataStore = {
       description: "Everything you need to accelerate your career",
       features: [
         { name: "Access to free courses", included: true },
-        { name: "Unlimited project access", included: true },
-        { name: "Community forum access", included: true },
         { name: "All learning paths", included: true },
         { name: "Premium courses", included: true },
-        { name: "Unlimited land access", included: true },
+        { name: "Unlimited project access", included: true },
         { name: "Interview preparation", included: true },
-        { name: "Bootcamps", included: false },
-        { name: "Certification exams", included: false },
-        { name: "1-on-1 mentorship", included: false },
+        { name: "Community forum access", included: true },
+        { name: "Bootcamps", included: true },
+        { name: "Certification exams", included: true },
+        { name: "1-on-1 team mentorship", included: false },
         { name: "Career services", included: false },
+        { name: "Hiring services", included: false },
+        { name: "Admin dashboard", included: false },
+        { name: "Team performance reports", included: false },
+        { name: "Co-branded landing page", included: false },
       ],
       popular: true,
       cta: "Choose Pro",
@@ -1410,17 +1462,19 @@ export const dataStore = {
       description: "Advanced features for teams and businesses",
       features: [
         { name: "Access to free courses", included: true },
-        { name: "Unlimited project access", included: true },
-        { name: "Community forum access", included: true },
         { name: "All learning paths", included: true },
-        { name: "Additional 5 team members ($10 each)", included: true },
-        { name: "Unlimited land access", included: true },
         { name: "Premium courses", included: true },
-        { name: "Bootcamps", included: true },
+        { name: "Unlimited project access", included: true },
         { name: "Interview preparation", included: true },
+        { name: "Community forum access", included: true },
+        { name: "Bootcamps", included: true },
         { name: "Certification exams", included: true },
-        { name: "1-on-1 mentorship", included: true },
+        { name: "1-on-1 team mentorship", included: true },
         { name: "Career services", included: true },
+        { name: "Hiring services", included: true, comingSoon: true },
+        { name: "Admin dashboard", included: true },
+        { name: "Team performance reports", included: true },
+        { name: "Co-branded landing page", included: true, comingSoon: true },
       ],
       popular: false,
       cta: "Choose Enterprise",

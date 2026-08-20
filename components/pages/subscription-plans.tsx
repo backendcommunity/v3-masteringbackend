@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Crown, X, CreditCard, ChevronRight, Info } from "lucide-react";
 import {
   Card,
@@ -21,76 +22,35 @@ import {
 } from "@/components/ui/tooltip";
 import { routes } from "@/lib/routes";
 import { dataStore } from "@/lib/data";
-import { useAppStore } from "@/lib/store";
 import { useUser } from "@/hooks/use-user";
-import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { formatPrice, type PublicPricing } from "@/lib/pricing";
+import {
+  classifyFreeCardCta,
+  classifyGrandfathered,
+  formatGrandfatheredSubLabel,
+} from "@/lib/subscription-pricing";
 
 interface SubscriptionPlansPageProps {
-  onNavigate: (path: string) => void;
+  pricing: PublicPricing;
 }
 
-export function SubscriptionPlansPage({
-  onNavigate,
-}: SubscriptionPlansPageProps) {
-  const store = useAppStore();
-  const [loading, setLoading] = useState(false);
+type BillingCycle = "monthly" | "annual";
+
+export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
+  const router = useRouter();
   const user = useUser();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
-    "monthly",
-  );
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
 
-  const [plans, setPlans] = useState(dataStore.plans);
+  const subscription = user?.subscription;
+  // See lib/subscription-pricing.ts for the full matrix + why this never
+  // claims a billing period for a grandfathered amount.
+  const { isProSubscriber, isGrandfathered, legacyAmount, legacyCurrency } =
+    classifyGrandfathered(subscription, user?.isPremium, pricing);
 
-  function mergePlans(plans: any[]) {
-    const mergedMap = new Map<string, any>();
+  const proPrice = billingCycle === "monthly" ? pricing.monthly : pricing.annual;
 
-    for (const plan of plans) {
-      const key = plan.name.toLowerCase();
-
-      const cta =
-        user?.subscription?.name === plan.name
-          ? "Current Plan"
-          : "Choose " + plan.name;
-
-      const disabled = user?.subscription?.name === plan.name ? true : false;
-
-      if (mergedMap.has(key)) {
-        const existing = mergedMap.get(key);
-        // Merge: newer values will override older ones if available
-
-        mergedMap.set(key, { ...existing, ...plan, cta, disabled });
-      } else {
-        mergedMap.set(key, { ...plan, cta, disabled });
-      }
-    }
-
-    return Array.from(mergedMap.values());
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      const plans = await store.getPlans();
-      const merged = mergePlans([...plans, ...dataStore.plans]);
-      if (!cancelled) {
-        setPlans(merged);
-        setLoading(false);
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [store]);
-
-  if (loading) return <PageSkeleton />;
-
-  const handleSelectPlan = (planId: string, cycle: string) => {
-    onNavigate(routes.checkout("subscription", planId, cycle));
+  const handleSelectPlan = (planId: string, cycle: BillingCycle) => {
+    router.push(routes.checkout("subscription", planId, cycle));
   };
 
   return (
@@ -101,18 +61,15 @@ export function SubscriptionPlansPage({
         </h1>
         <p className="text-muted-foreground mt-1 max-w-2xl mx-auto">
           Invest in your backend engineering career with our flexible
-          subscription plans. Cancel anytime.
+          subscription plans.
         </p>
       </div>
 
       {/* Billing Cycle Toggle */}
       <div className="flex justify-center mb-6">
         <Tabs
-          defaultValue="annual"
           value={billingCycle}
-          onValueChange={(value) =>
-            setBillingCycle(value as "monthly" | "annual")
-          }
+          onValueChange={(value) => setBillingCycle(value as BillingCycle)}
           className="w-full max-w-md"
         >
           <TabsList className="grid w-full grid-cols-2">
@@ -132,110 +89,218 @@ export function SubscriptionPlansPage({
 
       {/* Pricing Cards */}
       <div className="grid gap-6 md:grid-cols-3">
-        {plans.map((plan) => (
-          <Card
-            key={plan?.id}
-            className={`relative ${
-              plan?.popular
-                ? "border-primary shadow-lg shadow-primary/10"
-                : ""
-            } flex flex-col`}
-          >
-            {plan?.popular && (
-              <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                <Badge className="bg-primary">Most Popular</Badge>
-              </div>
-            )}
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">{plan?.name}</CardTitle>
-                {plan?.name !== "Free" && (
-                  <Crown
-                    className={`h-5 w-5 ${
-                      plan?.name === "Pro" ? "text-[#F2C94C]" : "text-[#EB5757]"
-                    }`}
-                  />
-                )}
-              </div>
-              <CardDescription>{plan?.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 pb-4">
-              <div className="mb-4">
-                <div className="flex items-baseline">
-                  <span className="text-3xl font-bold">
-                    $
-                    {billingCycle === "monthly"
-                      ? plan?.monthlyPrice
-                      : plan?.annualPrice}
-                  </span>
-                  {plan?.monthlyPrice! > 0 && (
-                    <span className="text-muted-foreground ml-2">
-                      /{billingCycle === "monthly" ? "month" : "year"}
-                    </span>
+        {dataStore.plans.map((plan) => {
+          const isFreePlan = plan.id === "free";
+          const isProPlan = plan.id === "pro";
+
+          let priceLabel: string;
+          let priceSuffix: string | null = null;
+          let subLabel: string | null = null;
+          let ctaLabel: string;
+          let ctaDisabled = false;
+          let onSelect: (() => void) | undefined;
+          let legacyNote: string | null = null;
+          let tagLabel: string | null = null;
+
+          if (isProPlan && isGrandfathered) {
+            priceLabel = formatPrice(legacyAmount!, legacyCurrency);
+            // Never "per month" here — we don't know the billing period of
+            // a legacy amount (see classifyGrandfathered's doc comment).
+            // The renewal date is the fact we actually have.
+            subLabel = formatGrandfatheredSubLabel(
+              subscription?.expiry,
+              user?.settings?.dateFormat,
+            );
+            ctaLabel = "Manage subscription";
+            ctaDisabled = false;
+            onSelect = () => router.push(routes.subscriptionManagement);
+            legacyNote =
+              "You're on legacy pricing — your rate stays the same for as long as your subscription is active.";
+            tagLabel = "Legacy rate";
+          } else if (isProPlan && isProSubscriber) {
+            priceLabel = formatPrice(proPrice, pricing.currency);
+            priceSuffix = billingCycle === "monthly" ? "/month" : "/year";
+            subLabel =
+              billingCycle === "annual"
+                ? "Billed annually (save ~20% vs. monthly)"
+                : null;
+            ctaLabel = "Current Plan";
+            ctaDisabled = true;
+            tagLabel = "Available to you";
+          } else if (isProPlan) {
+            priceLabel = formatPrice(proPrice, pricing.currency);
+            priceSuffix = billingCycle === "monthly" ? "/month" : "/year";
+            subLabel =
+              billingCycle === "annual"
+                ? "Billed annually (save ~20% vs. monthly)"
+                : null;
+            ctaLabel = "Choose Pro";
+            onSelect = () => handleSelectPlan("pro", billingCycle);
+          } else if (isFreePlan) {
+            priceLabel = "Free";
+            // Known gap this closes: a premium user used to see "Get
+            // started" on the Free card, as if they were a new signup.
+            // Routing through checkout reuses its existing cancellation
+            // confirmation dialog (see components/pages/checkout.tsx), so
+            // this never downgrades anyone with a single click.
+            const freeCta = classifyFreeCardCta(user?.isPremium);
+            ctaLabel = freeCta.ctaLabel;
+            ctaDisabled = freeCta.ctaDisabled;
+            if (!ctaDisabled) {
+              onSelect = () => handleSelectPlan("free", billingCycle);
+            }
+          } else {
+            // Enterprise — this card keeps its existing "talk to sales"
+            // framing rather than a number. NOT because the tier is
+            // unpriced or global-only: Enterprise is region-priced like Pro
+            // and now sold PER USER (see lib/pricing.ts's enterprise block).
+            // This surface simply hasn't been switched over to it.
+            //
+            // The CTA goes to /pricing rather than straight to /checkout,
+            // and that is now load-bearing: a per-seat checkout needs a seat
+            // count, and this card has no way to collect one. Sending it to
+            // checkout without `seats` would land on the (correct, but dead)
+            // unavailable state — so it goes to the surface that actually
+            // has the seat selector, which then carries the count through.
+            priceLabel = "Contact us";
+            ctaLabel = plan.cta ?? "Choose Enterprise";
+            onSelect = () => router.push(routes.pricing());
+          }
+
+          return (
+            <Card
+              key={plan.id}
+              className={`relative ${
+                plan.popular
+                  ? "border-primary shadow-lg shadow-primary/10"
+                  : ""
+              } flex flex-col`}
+            >
+              {plan.popular && (
+                <div className="absolute -top-4 left-0 right-0 flex justify-center">
+                  <Badge className="bg-primary">Most Popular</Badge>
+                </div>
+              )}
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  {plan.name !== "Free" && (
+                    <Crown
+                      className={`h-5 w-5 ${
+                        plan.name === "Pro"
+                          ? "text-[#F2C94C]"
+                          : "text-[#EB5757]"
+                      }`}
+                    />
                   )}
                 </div>
-                {billingCycle === "annual" && plan?.monthlyPrice! > 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Billed annually (save ~20% vs. monthly)
-                  </p>
-                )}
-              </div>
-
-              <ul className="space-y-2">
-                {plan?.features?.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    {feature.included ? (
-                      <Check className="h-5 w-5 text-green-500 mr-2 shrink-0" />
-                    ) : (
-                      <X className="h-5 w-5 text-muted-foreground mr-2 shrink-0" />
-                    )}
-                    <span
+                <CardDescription>{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 pb-4">
+                <div className="mb-4">
+                  {tagLabel && (
+                    <Badge
+                      variant="outline"
                       className={
-                        feature.included ? "" : "text-muted-foreground"
+                        legacyNote
+                          ? "mb-2 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
+                          : "mb-2 border-primary/30 bg-primary/5 text-primary"
                       }
                     >
-                      {feature.name}
-                    </span>
-                    {feature.name === "1-on-1 mentorship" &&
-                      plan?.name === "Enterprise" && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground ml-1 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="w-[200px]">
-                                4 hours of 1-on-1 mentorship per month with
-                                industry experts
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                      {tagLabel}
+                    </Badge>
+                  )}
+                  <div className="flex items-baseline">
+                    <span className="text-3xl font-bold">{priceLabel}</span>
+                    {priceSuffix && (
+                      <span className="text-muted-foreground ml-2">
+                        {priceSuffix}
+                      </span>
+                    )}
+                  </div>
+                  {subLabel && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {subLabel}
+                    </p>
+                  )}
+                  {legacyNote && (
+                    <p className="mt-3 border-l-2 border-amber-400 pl-3 text-sm leading-relaxed text-muted-foreground">
+                      {legacyNote}
+                    </p>
+                  )}
+                </div>
+
+                <ul className="space-y-2">
+                  {plan?.features?.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      {feature.included ? (
+                        <Check className="h-5 w-5 text-green-500 mr-2 shrink-0" />
+                      ) : (
+                        <X className="h-5 w-5 text-muted-foreground mr-2 shrink-0" />
                       )}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter className="pt-2 mt-auto">
-              <Button
-                className={`w-full ${
-                  plan?.popular ? "bg-primary hover:bg-primary/90" : ""
-                }`}
-                disabled={plan?.disabled}
-                onClick={() => handleSelectPlan(plan?.id, billingCycle)}
-              >
-                {plan?.name === "Free" ? (
-                  plan?.cta
-                ) : (
-                  <>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    {plan?.cta}
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+                      <span
+                        className={
+                          feature.included ? "" : "text-muted-foreground"
+                        }
+                      >
+                        {feature.name}
+                        {/* Mirrors /pricing's COMING_SOON set. A capability
+                            marked "coming soon" on one purchase surface and
+                            shipped-looking on the other is worse than not
+                            flagging it at all — the buyer who compared both
+                            now has cause to doubt each. */}
+                        {feature.comingSoon && (
+                          <span className="ml-2 inline-block whitespace-nowrap rounded border border-border px-1.5 py-0.5 align-middle font-mono text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            Coming soon
+                          </span>
+                        )}
+                      </span>
+                      {/* Keyed on the feature NAME, so it must track
+                          lib/data.ts exactly — the string was renamed to
+                          "1-on-1 team mentorship" to match /pricing, and a
+                          stale key here would silently drop the tooltip
+                          rather than error. */}
+                      {feature.name === "1-on-1 team mentorship" &&
+                        plan?.name === "Enterprise" && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-muted-foreground ml-1 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="w-[200px]">
+                                  4 hours of 1-on-1 mentorship per month with
+                                  industry experts
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter className="pt-2 mt-auto">
+                <Button
+                  className={`w-full ${
+                    plan?.popular ? "bg-primary hover:bg-primary/90" : ""
+                  }`}
+                  disabled={ctaDisabled}
+                  onClick={onSelect}
+                >
+                  {plan?.name === "Free" ? (
+                    ctaLabel
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      {ctaLabel}
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       {/* FAQ Section */}

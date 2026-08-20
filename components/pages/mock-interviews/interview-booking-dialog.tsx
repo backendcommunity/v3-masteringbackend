@@ -45,6 +45,14 @@ interface InterviewBookingDialogProps {
   template: BookingTemplate | null;
   onNavigate: (path: string) => void;
   onBooked?: () => void;
+  /**
+   * The server refused this booking on quota (402). The dialog closes itself
+   * and hands the refusal up so the page can raise its paywall.
+   *
+   * Optional, and the toast stays as the fallback: a caller that has no gate
+   * to open must still tell the learner why nothing happened.
+   */
+  onUpgradeRequired?: () => void;
 }
 
 function difficultyBadge(difficulty: string) {
@@ -67,6 +75,7 @@ export function InterviewBookingDialog({
   template,
   onNavigate,
   onBooked,
+  onUpgradeRequired,
 }: InterviewBookingDialogProps) {
   const store = useAppStore();
 
@@ -86,6 +95,29 @@ export function InterviewBookingDialog({
   const handleClose = (open: boolean) => {
     if (!open) reset();
     onOpenChange(open);
+  };
+
+  /**
+   * Close and hand a quota refusal up to the page, which raises the paywall.
+   *
+   * Returns false for anything that is not a quota refusal so each caller can
+   * fall through to its own error copy — "failed to start" and "failed to
+   * schedule" are different failures and should not be collapsed here.
+   *
+   * Shared because only the Start Now path used to check for 402 at all;
+   * scheduling reported the same refusal as "Failed to schedule interview",
+   * which reads like a bug rather than a wall the learner can pay past.
+   */
+  const handledAsQuotaRefusal = (error: any): boolean => {
+    const status = error?.response?.status;
+    if (status !== 402 && status !== 403) return false;
+    handleClose(false);
+    if (onUpgradeRequired) {
+      onUpgradeRequired();
+    } else {
+      toast.error("Session limit reached. Upgrade for more access.");
+    }
+    return true;
   };
 
   const handleStartChatNow = async () => {
@@ -111,10 +143,7 @@ export function InterviewBookingDialog({
       // changes, so the spinner naturally ends when the new page takes over.
       onNavigate(`/mock-interviews/${result.interview.id}/chat`);
     } catch (error: any) {
-      if (error?.response?.status === 402) {
-        handleClose(false);
-        toast.error("Session limit reached. Upgrade for more access.");
-      } else {
+      if (!handledAsQuotaRefusal(error)) {
         toast.error("Failed to start chat interview");
         setCreating(false);
       }
@@ -137,8 +166,10 @@ export function InterviewBookingDialog({
         handleClose(false);
         onBooked?.();
       }
-    } catch {
-      toast.error("Failed to schedule interview");
+    } catch (error: any) {
+      if (!handledAsQuotaRefusal(error)) {
+        toast.error("Failed to schedule interview");
+      }
     } finally {
       setCreating(false);
     }

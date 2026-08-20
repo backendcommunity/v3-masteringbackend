@@ -315,6 +315,7 @@ interface AppState {
     newPassword: string;
   }) => void;
   cancelSubscription: (id: string) => any;
+  downgradeSubscription: (id: string, target: "pro" | "free") => any;
   markDayComplete: (slug: string, videoId: string, payload: any) => any;
   resumeSubscription: (id: string) => any;
   deletCard: (id: string) => any;
@@ -473,7 +474,15 @@ interface AppState {
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
   submitFeedback: (input: {
     message: string;
-    source: "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+    // Mirrors the server whitelist in academy's
+    // src/modules/feedback/validator.ts — anything not listed there 422s, so
+    // the two must be edited together.
+    source:
+      | "playground"
+      | "tasks-page"
+      | "path-lesson"
+      | "error-boundary"
+      | "payment-gate";
     context?: { projectSlug?: string; lessonSlug?: string; url?: string };
   }) => Promise<void>;
 
@@ -1411,6 +1420,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   cancelSubscription: async (id: string) => {
     const { data } = await api.post(`/payments/subscriptions/${id}/cancel`);
     return data?.data;
+  },
+
+  downgradeSubscription: async (id: string, target: "pro" | "free") => {
+    const { data } = await api.post(
+      `/payments/subscriptions/${id}/downgrade`,
+      { target },
+    );
+    return data;
   },
   puaseSubscription: async (id: string, payload: { months: number }) => {
     const url = `/payments/subscriptions/${id}/pause`;

@@ -55,7 +55,7 @@ import { useAppStore } from "@/lib/store";
 import { analytics } from "@/lib/analytics";
 import { Chapter, Project30, Video } from "@/lib/data";
 import { toast } from "sonner";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { useUser } from "@/hooks/use-user";
 import ConfettiCelebration from "../confetti-celebration";
 import { routes } from "@/lib/routes";
@@ -81,7 +81,7 @@ export function Project30Page({
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [celebration, setCelebration] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
@@ -302,7 +302,7 @@ export function Project30Page({
                 </button>
               ) : (
                 <button
-                  onClick={() => setShowPaymentDialog(true)}
+                  onClick={() => setShowPaymentGate(true)}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                 >
                   <Lock className="w-4 h-4" /> Get Access
@@ -425,7 +425,7 @@ export function Project30Page({
                   </div>
                 </div>
                 <Button
-                  onClick={() => setShowPaymentDialog(true)}
+                  onClick={() => setShowPaymentGate(true)}
                   className="w-full md:w-auto"
                 >
                   Get Access
@@ -744,7 +744,7 @@ export function Project30Page({
                   ) : (
                     <Button
                       className="w-full"
-                      onClick={() => setShowPaymentDialog(true)}
+                      onClick={() => setShowPaymentGate(true)}
                     >
                       <Crown className="mr-2 h-4 w-4" />
                       Get Access to Start Learning
@@ -818,7 +818,7 @@ export function Project30Page({
                         onClick={() =>
                           project30?.isEnrolled
                             ? handleWatchPage(lesson?.video?.id)
-                            : setShowPaymentDialog(true)
+                            : setShowPaymentGate(true)
                         }
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -860,7 +860,7 @@ export function Project30Page({
                       onClick={() =>
                         project30?.isEnrolled
                           ? onNavigate(`/project30/${slug}/day/${currentDay}`)
-                          : setShowPaymentDialog(true)
+                          : setShowPaymentGate(true)
                       }
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -936,7 +936,7 @@ export function Project30Page({
                       </Button>
                     ) : (
                       <Button
-                        onClick={() => setShowPaymentDialog(true)}
+                        onClick={() => setShowPaymentGate(true)}
                         className="w-full md:w-auto"
                       >
                         Get Access
@@ -1097,7 +1097,7 @@ export function Project30Page({
                                 if (project30?.isEnrolled) {
                                   handleWatchPage(video.id);
                                 } else if (!user?.isPremium) {
-                                  setShowPaymentDialog(true);
+                                  setShowPaymentGate(true);
                                 }
                               }}
                             >
@@ -1406,7 +1406,7 @@ export function Project30Page({
                     <Button
                       disabled={user?.isPremium}
                       variant={"outline"}
-                      onClick={() => setShowPaymentDialog(true)}
+                      onClick={() => setShowPaymentGate(true)}
                       className="w-full md:w-auto"
                     >
                       Unlock Calendar
@@ -1504,7 +1504,7 @@ export function Project30Page({
                   <Button
                     disabled={user?.isPremium}
                     variant={"outline"}
-                    onClick={() => setShowPaymentDialog(true)}
+                    onClick={() => setShowPaymentGate(true)}
                     className="w-full md:w-auto"
                   >
                     Unlock Achievements
@@ -1574,7 +1574,7 @@ export function Project30Page({
                     <Button
                       disabled={user?.isPremium}
                       variant={"outline"}
-                      onClick={() => setShowPaymentDialog(true)}
+                      onClick={() => setShowPaymentGate(true)}
                       className="w-full md:w-auto"
                     >
                       Join Competition
@@ -1640,7 +1640,7 @@ export function Project30Page({
                     disabled={user?.isPremium}
                     variant="outline"
                     className="w-full"
-                    onClick={() => setShowPaymentDialog(true)}
+                    onClick={() => setShowPaymentGate(true)}
                   >
                     <Lock className="mr-2 h-4 w-4" />
                     Unlock Community Access
@@ -1652,13 +1652,16 @@ export function Project30Page({
         </TabsContent>
       </Tabs>
 
-      <PaymentDialog
-        onClose={() => setShowPaymentDialog(false)}
-        open={showPaymentDialog}
-        data={project30}
-        onHandlePreview={() => {}}
-        onHandlePurchase={() => {}}
-      />
+      {showPaymentGate && (
+        <PaymentGateOverlay
+          open={showPaymentGate}
+          onClose={() => setShowPaymentGate(false)}
+          itemTitle={project30?.title ?? "this challenge"}
+          stage="build"
+          variant="centered"
+          purchasable={{ ...project30, type: "project30" }}
+        />
+      )}
       <ConfettiCelebration
         onComplete={() => setCelebration(false)}
         isVisible={celebration}

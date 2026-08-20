@@ -39,25 +39,6 @@ export const routes = {
   // Learning Paths
   paths: "/paths",
   pathDetail: (pathId: string) => `/paths/${pathId}`,
-  pathContinue: (pathId: string, topicId?: string) =>
-    topicId
-      ? `/paths/${pathId}/continue#${topicId}`
-      : `/paths/${pathId}/continue`,
-  pathCoursePreview: (pathId: string, topicId: string, courseSlug: string) =>
-    `/paths/${pathId}/${topicId}/${courseSlug}/preview`,
-  pathVideoWatch: (
-    pathId: string,
-    topicId: string,
-    courseSlug: string,
-    chapterId: string,
-    videoId: string,
-  ) => `/paths/${pathId}/${topicId}/${courseSlug}/${chapterId}/${videoId}`,
-  pathExercise: (pathId: string, topicId: string, exerciseId: string) =>
-    `/paths/${pathId}/${topicId}/exercises/${exerciseId}`,
-  pathQuiz: (pathId: string, topicId: string, quizId: string) =>
-    `/paths/${pathId}/${topicId}/quizzes/${quizId}`,
-  pathContentWatch: (pathId: string, stepId: string) =>
-    `/paths/${pathId}/watch/${stepId}`,
   // Workspace (unified player) — stepId is the compiled "topicId:TYPE:itemId"
   pathWorkspace: (pathId: string, stepId?: string) =>
     stepId
@@ -136,6 +117,8 @@ export const routes = {
   billing: "/billing",
   checkout: (type: string, planId: string, cycle: string) =>
     `/checkout?type=${type}&plan=${planId}&cycle=${cycle}`,
+  pricing: (redirect?: string) =>
+    redirect ? `/pricing?redirect=${encodeURIComponent(redirect)}` : "/pricing",
 
   // Levels
   levels: "/levels",

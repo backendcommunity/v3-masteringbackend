@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageSquareText, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -16,7 +17,15 @@ import {
 } from "@/components/ui/dialog";
 import { useAppStore } from "@/lib/store";
 
-type FeedbackSource = "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+// Mirrors the server's whitelist exactly (academy's
+// src/modules/feedback/validator.ts) — an unlisted value is a 422, not a
+// silent drop, so these two lists must be changed together.
+type FeedbackSource =
+  | "playground"
+  | "tasks-page"
+  | "path-lesson"
+  | "error-boundary"
+  | "payment-gate";
 
 interface PathFeedbackDialogProps {
   open: boolean;
@@ -29,6 +38,9 @@ interface PathFeedbackDialogProps {
    * Never editable — the user's own text is what's required and appended.
    */
   prefillMessage?: string;
+  /** Escape hatch for opening above another overlay (see PaymentGateOverlay). */
+  className?: string;
+  overlayClassName?: string;
   /**
    * Overrides the default icon-button trigger. ErrorBoundary uses this to
    * render its own "Report Issue" button instead of a second, redundant icon.
@@ -46,6 +58,8 @@ export function PathFeedbackDialog({
   context,
   prefillMessage,
   trigger,
+  className,
+  overlayClassName,
 }: PathFeedbackDialogProps) {
   const store = useAppStore();
   const [text, setText] = useState("");
@@ -89,7 +103,10 @@ export function PathFeedbackDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-[440px] sm:max-w-[440px]">
+      <DialogContent
+        className={cn("w-[calc(100%-2rem)] max-w-[440px] sm:max-w-[440px]", className)}
+        overlayClassName={overlayClassName}
+      >
         <DialogHeader>
           <DialogTitle>Send feedback</DialogTitle>
           <DialogDescription>

@@ -24,12 +24,29 @@ interface TryPlaygroundButtonProps {
    */
   slug?: string;
   className?: string;
+  /**
+   * Opens the caller's payment gate instead of starting the playground.
+   *
+   * The playground IS the paid content, so a locked project must offer the
+   * same gate "Start Building" does. Without this the button could only report
+   * the server's 403 as a toast — a dead end that names a price and gives the
+   * learner no way to pay it.
+   */
+  onPremiumRequired?: () => void;
+  /**
+   * Set by a caller that already knows the project is locked for this user, so
+   * the gate opens on click with no wasted round trip. The 403 path below
+   * still covers callers that do not know (listing, nav).
+   */
+  premiumLocked?: boolean;
 }
 
 export function TryPlaygroundButton({
   source,
   slug,
   className,
+  onPremiumRequired,
+  premiumLocked = false,
 }: TryPlaygroundButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -42,9 +59,18 @@ export function TryPlaygroundButton({
 
   const onClick = async () => {
     if (inFlight.current) return;
+    analytics.track(PROJECT_EVENTS.tryPlaygroundClicked, { source, slug: targetSlug });
+
+    // Locked and the caller owns a gate: open it straight away, exactly as
+    // "Start Building" does, rather than asking the server a question we
+    // already know the answer to.
+    if (premiumLocked && onPremiumRequired) {
+      onPremiumRequired();
+      return;
+    }
+
     inFlight.current = true;
     setLoading(true);
-    analytics.track(PROJECT_EVENTS.tryPlaygroundClicked, { source, slug: targetSlug });
 
     // Skip enrollment for demo mode (frontend-only, no DB project needed)
     if (targetSlug !== "playground-demo") {
@@ -59,6 +85,26 @@ export function TryPlaygroundButton({
         ).toLowerCase();
         const alreadyEnrolled =
           message.includes("already") || error?.response?.status === 409;
+
+        // The server refuses to enroll a learner who has not paid for a
+        // premium project (see academy's startProject). Say so plainly instead
+        // of "please try again", which invites a retry that can only fail —
+        // and never navigate on, because the playground IS the paid content.
+        if (error?.response?.status === 403) {
+          inFlight.current = false;
+          setLoading(false);
+          // Prefer the gate — a toast names a price with no way to pay it.
+          if (onPremiumRequired) {
+            onPremiumRequired();
+            return;
+          }
+          toast.error(
+            error?.response?.data?.message ??
+              "This project is part of Pro. Subscribe to start it.",
+          );
+          return;
+        }
+
         if (!alreadyEnrolled) {
           toast.error("Couldn't start the playground. Please try again.");
           inFlight.current = false;

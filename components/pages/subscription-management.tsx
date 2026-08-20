@@ -49,6 +49,7 @@ import {
 } from "../ui/select";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { formatPrice } from "@/lib/pricing";
 
 interface SubscriptionManagementPageProps {
   onNavigate: (path: string) => void;
@@ -127,6 +128,72 @@ export function SubscriptionManagementPage({
     };
   }, [store]);
 
+  /**
+   * The currency this subscription is actually billed in.
+   *
+   * Nigerian subscriptions bill in naira, so a hardcoded "$" on this page
+   * understated a \u20a69,999 charge as "$9999". Falls back to USD, which is
+   * correct for every pre-regional-pricing subscription (they had no currency
+   * column) and for the Free placeholder.
+   */
+  const billingCurrency: "NGN" | "USD" =
+    (subscription as any)?.currency === "NGN" ||
+    (subscription as any)?.paymentChannel?.currency === "NGN"
+      ? "NGN"
+      : "USD";
+
+  /**
+   * Payment processor backing this subscription, when known.
+   *
+   * Comes from PaymentChannel (authoritative) and falls back to the channel the
+   * webhooks wrote onto the card blob. Undefined for the Free placeholder and
+   * for legacy rows with neither.
+   */
+  const provider: string | undefined =
+    (subscription as any)?.paymentChannel?.channel ??
+    (typeof (subscription as any)?.card?.channel === "string"
+      ? (subscription as any).card.channel
+      : undefined);
+
+  /**
+   * Pause/resume is Paddle-only. AsyncPay exposes no such endpoint, so the
+   * control is hidden rather than shown and left to fail. Unknown providers are
+   * treated as unsupported: hiding an action is recoverable, offering one that
+   * errors is not.
+   */
+  const supportsPause = provider === "PADDLE";
+
+  /** Format an amount in the subscription's own currency. */
+  const money = (amount?: number | null): string =>
+    typeof amount === "number" && Number.isFinite(amount)
+      ? formatPrice(amount, billingCurrency)
+      : formatPrice(0, billingCurrency);
+
+  /**
+   * Render a JSON-column value only when it is safely renderable.
+   *
+   * React throws on an object child and takes the whole page down with it, so
+   * anything coming out of the free-form `card` JSON is passed through here.
+   */
+  const asText = (v: unknown): string | null =>
+    typeof v === "string" || typeof v === "number" ? String(v) : null;
+
+  /**
+   * Payment processor name for the heading, only when it is actually a string.
+   *
+   * `subscription.card` is a free-form JSON column written by the payment
+   * webhooks, so a backend defect can put anything in it — a bug that stored an
+   * un-awaited Promise landed `{ channel: {} }` here, and rendering that object
+   * threw "Objects are not valid as a React child", white-screening this entire
+   * page for affected subscribers. The backend no longer writes that, but this
+   * page must never be one malformed record away from rendering nothing.
+   */
+  const rawCardChannel = (subscription as any)?.card?.channel;
+  const cardChannel =
+    typeof rawCardChannel === "string" && rawCardChannel.trim()
+      ? rawCardChannel.trim()
+      : null;
+
   const activePlan = plans.find((p) =>
     p.name.includes(
       subscription?.name! ?? subscription?.plan?.name! ?? subscription?.plan,
@@ -138,7 +205,12 @@ export function SubscriptionManagementPage({
       setLoading(true);
       const id = subscription?.id;
       const canceled = await store.cancelSubscription(id);
-      setSubscription(canceled);
+      // Merge, never replace. These endpoints return the bare updated
+      // Subscription row — no `plan`, no `paymentChannel` — so assigning it
+      // wholesale wiped the plan name, billing currency and provider from the
+      // page the moment the action succeeded, changing the currency symbol and
+      // hiding provider-gated controls until a reload.
+      setSubscription((prev: any) => ({ ...prev, ...canceled }));
       setCancelDialogOpen(canceled?.success ?? false);
     } catch (error: any) {
       toast.error(error?.message);
@@ -154,7 +226,12 @@ export function SubscriptionManagementPage({
       const paused = await store.puaseSubscription(id, {
         months: parseInt(months),
       });
-      setSubscription(paused);
+      // Merge, never replace. These endpoints return the bare updated
+      // Subscription row — no `plan`, no `paymentChannel` — so assigning it
+      // wholesale wiped the plan name, billing currency and provider from the
+      // page the moment the action succeeded, changing the currency symbol and
+      // hiding provider-gated controls until a reload.
+      setSubscription((prev: any) => ({ ...prev, ...paused }));
       setPauseDialogOpen(paused?.success ?? false);
     } catch (error: any) {
       toast.error(error?.message);
@@ -168,7 +245,12 @@ export function SubscriptionManagementPage({
       setLoading(true);
       const id = subscription?.id;
       const resume = await store.resumeSubscription(id);
-      setSubscription(resume);
+      // Merge, never replace. These endpoints return the bare updated
+      // Subscription row — no `plan`, no `paymentChannel` — so assigning it
+      // wholesale wiped the plan name, billing currency and provider from the
+      // page the moment the action succeeded, changing the currency symbol and
+      // hiding provider-gated controls until a reload.
+      setSubscription((prev: any) => ({ ...prev, ...resume }));
     } catch (error: any) {
       toast.error(error?.message);
     } finally {
@@ -255,9 +337,9 @@ export function SubscriptionManagementPage({
                     </Badge>
                   </h3>
                   <p className="text-muted-foreground mt-1">
-                    $
-                    {subscription?.amount ??
-                      subscription?.plan?.monthlyPrice?.toFixed(2)}
+                    {money(
+                      subscription?.amount ?? subscription?.plan?.monthlyPrice,
+                    )}
                     /month •{" "}
                     {subscription?.status?.trim() !== "active" ? (
                       <span>
@@ -276,7 +358,13 @@ export function SubscriptionManagementPage({
                     )}
                   </p>
                 </div>
-                <Button onClick={() => onNavigate(routes.subscriptionPlans)}>
+                <Button
+                  // Both paths go to /pricing. It is the only page showing
+                  // region-correct amounts, and it is now where downgrades are
+                  // chosen too — so "Change Plan" and "Upgrade to Pro" land in
+                  // the same place rather than splitting across two pages.
+                  onClick={() => onNavigate(routes.pricing())}
+                >
                   {subscription?.plan?.name?.includes("Free")
                     ? "Upgrade to Pro"
                     : "Change Plan"}
@@ -337,9 +425,10 @@ export function SubscriptionManagementPage({
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Amount:</dt>
                       <dd className="font-medium">
-                        $
-                        {subscription?.amount ??
-                          subscription?.plan?.monthlyPrice?.toFixed(2)}
+                        {money(
+                          subscription?.amount ??
+                            subscription?.plan?.monthlyPrice,
+                        )}
                         /month
                       </dd>
                     </div>
@@ -348,7 +437,7 @@ export function SubscriptionManagementPage({
 
                 <div>
                   <h4 className="font-medium mb-3">
-                    Payment Method ({subscription?.card?.channel})
+                    Payment Method{cardChannel ? ` (${cardChannel})` : ""}
                   </h4>
                   <div className="flex items-center justify-between gap-3 p-4 border rounded-lg">
                     <span className="flex items-center gap-3 p-4">
@@ -356,8 +445,8 @@ export function SubscriptionManagementPage({
                       <div>
                         {subscription?.card && (
                           <p className="font-medium">
-                            {subscription?.card?.card?.type} (****
-                            {subscription?.card?.card?.last4})
+                            {asText(subscription?.card?.card?.type)} (****
+                            {asText(subscription?.card?.card?.last4)})
                           </p>
                         )}
                         {subscription?.card ? (
@@ -368,7 +457,7 @@ export function SubscriptionManagementPage({
                             </p>
                           ) : (
                             <p className="text-sm text-muted-foreground">
-                              {subscription?.card?.type}
+                              {asText(subscription?.card?.type)}
                             </p>
                           )
                         ) : (
@@ -407,12 +496,16 @@ export function SubscriptionManagementPage({
             <CardFooter className="flex justify-between border-t pt-4">
               <Button
                 variant="outline"
-                onClick={() => onNavigate(routes.subscriptionPlans)}
+                onClick={() => onNavigate(routes.pricing())}
               >
                 View Available Plans
               </Button>
               <div className="flex gap-4">
                 {!subscription?.plan?.name?.includes("Free") &&
+                  // AsyncPay has no pause/resume API at all, so offering the
+                  // control to Nigerian subscribers would present an action
+                  // that can only fail. Paddle supports it; AsyncPay does not.
+                  supportsPause &&
                   !["canceling", "canceled"].includes(
                     subscription?.status?.trim(),
                   ) && (
@@ -708,7 +801,7 @@ export function SubscriptionManagementPage({
                           Invoice #{invoice.invoice?.substring(0, 10)}
                         </span>
                         <span>{fmt(invoice?.createdAt)}</span>
-                        <span>${invoice?.amount?.toFixed(2)}</span>
+                        <span>{money(invoice?.amount)}</span>
                       </div>
                     </div>
                     <Button
@@ -747,7 +840,7 @@ export function SubscriptionManagementPage({
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    ${stats?.amount?.toFixed(2) ?? 0.0}
+                    {money(stats?.amount)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Total Paid
@@ -803,14 +896,14 @@ export function SubscriptionManagementPage({
               <div className="text-center md:text-right">
                 <Button
                   size="lg"
-                  onClick={() => onNavigate(routes.subscriptionPlans)}
+                  onClick={() => onNavigate(routes.pricing())}
                 >
                   <Crown className="mr-2 h-4 w-4" />
                   Upgrade Now
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Starting at ${enterprisePlan?.monthlyPrice}
+                  Starting at {money(enterprisePlan?.monthlyPrice)}
                   /month
                 </p>
                 <span className="text-xs text-gray-400 italic">

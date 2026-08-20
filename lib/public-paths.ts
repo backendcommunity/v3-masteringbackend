@@ -12,6 +12,7 @@ export const PUBLIC_PATH_PREFIXES = [
   "/certifications/verify/",
   "/ai/payment",
   "/xpayment",
+  "/pricing",
 ];
 
 /** True when `pathname` is a public (no-login) route. */

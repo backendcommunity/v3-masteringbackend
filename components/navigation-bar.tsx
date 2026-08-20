@@ -851,7 +851,7 @@ export function NavigationBar({
               <Button
                 size="sm"
                 className="shrink-0 bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
-                onClick={() => onNavigate(routes.subscriptionManagement)}
+                onClick={() => onNavigate(routes.pricing())}
               >
                 <Crown className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Upgrade</span>
