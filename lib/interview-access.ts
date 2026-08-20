@@ -35,6 +35,38 @@ export interface InterviewAccess {
   message?: string;
 }
 
+/**
+ * Whether booking should raise the paywall instead of opening the booking
+ * dialog.
+ *
+ * One line, but it lives here rather than inline in the page because the
+ * hand-rolled version was WRONG in a way nothing caught:
+ *
+ *     remainingSessions >= 1 && !hasAccess     // never true
+ *
+ * The API defines `hasAccess = remainingSessions !== 0`, so `!hasAccess`
+ * already means remaining IS zero — the two halves contradicted and the
+ * condition could not fire for any payload the server can produce. An
+ * exhausted free user sailed into the booking dialog, chose a slot, and only
+ * met the wall as a 402 toast after pressing Start Now.
+ *
+ * `hasAccess` is the server's own verdict and the only field that should
+ * decide this. Anything derived from `remainingSessions` here risks
+ * re-deriving that verdict slightly differently — which is exactly what
+ * happened. Note that unlimited tiers carry `remainingSessions === -1`, so
+ * naive arithmetic on that field is a second way to get this wrong.
+ *
+ * A null payload (still loading, or the fetch failed) is NOT treated as
+ * gated: the server refuses on its own with a 402, and blocking the UI on a
+ * failed access fetch would lock out paying users over a network blip.
+ */
+export function isInterviewGated(
+  access: Pick<InterviewAccess, "hasAccess"> | null | undefined,
+): boolean {
+  if (!access) return false;
+  return !access.hasAccess;
+}
+
 /** Longest session this user can book, straight off the API's own list. */
 export function maxAllowedDuration(
   access: Pick<InterviewAccess, "allowedDurations">,

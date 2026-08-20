@@ -3,6 +3,7 @@ import {
   DURATION_UNLOCKED_BY,
   UNLIMITED,
   isDurationLocked,
+  isInterviewGated,
   maxAllowedDuration,
   sessionAllowanceLabel,
   type InterviewAccess,
@@ -49,6 +50,61 @@ const unknownUser: InterviewAccess = {
   allowedDurations: [],
   message: "User not found",
 };
+
+describe("isInterviewGated", () => {
+  it("gates a free user who has spent their trial", () => {
+    expect(isInterviewGated(free(1))).toBe(true);
+  });
+
+  it("lets a free user with their trial still in hand through", () => {
+    expect(isInterviewGated(free(0))).toBe(false);
+  });
+
+  it("never gates an unlimited tier, however many sessions they have run", () => {
+    expect(isInterviewGated(pro(0))).toBe(false);
+    expect(isInterviewGated(pro(99))).toBe(false);
+    expect(isInterviewGated(enterprise(99))).toBe(false);
+  });
+
+  it("gates the API's user-not-found shape", () => {
+    expect(isInterviewGated(unknownUser)).toBe(true);
+  });
+
+  it("does NOT gate while access is still unknown", () => {
+    // Null is "we have not been told yet" — loading, or a failed fetch. The
+    // server refuses on its own with a 402, so treating unknown as gated
+    // would wall off paying users over a network blip.
+    expect(isInterviewGated(null)).toBe(false);
+    expect(isInterviewGated(undefined)).toBe(false);
+  });
+
+  it("fires for EVERY exhausted payload the old inline condition missed", () => {
+    // The regression this function exists for. The page used to ask
+    // `remainingSessions >= 1 && !hasAccess`, and because the API guarantees
+    // `hasAccess === (remainingSessions !== 0)`, those two halves can never
+    // hold at once. Asserted here as a property over every payload shape the
+    // server can produce, so the contradiction cannot be reintroduced.
+    const everyShape: InterviewAccess[] = [
+      free(0),
+      free(1),
+      free(2),
+      pro(0),
+      pro(50),
+      enterprise(0),
+      unknownUser,
+    ];
+
+    for (const access of everyShape) {
+      const oldCondition = access.remainingSessions >= 1 && !access.hasAccess;
+      expect(oldCondition).toBe(false); // it fired for nothing, ever
+      expect(isInterviewGated(access)).toBe(!access.hasAccess);
+    }
+
+    // And it does fire for the payloads that matter: both spent free users
+    // and the user-not-found shape.
+    expect(everyShape.filter(isInterviewGated)).toHaveLength(3);
+  });
+});
 
 describe("maxAllowedDuration", () => {
   it("reads the longest bookable session off the API's own list", () => {

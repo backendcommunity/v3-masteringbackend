@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -41,13 +40,13 @@ import {
   Loader2,
   Crown,
   AlertTriangle,
-  Lock,
   CheckCircle2,
   Trash2,
 } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { MockInterviewTemplateCard } from "./mock-interviews/mock-interview-template-card";
 import { InterviewBookingDialog } from "./mock-interviews/interview-booking-dialog";
+import { PaymentGateOverlay } from "@/components/payment-gate-overlay";
 import { cn } from "@/lib/utils";
 import { JourneyGlyph } from "@/components/journey-glyph";
 import { TryMockInterviewButton } from "@/components/projects/try-mock-interview-button";
@@ -59,6 +58,7 @@ import { routes } from "@/lib/routes";
 import {
   DURATION_UNLOCKED_BY,
   isDurationLocked,
+  isInterviewGated,
   sessionAllowanceLabel,
   type InterviewAccess,
 } from "@/lib/interview-access";
@@ -145,7 +145,11 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] =
     useState(false);
-  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  // The paywall every blocked action on this page raises. `gateTitle` names
+  // the thing they were refused, so the gate reads as a response to what they
+  // just clicked rather than a generic upsell.
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
+  const [gateTitle, setGateTitle] = useState<string | null>(null);
 
   const [interviewAccess, setInterviewAccess] =
     useState<InterviewAccess | null>(null);
@@ -359,6 +363,18 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
     }
   };
 
+  /**
+   * Raise the paywall over this page.
+   *
+   * Every refusal routes through here so the learner keeps their place in the
+   * template list. The old path navigated to /pricing, which threw away the
+   * filters, the page they had scrolled to, and the template they picked.
+   */
+  const openPaymentGate = (title?: string | null) => {
+    setGateTitle(title?.trim() || null);
+    setShowPaymentGate(true);
+  };
+
   const loadCategories = async () => {
     try {
       const data = await store.getMockInterviewCategories();
@@ -406,15 +422,15 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   };
 
   const handleBookInterview = (template: InterviewTemplate) => {
-    if (
-      interviewAccess?.remainingSessions! >= 1 &&
-      !interviewAccess?.hasAccess
-    ) {
+    // Was a hand-rolled `remainingSessions >= 1 && !hasAccess`, which can
+    // never be true — see isInterviewGated for why, and why the predicate now
+    // lives beside the other access rules instead of inline here.
+    if (isInterviewGated(interviewAccess)) {
       analytics.track("mock_interview_upgrade_dialog_shown", {
         trigger: "template_click",
         tier: interviewAccess?.tier,
       });
-      setShowUpgradeDialog(true);
+      openPaymentGate(template.name ?? template.position);
       return;
     }
     analytics.track("mock_interview_booking_started", {
@@ -432,12 +448,14 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
   };
 
   const handleJoinInterview = async (interview: UserInterview) => {
-    if (!interviewAccess?.hasAccess) {
+    if (isInterviewGated(interviewAccess)) {
       analytics.track("mock_interview_upgrade_dialog_shown", {
         trigger: "join_attempt",
         tier: interviewAccess?.tier,
       });
-      setShowUpgradeDialog(true);
+      openPaymentGate(
+        interview.template?.name ?? interview.template?.position,
+      );
       return;
     }
 
@@ -825,7 +843,7 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
         </div>
 
         {/* Session limit banner */}
-        {interviewAccess && !interviewAccess.hasAccess && (
+        {interviewAccess && isInterviewGated(interviewAccess) && (
           <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-orange-500/40 bg-orange-500/5 px-4 py-3 mb-4">
             <AlertTriangle className="h-6 w-6 text-orange-500 shrink-0" />
             <div className="flex-1 text-center sm:text-left">
@@ -855,7 +873,16 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
                   : "You've used all your mock interviews this month. Upgrade for unlimited sessions."}
               </p>
             </div>
-            <Button size="sm" onClick={() => onNavigate(routes.pricing(currentPathWithQuery))}>
+            <Button
+              size="sm"
+              onClick={() => {
+                analytics.track("mock_interview_upgrade_cta_clicked", {
+                  from: "limit_banner",
+                  tier: interviewAccess.tier,
+                });
+                openPaymentGate();
+              }}
+            >
               <Crown className="h-4 w-4 mr-2" />
               Upgrade
             </Button>
@@ -1393,76 +1420,62 @@ export function MockInterviewsPage({ onNavigate }: MockInterviewsPageProps) {
           setActiveTab("booked");
           loadBookedInterviews();
         }}
+        // The server is the authority on the allowance, and its refusal has to
+        // land somewhere the learner can act on. Reached when the cached access
+        // payload is stale — the quota ran out in another tab, or the month
+        // rolled — so the page believed they could book and the API disagreed.
+        onUpgradeRequired={() => {
+          analytics.track("mock_interview_upgrade_dialog_shown", {
+            trigger: "booking_402",
+            tier: interviewAccess?.tier,
+          });
+          openPaymentGate(selectedTemplate?.name ?? selectedTemplate?.position);
+          void loadInterviewAccess();
+        }}
       />
 
-      {/* Upgrade Dialog */}
-      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-muted-foreground" />
-              Upgrade Required
-            </DialogTitle>
-            <DialogDescription>
-              {interviewAccess?.tier === "free"
-                ? "You've used your free trial interview. Upgrade to unlock more sessions."
-                : "You've reached your monthly session limit. Upgrade for more access."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Card className="border-primary">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Crown className="h-5 w-5 text-yellow-500" />
-                  <h3 className="font-semibold">Pro Plan</h3>
-                </div>
-                {/* Was "4 mock interviews per month" — stale since Pro went
-                    unlimited. Pro and Enterprise now offer the SAME count,
-                    so the session-length line below is what actually
-                    distinguishes these two cards; both state it. */}
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>Unlimited mock interviews</li>
-                  <li>15 &amp; 30 minute sessions</li>
-                  <li>AI-powered feedback &amp; reports</li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-purple-500" />
-                  <h3 className="font-semibold">Enterprise Plan</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>Unlimited mock interviews</li>
-                  <li>15, 30, 45 &amp; 60 minute sessions</li>
-                  <li>Full access to all features</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowUpgradeDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                analytics.track("mock_interview_upgrade_cta_clicked", {
-                  from: "upgrade_dialog",
-                  tier: interviewAccess?.tier,
-                });
-                onNavigate(routes.pricing(currentPathWithQuery));
-              }}
-            >
-              <Crown className="h-4 w-4 mr-2" />
-              View Plans
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* The paywall. Replaces a bespoke two-card "Upgrade Required" dialog
+          whose only button navigated to /pricing — this page was the last
+          paid surface still doing that, and the trip cost the learner their
+          filters, scroll position and chosen template. Subscribing here
+          returns them to the same list with access.
+
+          Mounted conditionally so the gate's scroll lock and focus trap only
+          exist while it is open, matching every other call site. */}
+      {showPaymentGate && (
+        <PaymentGateOverlay
+          open={showPaymentGate}
+          onClose={() => setShowPaymentGate(false)}
+          itemTitle={gateTitle ?? "unlimited mock interviews"}
+          stage="grow"
+          variant="centered"
+          planName="Pro"
+          // Sessions are a subscription allowance, not a catalogue item: there
+          // is nothing here to sell as a one-off, so the rail stays hidden
+          // rather than offering a purchase that cannot unlock anything.
+          allowOneTime={false}
+          subheading={
+            gateTitle
+              ? `Unlock ${gateTitle} and every other interview, scored and debriefed.`
+              : "Practice as often as you need, with a scored report every time."
+          }
+          // Quotes PLAN_CONFIG.pro exactly — unlimited count, 15/30 minute
+          // lengths. The generic default sells paths and projects, which are
+          // real but not what someone blocked on this page came for.
+          benefits={[
+            "Unlimited AI mock interviews, 15 or 30 minutes each",
+            "A scored report and personalized debrief after every session",
+            "Every learning path, premium course and project",
+          ]}
+          onPurchased={(_id, _method, success) => {
+            if (!success) return;
+            // The banner, the allowance line and both gate conditions all read
+            // from this payload, so it has to be refetched before the page can
+            // stop describing the learner as locked out.
+            void loadInterviewAccess();
+          }}
+        />
+      )}
 
       {/* Delete My Template Confirmation */}
       <Dialog
