@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   PaymentGateOverlay,
   truncateForSubheading,
@@ -20,6 +20,9 @@ vi.mock("@/lib/analytics", () => ({
 // The one-off rails talk to Paddle and the store; neither belongs in a
 // render test, and the hook is exercised through its own call sites.
 const buyOnce = vi.fn();
+// Resolves false by default = "inline could not start", which is the path
+// that must always land the buyer on /checkout rather than nowhere.
+const subscribe = vi.fn(async () => false);
 vi.mock("@/hooks/use-content-purchase", async () => {
   const actual = await vi.importActual<
     typeof import("@/hooks/use-content-purchase")
@@ -28,14 +31,16 @@ vi.mock("@/hooks/use-content-purchase", async () => {
     ...actual,
     useContentPurchase: () => ({
       buyOnce,
-      redeemMB: vi.fn(),
+      subscribe,
       payWithAsyncpay: vi.fn(),
-      paddleReady: true,
     }),
   };
 });
 
-vi.mock("@/hooks/use-pricing", () => ({ usePricing: () => null }));
+vi.mock("@/hooks/use-pricing", () => ({
+  usePricing: () => null,
+  useCheckoutPricing: () => null,
+}));
 vi.mock("@/hooks/use-user", () => ({ useUser: () => ({ points: 3200 }) }));
 
 const ngPricing: PublicPricing = {
@@ -81,6 +86,8 @@ describe("PaymentGateOverlay", () => {
     push.mockClear();
     track.mockClear();
     buyOnce.mockClear();
+    subscribe.mockClear();
+    subscribe.mockResolvedValue(false);
   });
 
   it("leads with the subscribe headline and names the gated item", () => {
@@ -93,19 +100,20 @@ describe("PaymentGateOverlay", () => {
     ).toBeInTheDocument();
   });
 
-  it("quotes the ANNUAL-equivalent monthly rate beside 'billed annually'", () => {
-    // ₦99,990 a year / 12 = ₦8,333. Quoting ₦9,999 here would understate
-    // what the buyer is actually charged.
+  it("quotes exactly one number — the monthly rate it charges", () => {
     renderGate();
-    expect(screen.getByText("₦8,333")).toBeInTheDocument();
-    expect(screen.getByText("per month, billed annually")).toBeInTheDocument();
-    expect(screen.getByText(/or ₦9,999 billed monthly/)).toBeInTheDocument();
+    expect(screen.getByText("₦9,999")).toBeInTheDocument();
+    expect(screen.getByText("per month")).toBeInTheDocument();
+    // The annual alternative is gone: a panel that charges monthly should not
+    // put a second, different number in front of the buyer.
+    expect(screen.queryByText(/billed annually/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/₦8,333/)).not.toBeInTheDocument();
   });
 
   it("quotes dollars for a global visitor", () => {
     renderGate({ pricing: usPricing });
-    expect(screen.getByText("$12.50")).toBeInTheDocument();
-    expect(screen.getByText("per month, billed annually")).toBeInTheDocument();
+    expect(screen.getByText("$15.00")).toBeInTheDocument();
+    expect(screen.getByText("per month")).toBeInTheDocument();
   });
 
   it("names the payment methods the buyer's region will actually get", () => {
@@ -124,10 +132,45 @@ describe("PaymentGateOverlay", () => {
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
   });
 
-  it("sends Subscribe to /checkout — never a processor SDK from here", () => {
-    renderGate();
-    fireEvent.click(screen.getByRole("button", { name: "Subscribe Now" }));
-    expect(push).toHaveBeenCalledWith("/checkout?plan=pro&cycle=annual");
+  describe("Subscribe opens payment in place, and never dead-ends", () => {
+    it("asks for the MONTHLY cycle — the rate this panel puts on screen", async () => {
+      subscribe.mockResolvedValue(true);
+      renderGate();
+      fireEvent.click(screen.getByRole("button", { name: "Subscribe Now" }));
+      // Charging the annual price while quoting a monthly one (or the
+      // reverse) is the exact failure regional pricing exists to prevent.
+      await waitFor(() => expect(subscribe).toHaveBeenCalledWith("monthly"));
+    });
+
+    it("leads with the same rate it charges", async () => {
+      renderGate();
+      // ₦9,999 is the monthly rate; ₦8,333 is the annual equivalent. The hero
+      // number and the cycle passed to subscribe() have to be the same deal,
+      // so this fails the moment one is changed without the other.
+      const hero = screen.getByText("₦9,999");
+      expect(hero).toBeInTheDocument();
+      expect(screen.getByText("per month")).toBeInTheDocument();
+    });
+
+    it("stays on the page when the processor opened in place", async () => {
+      subscribe.mockResolvedValue(true);
+      renderGate();
+      fireEvent.click(screen.getByRole("button", { name: "Subscribe Now" }));
+      await waitFor(() => expect(subscribe).toHaveBeenCalled());
+      // The whole point: the learner keeps the lesson they were reading.
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("falls back to /checkout when inline cannot start", async () => {
+      // Enterprise, a missing price ID, a blocked SDK — all report false, and
+      // all must still leave the buyer somewhere they can pay.
+      subscribe.mockResolvedValue(false);
+      renderGate();
+      fireEvent.click(screen.getByRole("button", { name: "Subscribe Now" }));
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith("/checkout?plan=pro&cycle=monthly"),
+      );
+    });
   });
 
   it("hides the one-off rail for an item that is not sold separately", () => {

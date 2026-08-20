@@ -25,6 +25,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["@testing-library/jest-dom/vitest"],
     include: [
+      "hooks/__tests__/**/*.test.ts",
+      "hooks/__tests__/**/*.test.tsx",
       "lib/__tests__/**/*.test.ts",
       "lib/__tests__/**/*.test.tsx",
       "components/__tests__/error-boundary.test.tsx",

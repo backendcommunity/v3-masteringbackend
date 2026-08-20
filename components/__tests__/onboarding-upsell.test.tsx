@@ -56,7 +56,7 @@ describe("OnboardingUpsell", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows naira to a Nigerian visitor, with the annual alternative", () => {
+  it("shows naira to a Nigerian visitor, with the cadence beside it", () => {
     render(
       <OnboardingUpsell
         pathTitle="Backend Engineering"
@@ -66,9 +66,11 @@ describe("OnboardingUpsell", () => {
       />,
     );
     expect(screen.getByText("₦9,999")).toBeInTheDocument();
-    expect(
-      screen.getByText("per month · or ₦99,990 a year, two months free"),
-    ).toBeInTheDocument();
+    // The cadence sits on the price's baseline; the annual alternative is
+    // deliberately gone, so this step quotes exactly one number.
+    expect(screen.getByText("per month")).toBeInTheDocument();
+    expect(screen.queryByText(/a year/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/months free/)).not.toBeInTheDocument();
   });
 
   it("shows dollars to a global visitor — the same component, no branch of its own", () => {
@@ -81,9 +83,8 @@ describe("OnboardingUpsell", () => {
       />,
     );
     expect(screen.getByText("$15.00")).toBeInTheDocument();
-    expect(
-      screen.getByText("per month · or $150.00 a year, two months free"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("per month")).toBeInTheDocument();
+    expect(screen.queryByText(/a year/)).not.toBeInTheDocument();
   });
 
   it("renders NO price at all while pricing is still resolving — never a guessed currency", () => {

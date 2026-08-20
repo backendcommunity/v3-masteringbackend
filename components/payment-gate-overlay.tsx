@@ -9,18 +9,17 @@ import { Button } from "./ui/button";
 import { JourneyGlyph } from "./journey-glyph";
 import { PathFeedbackDialog } from "./pages/path/path-feedback-dialog";
 import { useUser } from "@/hooks/use-user";
-import { usePricing } from "@/hooks/use-pricing";
+import {
+  useCheckoutPricing,
+  type CheckoutCapablePricing,
+} from "@/hooks/use-pricing";
 import {
   useContentPurchase,
   type PurchasableContent,
 } from "@/hooks/use-content-purchase";
 import { analytics } from "@/lib/analytics";
 import { withGeoOverride } from "@/lib/geo-override";
-import {
-  monthlyEquivalent,
-  formatPrice,
-  type PublicPricing,
-} from "@/lib/pricing";
+import { formatPrice, type PublicPricing } from "@/lib/pricing";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
@@ -75,7 +74,12 @@ export interface PaymentGateOverlayProps {
   exitLabel?: string;
   exitHref?: string;
   /** Region-resolved price. Fetched here when the caller has none. */
-  pricing?: PublicPricing;
+  /**
+   * Region-resolved price. Fetched here when the caller has none. Accepts the
+   * checkout-capable shape too: when it carries price IDs, Subscribe opens the
+   * processor in place instead of routing to /checkout.
+   */
+  pricing?: PublicPricing | CheckoutCapablePricing;
   /** The gated item, in the shape the one-off rails need. */
   purchasable?: PurchasableContent;
   allowOneTime?: boolean;
@@ -180,7 +184,7 @@ export function PaymentGateOverlay({
   const router = useRouter();
   const pathname = usePathname();
   const user = useUser();
-  const ownPricing = usePricing(!pricing && open);
+  const ownPricing = useCheckoutPricing(!pricing && open);
   const resolved = pricing ?? ownPricing;
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -188,14 +192,22 @@ export function PaymentGateOverlay({
   const restoreFocusTo = useRef<HTMLElement | null>(null);
   const isSheet = variant === "sheet";
 
-  const { buyOnce, payWithAsyncpay } = useContentPurchase({
-    data: purchasable ?? {},
-    onPurchased: (id, method, success) => {
-      onPurchased?.(id, method, success);
-      if (success) onClose();
-    },
-    onCheckoutOpened: onClose,
-  });
+  const { buyOnce, payWithAsyncpay, subscribe, confirmingPurchase } =
+    useContentPurchase({
+      data: purchasable ?? {},
+      // Only carries price IDs when the caller passed checkout-capable pricing
+      // (or we fetched it ourselves). Without them subscribe() reports failure
+      // and Subscribe falls back to /checkout — never a dead button.
+      pricing: (resolved as CheckoutCapablePricing | null) ?? null,
+      planName,
+      onPurchased: (id, method, success) => {
+        onPurchased?.(id, method, success);
+        if (success) onClose();
+      },
+      // One-off rails only — the hook does not fire this for subscriptions, so
+      // the sheet survives a cancelled processor window.
+      onCheckoutOpened: onClose,
+    });
 
   // Portals need a DOM target, which does not exist during SSR.
   useEffect(() => setMounted(true), []);
@@ -261,9 +273,6 @@ export function PaymentGateOverlay({
 
   if (!open || !mounted) return null;
 
-  const annualEquivalent = resolved
-    ? monthlyEquivalent(resolved, "annual")
-    : "";
   const monthlyRate = resolved
     ? formatPrice(resolved.monthly, resolved.currency)
     : "";
@@ -279,19 +288,25 @@ export function PaymentGateOverlay({
     user?.country?.toLowerCase() === "nigeria" ||
     user?.country?.toLowerCase() === "ng";
   const showPaystack = Boolean(isNigerian && purchasable?.asyncpay_plan_id);
-  const hasSecondaryRails =
-    oneTimeAmount != null || showPaystack;
+  const hasSecondaryRails = oneTimeAmount != null || showPaystack;
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     analytics.track("payment_gate_subscribe", {
       itemTitle,
       plan: planName,
       variant,
       country: resolved?.country ?? null,
     });
+    // Try to take payment without moving the learner off the page they are
+    // on. Returns false for Enterprise, for missing pricing, and for any SDK
+    // that will not open — all of which fall through to /checkout rather than
+    // stranding a buyer who wants to pay.
+    // "monthly" — matches the rate this panel now leads with. The cycle here
+    // and the price on screen must never diverge.
+    if (await subscribe("monthly")) return;
     router.push(
       withGeoOverride(
-        `/checkout?plan=${planName.toLowerCase()}&cycle=annual`,
+        `/checkout?plan=${planName.toLowerCase()}&cycle=monthly`,
         null,
       ),
     );
@@ -412,7 +427,11 @@ export function PaymentGateOverlay({
               {pill.label}
             </span>
           ) : (
-            <span key={pill.tag} style={style} className="absolute z-10 max-w-[12rem]">
+            <span
+              key={pill.tag}
+              style={style}
+              className="absolute z-10 max-w-[12rem]"
+            >
               <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">
                 {pill.tag}
               </span>
@@ -433,7 +452,12 @@ export function PaymentGateOverlay({
         // sheet in place would drop the learner back onto content they still
         // cannot open.
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9" asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9"
+            asChild
+          >
             <Link href={exitHref ?? routes.dashboard}>{exitLabel}</Link>
           </Button>
         </div>
@@ -477,8 +501,9 @@ export function PaymentGateOverlay({
                 size="lg"
                 className="w-full bg-[#0B7C93] px-7 text-[16px] font-semibold text-white shadow-none hover:bg-[#09677B] focus-visible:ring-[#0B7C93] sm:w-auto"
                 onClick={handleSubscribe}
+                disabled={confirmingPurchase}
               >
-                Subscribe Now
+                {confirmingPurchase ? "Confirming payment…" : "Subscribe Now"}
               </Button>
               {/* Renders only once the region resolves — a paywall that
                   flashes the wrong currency is the exact failure regional
@@ -489,10 +514,10 @@ export function PaymentGateOverlay({
                       reference sets its price ABOVE the headline in size —
                       money stated confidently, not apologised for. */}
                   <span className="text-[37px] font-bold leading-none tabular-nums sm:text-[44px]">
-                    {annualEquivalent}
+                    {monthlyRate}
                   </span>
                   <span className="text-[14px] text-[#0B1522]/55">
-                    per month, billed annually
+                    per month
                   </span>
                 </p>
               )}
@@ -500,7 +525,7 @@ export function PaymentGateOverlay({
 
             {resolved && (
               <p className="text-[14px] text-[#0B1522]/55">
-                or {monthlyRate} billed monthly &middot; {methodsLine(resolved)}
+                {methodsLine(resolved)}
               </p>
             )}
           </>
@@ -509,7 +534,12 @@ export function PaymentGateOverlay({
         {hasSecondaryRails && (
           <div className="flex flex-wrap gap-2">
             {oneTimeAmount != null && (
-              <Button variant="outline" size="sm" className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9" onClick={buyOnce}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9"
+                onClick={buyOnce}
+              >
                 Buy once &middot;{" "}
                 <span className="tabular-nums">
                   {formatPrice(oneTimeAmount, "USD")}
@@ -517,7 +547,12 @@ export function PaymentGateOverlay({
               </Button>
             )}
             {showPaystack && (
-              <Button variant="outline" size="sm" className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9" onClick={payWithAsyncpay}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-11 border-[#0B1522]/20 bg-white text-[#0B1522] hover:bg-[#0B1522]/[.04] hover:text-[#0B1522] focus-visible:ring-[#0B7C93] sm:h-9"
+                onClick={payWithAsyncpay}
+              >
                 Pay with Paystack
               </Button>
             )}

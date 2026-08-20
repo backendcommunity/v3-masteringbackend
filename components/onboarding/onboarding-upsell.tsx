@@ -2,7 +2,7 @@
 
 import { usePricing } from "@/hooks/use-pricing";
 import { type PublicPricing } from "@/lib/pricing";
-import { formatUpsellPrice, formatUpsellQualifier } from "@/lib/pro-cta";
+import { formatUpsellPrice } from "@/lib/pro-cta";
 
 import styles from "../pages/onboarding-flow.module.css";
 
@@ -61,8 +61,8 @@ export function OnboardingUpsell({
           that has already read this card still hears the number land. */}
       <p className={styles.upsellPrice} aria-live="polite">
         {formatUpsellPrice(resolved)}
+        {resolved && <span className={styles.upsellPer}>per month</span>}
       </p>
-      <p className={styles.upsellQual}>{formatUpsellQualifier(resolved)}</p>
 
       <button
         type="button"

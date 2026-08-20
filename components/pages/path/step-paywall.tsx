@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PaymentGateOverlay } from "@/components/payment-gate-overlay";
 import { PathSession } from "@/lib/path-types";
-import { usePricing } from "@/hooks/use-pricing";
+import { useCheckoutPricing } from "@/hooks/use-pricing";
 import { routes } from "@/lib/routes";
 
 interface StepPaywallProps {
@@ -61,7 +61,7 @@ export function StepPaywall({
   // already invested hits this wall. `pricing` is null while the client-side
   // fetch is in flight (see hooks/use-pricing.ts); the sheet renders WITHOUT
   // a price in that state rather than flash a wrong one.
-  const pricing = usePricing();
+  const pricing = useCheckoutPricing();
 
 
   const purchasable = {

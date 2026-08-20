@@ -26,7 +26,10 @@ const ngPricing: PublicPricing = {
     selfServe: false,
   },
 };
-vi.mock("@/hooks/use-pricing", () => ({ usePricing: () => ngPricing }));
+vi.mock("@/hooks/use-pricing", () => ({
+  usePricing: () => ngPricing,
+  useCheckoutPricing: () => ngPricing,
+}));
 
 const purchaseHandlers: {
   onPurchased?: (id: string, method: string, success: boolean) => void;
@@ -43,10 +46,8 @@ vi.mock("@/hooks/use-content-purchase", async () => {
       purchaseHandlers.onPurchased = args.onPurchased;
       return {
         buyOnce: vi.fn(),
-        redeemMB: vi.fn(),
-        payWithAsyncpay: vi.fn(),
-        paddleReady: true,
-      };
+          payWithAsyncpay: vi.fn(),
+        };
     },
   };
 });

@@ -626,15 +626,23 @@
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #fff;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  /* Was carried by the qualifier line below, which is gone. */
+  margin-bottom: 22px;
   /* Holds its height while the price fetch is in flight so the CTA below
      doesn't jump when the number arrives. */
   min-height: 42px;
 }
-.upsellQual {
-  margin: 8px 0 22px;
-  font-size: 14px;
+/* Sits on the price's baseline rather than under it — the cadence is part of
+   the number, not a second statement about it. */
+.upsellPer {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--light-blue);
-  min-height: 21px;
 }
 .upsellSkip {
   display: inline-block;

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { OnboardingUpsell } from "@/components/onboarding/onboarding-upsell";
+import { useContentPurchase } from "@/hooks/use-content-purchase";
+import { useCheckoutPricing } from "@/hooks/use-pricing";
 import { useUser } from "@/hooks/use-user";
 import { useAuth } from "@/store/auth";
 import { useAppStore } from "@/lib/store";
@@ -334,13 +336,32 @@ export function OnboardingFlow() {
 
   // Upsell → checkout. withGeoOverride keeps a developer's `?__geo=NG` alive
   // across the hop, the same way /pricing already does for its own CTAs.
-  const handleGoPro = useCallback(() => {
+  // Only fetched once the upsell step is actually showing — this flow runs
+  // for every new learner and most never reach it.
+  const checkoutPricing = useCheckoutPricing(Boolean(upsell));
+  const { subscribe } = useContentPurchase({
+    data: {},
+    pricing: checkoutPricing,
+    onPurchased: (_id, _method, success) => {
+      if (!success || !upsell) return;
+      // Straight into the lesson they already enrolled in. They just paid for
+      // it; a celebration screen here would put a wall in front of the thing
+      // they bought.
+      router.replace(upsell.exitPath || routes.dashboard);
+    },
+  });
+
+  const handleGoPro = useCallback(async () => {
     if (!upsell) return;
     analytics.track("onboarding_upsell_go_pro", { pathTitle: upsell.pathTitle });
+    // "monthly" matches the rate this step puts on screen. The paywall quotes
+    // the annual-equivalent and passes "annual"; getting this wrong charges a
+    // price the learner was never shown.
+    if (await subscribe("monthly")) return;
     router.push(
       withGeoOverride("/checkout?plan=pro&cycle=monthly", searchParams),
     );
-  }, [upsell, router, searchParams]);
+  }, [upsell, router, searchParams, subscribe]);
 
   // Upsell → the lesson. This is the path they already enrolled in, so it
   // must always resolve to something; the dashboard is the last resort.

@@ -30,6 +30,10 @@ import { useAppStore } from "@/lib/store";
 import countries from "@/lib/countries.json";
 import { dataStore, Plan } from "@/lib/data";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
+import {
+  asyncpayBaseOptions,
+  PADDLE_ENVIRONMENT,
+} from "@/lib/payment-environment";
 import { useUser } from "@/hooks/use-user";
 import ConfettiCelebration from "../confetti-celebration";
 import { toast } from "sonner";
@@ -217,8 +221,7 @@ export function SeatSelector({
           className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
         >
           <span>
-            That&apos;s {pendingSeats.toLocaleString()} seats — is that
-            right?
+            That&apos;s {pendingSeats.toLocaleString()} seats — is that right?
           </span>
           <Button
             type="button"
@@ -306,7 +309,9 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // Pre-modal watchdog, in three parts: the timer itself, the observer that
   // cancels it once the checkout UI appears, and the pagehide listener that
   // cancels it when the SDK redirects the whole page away instead.
-  const asyncpayWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const asyncpayWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const asyncpayWrapperObserverRef = useRef<MutationObserver | null>(null);
   const asyncpayPagehideRef = useRef<(() => void) | null>(null);
   // Paddle's equivalent pre-frame watchdog. Paddle needs no MutationObserver:
@@ -337,7 +342,9 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // decides a seat count, so this is the ONLY place that does, and it
   // always starts at a real, payable number rather than nothing.
   const [seats, setSeats] = useState<number>(
-    () => resolveSeats(seatsParam, pricing.enterprise) ?? pricing.enterprise.minSeats,
+    () =>
+      resolveSeats(seatsParam, pricing.enterprise) ??
+      pricing.enterprise.minSeats,
   );
   // `?plan=free` is the cancellation flow, not a purchase: it early-returns
   // to the cancellation card below and never prices or charges anything.
@@ -349,9 +356,6 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
 
   const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
   const NODE_ENV = process.env.NEXT_PUBLIC_NODE_ENV;
-  const PADDLE_ENVIRONMENT = ["dev", "staging"].includes(NODE_ENV!)
-    ? "sandbox"
-    : "production";
   // Same "is this a real production deploy" gate as sentry.server.config.ts,
   // instrumentation-client.ts and posthog-provider.tsx — NEXT_PUBLIC_NODE_ENV
   // (falling back to NODE_ENV) is only ever "production" for a real
@@ -696,12 +700,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
 
     try {
       const started = mod.AsyncpayCheckout({
-        publicKey: process.env.NEXT_PUBLIC_ASYNCPAY_KEY,
-        customer: {
-          firstName: user?.name?.split(" ")?.[0],
-          lastName: user?.name?.split(" ")?.[1],
-          email: user?.email,
-        },
+        ...asyncpayBaseOptions(user ?? {}),
         subscriptionPlanUUID: priceId,
         onSuccess: () => {
           clearAsyncpayWatchdog();
@@ -731,9 +730,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
             typeof err?.error_description === "string"
               ? err.error_description
               : "";
-          fail(
-            description || "We couldn't start checkout. Please try again.",
-          );
+          fail(description || "We couldn't start checkout. Please try again.");
         },
       });
 
@@ -753,7 +750,14 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
       // SDK call itself.
       fail("We couldn't start checkout. Please try again.");
     }
-  }, [priceId, user, pricing.country, cycle, armAsyncpayWatchdog, clearAsyncpayWatchdog]);
+  }, [
+    priceId,
+    user,
+    pricing.country,
+    cycle,
+    armAsyncpayWatchdog,
+    clearAsyncpayWatchdog,
+  ]);
 
   // Routes the Subscribe click to the correct processor SDK based on the
   // region-resolved provider. The buyer never chooses this — it's decided
@@ -1231,8 +1235,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
               <CardHeader>
                 <CardTitle>Checkout unavailable</CardTitle>
                 <CardDescription>
-                  We can&apos;t open the payment form for this plan right
-                  now.
+                  We can&apos;t open the payment form for this plan right now.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
