@@ -96,6 +96,48 @@ describe("InviteDialog", () => {
     );
   });
 
+  it("scales the previewed charge by the currency's own decimal exponent, not a fixed /100 (JPY is zero-decimal)", async () => {
+    // JPY has no minor unit at all — 500 minor units IS 500 yen. A fixed
+    // /100 (the bug this guards against) would misprice this as ¥5.
+    mockPreviewSeat.mockResolvedValue({
+      immediateChargeMinor: 500,
+      currency: "JPY",
+      nextBilledAt: null,
+    });
+    mockInviteMember.mockResolvedValue({ id: "inv1" });
+    setup({ seatsAvailable: 0 });
+
+    await waitFor(() => expect(screen.getByText(/500/)).toBeInTheDocument());
+    // The exact wrong output a fixed /100 would have produced.
+    expect(screen.queryByText(/¥5\.00/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\b5\.00\b/)).not.toBeInTheDocument();
+  });
+
+  it("treats a nonzero charge with a missing currency as an error, never as free or as a blank price", async () => {
+    mockPreviewSeat.mockResolvedValue({
+      immediateChargeMinor: 1842,
+      currency: null,
+      nextBilledAt: null,
+    });
+    setup({ seatsAvailable: 0 });
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't confirm what this seat would cost/i)).toBeInTheDocument(),
+    );
+    // Must never fall into the "free" copy — that would be fail-unsafe in
+    // the wrong direction on a money path (telling an owner "no charge"
+    // when a nonzero charge is in fact pending).
+    expect(screen.queryByText(/won't charge you anything today/i)).not.toBeInTheDocument();
+    // And must never render the priced copy with a blank/undefined amount.
+    expect(screen.queryByText(/today for an extra seat/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: "a@acme.com" },
+    });
+    // Submission stays blocked — there is no safe price to confirm.
+    expect(screen.getByRole("button", { name: /confirm & invite/i })).toBeDisabled();
+  });
+
   it("does not show a $0.00 charge when a previously funded seat is just vacant — it reads as free, not a zero-dollar transaction", async () => {
     mockPreviewSeat.mockResolvedValue({
       immediateChargeMinor: 0,

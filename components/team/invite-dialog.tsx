@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/store";
 import { formatPrice } from "@/lib/pricing";
+import { cn } from "@/lib/utils";
 import type { TeamSeatPreview } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 
@@ -41,6 +42,43 @@ interface InviteDialogProps {
 const SEATS_CONTACT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeURIComponent(
   "Team seats — request more",
 )}`;
+
+/**
+ * Convert a processor "minor units" amount (Paddle's `immediateChargeMinor`)
+ * to the major-unit amount `formatPrice` expects, using the CORRECT exponent
+ * for the given currency instead of assuming every currency has 2 decimal
+ * places. Dividing by a fixed 100 is wrong for a real fraction of the
+ * currencies Paddle's localization can return: JPY/KRW are zero-decimal
+ * (100 minor units === 100 whole yen, not 1.00) and BHD/KWD are
+ * three-decimal (1000 minor units === 1.000 dinar, not 10.00) — a fixed /100
+ * would misprice those by 100x and 10x respectively. This is exactly the
+ * reason `formatPrice`'s `currency` param was widened off "NGN" | "USD": we
+ * cannot predict which currency a preview comes back in, so we cannot
+ * hardcode how it's scaled either.
+ *
+ * Falls back to 2 (today's only observed cases: NGN/USD/INR) if Intl can't
+ * resolve the currency — same fail-sane posture as formatPrice's own
+ * try/catch, and for every currency currently in play this resolves to 2,
+ * so behaviour is unchanged today.
+ */
+function minorToMajor(minorAmount: number, currency: string): number {
+  let exponent = 2;
+  try {
+    // TS types `maximumFractionDigits` as `number | undefined` because the
+    // same resolvedOptions() shape is shared across Intl.NumberFormat
+    // styles that don't carry a fraction-digit count — for `style:
+    // "currency"` specifically it is always defined at runtime, but the
+    // `?? 2` keeps this honest against the type rather than asserting it away.
+    const resolved = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).resolvedOptions().maximumFractionDigits;
+    exponent = resolved ?? 2;
+  } catch {
+    // keep the fallback
+  }
+  return minorAmount / Math.pow(10, exponent);
+}
 
 type PreviewState =
   | { status: "idle" }
@@ -139,7 +177,7 @@ export function InviteDialog({
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed || sending) return;
-    if (atCapacity && preview.status !== "ready") return;
+    if (atCapacity && (preview.status !== "ready" || previewErrored)) return;
 
     setSending(true);
     try {
@@ -161,18 +199,30 @@ export function InviteDialog({
   };
 
   const readyPreview = preview.status === "ready" ? preview.preview : null;
-  const isFreeSeat = readyPreview
-    ? readyPreview.immediateChargeMinor <= 0 || !readyPreview.currency
-    : false;
+  // A NONZERO charge with no currency can never be safely priced — that
+  // combination must read as an error, never as "free". Only a charge that
+  // is genuinely <= 0 is the free-to-fill case (a previously funded seat
+  // just opened up). Getting this backwards is fail-unsafe in the wrong
+  // direction on a money path: it would tell an owner "this won't charge
+  // you" for a seat that in fact will.
+  const previewErrored =
+    !!readyPreview &&
+    readyPreview.immediateChargeMinor > 0 &&
+    !readyPreview.currency;
+  const isFreeSeat =
+    !!readyPreview && !previewErrored && readyPreview.immediateChargeMinor <= 0;
   const priceLabel =
-    readyPreview && !isFreeSeat && readyPreview.currency
-      ? formatPrice(readyPreview.immediateChargeMinor / 100, readyPreview.currency)
+    readyPreview && !isFreeSeat && !previewErrored && readyPreview.currency
+      ? formatPrice(
+          minorToMajor(readyPreview.immediateChargeMinor, readyPreview.currency),
+          readyPreview.currency,
+        )
       : null;
 
   const canSubmit =
     !!email.trim() &&
     !sending &&
-    (!atCapacity || preview.status === "ready");
+    (!atCapacity || (preview.status === "ready" && !previewErrored));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -225,10 +275,24 @@ export function InviteDialog({
 
           {atCapacity && readyPreview && (
             <div
-              role="status"
-              className="rounded-md border border-border bg-muted/40 p-3 text-sm"
+              role={previewErrored ? "alert" : "status"}
+              className={cn(
+                "rounded-md border p-3 text-sm",
+                previewErrored
+                  ? "border-destructive/50 bg-destructive/10 text-destructive"
+                  : "border-border bg-muted/40",
+              )}
             >
-              {isFreeSeat ? (
+              {previewErrored ? (
+                // A nonzero charge with no currency to render it in — never
+                // shown as free, never shown with a blank/undefined price.
+                // Submission is blocked (see canSubmit) until a real preview
+                // comes back; reopening the dialog retries the fetch.
+                <p>
+                  We couldn&apos;t confirm what this seat would cost. Close
+                  and reopen this dialog to try again before inviting.
+                </p>
+              ) : isFreeSeat ? (
                 <p>
                   A previously paid seat just opened up — inviting this
                   person won&apos;t charge you anything today.

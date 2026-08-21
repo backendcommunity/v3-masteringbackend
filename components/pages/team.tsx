@@ -240,7 +240,19 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
               </CardDescription>
             </div>
             {canManage && (
-              <Button onClick={() => setInviteOpen(true)}>
+              <Button
+                onClick={() => setInviteOpen(true)}
+                // The roster (and its `usage.available`) is a SECOND,
+                // sequential round-trip after the team list loads. Enabling
+                // this before it resolves lets InviteDialog receive
+                // `seatsAvailable={roster?.usage?.available ?? 0}` — a
+                // fallback zero, not a real "at capacity" reading — which
+                // would route a team that actually has a free seat through
+                // the paid confirmation and send `buySeat: true`, charging
+                // for capacity it didn't need to buy. Disabled, not hidden,
+                // so the control doesn't jump around as the roster resolves.
+                disabled={rosterLoading || !roster}
+              >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite member
               </Button>
