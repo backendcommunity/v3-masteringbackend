@@ -111,6 +111,10 @@ export const routes = {
   // Community
   community: "/community",
 
+  // Team accounts
+  team: "/team",
+  teamJoin: (token: string) => `/team/join/${token}`,
+
   // Subscription & Billing
   subscriptionPlans: "/subscription/plans",
   subscriptionManagement: "/subscription/management",

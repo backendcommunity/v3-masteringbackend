@@ -42,6 +42,11 @@ import {
   UserLesson,
   Playground,
   CourseFiltersData,
+  TeamSummary,
+  TeamRoster,
+  TeamSeatPreview,
+  TeamInvite,
+  TeamInvitePreview,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
@@ -316,6 +321,25 @@ interface AppState {
   }) => void;
   cancelSubscription: (id: string) => any;
   downgradeSubscription: (id: string, target: "pro" | "free") => any;
+
+  // Teams
+  getMyTeams: () => Promise<TeamSummary[]>;
+  getTeamMembers: (teamId: string) => Promise<TeamRoster>;
+  previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
+  inviteMember: (
+    teamId: string,
+    payload: { email: string; buySeat?: boolean },
+  ) => Promise<TeamInvite>;
+  removeTeamMember: (teamId: string, memberId: string) => any;
+  changeTeamMemberRole: (
+    teamId: string,
+    memberId: string,
+    role: "ADMIN" | "MEMBER",
+  ) => any;
+  transferTeamOwnership: (teamId: string, toUserId: string) => any;
+  /** PUBLIC endpoint — no session required. Reachable by an anonymous invitee. */
+  previewTeamInvite: (token: string) => Promise<TeamInvitePreview>;
+  acceptTeamInvite: (token: string) => any;
   markDayComplete: (slug: string, videoId: string, payload: any) => any;
   resumeSubscription: (id: string) => any;
   deletCard: (id: string) => any;
@@ -1420,6 +1444,59 @@ export const useAppStore = create<AppState>((set, get) => ({
   cancelSubscription: async (id: string) => {
     const { data } = await api.post(`/payments/subscriptions/${id}/cancel`);
     return data?.data;
+  },
+
+  // ─── Teams ────────────────────────────────────────────────────────────
+  getMyTeams: async () => {
+    const { data } = await api.get("/teams/mine");
+    return data?.data as TeamSummary[];
+  },
+  getTeamMembers: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/members`);
+    return data?.data as TeamRoster;
+  },
+  previewSeat: async (teamId: string) => {
+    const { data } = await api.post(`/teams/${teamId}/seats/preview`);
+    return data?.data as TeamSeatPreview;
+  },
+  inviteMember: async (
+    teamId: string,
+    payload: { email: string; buySeat?: boolean },
+  ) => {
+    const { data } = await api.post(`/teams/${teamId}/invites`, payload);
+    return data?.data as TeamInvite;
+  },
+  removeTeamMember: async (teamId: string, memberId: string) => {
+    const { data } = await api.delete(`/teams/${teamId}/members/${memberId}`);
+    return data;
+  },
+  changeTeamMemberRole: async (
+    teamId: string,
+    memberId: string,
+    role: "ADMIN" | "MEMBER",
+  ) => {
+    const { data } = await api.patch(`/teams/${teamId}/members/${memberId}`, {
+      role,
+    });
+    return data;
+  },
+  transferTeamOwnership: async (teamId: string, toUserId: string) => {
+    const { data } = await api.post(`/teams/${teamId}/transfer`, {
+      toUserId,
+    });
+    return data;
+  },
+  // PUBLIC — no session required. Reachable by an anonymous invitee, so this
+  // must not be caught-and-swallowed the way verifyCertificate is: the
+  // 404-vs-410 status distinction the backend deliberately makes (gone vs
+  // expired) is meaningless if it never reaches the caller.
+  previewTeamInvite: async (token: string) => {
+    const { data } = await api.get(`/teams/invites/${token}`);
+    return data?.data as TeamInvitePreview;
+  },
+  acceptTeamInvite: async (token: string) => {
+    const { data } = await api.post(`/teams/invites/${token}/accept`);
+    return data;
   },
 
   downgradeSubscription: async (id: string, target: "pro" | "free") => {

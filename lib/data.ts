@@ -354,6 +354,98 @@ export enum PaymentChannelType {
   PADDLE,
 }
 
+// ─── Teams ──────────────────────────────────────────────────────────────
+// See academy's src/modules/teams/controller.ts — these mirror its response
+// shapes exactly, not a frontend guess.
+
+export type TeamRole = "OWNER" | "ADMIN" | "MEMBER";
+export type TeamMemberStatus = "ACTIVE" | "REMOVED";
+
+/** One row from `GET /teams/mine` — a team the caller belongs to, with their
+ * own role on it. Deliberately thin (no roster, no payment channel); see
+ * `TeamRoster` for the full membership view. */
+export interface TeamSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  role: TeamRole;
+  subscription: {
+    status: string;
+    seats: number;
+    paidSeats: number;
+  } | null;
+}
+
+export interface TeamMemberUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+}
+
+export interface TeamMember {
+  id: string;
+  role: TeamRole;
+  status: TeamMemberStatus;
+  joinedAt: string | Date;
+  user: TeamMemberUser;
+}
+
+/** Billing figures for a team — `paidSeats` is what the company is billed
+ * for. Only ever present on `TeamRoster.usage` for an OWNER/ADMIN viewer. */
+export interface TeamSeatUsage {
+  paidSeats: number;
+  activeMembers: number;
+  pendingInvites: number;
+  used: number;
+  available: number;
+}
+
+/** `GET /teams/:id/members` response. `usage` is present ONLY for an
+ * OWNER/ADMIN viewer — a plain MEMBER's response has no `usage` key at all.
+ * Treat its absence as normal, never as a loading/error state. */
+export interface TeamRoster {
+  members: TeamMember[];
+  usage?: TeamSeatUsage;
+}
+
+/**
+ * `POST /teams/:id/seats/preview` response. `currency` is NOT always USD —
+ * Paddle's currency localization can preview a USD-priced plan in another
+ * currency (e.g. INR) depending on the buyer's location. Always format with
+ * this field; never assume or hardcode a currency. `immediateChargeMinor: 0`
+ * means a previously-funded seat is vacant — free to fill, not "$0 charged".
+ */
+export interface TeamSeatPreview {
+  immediateChargeMinor: number;
+  currency: string | null;
+  nextBilledAt: string | null;
+}
+
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  email: string;
+  token: string;
+  status: string;
+  invitedByUserId: string;
+  expiresAt: string | Date;
+}
+
+/**
+ * `GET /teams/invites/:token` — PUBLIC, unauthenticated. Deliberately thin:
+ * no member list, no billing figures. `hasOwnSubscription` is present ONLY
+ * when the caller is authenticated as the invited person; its absence is
+ * normal (anonymous visitor, or signed in as someone else) and must never
+ * be treated as an error or as "false".
+ */
+export interface TeamInvitePreview {
+  teamName: string | null;
+  invitedBy: string | null;
+  expiresAt: string;
+  hasOwnSubscription?: boolean;
+}
+
 export interface Note {
   id: string;
   content: string;
