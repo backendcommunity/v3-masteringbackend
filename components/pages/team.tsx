@@ -31,10 +31,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { InviteDialog } from "@/components/team/invite-dialog";
 import { MemberRow } from "@/components/team/member-row";
+import { MemberProgressSheet } from "@/components/team/member-progress-sheet";
+import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import type { TeamMember, TeamRoster, TeamSummary } from "@/lib/data";
+import type {
+  TeamMember,
+  TeamRoster,
+  TeamRosterProgress,
+  TeamSummary,
+} from "@/lib/data";
 import { AlertTriangle, UserPlus, Users } from "lucide-react";
 
 interface TeamPageProps {
@@ -59,6 +66,9 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   const [transferTarget, setTransferTarget] = useState<TeamMember | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+
+  const [progress, setProgress] = useState<TeamRosterProgress | null>(null);
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
   const loadTeams = useCallback(async () => {
     setTeamsLoading(true);
@@ -100,6 +110,28 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   const team = teams.find((t) => t.id === selectedTeamId) ?? null;
   const canManage = team?.role === "OWNER" || team?.role === "ADMIN";
   const isOwnerViewer = team?.role === "OWNER";
+
+  useEffect(() => {
+    if (!selectedTeamId || !canManage) return;
+    let cancelled = false;
+    store
+      .getTeamProgress(selectedTeamId)
+      .then((p) => {
+        if (!cancelled) setProgress(p);
+      })
+      .catch(() => {
+        // Progress is additive. If it fails the roster still renders — a
+        // member list without progress beats an error page.
+        if (!cancelled) setProgress(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTeamId, canManage, store]);
+
+  const progressFor = new Map(
+    (progress?.members ?? []).map((m) => [m.memberId, m]),
+  );
 
   const refetchRoster = () => {
     if (selectedTeamId) loadRoster(selectedTeamId);
@@ -277,17 +309,37 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
             ) : (
               <div className="divide-y divide-border">
                 {roster.members.map((member) => (
-                  <MemberRow
-                    key={member.id}
-                    member={member}
-                    viewerUserId={user?.id}
-                    canManage={canManage}
-                    isOwnerViewer={isOwnerViewer}
-                    actionPending={pendingMemberId === member.id}
-                    onChangeRole={handleChangeRole}
-                    onRemove={setRemoveTarget}
-                    onTransferOwnership={setTransferTarget}
-                  />
+                  <div key={member.id}>
+                    <MemberRow
+                      member={member}
+                      viewerUserId={user?.id}
+                      canManage={canManage}
+                      isOwnerViewer={isOwnerViewer}
+                      actionPending={pendingMemberId === member.id}
+                      onChangeRole={handleChangeRole}
+                      onRemove={setRemoveTarget}
+                      onTransferOwnership={setTransferTarget}
+                    />
+                    {(() => {
+                      const p = progressFor.get(member.id);
+                      if (!p) return null;
+                      return (
+                        <div className="flex items-center justify-end gap-3 pb-3">
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {p.coursesCompleted} of {p.coursesStarted} courses
+                          </span>
+                          {p.isStalled && <Badge variant="secondary">Stalled</Badge>}
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-primary hover:underline"
+                            onClick={() => setOpenMemberId(member.id)}
+                          >
+                            View progress
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 ))}
               </div>
             )}
@@ -368,6 +420,15 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedTeamId && (
+        <MemberProgressSheet
+          teamId={selectedTeamId}
+          memberId={openMemberId}
+          open={openMemberId !== null}
+          onOpenChange={(o) => !o && setOpenMemberId(null)}
+        />
+      )}
     </div>
   );
 }
