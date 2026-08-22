@@ -23,18 +23,26 @@ export function TeamSettingsPage() {
   const [team, setTeam] = useState<TeamSummary | null>(null);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    store
-      .getMyTeams()
-      .then((mine) => {
-        const t = mine?.[0];
-        if (!t || cancelled) return;
-        setTeam(t);
-        setName(t.name);
-      })
-      .catch(() => undefined);
+
+    async function load() {
+      try {
+        const teams = await store.getMyTeams();
+        const t = teams?.[0];
+        if (!t) throw new Error("No team found");
+        if (!cancelled) {
+          setTeam(t);
+          setName(t.name);
+        }
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    }
+
+    load();
     return () => {
       cancelled = true;
     };
@@ -59,6 +67,19 @@ export function TeamSettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (failed) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Couldn&apos;t load your team</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!team) return <PageSkeleton rows={2} />;

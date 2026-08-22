@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useAppStore } from "@/lib/store";
 import type { TeamLeaderboard } from "@/lib/data";
@@ -17,23 +18,41 @@ import type { TeamLeaderboard } from "@/lib/data";
 export function TeamLeaderboardPage() {
   const store = useAppStore();
   const [board, setBoard] = useState<TeamLeaderboard | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
-      const teams = await store.getMyTeams();
-      const team = teams?.[0];
-      if (!team) return;
-      const data = await store.getTeamLeaderboard(team.id);
-      if (!cancelled) setBoard(data);
+      try {
+        const teams = await store.getMyTeams();
+        const team = teams?.[0];
+        if (!team) throw new Error("No team found");
+        const data = await store.getTeamLeaderboard(team.id);
+        if (!cancelled) setBoard(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
     }
-    load().catch(() => {
-      if (!cancelled) setBoard({ entries: [] });
-    });
+
+    load();
     return () => {
       cancelled = true;
     };
   }, [store]);
+
+  if (failed) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Couldn&apos;t load the leaderboard</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => window.location.reload()}>Try again</Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!board) return <PageSkeleton rows={3} />;
 
