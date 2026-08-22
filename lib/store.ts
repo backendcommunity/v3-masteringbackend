@@ -324,6 +324,7 @@ interface AppState {
 
   // Teams
   getMyTeams: () => Promise<TeamSummary[]>;
+  renameTeam: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
   getTeamMembers: (teamId: string) => Promise<TeamRoster>;
   previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
   inviteMember: (
@@ -1450,6 +1451,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   getMyTeams: async () => {
     const { data } = await api.get("/teams/mine");
     return data?.data as TeamSummary[];
+  },
+  renameTeam: async (teamId: string, name: string) => {
+    const { data } = await api.patch(`/teams/${teamId}`, { name });
+    return data?.data as { id: string; name: string };
   },
   getTeamMembers: async (teamId: string) => {
     const { data } = await api.get(`/teams/${teamId}/members`);

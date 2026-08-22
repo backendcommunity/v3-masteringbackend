@@ -191,10 +191,10 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
         <EmptyStateCard
           icon={Users}
           title="You're not on a team yet"
-          description="Team accounts let you share one subscription with your colleagues. Upgrade to Enterprise to create one."
+          description="Team accounts let you share one subscription with your colleagues. Create one to invite people and give them Pro access."
           primaryCTA={{
-            label: "View plans",
-            onClick: () => onNavigate(routes.pricing()),
+            label: "Create Team",
+            onClick: () => onNavigate(routes.pricing(routes.team)),
           }}
         />
       </div>
