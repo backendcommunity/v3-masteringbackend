@@ -113,3 +113,26 @@ export function classifyFreeCardCta(isPremium: boolean | undefined): FreeCardCta
   }
   return { ctaLabel: "Current Plan", ctaDisabled: true };
 }
+
+/**
+ * Subscription statuses that still confer access.
+ *
+ * Mirrors ENTITLING_STATUSES in the backend's src/helpers/entitlement.ts,
+ * which is the only writer of isPremium. Keep the two lists in step.
+ *
+ * The trim is load-bearing, not defensive: Subscription.status is a
+ * CHAR(36) column, so Postgres space-pads it and the API returns
+ * "active                              ". Comparing without trimming
+ * silently reports every live subscription as lapsed.
+ */
+const ENTITLING_STATUSES = [
+  "active",
+  "canceling",
+  "pausing",
+  "resuming",
+  "trialing",
+];
+
+export function entitlingStatus(status?: string | null): boolean {
+  return ENTITLING_STATUSES.includes((status ?? "").trim().toLowerCase());
+}
