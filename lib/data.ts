@@ -363,7 +363,12 @@ export type TeamMemberStatus = "ACTIVE" | "REMOVED";
 
 /** One row from `GET /teams/mine` — a team the caller belongs to, with their
  * own role on it. Deliberately thin (no roster, no payment channel); see
- * `TeamRoster` for the full membership view. */
+ * `TeamRoster` for the full membership view.
+ *
+ * `seats`/`paidSeats` are billing figures — the backend omits both keys
+ * entirely (not null) for a caller whose role on THIS team is a plain
+ * MEMBER, matching `TeamRoster.usage`'s same OWNER/ADMIN-only visibility.
+ * `status` is always present regardless of role. */
 export interface TeamSummary {
   id: string;
   name: string;
@@ -371,8 +376,8 @@ export interface TeamSummary {
   role: TeamRole;
   subscription: {
     status: string;
-    seats: number;
-    paidSeats: number;
+    seats?: number;
+    paidSeats?: number;
   } | null;
 }
 
