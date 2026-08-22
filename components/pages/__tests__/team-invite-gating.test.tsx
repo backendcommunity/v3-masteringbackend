@@ -15,11 +15,18 @@ import { TeamPage } from "../team";
 
 const mockGetMyTeams = vi.fn();
 const mockGetTeamMembers = vi.fn();
+// TeamPage (Task 8) fires a second, independent effect for the roster's
+// progress figures whenever the viewer can manage the team. It is unrelated
+// to the seat-gating behavior under test here, so it always resolves to an
+// empty roster of progress rows — never rejected, since an unhandled
+// rejection would just be noise against the assertions below.
+const mockGetTeamProgress = vi.fn();
 
 vi.mock("@/lib/store", () => ({
   useAppStore: () => ({
     getMyTeams: mockGetMyTeams,
     getTeamMembers: mockGetTeamMembers,
+    getTeamProgress: mockGetTeamProgress,
     previewSeat: vi.fn(),
     inviteMember: vi.fn(),
     removeTeamMember: vi.fn(),
@@ -51,6 +58,7 @@ describe("TeamPage — Invite member gating", () => {
 
   it("disables Invite member until the roster (and its live seat usage) has actually loaded", async () => {
     mockGetMyTeams.mockResolvedValue([TEAM]);
+    mockGetTeamProgress.mockResolvedValue({ members: [] });
     // Never resolves during the first assertion — simulates the roster's
     // second, sequential round-trip still being in flight.
     let resolveRoster: (value: unknown) => void = () => {};
@@ -84,6 +92,7 @@ describe("TeamPage — Invite member gating", () => {
   it("keeps Invite member disabled if the roster fetch fails outright, instead of falling back to an enabled button with a fabricated seat count", async () => {
     mockGetMyTeams.mockResolvedValue([TEAM]);
     mockGetTeamMembers.mockRejectedValue(new Error("network error"));
+    mockGetTeamProgress.mockResolvedValue({ members: [] });
 
     render(<TeamPage onNavigate={vi.fn()} />);
 
