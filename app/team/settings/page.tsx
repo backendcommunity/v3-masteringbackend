@@ -6,7 +6,7 @@ import { TeamSettingsPage } from "@/components/pages/team-settings";
 
 export default function TeamSettingsRoute() {
   return (
-    <DashboardLayout>
+    <DashboardLayout hideSidebar>
       <TeamHubLayout>
         <TeamSettingsPage />
       </TeamHubLayout>

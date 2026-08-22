@@ -6,7 +6,7 @@ import { TeamLeaderboardPage } from "@/components/pages/team-leaderboard";
 
 export default function TeamLeaderboardRoute() {
   return (
-    <DashboardLayout>
+    <DashboardLayout hideSidebar>
       <TeamHubLayout>
         <TeamLeaderboardPage />
       </TeamHubLayout>

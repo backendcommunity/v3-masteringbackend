@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 export default function TeamOverviewRoute() {
   const router = useRouter();
   return (
-    <DashboardLayout>
+    <DashboardLayout hideSidebar>
       <TeamHubLayout>
         <TeamOverviewPage onNavigate={(p) => router.push(p)} />
       </TeamHubLayout>

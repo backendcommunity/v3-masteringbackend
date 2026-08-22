@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Trophy, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { routes } from "@/lib/routes";
 import type { TeamRole } from "@/lib/data";
+import { TEAM_NAV_ITEMS } from "./team-nav-items";
 
 /**
  * The Team Hub's own navigation.
@@ -14,13 +13,6 @@ import type { TeamRole } from "@/lib/data";
  * insights — are ABSENT rather than disabled. A greyed-out menu item is a
  * promise with a date attached, and there is no date.
  */
-const ITEMS = [
-  { href: routes.teamOverview, label: "Overview", icon: LayoutDashboard, managerOnly: true },
-  { href: routes.teamMembers, label: "Members", icon: Users, managerOnly: false },
-  { href: routes.teamLeaderboard, label: "Leaderboard", icon: Trophy, managerOnly: false },
-  { href: routes.teamSettings, label: "Settings", icon: Settings, managerOnly: true },
-];
-
 export function TeamRail({
   teamName,
   role,
@@ -42,7 +34,7 @@ export function TeamRail({
         </p>
       </div>
 
-      {ITEMS.filter((i) => canManage || !i.managerOnly).map((item) => {
+      {TEAM_NAV_ITEMS.filter((i) => canManage || !i.managerOnly).map((item) => {
         const active = pathname === item.href;
         return (
           <Link
