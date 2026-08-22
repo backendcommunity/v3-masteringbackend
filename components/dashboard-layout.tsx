@@ -119,6 +119,7 @@ export function DashboardLayout({ children, fluid = false, hideSidebar = false }
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}
         isMobile={isMobile}
+        hasSidebar={!hideSidebar}
       />
 
       <div className="flex min-h-screen bg-background overflow-hidden relative">

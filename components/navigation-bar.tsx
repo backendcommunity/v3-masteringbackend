@@ -52,17 +52,25 @@ import {
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 interface NavigationBarProps {
   onNavigate: (path: string) => void;
   onMenuToggle?: () => void;
   isMobile?: boolean;
+  /**
+   * Whether a left sidebar/drawer actually exists for this bar to clear and
+   * for the mobile hamburger to open. Defaults to true so every existing
+   * caller keeps today's `md:pl-72` + visible-hamburger behaviour
+   * byte-for-byte. DashboardLayout passes `!hideSidebar`.
+   */
+  hasSidebar?: boolean;
 }
 
 export function NavigationBar({
   onNavigate,
   onMenuToggle,
   isMobile = false,
+  hasSidebar = true,
 }: NavigationBarProps) {
   const auth = useAuth();
   const store = useAppStore();
@@ -405,18 +413,27 @@ export function NavigationBar({
 
   return (
     <>
-      <nav className="sticky md:pl-72 top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border">
+      <nav
+        className={cn(
+          "sticky top-0 z-50 w-full bg-card shadow-[0_1px_2px_rgba(14,31,51,0.06),0_4px_16px_rgba(14,31,51,0.06)] dark:shadow-none dark:border-b dark:border-border",
+          hasSidebar && "md:pl-72",
+        )}
+      >
         <div className="flex gap-2 h-16 items-center px-4">
-          {/* Mobile Menu Button — CSS-gated so it's correct before hydration */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mr-2 md:hidden"
-            onClick={onMenuToggle}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Toggle menu</span>
-          </Button>
+          {/* Mobile Menu Button — CSS-gated so it's correct before hydration.
+              Hidden entirely when there's no sidebar/drawer left to toggle
+              (e.g. the Team Hub, which supplies its own rail). */}
+          {hasSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mr-2 md:hidden"
+              onClick={onMenuToggle}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          )}
 
           {/* Logo — matches the path-step top bar brand mark */}
           <button
