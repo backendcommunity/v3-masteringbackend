@@ -88,11 +88,16 @@ export function MemberProgressSheet({
               ) : (
                 progress.courses.map((c) => (
                   <Row key={c.id} label={c.title}>
-                    {c.isCompleted ? (
-                      <Badge variant="secondary">Completed</Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">In progress</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {c.percent}%
+                      </span>
+                      {c.isCompleted ? (
+                        <Badge variant="secondary">Completed</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">In progress</span>
+                      )}
+                    </div>
                   </Row>
                 ))
               )}
