@@ -27,7 +27,7 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
       try {
         const teams = await store.getMyTeams();
         const team = teams?.[0];
-        if (!team) return;
+        if (!team) throw new Error("No team found");
         const data = await store.getTeamOverview(team.id);
         if (!cancelled) setOverview(data);
       } catch {
