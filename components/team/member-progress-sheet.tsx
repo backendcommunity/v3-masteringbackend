@@ -20,15 +20,24 @@ import type { TeamMemberProgress } from "@/lib/data";
  * Mock interviews appear as COUNTS and nothing else. Scores, transcripts and
  * feedback are never sent by the backend, and nothing here should ever ask for
  * them — see the privacy boundary in the spec.
+ *
+ * `asSelf` points this at `GET /teams/:id/me` instead of `:memberId/progress`
+ * — the member-facing "what your team can see about you" surface. Both
+ * endpoints share ONE backend resolver so the two views cannot drift, and
+ * this component deliberately renders both through the same body for the
+ * same reason: two components would reintroduce the drift the backend is
+ * guarding against.
  */
 export function MemberProgressSheet({
   teamId,
   memberId,
+  asSelf = false,
   open,
   onOpenChange,
 }: {
   teamId: string;
   memberId: string | null;
+  asSelf?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -36,13 +45,15 @@ export function MemberProgressSheet({
   const [progress, setProgress] = useState<TeamMemberProgress | null>(null);
 
   useEffect(() => {
-    if (!open || !memberId) {
+    if (!open || (!asSelf && !memberId)) {
       setProgress(null);
       return;
     }
     let cancelled = false;
-    store
-      .getTeamMemberProgress(teamId, memberId)
+    const request = asSelf
+      ? store.getMyTeamProgress(teamId)
+      : store.getTeamMemberProgress(teamId, memberId!);
+    request
       .then((p) => {
         if (!cancelled) setProgress(p);
       })
@@ -52,14 +63,18 @@ export function MemberProgressSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, memberId, teamId, store, onOpenChange]);
+  }, [open, memberId, asSelf, teamId, store, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {progress ? progress.user.name ?? progress.user.email : "Member progress"}
+            {progress
+              ? progress.user.name ?? progress.user.email
+              : asSelf
+                ? "What your team can see about you"
+                : "Member progress"}
           </DialogTitle>
           <DialogDescription>
             {!progress

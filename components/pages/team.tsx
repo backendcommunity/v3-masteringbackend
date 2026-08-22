@@ -42,7 +42,7 @@ import type {
   TeamRosterProgress,
   TeamSummary,
 } from "@/lib/data";
-import { AlertTriangle, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, Eye, UserPlus, Users } from "lucide-react";
 
 interface TeamPageProps {
   onNavigate: (path: string) => void;
@@ -69,6 +69,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
 
   const [progress, setProgress] = useState<TeamRosterProgress | null>(null);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [selfProgressOpen, setSelfProgressOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
     setTeamsLoading(true);
@@ -271,24 +272,39 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                   : "Team roster"}
               </CardDescription>
             </div>
-            {canManage && (
-              <Button
-                onClick={() => setInviteOpen(true)}
-                // The roster (and its `usage.available`) is a SECOND,
-                // sequential round-trip after the team list loads. Enabling
-                // this before it resolves lets InviteDialog receive
-                // `seatsAvailable={roster?.usage?.available ?? 0}` — a
-                // fallback zero, not a real "at capacity" reading — which
-                // would route a team that actually has a free seat through
-                // the paid confirmation and send `buySeat: true`, charging
-                // for capacity it didn't need to buy. Disabled, not hidden,
-                // so the control doesn't jump around as the roster resolves.
-                disabled={rosterLoading || !roster}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite member
+            <div className="flex items-center gap-2">
+              {/*
+                Every ACTIVE member — OWNER and ADMIN included, since seeing
+                your own record is not a manager action — can open the exact
+                view their team sees about them. This deliberately points at
+                the same MemberProgressSheet the roster below uses, just in
+                "asSelf" mode: the backend guarantees both views come from one
+                resolver, so a second component here would reintroduce the
+                drift that guarantee exists to prevent.
+              */}
+              <Button variant="outline" size="sm" onClick={() => setSelfProgressOpen(true)}>
+                <Eye className="mr-2 h-4 w-4" />
+                What your team can see about you
               </Button>
-            )}
+              {canManage && (
+                <Button
+                  onClick={() => setInviteOpen(true)}
+                  // The roster (and its `usage.available`) is a SECOND,
+                  // sequential round-trip after the team list loads. Enabling
+                  // this before it resolves lets InviteDialog receive
+                  // `seatsAvailable={roster?.usage?.available ?? 0}` — a
+                  // fallback zero, not a real "at capacity" reading — which
+                  // would route a team that actually has a free seat through
+                  // the paid confirmation and send `buySeat: true`, charging
+                  // for capacity it didn't need to buy. Disabled, not hidden,
+                  // so the control doesn't jump around as the roster resolves.
+                  disabled={rosterLoading || !roster}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Invite member
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {rosterLoading ? (
@@ -427,6 +443,16 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
           memberId={openMemberId}
           open={openMemberId !== null}
           onOpenChange={(o) => !o && setOpenMemberId(null)}
+        />
+      )}
+
+      {selectedTeamId && (
+        <MemberProgressSheet
+          teamId={selectedTeamId}
+          memberId={null}
+          asSelf
+          open={selfProgressOpen}
+          onOpenChange={setSelfProgressOpen}
         />
       )}
     </div>
