@@ -414,6 +414,85 @@ export interface TeamRoster {
   usage?: TeamSeatUsage;
 }
 
+/** The Team Hub landing figures. OWNER/ADMIN only. */
+export interface TeamOverview {
+  seats: TeamSeatUsage;
+  activeThisWeek: number;
+  /** Includes never-active members — they are the ones worth chasing. */
+  stalled: number;
+  neverActive: number;
+}
+
+/**
+ * One row of the roster-with-progress table.
+ *
+ * `coursesStarted`/`coursesCompleted` are counts, not a percentage. The
+ * backend deliberately does not compute per-course percentage for a whole
+ * team, so the UI must label this "3 of 7 courses" and never render it as a
+ * percent.
+ */
+export interface TeamMemberProgressRow {
+  memberId: string;
+  role: TeamRole;
+  user: TeamMemberUser;
+  coursesStarted: number;
+  coursesCompleted: number;
+  projectsBuilt: number;
+  points: number;
+  currentStreak: number;
+  lastActivityAt: string | null;
+  isStalled: boolean;
+}
+
+export interface TeamRosterProgress {
+  members: TeamMemberProgressRow[];
+}
+
+/**
+ * One member's detail.
+ *
+ * `mockInterviews` is counts only, by design — scores, transcripts and
+ * feedback are never sent to a team owner. Do not add fields here without
+ * reading the privacy boundary in the spec.
+ */
+export interface TeamMemberProgress {
+  user: TeamMemberUser;
+  stats: {
+    points: number;
+    level: number;
+    currentStreak: number;
+    longestStreak: number;
+    lastActivityAt: string | null;
+  };
+  courses: { id: string; title: string; slug: string; isCompleted: boolean; percent: number }[];
+  paths: { id: string; title: string; completedItems: number; totalItems: number }[];
+  projects: {
+    id: string;
+    title: string;
+    isCompleted: boolean;
+    startedAt: string;
+    completedAt: string | null;
+  }[];
+  quizzes: { taken: number; passed: number };
+  mockInterviews: { taken: number; completed: number; lastTakenAt: string | null };
+  activity: { id: string; title: string | null; description: string | null; type: string | null; createdAt: string }[];
+}
+
+export interface TeamLeaderboardEntry {
+  id: string;
+  name: string | null;
+  username: string | null;
+  avatar: string | null;
+  totalPoints: number;
+  totalCompletedCourses: number;
+  /** Re-ranked within the team, starting at 1 — not the global rank. */
+  rank: number;
+}
+
+export interface TeamLeaderboard {
+  entries: TeamLeaderboardEntry[];
+}
+
 /**
  * `POST /teams/:id/seats/preview` response. `currency` is NOT always USD —
  * Paddle's currency localization can preview a USD-priced plan in another

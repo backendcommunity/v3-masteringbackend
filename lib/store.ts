@@ -44,6 +44,10 @@ import {
   CourseFiltersData,
   TeamSummary,
   TeamRoster,
+  TeamOverview,
+  TeamRosterProgress,
+  TeamMemberProgress,
+  TeamLeaderboard,
   TeamSeatPreview,
   TeamInvite,
   TeamInvitePreview,
@@ -326,6 +330,11 @@ interface AppState {
   getMyTeams: () => Promise<TeamSummary[]>;
   renameTeam: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
   getTeamMembers: (teamId: string) => Promise<TeamRoster>;
+  getTeamOverview: (teamId: string) => Promise<TeamOverview>;
+  getTeamProgress: (teamId: string) => Promise<TeamRosterProgress>;
+  getTeamMemberProgress: (teamId: string, memberId: string) => Promise<TeamMemberProgress>;
+  getTeamLeaderboard: (teamId: string) => Promise<TeamLeaderboard>;
+  getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
   previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
   inviteMember: (
     teamId: string,
@@ -1459,6 +1468,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   getTeamMembers: async (teamId: string) => {
     const { data } = await api.get(`/teams/${teamId}/members`);
     return data?.data as TeamRoster;
+  },
+  getTeamOverview: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/overview`);
+    return data?.data as TeamOverview;
+  },
+  getTeamProgress: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/progress`);
+    return data?.data as TeamRosterProgress;
+  },
+  getTeamMemberProgress: async (teamId: string, memberId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/members/${memberId}/progress`);
+    return data?.data as TeamMemberProgress;
+  },
+  getTeamLeaderboard: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/leaderboard`);
+    return data?.data as TeamLeaderboard;
+  },
+  getMyTeamProgress: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/me`);
+    return data?.data as TeamMemberProgress;
   },
   previewSeat: async (teamId: string) => {
     const { data } = await api.post(`/teams/${teamId}/seats/preview`);

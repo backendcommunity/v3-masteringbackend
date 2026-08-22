@@ -113,6 +113,10 @@ export const routes = {
 
   // Team accounts
   team: "/team",
+  teamOverview: "/team/overview",
+  teamMembers: "/team/members",
+  teamLeaderboard: "/team/leaderboard",
+  teamSettings: "/team/settings",
   teamSetup: "/team/setup",
   teamJoin: (token: string) => `/team/join/${token}`,
 
