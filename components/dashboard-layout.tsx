@@ -17,16 +17,9 @@ interface DashboardLayoutProps {
    * Use for immersive pages (course/path watch, playground) that need full width.
    */
   fluid?: boolean;
-  /**
-   * Suppress the learner sidebar (top bar stays). Used by contexts — like the
-   * Team Hub — that swap in their own left rail instead of stacking one
-   * alongside this one. Defaults to false so every existing caller is
-   * unaffected.
-   */
-  hideSidebar?: boolean;
 }
 
-export function DashboardLayout({ children, fluid = false, hideSidebar = false }: DashboardLayoutProps) {
+export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
   const isMobile = useMobile();
   const pathname = usePathname();
   const router = useRouter();
@@ -119,7 +112,6 @@ export function DashboardLayout({ children, fluid = false, hideSidebar = false }
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}
         isMobile={isMobile}
-        hasSidebar={!hideSidebar}
       />
 
       <div className="flex min-h-screen bg-background overflow-hidden relative">
@@ -127,26 +119,24 @@ export function DashboardLayout({ children, fluid = false, hideSidebar = false }
             Mobile is ALWAYS the full-width drawer (w-72); the collapsed rail is
             a desktop-only concept, so width/margin switch at the md breakpoint
             via CSS, not the JS isMobile flag (avoids hydration flash). */}
-        {!hideSidebar && (
-          <aside
-            className={`fixed inset-y-0 left-0 z-50 h-full bg-[#0E1F33] transition-transform duration-300 ease-in-out
-            md:translate-x-0
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-            w-72 ${isCollapsed ? "md:w-20" : "md:w-72"}`}
-          >
-            <DashboardSidebar
-              onCollapsed={setIsCollapsed}
-              currentPath={pathname ?? "/"}
-              onNavigate={handleNavigate}
-              isMobile={isMobile}
-              // Never render the narrow collapsed UI inside the mobile drawer.
-              isCollapsed={isMobile ? false : isCollapsed}
-            />
-          </aside>
-        )}
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 h-full bg-[#0E1F33] transition-transform duration-300 ease-in-out
+          md:translate-x-0
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          w-72 ${isCollapsed ? "md:w-20" : "md:w-72"}`}
+        >
+          <DashboardSidebar
+            onCollapsed={setIsCollapsed}
+            currentPath={pathname ?? "/"}
+            onNavigate={handleNavigate}
+            isMobile={isMobile}
+            // Never render the narrow collapsed UI inside the mobile drawer.
+            isCollapsed={isMobile ? false : isCollapsed}
+          />
+        </aside>
 
         {/* Mobile overlay — below the drawer (z-40), above content. */}
-        {!hideSidebar && sidebarOpen && (
+        {sidebarOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setSidebarOpen(false)}
@@ -154,11 +144,10 @@ export function DashboardLayout({ children, fluid = false, hideSidebar = false }
         )}
 
         {/* Main content area — drawer overlays on mobile (no margin), rail
-            offsets on desktop via CSS breakpoints. No offset at all when the
-            sidebar is suppressed. */}
+            offsets on desktop via CSS breakpoints. */}
         <div
           className={`flex-1 flex w-full min-w-0 flex-col transition-all duration-300 ${
-            hideSidebar ? "" : isCollapsed ? "md:ml-20" : "md:ml-72"
+            isCollapsed ? "md:ml-20" : "md:ml-72"
           }`}
         >
           {/* Centralized content container — every page aligns to the same

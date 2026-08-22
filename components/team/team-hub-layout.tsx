@@ -2,30 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2, Users } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import type { TeamSummary } from "@/lib/data";
-import { TeamRail } from "./team-rail";
 import { TEAM_NAV_ITEMS } from "./team-nav-items";
 
 /**
  * Wraps every /team/* screen.
  *
- * The hub is a mode: it replaces the learner rail while you are inside it, and
- * the "Back to learning" control is the exit. A mode without an obvious exit
- * is a trap.
+ * The team pages are ordinary pages in the app: the normal learner sidebar
+ * stays, and moving between team screens happens through tabs inside the
+ * page, the same way /subscription/management moves between Subscription and
+ * Billing History. There is no separate team mode and no second rail.
  *
- * A user with no team never reaches the rail at all — they get the upsell
- * empty state, the same one /team showed before this existed.
- *
- * TEAM_NAV_ITEMS is the single source of truth for which routes are
- * OWNER/ADMIN-only. TeamRail uses it to omit entries a MEMBER can't see;
- * this layout uses the same list to enforce it — a MEMBER who reaches a
- * manager-only route directly (old `/team` link, typed URL) is redirected
- * to Members instead of rendering the screen the rail said they couldn't see.
+ * The four screens keep their own routes rather than becoming tab panels, so
+ * a link to /team/settings still works. The tabs navigate.
  */
 export function TeamHubLayout({ children }: { children: React.ReactNode }) {
   const store = useAppStore();
@@ -51,23 +45,29 @@ export function TeamHubLayout({ children }: { children: React.ReactNode }) {
   const team = teams && teams.length > 0 ? teams[0] : null;
   const canManage = team ? team.role === "OWNER" || team.role === "ADMIN" : false;
   const currentItem = TEAM_NAV_ITEMS.find((item) => item.href === pathname);
+
+  // Overview and Settings are OWNER/ADMIN only, mirroring the backend's 403 on
+  // those endpoints. The tabs omit them for a MEMBER, and this guard covers
+  // the cases tabs cannot: a bookmark, a shared link, or /team's redirect.
   const blocked = !!team && !!currentItem?.managerOnly && !canManage;
 
   useEffect(() => {
     if (blocked) router.replace(routes.teamMembers);
   }, [blocked, router]);
 
-  if (teams === null) {
+  if (teams === null || blocked) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
   if (!team) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6 md:py-8">
+      <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
         <EmptyStateCard
           icon={Users}
           title="You're not on a team yet"
@@ -81,33 +81,37 @@ export function TeamHubLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (blocked) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const visible = TEAM_NAV_ITEMS.filter((i) => canManage || !i.managerOnly);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-6 md:py-8">
-      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-        <aside className="md:w-56 md:flex-none">
-          <TeamRail teamName={team.name} role={team.role} />
-          <div className="mt-4 border-t pt-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-muted-foreground"
-              onClick={() => router.push(routes.dashboard)}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to learning
-            </Button>
-          </div>
-        </aside>
-        <main className="min-w-0 flex-1">{children}</main>
+    <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8 lg:py-10">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold md:text-4xl">{team.name}</h1>
+        <p className="mt-1 text-muted-foreground">
+          Manage your team and see how everyone is getting on.
+        </p>
       </div>
+
+      <Tabs
+        value={currentItem?.href ?? routes.teamMembers}
+        onValueChange={(href) => router.push(href)}
+        className="mb-6"
+      >
+        <TabsList
+          className="grid w-full mb-6"
+          style={{
+            gridTemplateColumns: `repeat(${visible.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {visible.map((item) => (
+            <TabsTrigger key={item.href} value={item.href}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {children}
     </div>
   );
 }

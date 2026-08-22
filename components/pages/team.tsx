@@ -235,13 +235,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   }
 
   return (
-    <div className="container mx-auto max-w-3xl space-y-6 px-4 py-6 md:py-8">
-      <div>
-        <h1 className="text-3xl font-bold md:text-4xl">Team</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage who has access to your team&apos;s subscription.
-        </p>
-      </div>
+    <div className="space-y-6">
 
       {teams.length > 1 && (
         <Select
@@ -265,11 +259,13 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>{team.name}</CardTitle>
+              {/* The team's name is the page heading now, so this card just
+                  says what it holds. Repeating the name said it twice. */}
+              <CardTitle>Team roster</CardTitle>
               <CardDescription>
                 {roster?.usage
-                  ? `${roster.usage.used} / ${roster.usage.paidSeats} seats used`
-                  : "Team roster"}
+                  ? `${roster.usage.used} of ${roster.usage.paidSeats} seats used`
+                  : "Who has access to your team's subscription"}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">

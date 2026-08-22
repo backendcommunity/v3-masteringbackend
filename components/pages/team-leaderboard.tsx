@@ -58,11 +58,6 @@ export function TeamLeaderboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold md:text-3xl">Leaderboard</h1>
-        <p className="mt-1 text-muted-foreground">Points earned across your team.</p>
-      </div>
-
       {board.entries.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">

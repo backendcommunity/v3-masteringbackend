@@ -86,11 +86,6 @@ export function TeamSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold md:text-3xl">Settings</h1>
-        <p className="mt-1 text-muted-foreground">Manage your team&apos;s details.</p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Team name</CardTitle>

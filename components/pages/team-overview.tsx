@@ -69,13 +69,6 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold md:text-3xl">Overview</h1>
-        <p className="mt-1 text-muted-foreground">
-          How your team is using their seats.
-        </p>
-      </div>
-
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}>
