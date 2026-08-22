@@ -58,6 +58,7 @@ export default defineConfig({
       "components/pages/__tests__/checkout-seat-selector.test.tsx",
       "components/team/__tests__/invite-dialog.test.tsx",
       "components/pages/__tests__/team-invite-gating.test.tsx",
+      "components/team/__tests__/member-progress-sheet.test.tsx",
     ],
   },
   resolve: {

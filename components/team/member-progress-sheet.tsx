@@ -57,21 +57,25 @@ export function MemberProgressSheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {progress ? progress.user.name ?? progress.user.email : "Member progress"}
+          </DialogTitle>
+          <DialogDescription>
+            {!progress
+              ? "Loading this member's progress…"
+              : progress.stats.lastActivityAt
+                ? `Last active ${formatDate(progress.stats.lastActivityAt)}`
+                : "Hasn't started yet"}
+          </DialogDescription>
+        </DialogHeader>
+
         {!progress ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <>
-            <DialogHeader>
-              <DialogTitle>{progress.user.name ?? progress.user.email}</DialogTitle>
-              <DialogDescription>
-                {progress.stats.lastActivityAt
-                  ? `Last active ${formatDate(progress.stats.lastActivityAt)}`
-                  : "Hasn't started yet"}
-              </DialogDescription>
-            </DialogHeader>
-
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Points" value={progress.stats.points} />
               <Stat label="Streak" value={progress.stats.currentStreak} />
