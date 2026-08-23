@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +40,7 @@ export function TeamLeaderboardPage() {
   const [retryToken, setRetryToken] = useState(0);
   const [groups, setGroups] = useState<TeamGroup[]>([]);
   const [groupFilter, setGroupFilter] = useState<string>("all");
+  const prevGroupFilterRef = useRef(groupFilter);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +115,20 @@ export function TeamLeaderboardPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
+
+  // Reset the board's state during the render that first sees a new filter,
+  // not in the effect that follows it. Choosing "Show all groups" out of a
+  // failed filtered view flips `groupFilter` to "all" immediately, while
+  // `boardFailed` still describes the OLD filter's outcome — so the guard
+  // below would match for exactly one render and replace the whole page,
+  // Select and all, with the full-page error the user is trying to escape.
+  // Catching the change here makes React re-render with the reset state
+  // before anything paints. Same pattern, and same reason, as team-overview.
+  if (groupFilter !== prevGroupFilterRef.current) {
+    prevGroupFilterRef.current = groupFilter;
+    setBoardLoading(true);
+    setBoardFailed(false);
+  }
 
   if (teamFailed || (boardFailed && groupFilter === "all")) {
     return (
