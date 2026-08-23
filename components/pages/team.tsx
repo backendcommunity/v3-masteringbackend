@@ -143,8 +143,12 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeamId, canManage, groupFilter]);
 
+  // Not gated on canManage: the roster and the group list are both readable
+  // by any ACTIVE member, and group labels are colleague information rather
+  // than management information. A MEMBER sees who is in which department,
+  // and can filter by one, even though they never see progress figures.
   useEffect(() => {
-    if (!selectedTeamId || !canManage) return;
+    if (!selectedTeamId) return;
     let cancelled = false;
     store
       .getTeamGroups(selectedTeamId)
@@ -161,7 +165,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     };
     // `store` is deliberately excluded — see the progress effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeamId, canManage]);
+  }, [selectedTeamId]);
 
   const progressFor = new Map(
     (progress?.members ?? []).map((m) => [m.memberId, m]),
@@ -359,7 +363,16 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                     Showing{" "}
                     {groups.find((g) => g.id === groupFilter)?.name ??
                       "one group"}
-                    . Seats are counted for the whole team.
+                    .
+                    {/*
+                      The seat caveat exists because the seat count sits right
+                      above a roster the filter has just narrowed. A MEMBER
+                      never receives `usage`, so for them there is no seat
+                      count on screen and the sentence would point at nothing.
+                    */}
+                    {roster?.usage
+                      ? " Seats are counted for the whole team."
+                      : ""}
                   </p>
                 )}
               </div>
@@ -403,25 +416,34 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                     />
                     {(() => {
                       const p = progressFor.get(member.id);
-                      if (!p) return null;
+                      const groupNames = (member.groups ?? []).map((g) => g.name);
+                      // The labels come from the roster, which every member
+                      // reads; the figures come from progress, which only a
+                      // manager reads. Rendering them together but gating the
+                      // whole row on `p` hid the labels from everyone else.
+                      if (!p && groupNames.length === 0) return null;
                       return (
                         <div className="flex items-center justify-end gap-3 pb-3">
-                          {member.groups && member.groups.length > 0 && (
+                          {groupNames.length > 0 && (
                             <span className="text-xs text-muted-foreground">
-                              {member.groups.map((g) => g.name).join(", ")}
+                              {groupNames.join(", ")}
                             </span>
                           )}
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {p.coursesCompleted} of {p.coursesStarted} courses
-                          </span>
-                          {p.isStalled && <Badge variant="secondary">Stalled</Badge>}
-                          <button
-                            type="button"
-                            className="text-xs font-semibold text-primary hover:underline"
-                            onClick={() => setOpenMemberId(member.id)}
-                          >
-                            View progress
-                          </button>
+                          {p && (
+                            <>
+                              <span className="text-xs tabular-nums text-muted-foreground">
+                                {p.coursesCompleted} of {p.coursesStarted} courses
+                              </span>
+                              {p.isStalled && <Badge variant="secondary">Stalled</Badge>}
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-primary hover:underline"
+                                onClick={() => setOpenMemberId(member.id)}
+                              >
+                                View progress
+                              </button>
+                            </>
+                          )}
                         </div>
                       );
                     })()}
