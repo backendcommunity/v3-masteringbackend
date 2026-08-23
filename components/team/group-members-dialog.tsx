@@ -32,14 +32,25 @@ export function GroupMembersDialog({
   const [members, setMembers] = useState<TeamMember[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
+  // `store` and `onOpenChange` are deliberately excluded from the deps below.
+  // `useAppStore()` subscribes to the whole app store, so ITS identity
+  // changes on any set() anywhere in the app (e.g. the notification poll in
+  // navigation-bar.tsx). Depending on it would re-run this fetch mid-edit and
+  // wipe out ticks the user hasn't saved yet. `onOpenChange` is a fresh
+  // inline arrow from the parent on every render, so it's never stable
+  // either. Same pattern as loadTeams/loadRoster in components/pages/team.tsx.
   useEffect(() => {
     if (!open || !groupId) {
       setMembers(null);
       setSelected(new Set());
+      setLoadError(false);
       return;
     }
     let cancelled = false;
+    setLoadError(false);
     store
       .getTeamMembers(teamId)
       .then((roster) => {
@@ -54,12 +65,15 @@ export function GroupMembersDialog({
         );
       })
       .catch(() => {
-        if (!cancelled) onOpenChange(false);
+        if (cancelled) return;
+        setLoadError(true);
+        toast.error("Couldn't load the team roster.");
       });
     return () => {
       cancelled = true;
     };
-  }, [open, groupId, teamId, store, onOpenChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, groupId, teamId, reloadToken]);
 
   async function save() {
     if (!groupId) return;
@@ -87,7 +101,20 @@ export function GroupMembersDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!members ? (
+        {loadError ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn&apos;t load the team roster.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setReloadToken((t) => t + 1)}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : !members ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>

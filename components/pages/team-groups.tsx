@@ -151,7 +151,9 @@ export function TeamGroupsPage() {
                         if (e.key === "Escape") setEditing(null);
                       }}
                     />
-                    <Button size="sm" onClick={rename}>Save</Button>
+                    <Button size="sm" onClick={rename} disabled={!editName.trim()}>
+                      Save
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
                       Cancel
                     </Button>
