@@ -125,11 +125,11 @@ export function AssignmentCard({ assignment, onToggle }: AssignmentCardProps) {
                         href={href}
                         className="text-sm font-medium text-primary hover:underline"
                       >
-                        {TYPE_LABELS[item.type]}
+                        {item.title ?? TYPE_LABELS[item.type]}
                       </a>
                     ) : (
                       <span className="text-sm font-medium">
-                        {TYPE_LABELS[item.type]}
+                        {item.title ?? TYPE_LABELS[item.type]}
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground">

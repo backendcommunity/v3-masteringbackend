@@ -74,10 +74,10 @@ export function AssignmentFormDialog({
   const [targetTeamMemberId, setTargetTeamMemberId] = useState<string | null>(null);
   // Whether the manager has touched the target picker THIS time the dialog
   // is open. When editing and left untouched, the target fields are omitted
-  // from the update payload entirely (see handleSave) rather than guessed
-  // at — `TeamAssignment` only carries a human-readable `targetLabel`, not
-  // the group/member id a GROUP or MEMBER target actually resolved to, so
-  // there is nothing honest to prefill a specific group/person with.
+  // from the update payload entirely (see handleSave) — the picker is
+  // prefilled from `assignment.targetGroupId`/`targetTeamMemberId` below so
+  // it reflects reality, but retargeting is still an explicit act, not
+  // something a no-op save should trigger.
   const [targetTouched, setTargetTouched] = useState(false);
 
   const [items, setItems] = useState<AssignmentItemInput[]>([]);
@@ -97,10 +97,18 @@ export function AssignmentFormDialog({
     setName(assignment?.name ?? "");
     setDueAt(assignment?.dueAt ? assignment.dueAt.slice(0, 10) : "");
     setTargetType(assignment?.targetType ?? "TEAM");
-    setTargetGroupId(null);
-    setTargetTeamMemberId(null);
+    setTargetGroupId(assignment?.targetGroupId ?? null);
+    setTargetTeamMemberId(assignment?.targetTeamMemberId ?? null);
     setTargetTouched(false);
-  }, [open, assignment?.id, assignment?.name, assignment?.dueAt, assignment?.targetType]);
+  }, [
+    open,
+    assignment?.id,
+    assignment?.name,
+    assignment?.dueAt,
+    assignment?.targetType,
+    assignment?.targetGroupId,
+    assignment?.targetTeamMemberId,
+  ]);
 
   // Loads the group/member pickers. `store` is deliberately excluded from
   // the deps below — useAppStore() has no selector, so its identity changes
@@ -161,6 +169,9 @@ export function AssignmentFormDialog({
             type: i.type,
             refId: i.refId,
             text: i.text,
+            // Display-only — resolved from the catalogue by the backend,
+            // stripped before this list is ever sent back (see handleSave).
+            title: i.title,
           })),
         );
       })
@@ -225,7 +236,11 @@ export function AssignmentFormDialog({
         ? await store.updateTeamAssignment(teamId, assignment.id, input)
         : await store.createTeamAssignment(teamId, input as AssignmentInput);
 
-      await store.setTeamAssignmentItems(teamId, saved.id, items);
+      // `title` is a client-only display field (see AssignmentItemInput) —
+      // the backend's item schema rejects unknown keys, so it must not ride
+      // along on the wire.
+      const itemsForApi = items.map(({ title: _title, ...rest }) => rest);
+      await store.setTeamAssignmentItems(teamId, saved.id, itemsForApi);
 
       toast.success(assignment ? "Assignment updated." : "Assignment created.");
       onSaved();

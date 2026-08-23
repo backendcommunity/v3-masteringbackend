@@ -514,6 +514,15 @@ export interface AssignmentItem {
   refId: string | null;
   /** The task's words. Null for every content type. */
   text: string | null;
+  /**
+   * Resolved from the catalogue at read time — never stored, so it can't go
+   * stale when a course is renamed. Null for a TASK (its `text` is its
+   * content, there's nothing to look up) and also null when the catalogue
+   * row `refId` points at is gone, in which case `state` is UNAVAILABLE for
+   * everyone. Those are different reasons for the same null value; only the
+   * state tells you which one you're looking at.
+   */
+  title: string | null;
   position: number;
 }
 
@@ -524,6 +533,10 @@ export interface TeamAssignment {
   dueAt: string | null;
   createdAt: string;
   targetType: AssignmentTargetType;
+  /** Null unless targetType is GROUP. Lets the edit dialog prefill the picker. */
+  targetGroupId: string | null;
+  /** Null unless targetType is MEMBER. Lets the edit dialog prefill the picker. */
+  targetTeamMemberId: string | null;
   /** Ready to render — "Platform", "Everyone", or a person's name. */
   targetLabel: string;
   itemCount: number;
@@ -578,6 +591,13 @@ export interface AssignmentItemInput {
   type: AssignmentItemType;
   refId?: string | null;
   text?: string | null;
+  /**
+   * Client-side only, for the builder's own list to render a real name
+   * instead of `"{Type} · {refId}"`. Never sent to `setTeamAssignmentItems`
+   * — the backend's item schema rejects unknown keys, and the title is
+   * re-resolved from the catalogue on every read anyway.
+   */
+  title?: string | null;
 }
 
 /**

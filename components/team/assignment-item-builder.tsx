@@ -155,7 +155,10 @@ export function AssignmentItemBuilder({
     setMessage(null);
     // A freshly added content item has no `id` yet — the server matches
     // content by (type, refId), so it doesn't need one, unlike TASK below.
-    onChange([...items, { type, refId: id }]);
+    // `title` rides along purely so this list can render `label` instead of
+    // falling back to "{Type} · {refId}" — it's stripped before the save
+    // call (see assignment-form-dialog.tsx), never sent to the server.
+    onChange([...items, { type, refId: id, title: label }]);
   }
 
   function addTask() {
@@ -263,7 +266,9 @@ export function AssignmentItemBuilder({
               className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
             >
               <span className="min-w-0 flex-1 truncate">
-                {item.type === "TASK" ? item.text : `${TYPE_LABELS[item.type]} · ${item.refId}`}
+                {item.type === "TASK"
+                  ? item.text
+                  : (item.title ?? `${TYPE_LABELS[item.type]} · ${item.refId}`)}
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 <Button
@@ -290,7 +295,7 @@ export function AssignmentItemBuilder({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  aria-label={`Remove ${item.type === "TASK" ? item.text : TYPE_LABELS[item.type]}`}
+                  aria-label={`Remove ${item.type === "TASK" ? item.text : (item.title ?? TYPE_LABELS[item.type])}`}
                   onClick={() => removeAt(index)}
                 >
                   <X className="h-3.5 w-3.5" />

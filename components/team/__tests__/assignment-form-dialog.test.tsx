@@ -85,11 +85,20 @@ const EXISTING_ASSIGNMENT: TeamAssignment = {
   dueAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   targetType: "TEAM",
+  targetGroupId: null,
+  targetTeamMemberId: null,
   targetLabel: "Everyone",
   itemCount: 2,
   audienceSize: 5,
   doneCount: 1,
   isOverdue: false,
+};
+
+const GROUP_TARGETED_ASSIGNMENT: TeamAssignment = {
+  ...EXISTING_ASSIGNMENT,
+  targetType: "GROUP",
+  targetGroupId: "g1",
+  targetLabel: "Platform",
 };
 
 const EXISTING_DETAIL = {
@@ -98,8 +107,8 @@ const EXISTING_DETAIL = {
   dueAt: null,
   targetType: "TEAM" as const,
   items: [
-    { id: "i1", type: "COURSE" as const, refId: "c1", text: null, position: 0 },
-    { id: "i2", type: "TASK" as const, refId: null, text: "Read the runbook", position: 1 },
+    { id: "i1", type: "COURSE" as const, refId: "c1", text: null, title: "Intro to Postgres", position: 0 },
+    { id: "i2", type: "TASK" as const, refId: null, text: "Read the runbook", title: null, position: 1 },
   ],
   people: [],
 };
@@ -346,5 +355,68 @@ describe("AssignmentFormDialog", () => {
     fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: "Backend" } });
 
     expect(mockGetTeamGroups).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefills the target picker from targetGroupId when editing a GROUP-targeted assignment", async () => {
+    render(
+      <AssignmentFormDialog
+        teamId="t1"
+        assignment={GROUP_TARGETED_ASSIGNMENT}
+        open
+        onOpenChange={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(mockGetTeamGroups).toHaveBeenCalled());
+    const groupSelect = (await screen.findByLabelText("mock-select")) as HTMLSelectElement;
+    expect(groupSelect.value).toBe("g1");
+
+    // The manager never touched the picker, so Save must still omit the
+    // target fields from the update payload — the prefill is only display.
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockUpdateTeamAssignment).toHaveBeenCalled());
+    const [, , input] = mockUpdateTeamAssignment.mock.calls[0];
+    expect(input).not.toHaveProperty("targetType");
+    expect(input).not.toHaveProperty("targetGroupId");
+  });
+
+  it("shows the resolved title for an already-saved item, not its type and refId", async () => {
+    render(
+      <AssignmentFormDialog
+        teamId="t1"
+        assignment={EXISTING_ASSIGNMENT}
+        open
+        onOpenChange={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
+    expect(await screen.findByText("Intro to Postgres")).toBeInTheDocument();
+    expect(screen.queryByText(/Course · c1/)).not.toBeInTheDocument();
+  });
+
+  it("never sends `title` back to setTeamAssignmentItems — it is display-only", async () => {
+    render(
+      <AssignmentFormDialog
+        teamId="t1"
+        assignment={EXISTING_ASSIGNMENT}
+        open
+        onOpenChange={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
+    await screen.findByText("Intro to Postgres");
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(mockSetTeamAssignmentItems).toHaveBeenCalled());
+    const [, , submittedItems] = mockSetTeamAssignmentItems.mock.calls[0];
+    for (const item of submittedItems) {
+      expect(item).not.toHaveProperty("title");
+    }
   });
 });
