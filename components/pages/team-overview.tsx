@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Flame, MoonStar, UserX } from "lucide-react";
+import { AlertTriangle, Users, Flame, MoonStar, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { EmptyStateCard } from "@/components/empty-state-card";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,9 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   const store = useAppStore();
   const [teamId, setTeamId] = useState<string | null>(null);
   const [overview, setOverview] = useState<TeamOverview | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [teamFailed, setTeamFailed] = useState(false);
+  const [overviewFailed, setOverviewFailed] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const [groups, setGroups] = useState<TeamGroup[]>([]);
   const [groupFilter, setGroupFilter] = useState<string>("all");
 
@@ -40,7 +43,7 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         if (!team) throw new Error("No team found");
         if (!cancelled) setTeamId(team.id);
       } catch {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) setTeamFailed(true);
       }
     }
 
@@ -55,9 +58,20 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A failed fetch here used to flip a single `failed` flag that replaced
+  // the ENTIRE page, unmounting the group Select along with everything
+  // else. That's fine when the unfiltered fetch fails (the team itself is
+  // unreachable — see the full-page branch below, unchanged for that case).
+  // But the backend 404s a stale `groupId` (the group was renamed/deleted
+  // out from under a filtered view), and losing the Select at that exact
+  // moment removes the one control that lets the viewer recover by picking
+  // "All groups". So a filtered failure only sets `overviewFailed`, which
+  // the render below confines to the stats region — the header and Select
+  // stay mounted.
   useEffect(() => {
     if (!teamId) return;
     let cancelled = false;
+    setOverviewFailed(false);
     const gid = groupFilter === "all" ? undefined : groupFilter;
     store
       .getTeamOverview(teamId, gid)
@@ -65,13 +79,13 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         if (!cancelled) setOverview(data);
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) setOverviewFailed(true);
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId, groupFilter]);
+  }, [teamId, groupFilter, retryToken]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -92,7 +106,9 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
-  if (failed) {
+  // An unfiltered fetch failing means the team itself couldn't be loaded —
+  // the whole-page error is still the right read there, same as before.
+  if (teamFailed || (overviewFailed && groupFilter === "all")) {
     return (
       <Card>
         <CardHeader>
@@ -136,60 +152,76 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         </Select>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="pt-5">
-              <s.icon className="mb-2 h-4 w-4 text-muted-foreground" />
-              <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {s.label}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {overviewFailed ? (
+        // Reached only when groupFilter !== "all" — the unfiltered failure
+        // case already returned the whole-page error above. This reads as
+        // the filtered view failing, not the team, and the Select above
+        // stays live so picking "All groups" is the recovery path.
+        <EmptyStateCard
+          icon={AlertTriangle}
+          title="Couldn't load this view"
+          description="This group may have been renamed or removed since you filtered to it. Switch to All groups, or try again."
+          primaryCTA={{ label: "Show all groups", onClick: () => setGroupFilter("all") }}
+          secondaryCTA={{ label: "Try again", onClick: () => setRetryToken((t) => t + 1) }}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {stats.map((s) => (
+              <Card key={s.label}>
+                <CardContent className="pt-5">
+                  <s.icon className="mb-2 h-4 w-4 text-muted-foreground" />
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {s.label}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {groupFilter !== "all" && (
-        <p className="text-sm text-muted-foreground">
-          Showing {groups.find((g) => g.id === groupFilter)?.name ?? "one group"}.
-          Seats are counted for the whole team.
-        </p>
-      )}
-
-      {overview.stalled > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {overview.stalled === 1
-                ? "One person has stopped learning"
-                : `${overview.stalled} people have stopped learning`}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          {groupFilter !== "all" && (
             <p className="text-sm text-muted-foreground">
-              No activity in the last 14 days. Seats they aren&apos;t using are
-              seats someone else could have.
+              Showing {groups.find((g) => g.id === groupFilter)?.name ?? "one group"}.
+              Seats are counted for the whole team.
             </p>
-            <Button variant="outline" onClick={() => onNavigate(routes.teamMembers)}>
-              See who
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {overview.seats.available > 0 && (
-        <p className="text-sm text-muted-foreground">
-          You have {overview.seats.available}{" "}
-          {overview.seats.available === 1 ? "seat" : "seats"} free.{" "}
-          <button
-            type="button"
-            className="font-semibold text-primary hover:underline"
-            onClick={() => onNavigate(routes.teamMembers)}
-          >
-            Invite someone
-          </button>
-        </p>
+          {overview.stalled > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {overview.stalled === 1
+                    ? "One person has stopped learning"
+                    : `${overview.stalled} people have stopped learning`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  No activity in the last 14 days. Seats they aren&apos;t using
+                  are seats someone else could have.
+                </p>
+                <Button variant="outline" onClick={() => onNavigate(routes.teamMembers)}>
+                  See who
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {overview.seats.available > 0 && (
+            <p className="text-sm text-muted-foreground">
+              You have {overview.seats.available}{" "}
+              {overview.seats.available === 1 ? "seat" : "seats"} free.{" "}
+              <button
+                type="button"
+                className="font-semibold text-primary hover:underline"
+                onClick={() => onNavigate(routes.teamMembers)}
+              >
+                Invite someone
+              </button>
+            </p>
+          )}
+        </>
       )}
     </div>
   );

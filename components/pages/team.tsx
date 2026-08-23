@@ -374,11 +374,19 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                 primaryCTA={{ label: "Try again", onClick: refetchRoster }}
               />
             ) : !roster || roster.members.length === 0 ? (
-              <EmptyStateCard
-                icon={Users}
-                title="No members yet"
-                description="Invite a teammate to get started."
-              />
+              groupFilter !== "all" ? (
+                <EmptyStateCard
+                  icon={Users}
+                  title="This group is empty"
+                  description="No one is in this group yet — the team isn't. Switch to All groups, or add members to it from the Groups tab."
+                />
+              ) : (
+                <EmptyStateCard
+                  icon={Users}
+                  title="No members yet"
+                  description="Invite a teammate to get started."
+                />
+              )
             ) : (
               <div className="divide-y divide-border">
                 {roster.members.map((member) => (
