@@ -503,6 +503,83 @@ export interface TeamGroup {
   createdAt: string;
 }
 
+export type AssignmentItemType = "PATH" | "COURSE" | "PROJECT" | "MOCK_INTERVIEW" | "TASK";
+export type AssignmentItemState = "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "UNAVAILABLE";
+export type AssignmentTargetType = "TEAM" | "GROUP" | "MEMBER";
+
+export interface AssignmentItem {
+  id: string;
+  type: AssignmentItemType;
+  /** Null for a TASK. Points at a course, path, project or interview template. */
+  refId: string | null;
+  /** The task's words. Null for every content type. */
+  text: string | null;
+  position: number;
+}
+
+/** One row of the manager's list. */
+export interface TeamAssignment {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  createdAt: string;
+  targetType: AssignmentTargetType;
+  /** Ready to render — "Platform", "Everyone", or a person's name. */
+  targetLabel: string;
+  itemCount: number;
+  audienceSize: number;
+  /** How many PEOPLE have finished every item, not how many items are done. */
+  doneCount: number;
+  isOverdue: boolean;
+}
+
+/** One card as the person it was given to sees it. */
+export interface MyAssignment {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  targetLabel: string;
+  items: Array<AssignmentItem & { state: AssignmentItemState }>;
+  done: number;
+  total: number;
+  isOverdue: boolean;
+}
+
+export interface AssignmentDetail {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  targetType: AssignmentTargetType;
+  items: AssignmentItem[];
+  people: Array<{
+    teamMemberId: string;
+    userId: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+    done: number;
+    total: number;
+    isOverdue: boolean;
+    /** itemId → state */
+    states: Record<string, AssignmentItemState>;
+  }>;
+}
+
+export interface AssignmentInput {
+  name: string;
+  dueAt?: string | null;
+  targetType: AssignmentTargetType;
+  targetGroupId?: string | null;
+  targetTeamMemberId?: string | null;
+}
+
+export interface AssignmentItemInput {
+  id?: string;
+  type: AssignmentItemType;
+  refId?: string | null;
+  text?: string | null;
+}
+
 /**
  * `POST /teams/:id/seats/preview` response. `currency` is NOT always USD —
  * Paddle's currency localization can preview a USD-priced plan in another

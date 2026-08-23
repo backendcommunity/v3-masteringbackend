@@ -49,6 +49,11 @@ import {
   TeamMemberProgress,
   TeamLeaderboard,
   TeamGroup,
+  MyAssignment,
+  TeamAssignment,
+  AssignmentDetail,
+  AssignmentInput,
+  AssignmentItemInput,
   TeamSeatPreview,
   TeamInvite,
   TeamInvitePreview,
@@ -337,6 +342,27 @@ interface AppState {
   getTeamLeaderboard: (teamId: string, groupId?: string) => Promise<TeamLeaderboard>;
   getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
   getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
+  getMyAssignments: (teamId: string) => Promise<MyAssignment[]>;
+  getTeamAssignments: (teamId: string) => Promise<TeamAssignment[]>;
+  getTeamAssignmentDetail: (teamId: string, assignmentId: string) => Promise<AssignmentDetail>;
+  createTeamAssignment: (teamId: string, input: AssignmentInput) => Promise<{ id: string; name: string }>;
+  updateTeamAssignment: (
+    teamId: string,
+    assignmentId: string,
+    input: Partial<AssignmentInput>,
+  ) => Promise<{ id: string; name: string }>;
+  deleteTeamAssignment: (teamId: string, assignmentId: string) => Promise<void>;
+  setTeamAssignmentItems: (
+    teamId: string,
+    assignmentId: string,
+    items: AssignmentItemInput[],
+  ) => Promise<{ id: string; itemCount: number }>;
+  setAssignmentItemDone: (
+    teamId: string,
+    assignmentId: string,
+    itemId: string,
+    done: boolean,
+  ) => Promise<void>;
   createTeamGroup: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
   renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<{ id: string; name: string }>;
   deleteTeamGroup: (teamId: string, groupId: string) => Promise<void>;
@@ -1502,6 +1528,51 @@ export const useAppStore = create<AppState>((set, get) => ({
   getTeamGroups: async (teamId: string) => {
     const { data } = await api.get(`/teams/${teamId}/groups`);
     return data?.data as TeamGroup[];
+  },
+  getMyAssignments: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/my-assignments`);
+    return data?.data as MyAssignment[];
+  },
+  getTeamAssignments: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/assignments`);
+    return data?.data as TeamAssignment[];
+  },
+  getTeamAssignmentDetail: async (teamId: string, assignmentId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/assignments/${assignmentId}`);
+    return data?.data as AssignmentDetail;
+  },
+  createTeamAssignment: async (teamId: string, input: AssignmentInput) => {
+    const { data } = await api.post(`/teams/${teamId}/assignments`, input);
+    return data?.data as { id: string; name: string };
+  },
+  updateTeamAssignment: async (
+    teamId: string,
+    assignmentId: string,
+    input: Partial<AssignmentInput>,
+  ) => {
+    const { data } = await api.patch(`/teams/${teamId}/assignments/${assignmentId}`, input);
+    return data?.data as { id: string; name: string };
+  },
+  deleteTeamAssignment: async (teamId: string, assignmentId: string) => {
+    await api.delete(`/teams/${teamId}/assignments/${assignmentId}`);
+  },
+  setTeamAssignmentItems: async (
+    teamId: string,
+    assignmentId: string,
+    items: AssignmentItemInput[],
+  ) => {
+    const { data } = await api.put(`/teams/${teamId}/assignments/${assignmentId}/items`, { items });
+    return data?.data as { id: string; itemCount: number };
+  },
+  setAssignmentItemDone: async (
+    teamId: string,
+    assignmentId: string,
+    itemId: string,
+    done: boolean,
+  ) => {
+    const url = `/teams/${teamId}/assignments/${assignmentId}/items/${itemId}/done`;
+    if (done) await api.put(url);
+    else await api.delete(url);
   },
   createTeamGroup: async (teamId: string, name: string) => {
     const { data } = await api.post(`/teams/${teamId}/groups`, { name });
