@@ -337,8 +337,8 @@ interface AppState {
   getTeamLeaderboard: (teamId: string, groupId?: string) => Promise<TeamLeaderboard>;
   getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
   getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
-  createTeamGroup: (teamId: string, name: string) => Promise<TeamGroup>;
-  renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<TeamGroup>;
+  createTeamGroup: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
+  renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<{ id: string; name: string }>;
   deleteTeamGroup: (teamId: string, groupId: string) => Promise<void>;
   setTeamGroupMembers: (teamId: string, groupId: string, teamMemberIds: string[]) => Promise<{ id: string; memberCount: number }>;
   previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
@@ -1505,11 +1505,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   createTeamGroup: async (teamId: string, name: string) => {
     const { data } = await api.post(`/teams/${teamId}/groups`, { name });
-    return data?.data as TeamGroup;
+    return data?.data as { id: string; name: string };
   },
   renameTeamGroup: async (teamId: string, groupId: string, name: string) => {
     const { data } = await api.patch(`/teams/${teamId}/groups/${groupId}`, { name });
-    return data?.data as TeamGroup;
+    return data?.data as { id: string; name: string };
   },
   deleteTeamGroup: async (teamId: string, groupId: string) => {
     await api.delete(`/teams/${teamId}/groups/${groupId}`);
