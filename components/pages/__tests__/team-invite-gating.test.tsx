@@ -21,12 +21,20 @@ const mockGetTeamMembers = vi.fn();
 // empty roster of progress rows — never rejected, since an unhandled
 // rejection would just be noise against the assertions below.
 const mockGetTeamProgress = vi.fn();
+// TeamPage (Task 6) also fires an effect to load the team's groups whenever
+// the viewer can manage the team, for the Members-tab group filter. Like
+// getTeamProgress above, it is unrelated to the seat-gating behavior under
+// test here, so it always resolves to an empty list rather than being left
+// undefined — an undefined mock method would throw when TeamPage calls it,
+// crashing the render before the assertions below ever run.
+const mockGetTeamGroups = vi.fn();
 
 vi.mock("@/lib/store", () => ({
   useAppStore: () => ({
     getMyTeams: mockGetMyTeams,
     getTeamMembers: mockGetTeamMembers,
     getTeamProgress: mockGetTeamProgress,
+    getTeamGroups: mockGetTeamGroups,
     previewSeat: vi.fn(),
     inviteMember: vi.fn(),
     removeTeamMember: vi.fn(),
@@ -54,6 +62,7 @@ const TEAM = {
 describe("TeamPage — Invite member gating", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetTeamGroups.mockResolvedValue([]);
   });
 
   it("disables Invite member until the roster (and its live seat usage) has actually loaded", async () => {

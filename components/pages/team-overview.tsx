@@ -5,9 +5,16 @@ import { Users, Flame, MoonStar, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
-import type { TeamOverview } from "@/lib/data";
+import type { TeamGroup, TeamOverview } from "@/lib/data";
 
 /**
  * The Team Hub landing screen.
@@ -17,8 +24,11 @@ import type { TeamOverview } from "@/lib/data";
  */
 export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const store = useAppStore();
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [overview, setOverview] = useState<TeamOverview | null>(null);
   const [failed, setFailed] = useState(false);
+  const [groups, setGroups] = useState<TeamGroup[]>([]);
+  const [groupFilter, setGroupFilter] = useState<string>("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -28,8 +38,7 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         const teams = await store.getMyTeams();
         const team = teams?.[0];
         if (!team) throw new Error("No team found");
-        const data = await store.getTeamOverview(team.id);
-        if (!cancelled) setOverview(data);
+        if (!cancelled) setTeamId(team.id);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -39,7 +48,49 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     return () => {
       cancelled = true;
     };
-  }, [store]);
+    // `store` is deliberately excluded — useAppStore() has no selector, so
+    // its identity changes on any set() anywhere in the app. Depending on it
+    // would re-run this fetch on unrelated churn. Same pattern as
+    // loadTeams/loadRoster in components/pages/team.tsx.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!teamId) return;
+    let cancelled = false;
+    const gid = groupFilter === "all" ? undefined : groupFilter;
+    store
+      .getTeamOverview(teamId, gid)
+      .then((data) => {
+        if (!cancelled) setOverview(data);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, groupFilter]);
+
+  useEffect(() => {
+    if (!teamId) return;
+    let cancelled = false;
+    store
+      .getTeamGroups(teamId)
+      .then((g) => {
+        if (!cancelled) setGroups(g ?? []);
+      })
+      .catch(() => {
+        // The filter is additive. If groups fail to load the overview still
+        // renders — stats without a filter beat an error page.
+        if (!cancelled) setGroups([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId]);
 
   if (failed) {
     return (
@@ -69,6 +120,22 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
 
   return (
     <div className="space-y-6">
+      {groups.length > 0 && (
+        <Select value={groupFilter} onValueChange={setGroupFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All groups" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}>
@@ -82,6 +149,13 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
           </Card>
         ))}
       </div>
+
+      {groupFilter !== "all" && (
+        <p className="text-sm text-muted-foreground">
+          Showing {groups.find((g) => g.id === groupFilter)?.name ?? "one group"}.
+          Seats are counted for the whole team.
+        </p>
+      )}
 
       {overview.stalled > 0 && (
         <Card>

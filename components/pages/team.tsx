@@ -37,6 +37,7 @@ import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import type {
+  TeamGroup,
   TeamMember,
   TeamRoster,
   TeamRosterProgress,
@@ -71,6 +72,9 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const [selfProgressOpen, setSelfProgressOpen] = useState(false);
 
+  const [groups, setGroups] = useState<TeamGroup[]>([]);
+  const [groupFilter, setGroupFilter] = useState<string>("all");
+
   const loadTeams = useCallback(async () => {
     setTeamsLoading(true);
     setTeamsError(false);
@@ -90,11 +94,11 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     loadTeams();
   }, [loadTeams]);
 
-  const loadRoster = useCallback(async (teamId: string) => {
+  const loadRoster = useCallback(async (teamId: string, groupId?: string) => {
     setRosterLoading(true);
     setRosterError(false);
     try {
-      const data = await store.getTeamMembers(teamId);
+      const data = await store.getTeamMembers(teamId, groupId);
       setRoster(data);
     } catch {
       setRosterError(true);
@@ -105,8 +109,11 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   }, []);
 
   useEffect(() => {
-    if (selectedTeamId) loadRoster(selectedTeamId);
-  }, [selectedTeamId, loadRoster]);
+    if (selectedTeamId) {
+      const gid = groupFilter === "all" ? undefined : groupFilter;
+      loadRoster(selectedTeamId, gid);
+    }
+  }, [selectedTeamId, groupFilter, loadRoster]);
 
   const team = teams.find((t) => t.id === selectedTeamId) ?? null;
   const canManage = team?.role === "OWNER" || team?.role === "ADMIN";
@@ -115,8 +122,9 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   useEffect(() => {
     if (!selectedTeamId || !canManage) return;
     let cancelled = false;
+    const gid = groupFilter === "all" ? undefined : groupFilter;
     store
-      .getTeamProgress(selectedTeamId)
+      .getTeamProgress(selectedTeamId, gid)
       .then((p) => {
         if (!cancelled) setProgress(p);
       })
@@ -128,14 +136,42 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedTeamId, canManage, store]);
+    // `store` is deliberately excluded — useAppStore() has no selector, so
+    // its identity changes on any set() anywhere in the app. Depending on it
+    // would re-run this fetch on unrelated churn. Same pattern as
+    // loadTeams/loadRoster above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeamId, canManage, groupFilter]);
+
+  useEffect(() => {
+    if (!selectedTeamId || !canManage) return;
+    let cancelled = false;
+    store
+      .getTeamGroups(selectedTeamId)
+      .then((g) => {
+        if (!cancelled) setGroups(g ?? []);
+      })
+      .catch(() => {
+        // The filter is additive. If groups fail to load the roster still
+        // renders — a member list without a filter beats an error page.
+        if (!cancelled) setGroups([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `store` is deliberately excluded — see the progress effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeamId, canManage]);
 
   const progressFor = new Map(
     (progress?.members ?? []).map((m) => [m.memberId, m]),
   );
 
   const refetchRoster = () => {
-    if (selectedTeamId) loadRoster(selectedTeamId);
+    if (selectedTeamId) {
+      const gid = groupFilter === "all" ? undefined : groupFilter;
+      loadRoster(selectedTeamId, gid);
+    }
   };
 
   const handleChangeRole = async (
@@ -303,6 +339,31 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
             </div>
           </CardHeader>
           <CardContent>
+            {groups.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <Select value={groupFilter} onValueChange={setGroupFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All groups" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All groups</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {groupFilter !== "all" && (
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    {groups.find((g) => g.id === groupFilter)?.name ??
+                      "one group"}
+                    . Seats are counted for the whole team.
+                  </p>
+                )}
+              </div>
+            )}
             {rosterLoading ? (
               <PageSkeleton rows={3} />
             ) : rosterError ? (
@@ -337,6 +398,11 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                       if (!p) return null;
                       return (
                         <div className="flex items-center justify-end gap-3 pb-3">
+                          {member.groups && member.groups.length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {member.groups.map((g) => g.name).join(", ")}
+                            </span>
+                          )}
                           <span className="text-xs tabular-nums text-muted-foreground">
                             {p.coursesCompleted} of {p.coursesStarted} courses
                           </span>
