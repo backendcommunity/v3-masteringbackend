@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Trash2 } from "lucide-react";
+import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AssignmentCard } from "@/components/team/assignment-card";
 import { AssignmentDetailDialog } from "@/components/team/assignment-detail-dialog";
+import { AssignmentFormDialog } from "@/components/team/assignment-form-dialog";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,8 @@ export function TeamAssignmentsPage() {
   const [teamAssignmentsFailed, setTeamAssignmentsFailed] = useState(false);
   const [openAssignmentId, setOpenAssignmentId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TeamAssignment | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<TeamAssignment | null>(null);
 
   const loadTeamAssignments = useCallback(async (teamId: string) => {
     setTeamAssignmentsFailed(false);
@@ -188,11 +191,23 @@ export function TeamAssignmentsPage() {
 
       {canManage && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Team assignments</h2>
-            <p className="text-sm text-muted-foreground">
-              Everything assigned across the team, and who is behind.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Team assignments</h2>
+              <p className="text-sm text-muted-foreground">
+                Everything assigned across the team, and who is behind.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingAssignment(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New assignment
+            </Button>
           </div>
 
           {teamAssignmentsFailed ? (
@@ -240,6 +255,17 @@ export function TeamAssignmentsPage() {
                     <Button
                       size="icon"
                       variant="ghost"
+                      aria-label={`Edit ${assignment.name}`}
+                      onClick={() => {
+                        setEditingAssignment(assignment);
+                        setFormOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       aria-label={`Delete ${assignment.name}`}
                       onClick={() => setDeleting(assignment)}
                     >
@@ -280,6 +306,19 @@ export function TeamAssignmentsPage() {
           teamId={team.id}
           assignmentId={openAssignmentId}
           onOpenChange={(o) => !o && setOpenAssignmentId(null)}
+        />
+      )}
+
+      {team && (
+        <AssignmentFormDialog
+          teamId={team.id}
+          assignment={editingAssignment}
+          open={formOpen}
+          onOpenChange={(o) => {
+            setFormOpen(o);
+            if (!o) setEditingAssignment(null);
+          }}
+          onSaved={() => loadTeamAssignments(team.id)}
         />
       )}
     </div>
