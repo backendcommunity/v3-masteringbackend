@@ -82,6 +82,20 @@ export function AssignmentFormDialog({
 
   const [items, setItems] = useState<AssignmentItemInput[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
+  // Which assignment `items` currently, successfully represents — "new" for
+  // the create flow (no async load needed), an assignment id once its
+  // detail fetch has resolved, or null while nothing loaded yet has landed.
+  // A plain boolean is not enough here: closing the dialog on assignment A
+  // and reopening it on assignment B (before B's slower fetch resolves)
+  // would leave a `true` flag sitting on top of A's items with B's id
+  // nowhere recorded, and Save would still send A's list — with A's item
+  // ids — as if it were B's. Comparing against the CURRENT assignment's
+  // identity is what closes that gap.
+  const [itemsLoadedFor, setItemsLoadedFor] = useState<string | null>(null);
+  // Only set in the create flow, to survive a failed item-save after a
+  // successful create — see handleSave and IMPORTANT 4 in the review this
+  // fixes.
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const [groups, setGroups] = useState<TeamGroup[] | null>(null);
   const [members, setMembers] = useState<TeamMember[] | null>(null);
@@ -100,6 +114,10 @@ export function AssignmentFormDialog({
     setTargetGroupId(assignment?.targetGroupId ?? null);
     setTargetTeamMemberId(assignment?.targetTeamMemberId ?? null);
     setTargetTouched(false);
+    // A fresh "new assignment" session must not remember an id orphaned by
+    // a previous failed item-save (IMPORTANT 4) — only relevant when
+    // `assignment` is still null; editing never touches `createdId`.
+    setCreatedId(null);
   }, [
     open,
     assignment?.id,
@@ -143,8 +161,18 @@ export function AssignmentFormDialog({
     if (!open) return;
     if (!assignment) {
       setItems([]);
+      setItemsLoadedFor("new");
       return;
     }
+    // Clear whatever the previous assignment (or nothing at all) left
+    // behind BEFORE starting this fetch, and drop the "loaded" marker with
+    // it. This is what closes the close-A/open-B race: even if this fetch
+    // never resolves, or resolves late, `items` can never be mistaken for a
+    // list that belongs to a DIFFERENT assignment than the one now open —
+    // there is no window where a stale list sits around wearing a "loaded"
+    // flag that isn't actually about this assignment.
+    setItems([]);
+    setItemsLoadedFor(null);
     let cancelled = false;
     setItemsLoading(true);
     store
@@ -174,10 +202,17 @@ export function AssignmentFormDialog({
             title: i.title,
           })),
         );
+        // Marks `items` as belonging to THIS assignment. `canSave` checks
+        // this against `assignment.id`, not a bare boolean — see the field
+        // declaration above for why the distinction matters.
+        setItemsLoadedFor(assignment.id);
       })
       .catch(() => {
         if (cancelled) return;
         toast.error("Couldn't load this assignment's items.");
+        // `itemsLoadedFor` stays null: Save must stay disabled rather than
+        // risk sending the `[]` this effect seeded above as if it were a
+        // deliberate edit.
       })
       .finally(() => {
         if (!cancelled) setItemsLoading(false);
@@ -205,9 +240,19 @@ export function AssignmentFormDialog({
   // the existing target is left alone (see targetTouched above).
   const targetRequiresValidation = !assignment || targetTouched;
 
+  // True only once `items` has successfully loaded FOR THE ASSIGNMENT THIS
+  // DIALOG IS CURRENTLY OPEN ON — "new" for create, or a matching id for
+  // edit. See the `itemsLoadedFor` declaration above: a bare
+  // `!itemsLoading` boolean cannot tell "loaded" apart from "loaded for the
+  // wrong assignment", which is exactly what let Save through on a
+  // rejected, still-in-flight, or superseded item fetch.
+  const itemsReady = itemsLoadedFor === (assignment ? assignment.id : "new");
+
   const canSave =
     name.trim().length > 0 &&
     !saving &&
+    !itemsLoading &&
+    itemsReady &&
     (!targetRequiresValidation || targetValid);
 
   function handleOpenChange(next: boolean) {
@@ -232,9 +277,23 @@ export function AssignmentFormDialog({
       // The assignment is saved FIRST — setTeamAssignmentItems needs the id
       // it returns. This is a real ordering requirement, not just tidiness:
       // there is no assignment id to attach items to until this resolves.
-      const saved = assignment
-        ? await store.updateTeamAssignment(teamId, assignment.id, input)
+      //
+      // `createdId` covers the retry after a failed item-save: the create
+      // call above already succeeded once, but `assignment` (the prop) is
+      // still null because the caller never learned it — this dialog is
+      // still "new assignment" from its point of view. Without remembering
+      // the id, a retry would call createTeamAssignment again and leave the
+      // first attempt behind as an orphan with no items.
+      const targetId = assignment?.id ?? createdId;
+      const saved = targetId
+        ? await store.updateTeamAssignment(teamId, targetId, input)
         : await store.createTeamAssignment(teamId, input as AssignmentInput);
+
+      // Recorded as soon as the id exists — BEFORE the item-save below,
+      // which is exactly the call that can still fail (409 duplicate, 422
+      // on over-long task text, a network blip) and send the user back
+      // through this function again.
+      if (!assignment) setCreatedId(saved.id);
 
       // `title` is a client-only display field (see AssignmentItemInput) —
       // the backend's item schema rejects unknown keys, so it must not ride

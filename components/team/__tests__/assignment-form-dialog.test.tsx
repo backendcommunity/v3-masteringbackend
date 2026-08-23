@@ -419,4 +419,172 @@ describe("AssignmentFormDialog", () => {
       expect(item).not.toHaveProperty("title");
     }
   });
+
+  /**
+   * The critical finding from the final review: a save that only renamed
+   * the assignment could wipe every learner's ticks, because Save was never
+   * gated on the item list having actually, successfully loaded for THIS
+   * assignment. Three routes reproduce it; all three must now be blocked
+   * client-side, before the empty/stale/foreign list ever reaches
+   * setTeamAssignmentItems.
+   */
+  describe("Save cannot fire on a list that isn't confirmed to be THIS assignment's (critical fix)", () => {
+    it("route A: the detail fetch rejects — Save stays disabled even after a harmless field edit", async () => {
+      mockGetTeamAssignmentDetail.mockRejectedValue(new Error("blip"));
+      render(
+        <AssignmentFormDialog
+          teamId="t1"
+          assignment={EXISTING_ASSIGNMENT}
+          open
+          onOpenChange={() => {}}
+          onSaved={() => {}}
+        />,
+      );
+
+      await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
+      // The load has settled (failed) — Save must stay disabled, not just
+      // disabled while the spinner shows.
+      await waitFor(() => expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled());
+
+      // The manager fixes a typo in the name — a change that has nothing to
+      // do with items — and Save must still refuse to fire.
+      fireEvent.change(screen.getByLabelText(/^name$/i), {
+        target: { value: "Backend Onboarding (fixed)" },
+      });
+      expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+      expect(mockSetTeamAssignmentItems).not.toHaveBeenCalled();
+      expect(mockUpdateTeamAssignment).not.toHaveBeenCalled();
+    });
+
+    it("route B: Save is disabled while the detail fetch is still in flight, not just enabled behind the spinner", async () => {
+      let resolveDetail: (v: typeof EXISTING_DETAIL) => void = () => {};
+      mockGetTeamAssignmentDetail.mockImplementation(
+        () => new Promise((resolve) => { resolveDetail = resolve; }),
+      );
+
+      render(
+        <AssignmentFormDialog
+          teamId="t1"
+          assignment={EXISTING_ASSIGNMENT}
+          open
+          onOpenChange={() => {}}
+          onSaved={() => {}}
+        />,
+      );
+
+      await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
+      // Still in flight — Save must be disabled behind the spinner, not
+      // clickable.
+      expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+      expect(mockSetTeamAssignmentItems).not.toHaveBeenCalled();
+
+      resolveDetail(EXISTING_DETAIL);
+      await waitFor(() => expect(screen.getByRole("button", { name: /^save$/i })).not.toBeDisabled());
+    });
+
+    it("route C: closing assignment A and opening B before B's slower fetch resolves never lets B save A's items", async () => {
+      const ASSIGNMENT_B: TeamAssignment = { ...EXISTING_ASSIGNMENT, id: "a2", name: "Data Onboarding" };
+      mockGetTeamAssignmentDetail.mockImplementation((_teamId: string, assignmentId: string) => {
+        if (assignmentId === "a1") return Promise.resolve(EXISTING_DETAIL);
+        // B's fetch never resolves within this test — the exact "still
+        // slow" window the bug lived in.
+        return new Promise(() => {});
+      });
+
+      const { rerender } = render(
+        <AssignmentFormDialog
+          teamId="t1"
+          assignment={EXISTING_ASSIGNMENT}
+          open
+          onOpenChange={() => {}}
+          onSaved={() => {}}
+        />,
+      );
+      await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
+      await screen.findByText(/read the runbook/i); // A's items are loaded and rendered
+
+      // Close on A...
+      rerender(
+        <AssignmentFormDialog
+          teamId="t1"
+          assignment={EXISTING_ASSIGNMENT}
+          open={false}
+          onOpenChange={() => {}}
+          onSaved={() => {}}
+        />,
+      );
+      // ...then open on B, the same dialog instance the manager page reuses.
+      rerender(
+        <AssignmentFormDialog
+          teamId="t1"
+          assignment={ASSIGNMENT_B}
+          open
+          onOpenChange={() => {}}
+          onSaved={() => {}}
+        />,
+      );
+      await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a2"));
+
+      // A's items must not still be sitting in the form once B is open.
+      expect(screen.queryByText(/read the runbook/i)).not.toBeInTheDocument();
+      // And Save must refuse to fire — B's own fetch is still pending.
+      expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+      expect(mockSetTeamAssignmentItems).not.toHaveBeenCalled();
+      expect(mockUpdateTeamAssignment).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * IMPORTANT 4 from the final review: a failed item-save after a
+   * successful create used to leave the created assignment as an orphan
+   * with no items, and silently create a SECOND assignment on retry,
+   * because `assignment` (the prop) stays null across a retry and the
+   * dialog had no memory of the id the first create already returned.
+   */
+  it("retrying after a failed item-save updates the already-created assignment instead of creating a second one", async () => {
+    mockCreateTeamAssignment.mockResolvedValue({ id: "a-orphan", name: "Backend Onboarding" });
+    mockUpdateTeamAssignment.mockResolvedValue({ id: "a-orphan", name: "Backend Onboarding" });
+    mockSetTeamAssignmentItems
+      .mockRejectedValueOnce(new Error("422: task text too long"))
+      .mockResolvedValueOnce({ id: "a-orphan", itemCount: 1 });
+
+    const onSaved = vi.fn();
+    render(
+      <AssignmentFormDialog
+        teamId="t1"
+        assignment={null}
+        open
+        onOpenChange={() => {}}
+        onSaved={onSaved}
+      />,
+    );
+    await screen.findByLabelText(/everyone/i);
+
+    fireEvent.change(screen.getByLabelText(/^name$/i), {
+      target: { value: "Backend Onboarding" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/describe the task/i), {
+      target: { value: "Read the runbook" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+    // First attempt: create succeeds, the item-save fails.
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockCreateTeamAssignment).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockSetTeamAssignmentItems).toHaveBeenCalledTimes(1));
+    expect(onSaved).not.toHaveBeenCalled();
+
+    // Retry: must update "a-orphan", not create a second assignment.
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+
+    expect(mockCreateTeamAssignment).toHaveBeenCalledTimes(1);
+    expect(mockUpdateTeamAssignment).toHaveBeenCalledWith("t1", "a-orphan", expect.anything());
+    expect(mockSetTeamAssignmentItems).toHaveBeenCalledTimes(2);
+    expect(mockSetTeamAssignmentItems.mock.calls[1][1]).toBe("a-orphan");
+  });
 });

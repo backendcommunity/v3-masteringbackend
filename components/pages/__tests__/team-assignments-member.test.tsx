@@ -93,12 +93,25 @@ describe("a member's Assignments tab", () => {
   });
 
   it("puts the tick back if the save fails, rather than lying about it", async () => {
+    // A pre-rejected promise, not `mockRejectedValueOnce` awaited eagerly —
+    // the point of this test is the ORDER: optimistic-tick-then-revert, not
+    // just "ends up unchecked". The item starts NOT_STARTED, so asserting
+    // only the end state can't tell "the tick never happened" apart from
+    // "it happened and was correctly reverted" — this failed silently
+    // before, passing at t=0 with no assertion in between.
     mockSetItemDone.mockRejectedValue(new Error("network"));
     render(<TeamAssignmentsPage />);
     await screen.findByText("Read the runbook");
 
     const box = screen.getByRole("checkbox", { name: /read the runbook/i });
+    expect(box).not.toBeChecked();
     fireEvent.click(box);
+
+    // The optimistic tick happens synchronously in AssignmentCard's
+    // `handleToggle`, before `onToggle` (and the rejection inside it) is
+    // even awaited — so this must be true immediately, before the revert
+    // below has any chance to run.
+    expect(box).toBeChecked();
 
     await waitFor(() => expect(box).not.toBeChecked());
   });
