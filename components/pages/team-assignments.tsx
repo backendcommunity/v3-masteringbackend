@@ -1,12 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { AssignmentCard } from "@/components/team/assignment-card";
+import { AssignmentDetailDialog } from "@/components/team/assignment-detail-dialog";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/lib/store";
-import type { MyAssignment, TeamSummary } from "@/lib/data";
+import type { MyAssignment, TeamAssignment, TeamSummary } from "@/lib/data";
 
 /**
  * A member's Assignments tab: what they were given, and the ability to tick
@@ -67,10 +82,45 @@ export function TeamAssignmentsPage() {
     if (team) loadAssignments(team.id);
   }, [team, loadAssignments]);
 
-  // Computed for Task 9, which adds the manager section below gated on it.
-  // Not read yet — the member section renders unconditionally regardless of
-  // role, and this task must not call the manager endpoint at all.
+  // Gates the manager section below only. The member section above stays
+  // unconditional — a manager is also a person with assignments, and they
+  // see their own regardless of role. This section shows other people's
+  // progress, which the backend also restricts to OWNER/ADMIN, so the guard
+  // belongs here and must not creep upward.
   const canManage = team?.role === "OWNER" || team?.role === "ADMIN";
+
+  const [teamAssignments, setTeamAssignments] = useState<TeamAssignment[] | null>(null);
+  const [teamAssignmentsFailed, setTeamAssignmentsFailed] = useState(false);
+  const [openAssignmentId, setOpenAssignmentId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<TeamAssignment | null>(null);
+
+  const loadTeamAssignments = useCallback(async (teamId: string) => {
+    setTeamAssignmentsFailed(false);
+    try {
+      const data = await store.getTeamAssignments(teamId);
+      setTeamAssignments(data ?? []);
+    } catch {
+      setTeamAssignmentsFailed(true);
+    }
+    // `store` is deliberately excluded — see loadTeam above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (team && canManage) loadTeamAssignments(team.id);
+  }, [team, canManage, loadTeamAssignments]);
+
+  const handleDelete = async () => {
+    if (!team || !deleting) return;
+    try {
+      await store.deleteTeamAssignment(team.id, deleting.id);
+      setDeleting(null);
+      toast.success("Assignment deleted.");
+      loadTeamAssignments(team.id);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Couldn't delete that assignment.");
+    }
+  };
 
   const handleToggle = async (
     assignmentId: string,
@@ -136,13 +186,102 @@ export function TeamAssignmentsPage() {
         </div>
       )}
 
-      {/*
-        Task 9: the manager section goes here, gated on `canManage`, backed
-        by getTeamAssignments/getTeamAssignmentDetail/create/update/delete/
-        setTeamAssignmentItems. Deliberately absent in this task — the
-        member section above has to work, and be tested, standing
-        completely alone first.
-      */}
+      {canManage && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Team assignments</h2>
+            <p className="text-sm text-muted-foreground">
+              Everything assigned across the team, and who is behind.
+            </p>
+          </div>
+
+          {teamAssignmentsFailed ? (
+            <EmptyStateCard
+              icon={CalendarClock}
+              title="Couldn't load team assignments"
+              description="Something went wrong loading the team's assignments. Please try again."
+              primaryCTA={{
+                label: "Try again",
+                onClick: () => loadTeamAssignments(team.id),
+              }}
+            />
+          ) : !teamAssignments ? (
+            <PageSkeleton rows={3} />
+          ) : teamAssignments.length === 0 ? (
+            <EmptyStateCard
+              icon={CalendarClock}
+              title="No assignments yet"
+              description="Assign a course, path, project or task to the team, a group, or a person."
+            />
+          ) : (
+            <div className="space-y-2">
+              {teamAssignments.map((assignment) => (
+                <Card key={assignment.id}>
+                  <CardContent className="flex flex-wrap items-center gap-3 py-3">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 space-y-1 text-left"
+                      onClick={() => setOpenAssignmentId(assignment.id)}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{assignment.name}</span>
+                        {assignment.isOverdue && (
+                          <Badge variant="destructive">Overdue</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {assignment.targetLabel} &middot; {assignment.audienceSize}{" "}
+                        {assignment.audienceSize === 1 ? "person" : "people"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {assignment.doneCount} of {assignment.audienceSize} done
+                      </p>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Delete ${assignment.name}`}
+                      onClick={() => setDeleting(assignment)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <AlertDialog
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The assignment goes away. Nobody loses their progress or
+              access — the courses, paths, projects and tasks it pointed at
+              stay exactly as finished (or unfinished) as they were.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Delete assignment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {team && (
+        <AssignmentDetailDialog
+          teamId={team.id}
+          assignmentId={openAssignmentId}
+          onOpenChange={(o) => !o && setOpenAssignmentId(null)}
+        />
+      )}
     </div>
   );
 }
