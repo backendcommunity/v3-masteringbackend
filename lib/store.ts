@@ -48,6 +48,7 @@ import {
   TeamRosterProgress,
   TeamMemberProgress,
   TeamLeaderboard,
+  TeamGroup,
   TeamSeatPreview,
   TeamInvite,
   TeamInvitePreview,
@@ -329,12 +330,17 @@ interface AppState {
   // Teams
   getMyTeams: () => Promise<TeamSummary[]>;
   renameTeam: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
-  getTeamMembers: (teamId: string) => Promise<TeamRoster>;
-  getTeamOverview: (teamId: string) => Promise<TeamOverview>;
-  getTeamProgress: (teamId: string) => Promise<TeamRosterProgress>;
+  getTeamMembers: (teamId: string, groupId?: string) => Promise<TeamRoster>;
+  getTeamOverview: (teamId: string, groupId?: string) => Promise<TeamOverview>;
+  getTeamProgress: (teamId: string, groupId?: string) => Promise<TeamRosterProgress>;
   getTeamMemberProgress: (teamId: string, memberId: string) => Promise<TeamMemberProgress>;
-  getTeamLeaderboard: (teamId: string) => Promise<TeamLeaderboard>;
+  getTeamLeaderboard: (teamId: string, groupId?: string) => Promise<TeamLeaderboard>;
   getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
+  getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
+  createTeamGroup: (teamId: string, name: string) => Promise<TeamGroup>;
+  renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<TeamGroup>;
+  deleteTeamGroup: (teamId: string, groupId: string) => Promise<void>;
+  setTeamGroupMembers: (teamId: string, groupId: string, teamMemberIds: string[]) => Promise<{ id: string; memberCount: number }>;
   previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
   inviteMember: (
     teamId: string,
@@ -1465,29 +1471,54 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.patch(`/teams/${teamId}`, { name });
     return data?.data as { id: string; name: string };
   },
-  getTeamMembers: async (teamId: string) => {
-    const { data } = await api.get(`/teams/${teamId}/members`);
+  getTeamMembers: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/members${qs}`);
     return data?.data as TeamRoster;
   },
-  getTeamOverview: async (teamId: string) => {
-    const { data } = await api.get(`/teams/${teamId}/overview`);
+  getTeamOverview: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/overview${qs}`);
     return data?.data as TeamOverview;
   },
-  getTeamProgress: async (teamId: string) => {
-    const { data } = await api.get(`/teams/${teamId}/progress`);
+  getTeamProgress: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/progress${qs}`);
     return data?.data as TeamRosterProgress;
   },
   getTeamMemberProgress: async (teamId: string, memberId: string) => {
     const { data } = await api.get(`/teams/${teamId}/members/${memberId}/progress`);
     return data?.data as TeamMemberProgress;
   },
-  getTeamLeaderboard: async (teamId: string) => {
-    const { data } = await api.get(`/teams/${teamId}/leaderboard`);
+  getTeamLeaderboard: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/leaderboard${qs}`);
     return data?.data as TeamLeaderboard;
   },
   getMyTeamProgress: async (teamId: string) => {
     const { data } = await api.get(`/teams/${teamId}/me`);
     return data?.data as TeamMemberProgress;
+  },
+  getTeamGroups: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/groups`);
+    return data?.data as TeamGroup[];
+  },
+  createTeamGroup: async (teamId: string, name: string) => {
+    const { data } = await api.post(`/teams/${teamId}/groups`, { name });
+    return data?.data as TeamGroup;
+  },
+  renameTeamGroup: async (teamId: string, groupId: string, name: string) => {
+    const { data } = await api.patch(`/teams/${teamId}/groups/${groupId}`, { name });
+    return data?.data as TeamGroup;
+  },
+  deleteTeamGroup: async (teamId: string, groupId: string) => {
+    await api.delete(`/teams/${teamId}/groups/${groupId}`);
+  },
+  setTeamGroupMembers: async (teamId: string, groupId: string, teamMemberIds: string[]) => {
+    const { data } = await api.put(`/teams/${teamId}/groups/${groupId}/members`, {
+      teamMemberIds,
+    });
+    return data?.data as { id: string; memberCount: number };
   },
   previewSeat: async (teamId: string) => {
     const { data } = await api.post(`/teams/${teamId}/seats/preview`);

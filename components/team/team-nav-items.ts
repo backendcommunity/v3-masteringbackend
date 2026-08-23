@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, Trophy, Settings } from "lucide-react";
+import { LayoutDashboard, Users, FolderTree, Trophy, Settings } from "lucide-react";
 import { routes } from "@/lib/routes";
 
 /**
@@ -21,6 +21,7 @@ export interface TeamNavItem {
 export const TEAM_NAV_ITEMS: TeamNavItem[] = [
   { href: routes.teamOverview, label: "Overview", icon: LayoutDashboard, managerOnly: true },
   { href: routes.teamMembers, label: "Members", icon: Users, managerOnly: false },
+  { href: routes.teamGroups, label: "Groups", icon: FolderTree, managerOnly: true },
   { href: routes.teamLeaderboard, label: "Leaderboard", icon: Trophy, managerOnly: false },
   { href: routes.teamSettings, label: "Settings", icon: Settings, managerOnly: true },
 ];

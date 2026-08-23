@@ -394,6 +394,8 @@ export interface TeamMember {
   status: TeamMemberStatus;
   joinedAt: string | Date;
   user: TeamMemberUser;
+  /** The groups this member belongs to. Empty is normal — groups are optional. */
+  groups?: { id: string; name: string }[];
 }
 
 /** Billing figures for a team — `paidSeats` is what the company is billed
@@ -491,6 +493,14 @@ export interface TeamLeaderboardEntry {
 
 export interface TeamLeaderboard {
   entries: TeamLeaderboardEntry[];
+}
+
+/** A department inside a team. Grants nothing — it only organises people. */
+export interface TeamGroup {
+  id: string;
+  name: string;
+  memberCount: number;
+  createdAt: string;
 }
 
 /**
