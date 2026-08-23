@@ -115,6 +115,14 @@ export function AssignmentDetailDialog({
           </div>
         ) : !detail ? (
           <PageSkeleton rows={4} />
+        ) : detail.people.length === 0 ? (
+          // Reachable, not a bug: an assignment can target a group nobody is
+          // currently in. That's "0 of 0", the same as `summarise` reports
+          // it elsewhere — a header row over an empty body read as broken,
+          // so this says plainly why the table has nothing in it.
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nobody is in this assignment&apos;s audience yet.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -123,16 +131,31 @@ export function AssignmentDetailDialog({
                   <th className="px-2 py-2 text-left font-medium text-muted-foreground">
                     Person
                   </th>
-                  {items.map((item) => (
-                    <th
-                      key={item.id}
-                      className="whitespace-nowrap px-2 py-2 text-left font-medium text-muted-foreground"
-                    >
-                      {item.type === "TASK"
-                        ? (item.text ?? "Task")
-                        : TYPE_LABELS[item.type]}
-                    </th>
-                  ))}
+                  {items.map((item) => {
+                    // Same rule as assignment-card.tsx, and determined the
+                    // same way — from `state`, not by inferring from a null
+                    // title — so the two surfaces agree: a title when there
+                    // is one, "Unavailable" when the catalogue row is gone
+                    // (every person shares that state for a given item, so
+                    // checking any one of them is enough), and the type name
+                    // only as a last resort for a title that's absent for
+                    // some other reason.
+                    const unavailable =
+                      item.type !== "TASK" &&
+                      detail.people.some((p) => p.states[item.id] === "UNAVAILABLE");
+                    return (
+                      <th
+                        key={item.id}
+                        className="whitespace-nowrap px-2 py-2 text-left font-medium text-muted-foreground"
+                      >
+                        {item.type === "TASK"
+                          ? (item.text ?? "Task")
+                          : unavailable
+                            ? "Unavailable"
+                            : (item.title ?? TYPE_LABELS[item.type])}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
