@@ -44,7 +44,13 @@ export function TeamGroupsPage() {
     } catch {
       setFailed(true);
     }
-  }, [store]);
+    // `store` is deliberately excluded — useAppStore() has no selector, so
+    // its identity changes on any set() anywhere in the app. Depending on it
+    // would re-run this fetch (and, via the effect below, getMyTeams() +
+    // getTeamGroups()) on unrelated churn. Same pattern as
+    // loadTeams/loadRoster in components/pages/team.tsx.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     load();

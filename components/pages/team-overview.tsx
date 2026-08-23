@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Users, Flame, MoonStar, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,12 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   const [teamId, setTeamId] = useState<string | null>(null);
   const [overview, setOverview] = useState<TeamOverview | null>(null);
   const [teamFailed, setTeamFailed] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewFailed, setOverviewFailed] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
   const [groups, setGroups] = useState<TeamGroup[]>([]);
   const [groupFilter, setGroupFilter] = useState<string>("all");
+  const prevGroupFilterRef = useRef(groupFilter);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +74,7 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     if (!teamId) return;
     let cancelled = false;
     setOverviewFailed(false);
+    setOverviewLoading(true);
     const gid = groupFilter === "all" ? undefined : groupFilter;
     store
       .getTeamOverview(teamId, gid)
@@ -80,6 +83,9 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
       })
       .catch(() => {
         if (!cancelled) setOverviewFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false);
       });
     return () => {
       cancelled = true;
@@ -105,6 +111,21 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
+
+  // Adjusting state during render (React's sanctioned pattern for "reset
+  // when a value changes") rather than in an effect: an effect fires AFTER
+  // the click's own render commits, so for one frame `groupFilter` would
+  // already be the new value while `overviewFailed`/`overviewLoading` still
+  // described the OLD filter's outcome — the exact flash Finding 3 and
+  // Minor 7 both are. Catching the change here means React bails out and
+  // re-renders with the reset state before anything paints, so the flash
+  // never reaches the screen. `prevGroupFilterRef` tracks what render last
+  // saw so this only fires ON the change, not every render.
+  if (groupFilter !== prevGroupFilterRef.current) {
+    prevGroupFilterRef.current = groupFilter;
+    setOverviewLoading(true);
+    setOverviewFailed(false);
+  }
 
   // An unfiltered fetch failing means the team itself couldn't be loaded —
   // the whole-page error is still the right read there, same as before.
@@ -152,7 +173,15 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         </Select>
       )}
 
-      {overviewFailed ? (
+      {overviewLoading ? (
+        // A filter change keeps stale `overview` figures sitting in state —
+        // clearing them would flash empty instead of the previous number,
+        // which is no better. Showing a skeleton here rather than the old
+        // scope's stats is what stops "Seats used 4 of 6" from reading as
+        // Platform's numbers when it's still whole-team data in flight.
+        // Same shape as rosterLoading -> PageSkeleton in team.tsx.
+        <PageSkeleton rows={3} />
+      ) : overviewFailed ? (
         // Reached only when groupFilter !== "all" — the unfiltered failure
         // case already returned the whole-page error above. This reads as
         // the filtered view failing, not the team, and the Select above

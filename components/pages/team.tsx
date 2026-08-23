@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -94,16 +94,27 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     loadTeams();
   }, [loadTeams]);
 
+  // `loadRoster` is called both by the effect below (on team/group change)
+  // and by `refetchRoster()` after mutations (role change, remove, transfer,
+  // invite) — a plain `cancelled` closure from a single useEffect wouldn't
+  // cover the latter. A monotonic request id does: whichever call resolves
+  // last only wins if it's also the most recently *started* call, so
+  // switching Platform -> Data before Platform's response lands can no
+  // longer let Platform's late response overwrite Data's roster or clear
+  // rosterLoading out from under it.
+  const rosterRequestRef = useRef(0);
+
   const loadRoster = useCallback(async (teamId: string, groupId?: string) => {
+    const requestId = ++rosterRequestRef.current;
     setRosterLoading(true);
     setRosterError(false);
     try {
       const data = await store.getTeamMembers(teamId, groupId);
-      setRoster(data);
+      if (rosterRequestRef.current === requestId) setRoster(data);
     } catch {
-      setRosterError(true);
+      if (rosterRequestRef.current === requestId) setRosterError(true);
     } finally {
-      setRosterLoading(false);
+      if (rosterRequestRef.current === requestId) setRosterLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -380,12 +391,28 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
             {rosterLoading ? (
               <PageSkeleton rows={3} />
             ) : rosterError ? (
-              <EmptyStateCard
-                icon={AlertTriangle}
-                title="Couldn't load the roster"
-                description="Something went wrong loading this team's members."
-                primaryCTA={{ label: "Try again", onClick: refetchRoster }}
-              />
+              groupFilter !== "all" ? (
+                // A stale groupId (the group was renamed/deleted out from
+                // under a filtered view) 404s the same way Overview's does.
+                // The Select above stays mounted either way, but without
+                // this branch the only CTA on offer was "Try again" —
+                // retrying the exact request that's doomed to 404 again.
+                // Same recovery path as team-overview.tsx.
+                <EmptyStateCard
+                  icon={AlertTriangle}
+                  title="Couldn't load this view"
+                  description="This group may have been renamed or removed since you filtered to it. Switch to All groups, or try again."
+                  primaryCTA={{ label: "Show all groups", onClick: () => setGroupFilter("all") }}
+                  secondaryCTA={{ label: "Try again", onClick: refetchRoster }}
+                />
+              ) : (
+                <EmptyStateCard
+                  icon={AlertTriangle}
+                  title="Couldn't load the roster"
+                  description="Something went wrong loading this team's members."
+                  primaryCTA={{ label: "Try again", onClick: refetchRoster }}
+                />
+              )
             ) : !roster || roster.members.length === 0 ? (
               groupFilter !== "all" ? (
                 <EmptyStateCard
