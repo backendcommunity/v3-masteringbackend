@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Loader2, Users } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { JourneyGlyph } from "@/components/journey-glyph";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
 import type { TeamSummary } from "@/lib/data";
@@ -13,13 +14,15 @@ import { TEAM_NAV_ITEMS } from "./team-nav-items";
 /**
  * Wraps every /team/* screen.
  *
- * The team pages are ordinary pages in the app: the normal learner sidebar
- * stays, and moving between team screens happens through tabs inside the
- * page, the same way /subscription/management moves between Subscription and
- * Billing History. There is no separate team mode and no second rail.
+ * These are ordinary pages: the learner sidebar stays, DashboardLayout
+ * supplies the width and padding (max-w-7xl px-6 py-6), and the page opens
+ * with the same navy blueprint hero that Paths, Courses and Projects use —
+ * so a team screen sits in the product rather than beside it.
  *
+ * Moving between team screens happens through tabs, the way
+ * /subscription/management moves between Subscription and Billing History.
  * The four screens keep their own routes rather than becoming tab panels, so
- * a link to /team/settings still works. The tabs navigate.
+ * a link to /team/settings still resolves. The tabs navigate.
  */
 export function TeamHubLayout({ children }: { children: React.ReactNode }) {
   const store = useAppStore();
@@ -48,7 +51,7 @@ export function TeamHubLayout({ children }: { children: React.ReactNode }) {
 
   // Overview and Settings are OWNER/ADMIN only, mirroring the backend's 403 on
   // those endpoints. The tabs omit them for a MEMBER, and this guard covers
-  // the cases tabs cannot: a bookmark, a shared link, or /team's redirect.
+  // what tabs cannot: a bookmark, a shared link, or /team's redirect.
   const blocked = !!team && !!currentItem?.managerOnly && !canManage;
 
   useEffect(() => {
@@ -57,61 +60,74 @@ export function TeamHubLayout({ children }: { children: React.ReactNode }) {
 
   if (teams === null || blocked) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!team) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8">
-        <EmptyStateCard
-          icon={Users}
-          title="You're not on a team yet"
-          description="Team accounts let you share one subscription with your colleagues. Create one to invite people and give them Pro access."
-          primaryCTA={{
-            label: "Create Team",
-            onClick: () => router.push(routes.pricing(routes.team)),
-          }}
-        />
-      </div>
+      <EmptyStateCard
+        icon={Users}
+        title="You're not on a team yet"
+        description="Team accounts let you share one subscription with your colleagues. Create one to invite people and give them Pro access."
+        primaryCTA={{
+          label: "Create Team",
+          onClick: () => router.push(routes.pricing(routes.team)),
+        }}
+      />
     );
   }
 
   const visible = TEAM_NAV_ITEMS.filter((i) => canManage || !i.managerOnly);
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-6 md:py-8 lg:py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold md:text-4xl">{team.name}</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your team and see how everyone is getting on.
-        </p>
+    <div className="space-y-6">
+      {/* ── Blueprint hero (navy anchor · grow pillar) ── */}
+      <div className="bg-[#0E1F33] dark:bg-[#080F1A] text-white relative overflow-hidden dark:ring-1 dark:ring-white/10">
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative px-5 py-6 sm:px-8 sm:py-7">
+          <JourneyGlyph
+            stage="grow"
+            className="absolute right-4 top-4 w-20 opacity-40 md:right-10 md:top-1/2 md:w-60 md:-translate-y-1/2 md:opacity-100"
+          />
+          <div className="max-w-2xl">
+            <div className="eyebrow-mono text-[#4AC5E8]">team</div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1.5">
+              {team.name}
+            </h1>
+            <p className="mt-2.5 text-[15px] leading-relaxed text-white/[.78]">
+              Everyone here learns on one subscription. See who is making
+              progress, who has stalled, and who still has a seat waiting.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Tabs
-        value={currentItem?.href ?? routes.teamMembers}
-        onValueChange={(href) => router.push(href)}
-        className="mb-6"
-      >
-        <TabsList
-          className="grid w-full mb-6"
-          style={{
-            gridTemplateColumns: `repeat(${visible.length}, minmax(0, 1fr))`,
-          }}
+      {/* ── Content ── */}
+      <div>
+        <Tabs
+          value={currentItem?.href ?? routes.teamMembers}
+          onValueChange={(href) => router.push(href)}
+          className="mb-6"
         >
-          {visible.map((item) => (
-            <TabsTrigger key={item.href} value={item.href}>
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+          <TabsList
+            className="grid w-full"
+            style={{
+              gridTemplateColumns: `repeat(${visible.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {visible.map((item) => (
+              <TabsTrigger key={item.href} value={item.href}>
+                {item.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-      {children}
+        {children}
+      </div>
     </div>
   );
 }
