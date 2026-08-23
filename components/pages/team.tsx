@@ -378,7 +378,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                 <EmptyStateCard
                   icon={Users}
                   title="This group is empty"
-                  description="No one is in this group yet — the team isn't. Switch to All groups, or add members to it from the Groups tab."
+                  description="Nobody has been added to this group yet. Switch to All groups to see everyone, or add people from the Groups tab."
                 />
               ) : (
                 <EmptyStateCard
