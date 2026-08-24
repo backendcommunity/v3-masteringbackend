@@ -6,15 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/store";
-import type { AssignmentItemInput, AssignmentItemType } from "@/lib/data";
-
-const ITEM_TYPES: Array<{ value: AssignmentItemType; label: string }> = [
-  { value: "CUSTOM", label: "Custom" },
-  { value: "PATH", label: "Path" },
-  { value: "COURSE", label: "Course" },
-  { value: "PROJECT", label: "Project" },
-  { value: "MOCK_INTERVIEW", label: "Mock interview" },
-];
+import type { AssignableResult, AssignmentItemInput, AssignmentItemType } from "@/lib/data";
 
 const TYPE_LABELS: Record<AssignmentItemType, string> = {
   PATH: "Path",
@@ -30,69 +22,38 @@ const TYPE_LABELS: Record<AssignmentItemType, string> = {
   CUSTOM: "Custom",
 };
 
+// CUSTOM is the odd one out — free text, no catalogue — so it goes last
+// rather than sorting alphabetically with the other ten.
+const TYPE_ORDER: AssignmentItemType[] = [
+  "PATH",
+  "COURSE",
+  "PROJECT",
+  "MOCK_INTERVIEW",
+  "CHAPTER",
+  "ARTICLE",
+  "VIDEO",
+  "TASK",
+  "QUIZ",
+  "EXERCISE",
+  "CUSTOM",
+];
+
+const ITEM_TYPES: Array<{ value: AssignmentItemType; label: string }> = TYPE_ORDER.map(
+  (value) => ({ value, label: TYPE_LABELS[value] }),
+);
+
 const MAX_ITEMS = 25;
 
-type SearchResult = { id: string; label: string };
-
 /**
- * Reuses the catalogue fetchers the app already has for its own listing
- * pages, rather than standing up a parallel set of "picker" endpoints. Each
- * one has a different argument shape and a different return shape (some
- * bare arrays, some `{ courses: [...] }`/`{ projects: [...] }`/`{
- * interviews: [...] }` envelopes) — normalised here so the rest of the
- * component only ever sees `{ id, label }`.
- */
-async function searchCatalogue(
-  // Typed loosely on purpose: these fetchers return a mix of bare arrays
-  // and different envelope shapes (see the comment above), which is exactly
-  // why every result is normalised to SearchResult before leaving here.
-  store: any,
-  type: AssignmentItemType,
-  query: string,
-): Promise<SearchResult[]> {
-  const term = query.trim();
-  switch (type) {
-    case "PATH": {
-      const res = await store.getRoadmaps({ skip: 0, size: 50 });
-      const roadmaps: any[] = (res as any)?.roadmaps ?? (Array.isArray(res) ? res : []);
-      return roadmaps
-        .filter((r) => !term || r.title?.toLowerCase().includes(term.toLowerCase()))
-        .map((r) => ({ id: r.id, label: r.title }));
-    }
-    case "COURSE": {
-      const res = await store.getCourses(term ? { filters: { terms: term } } : {});
-      const courses: any[] = (res as any)?.courses ?? (Array.isArray(res) ? res : []);
-      return courses.map((c) => ({ id: c.id, label: c.title }));
-    }
-    case "PROJECT": {
-      const res = await store.getProjects({
-        page: MAX_ITEMS,
-        size: 0,
-        filters: term ? { terms: term } : {},
-      });
-      const projects: any[] = (res as any)?.projects ?? (Array.isArray(res) ? res : []);
-      return projects.map((p) => ({ id: p.id, label: p.title }));
-    }
-    case "MOCK_INTERVIEW": {
-      const res = await store.getMockInterviewTemplates({
-        size: MAX_ITEMS,
-        skip: 0,
-        filters: term ? { search: term } : {},
-      });
-      const templates: any[] = (res as any)?.interviews ?? (Array.isArray(res) ? res : []);
-      return templates.map((t) => ({
-        id: t.id,
-        label: t.name ?? `${t.position ?? "Interview"}${t.company ? ` @ ${t.company}` : ""}`,
-      }));
-    }
-    default:
-      return [];
-  }
-}
-
-/**
- * Type + search picker for content, free text for tasks, and the ordered
+ * Type + search picker for content, free text for CUSTOM, and the ordered
  * list of what's been chosen so far.
+ *
+ * Every content type (all ten non-CUSTOM values, including TASK — the
+ * catalogue's `Task` row, not to be confused with the free-text CUSTOM item)
+ * is searched through the single `searchAssignable(teamId, type, q)`
+ * endpoint. There is no per-type fetcher here to keep in sync with the
+ * catalogue's own listing pages — one endpoint, normalised results
+ * (`{ id, title, parentLabel }`), done.
  *
  * The one rule that matters more than anything else in this file: an item
  * that arrived from the server already carries an `id`, and every mutation
@@ -107,16 +68,18 @@ async function searchCatalogue(
  * their ids and where they're sent back.
  */
 export function AssignmentItemBuilder({
+  teamId,
   items,
   onChange,
 }: {
+  teamId: string;
   items: AssignmentItemInput[];
   onChange: (items: AssignmentItemInput[]) => void;
 }) {
   const store = useAppStore();
   const [type, setType] = useState<AssignmentItemType>("CUSTOM");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<AssignableResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -124,17 +87,28 @@ export function AssignmentItemBuilder({
 
   // `store` is deliberately excluded — see assignment-form-dialog.tsx for
   // why useAppStore()'s identity is unsafe to depend on (it changes on any
-  // set() anywhere in the app, including background polling).
+  // set() anywhere in the app, including background polling). An effect
+  // that depended on it would refetch on unrelated churn and could stomp
+  // whatever the manager is mid-typing.
   useEffect(() => {
     if (type === "CUSTOM") {
       setResults([]);
+      setSearching(false);
+      return;
+    }
+    const term = query.trim();
+    if (!term) {
+      // The endpoint 422s on a blank `q` — don't even ask.
+      setResults([]);
+      setSearching(false);
       return;
     }
     let cancelled = false;
     setSearching(true);
     const handle = setTimeout(() => {
-      searchCatalogue(store, type, query)
-        .then((r) => {
+      store
+        .searchAssignable(teamId, type, term)
+        .then((r: AssignableResult[]) => {
           if (!cancelled) setResults(r);
         })
         .catch(() => {
@@ -149,25 +123,29 @@ export function AssignmentItemBuilder({
       clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, query]);
+  }, [type, query, teamId]);
 
-  function addContent(id: string, label: string) {
+  function addContent(result: AssignableResult) {
     if (atCap) return;
-    const duplicate = items.some((i) => i.type === type && i.refId === id);
+    const duplicate = items.some((i) => i.type === type && i.refId === result.id);
     if (duplicate) {
-      setMessage(`"${label}" is already on this list.`);
+      setMessage(`"${result.title}" is already on this list.`);
       return;
     }
     setMessage(null);
     // A freshly added content item has no `id` yet — the server matches
     // content by (type, refId), so it doesn't need one, unlike CUSTOM below.
-    // `title` rides along purely so this list can render `label` instead of
-    // falling back to "{Type} · {refId}" — it's stripped before the save
-    // call (see assignment-form-dialog.tsx), never sent to the server.
-    onChange([...items, { type, refId: id, title: label }]);
+    // `title`/`parentLabel` ride along purely so this list can render them
+    // instead of falling back to "{Type} · {refId}" — both are stripped
+    // before the save call (see assignment-form-dialog.tsx), never sent to
+    // the server.
+    onChange([
+      ...items,
+      { type, refId: result.id, title: result.title, parentLabel: result.parentLabel },
+    ]);
   }
 
-  function addTask() {
+  function addCustom() {
     if (atCap) return;
     const text = query.trim();
     if (!text) return;
@@ -220,7 +198,7 @@ export function AssignmentItemBuilder({
               onChange={(e) => setQuery(e.target.value)}
               className="min-w-0 flex-1"
             />
-            <Button type="button" onClick={addTask} disabled={!query.trim() || atCap}>
+            <Button type="button" onClick={addCustom} disabled={!query.trim() || atCap}>
               Add
             </Button>
           </>
@@ -245,11 +223,16 @@ export function AssignmentItemBuilder({
               <button
                 key={r.id}
                 type="button"
-                onClick={() => addContent(r.id, r.label)}
+                onClick={() => addContent(r)}
                 disabled={atCap}
                 className="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="truncate">{r.label}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="block truncate">{r.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {r.parentLabel}
+                  </span>
+                </span>
                 <span className="shrink-0 text-xs text-muted-foreground">Add</span>
               </button>
             ))
@@ -272,9 +255,20 @@ export function AssignmentItemBuilder({
               className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
             >
               <span className="min-w-0 flex-1 truncate">
-                {item.type === "CUSTOM"
-                  ? item.text
-                  : (item.title ?? `${TYPE_LABELS[item.type]} · ${item.refId}`)}
+                {item.type === "CUSTOM" ? (
+                  item.text
+                ) : (
+                  <>
+                    <span className="block truncate">
+                      {item.title ?? `${TYPE_LABELS[item.type]} · ${item.refId}`}
+                    </span>
+                    {item.parentLabel && (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {item.parentLabel}
+                      </span>
+                    )}
+                  </>
+                )}
               </span>
               <div className="flex shrink-0 items-center gap-1">
                 <Button

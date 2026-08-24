@@ -200,6 +200,7 @@ export function AssignmentFormDialog({
             // Display-only — resolved from the catalogue by the backend,
             // stripped before this list is ever sent back (see handleSave).
             title: i.title,
+            parentLabel: i.parentLabel ?? null,
           })),
         );
         // Marks `items` as belonging to THIS assignment. `canSave` checks
@@ -295,10 +296,10 @@ export function AssignmentFormDialog({
       // through this function again.
       if (!assignment) setCreatedId(saved.id);
 
-      // `title` is a client-only display field (see AssignmentItemInput) —
-      // the backend's item schema rejects unknown keys, so it must not ride
-      // along on the wire.
-      const itemsForApi = items.map(({ title: _title, ...rest }) => rest);
+      // `title`/`parentLabel` are client-only display fields (see
+      // AssignmentItemInput) — the backend's item schema rejects unknown
+      // keys, so neither may ride along on the wire.
+      const itemsForApi = items.map(({ title: _title, parentLabel: _parentLabel, ...rest }) => rest);
       await store.setTeamAssignmentItems(teamId, saved.id, itemsForApi);
 
       toast.success(assignment ? "Assignment updated." : "Assignment created.");
@@ -432,7 +433,7 @@ export function AssignmentFormDialog({
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <AssignmentItemBuilder items={items} onChange={setItems} />
+              <AssignmentItemBuilder teamId={teamId} items={items} onChange={setItems} />
             )}
           </div>
         )}

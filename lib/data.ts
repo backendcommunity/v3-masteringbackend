@@ -621,6 +621,12 @@ export interface AssignmentItemInput {
    * re-resolved from the catalogue on every read anyway.
    */
   title?: string | null;
+  /**
+   * Client-side only, same rule as `title` above — the breadcrumb that
+   * tells two same-titled hits (e.g. two "Introduction" videos in
+   * different courses) apart on screen. Stripped before the save call.
+   */
+  parentLabel?: string | null;
 }
 
 /**
