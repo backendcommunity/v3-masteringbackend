@@ -98,9 +98,9 @@ async function searchCatalogue(
  * that arrived from the server already carries an `id`, and every mutation
  * here (reorder, remove) must keep that `id` attached to the surviving
  * items rather than rebuilding them from scratch. The backend's set-replace
- * matches TASK items by that id to preserve which learners have ticked them
+ * matches CUSTOM items by that id to preserve which learners have ticked them
  * off; content items match by (type, refId) instead, which is why only
- * TASKs are load-bearing here. Drop the id on a reorder and a client that
+ * CUSTOMs are load-bearing here. Drop the id on a reorder and a client that
  * looks identical to the user turns into delete-and-recreate on save,
  * cascading away every learner's completion for this assignment. See
  * assignment-form-dialog.tsx for where these items are first loaded with
@@ -160,7 +160,7 @@ export function AssignmentItemBuilder({
     }
     setMessage(null);
     // A freshly added content item has no `id` yet — the server matches
-    // content by (type, refId), so it doesn't need one, unlike TASK below.
+    // content by (type, refId), so it doesn't need one, unlike CUSTOM below.
     // `title` rides along purely so this list can render `label` instead of
     // falling back to "{Type} · {refId}" — it's stripped before the save
     // call (see assignment-form-dialog.tsx), never sent to the server.

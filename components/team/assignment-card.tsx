@@ -57,7 +57,7 @@ interface AssignmentCardProps {
 /**
  * One assignment as the person it was given to sees it.
  *
- * Only TASK items get a checkbox. A course, path, project or mock interview
+ * Only CUSTOM items get a checkbox. A course, path, project or mock interview
  * is completed by doing it — its `state` is derived from progress that
  * already exists elsewhere, and a tick box on it would be a second,
  * competing record of the same fact. An UNAVAILABLE item is a retired

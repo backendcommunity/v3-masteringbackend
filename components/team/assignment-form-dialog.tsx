@@ -183,7 +183,7 @@ export function AssignmentFormDialog({
           detail.items.map((i) => ({
             // Every item already saved on the server carries an id, and it
             // MUST be carried through here. The backend's set-replace
-            // matches TASK items by this id (content items match by (type,
+            // matches CUSTOM items by this id (content items match by (type,
             // refId) instead) to decide which learner completions survive a
             // save. Drop it — even just by rebuilding this object without
             // it — and a save that only reordered or added one item looks,
