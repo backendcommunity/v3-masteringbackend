@@ -1541,7 +1541,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data as TeamAssignment[];
   },
   searchAssignable: async (teamId: string, type: AssignmentItemType, q: string) => {
-    const { data } = await api.get(`/teams/${teamId}/assignable`, { params: { type, q } });
+    // An empty `q` is meaningless — it means "no filter", not "filter on
+    // the empty string" — so it is omitted from the wire entirely rather
+    // than sent as `q=`. The backend validator now accepts `q=` too (see
+    // ValidateAssignableSearch), but a client should never put a parameter
+    // on the wire that carries no information.
+    const params: Record<string, string> = { type };
+    if (q) params.q = q;
+    const { data } = await api.get(`/teams/${teamId}/assignable`, { params });
     return data?.data as AssignableResult[];
   },
   getTeamAssignmentDetail: async (teamId: string, assignmentId: string) => {

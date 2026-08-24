@@ -551,12 +551,20 @@ export interface AssignmentItem {
    * VIDEO, ARTICLE, QUIZ and EXERCISE, the four fine-grained types that live
    * inside a course. Null for every other type: CHAPTER and TASK have no
    * viewable destination of their own (neither is a step the course
-   * workspace can land on), and PATH/COURSE/PROJECT/MOCK_INTERVIEW link
-   * directly off their own `refId`. Display-only, like parentLabel — never
-   * used for identity or completion.
+   * workspace can land on). Display-only, like parentLabel — never used for
+   * identity or completion.
    */
   courseSlug?: string | null;
   chapterSlug?: string | null;
+  /**
+   * The item's OWN slug — set only for PATH, COURSE and PROJECT, the
+   * top-level catalogue types that link off `routes.pathDetail`/
+   * `courseDetail`/`projectDetail`, all of which take a slug, not the row's
+   * id. Null when absent — never fall back to `refId` for these three; a
+   * link built from an id 404s. Null for every other type, including
+   * MOCK_INTERVIEW, which links by id through the booking route instead.
+   */
+  slug?: string | null;
   position: number;
 }
 

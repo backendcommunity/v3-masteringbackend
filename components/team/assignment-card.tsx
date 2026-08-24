@@ -37,13 +37,33 @@ function contentHref(item: AssignmentItem): string | null {
   if (!item.refId) return null;
   switch (item.type) {
     case "PATH":
-      return routes.pathDetail(item.refId);
     case "COURSE":
-      return routes.courseDetail(item.refId);
     case "PROJECT":
-      return routes.projectDetail(item.refId);
+      // These three link by SLUG, not `refId` (a UUID) — `routes.pathDetail`/
+      // `courseDetail`/`projectDetail` all take a slug (learning-path-detail.tsx
+      // resolves `pathDetail`'s param via `getRoadmapBySlug`, despite the
+      // route param being named `pathId`). No `item.slug` means either the
+      // catalogue row is gone (state UNAVAILABLE, rendered separately and
+      // never reaching here) or an older assignment predates this field —
+      // either way, a link built from `refId` would be a 404 wearing a
+      // link's clothes, which is worse than plain text. No link beats that.
+      return item.slug
+        ? item.type === "PATH"
+          ? routes.pathDetail(item.slug)
+          : item.type === "COURSE"
+            ? routes.courseDetail(item.slug)
+            : routes.projectDetail(item.slug)
+        : null;
     case "MOCK_INTERVIEW":
-      return routes.mockInterviewDetail(item.refId);
+      // `routes.mockInterviewDetail(id)` renders `MockInterviewSessionPage`
+      // for a SESSION id — wrong shape entirely for a template id. The
+      // route that actually accepts a template id is the booking route:
+      // mock-interviews.tsx reads `?id=` as a template id, looks it up in
+      // its own template list (falling back to a direct fetch), and opens
+      // the booking flow for it. `refId` here already IS a template id
+      // (assignable-search.ts's MOCK_INTERVIEW branch searches
+      // MockInterviewTemplate), so this never needs a slug.
+      return routes.mockInterviewBooking(item.refId);
     case "VIDEO":
     case "ARTICLE":
       // courseWatch's legacy-redirect route (app/courses/[slug]/watch/
