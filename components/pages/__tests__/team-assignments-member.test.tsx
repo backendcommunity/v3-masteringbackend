@@ -161,8 +161,17 @@ describe("a member's Assignments tab", () => {
     expect(screen.getByText("PostgreSQL · Chapter 3: Indexes")).toBeInTheDocument();
 
     // "Build a CLI" has no parentLabel — its title renders with no breadcrumb
-    // beneath it, and nothing else in the card should carry that item's text.
-    expect(await screen.findByText("Build a CLI")).toBeInTheDocument();
+    // beneath it. Asserted structurally, not just by the title's presence: the
+    // title sits alone in its wrapper div when there's no breadcrumb sibling,
+    // and gains a second child the moment one renders (see the "Introduction"
+    // item above, whose wrapper has two). This is what actually distinguishes
+    // "the breadcrumb-less item rendered nothing extra" from "the breadcrumb-
+    // less item's title happens to appear somewhere on the page" — the latter
+    // would still pass even if a stray breadcrumb node were rendered next to
+    // it, since findByText only proves the title text exists, not that it's
+    // alone.
+    const cliTitle = await screen.findByText("Build a CLI");
+    expect(cliTitle.parentElement?.children).toHaveLength(1);
   });
 
   it("shows a CUSTOM item's text with no breadcrumb — it has no parent", async () => {
@@ -210,6 +219,37 @@ describe("a member's Assignments tab", () => {
 
     await screen.findByText(/no longer available/i);
     expect(screen.queryByText("Should never render")).not.toBeInTheDocument();
+  });
+
+  it("treats an empty parentLabel the same as an absent one — no breadcrumb renders", async () => {
+    // The brief says "nothing extra when it is absent or empty". The card's
+    // guard is a falsy check (`item.parentLabel && …`), so "" already takes
+    // the same branch as undefined — but nothing exercised that value before
+    // this test. A guard rewritten as `item.parentLabel !== undefined` would
+    // keep every other case working and only break this one, silently.
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "i5",
+            type: "COURSE",
+            refId: "c5",
+            text: null,
+            title: "Deploying to Production",
+            parentLabel: "",
+            position: 0,
+            state: "NOT_STARTED",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+
+    const title = await screen.findByText("Deploying to Production");
+    // Same structural check as the "absent" case above: an empty parentLabel
+    // must not add a sibling breadcrumb node, even an empty one.
+    expect(title.parentElement?.children).toHaveLength(1);
   });
 
   it("shows an unavailable item as unavailable rather than as incomplete", async () => {
