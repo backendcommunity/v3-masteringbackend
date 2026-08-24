@@ -4,7 +4,7 @@
  * components/pages/__tests__/team-assignments-manager.test.tsx (Task 9).
  *
  * Test 5 below is the load-bearing one: the backend's set-replace matches
- * TASK items by the `id` the client sends back (content items match by
+ * CUSTOM items by the `id` the client sends back (content items match by
  * (type, refId) instead) to decide which learner completions survive a
  * save. A form that drops ids on the way through — even just by rebuilding
  * item objects during a reorder — turns a harmless reorder into
@@ -108,7 +108,7 @@ const EXISTING_DETAIL = {
   targetType: "TEAM" as const,
   items: [
     { id: "i1", type: "COURSE" as const, refId: "c1", text: null, title: "Intro to Postgres", position: 0 },
-    { id: "i2", type: "TASK" as const, refId: null, text: "Read the runbook", title: null, position: 1 },
+    { id: "i2", type: "CUSTOM" as const, refId: null, text: "Read the runbook", title: null, position: 1 },
   ],
   people: [],
 };
@@ -118,7 +118,7 @@ function fullDetailWith25Tasks() {
     ...EXISTING_DETAIL,
     items: Array.from({ length: 25 }, (_, i) => ({
       id: `i${i}`,
-      type: "TASK" as const,
+      type: "CUSTOM" as const,
       refId: null,
       text: `Task ${i}`,
       position: i,
@@ -247,7 +247,7 @@ describe("AssignmentFormDialog", () => {
       "t1",
       "a-new",
       expect.arrayContaining([
-        expect.objectContaining({ type: "TASK", text: "Read the runbook" }),
+        expect.objectContaining({ type: "CUSTOM", text: "Read the runbook" }),
       ]),
     );
   });
@@ -266,7 +266,7 @@ describe("AssignmentFormDialog", () => {
     await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
     await screen.findByText(/read the runbook/i);
 
-    // Reorder: move the TASK item (loaded second) up ahead of the COURSE
+    // Reorder: move the CUSTOM item (loaded second) up ahead of the COURSE
     // item. A reorder that rebuilds the item objects without `id` would
     // still pass a save-only test — it takes this move to expose it.
     const moveUpButtons = screen.getAllByRole("button", { name: /move up/i });
@@ -276,7 +276,7 @@ describe("AssignmentFormDialog", () => {
 
     await waitFor(() => expect(mockSetTeamAssignmentItems).toHaveBeenCalled());
     const [, , submittedItems] = mockSetTeamAssignmentItems.mock.calls[0];
-    const task = submittedItems.find((i: any) => i.type === "TASK");
+    const task = submittedItems.find((i: any) => i.type === "CUSTOM");
     expect(task.id).toBe("i2");
   });
 

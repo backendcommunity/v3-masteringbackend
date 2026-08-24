@@ -9,7 +9,7 @@ import { useAppStore } from "@/lib/store";
 import type { AssignmentItemInput, AssignmentItemType } from "@/lib/data";
 
 const ITEM_TYPES: Array<{ value: AssignmentItemType; label: string }> = [
-  { value: "TASK", label: "Task" },
+  { value: "CUSTOM", label: "Task" },
   { value: "PATH", label: "Path" },
   { value: "COURSE", label: "Course" },
   { value: "PROJECT", label: "Project" },
@@ -21,7 +21,13 @@ const TYPE_LABELS: Record<AssignmentItemType, string> = {
   COURSE: "Course",
   PROJECT: "Project",
   MOCK_INTERVIEW: "Mock interview",
+  CHAPTER: "Chapter",
+  ARTICLE: "Article",
+  VIDEO: "Video",
   TASK: "Task",
+  QUIZ: "Quiz",
+  EXERCISE: "Exercise",
+  CUSTOM: "Task",
 };
 
 const MAX_ITEMS = 25;
@@ -108,7 +114,7 @@ export function AssignmentItemBuilder({
   onChange: (items: AssignmentItemInput[]) => void;
 }) {
   const store = useAppStore();
-  const [type, setType] = useState<AssignmentItemType>("TASK");
+  const [type, setType] = useState<AssignmentItemType>("CUSTOM");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -120,7 +126,7 @@ export function AssignmentItemBuilder({
   // why useAppStore()'s identity is unsafe to depend on (it changes on any
   // set() anywhere in the app, including background polling).
   useEffect(() => {
-    if (type === "TASK") {
+    if (type === "CUSTOM") {
       setResults([]);
       return;
     }
@@ -166,7 +172,7 @@ export function AssignmentItemBuilder({
     const text = query.trim();
     if (!text) return;
     setMessage(null);
-    onChange([...items, { type: "TASK", text }]);
+    onChange([...items, { type: "CUSTOM", text }]);
     setQuery("");
   }
 
@@ -206,7 +212,7 @@ export function AssignmentItemBuilder({
           ))}
         </select>
 
-        {type === "TASK" ? (
+        {type === "CUSTOM" ? (
           <>
             <Input
               placeholder="Describe the task"
@@ -228,7 +234,7 @@ export function AssignmentItemBuilder({
         )}
       </div>
 
-      {type !== "TASK" && (
+      {type !== "CUSTOM" && (
         <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
           {searching ? (
             <p className="text-sm text-muted-foreground">Searching…</p>
@@ -266,7 +272,7 @@ export function AssignmentItemBuilder({
               className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
             >
               <span className="min-w-0 flex-1 truncate">
-                {item.type === "TASK"
+                {item.type === "CUSTOM"
                   ? item.text
                   : (item.title ?? `${TYPE_LABELS[item.type]} · ${item.refId}`)}
               </span>
@@ -295,7 +301,7 @@ export function AssignmentItemBuilder({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  aria-label={`Remove ${item.type === "TASK" ? item.text : (item.title ?? TYPE_LABELS[item.type])}`}
+                  aria-label={`Remove ${item.type === "CUSTOM" ? item.text : (item.title ?? TYPE_LABELS[item.type])}`}
                   onClick={() => removeAt(index)}
                 >
                   <X className="h-3.5 w-3.5" />

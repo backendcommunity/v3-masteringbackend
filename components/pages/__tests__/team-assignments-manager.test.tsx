@@ -71,7 +71,7 @@ const DETAIL = {
   targetType: "GROUP" as const,
   items: [
     { id: "i1", type: "COURSE" as const, refId: "c1", text: null, position: 0 },
-    { id: "i2", type: "TASK" as const, refId: null, text: "Read the runbook", position: 1 },
+    { id: "i2", type: "CUSTOM" as const, refId: null, text: "Read the runbook", position: 1 },
   ],
   people: [
     {

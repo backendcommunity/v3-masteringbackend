@@ -19,7 +19,13 @@ const TYPE_LABELS: Record<AssignmentItem["type"], string> = {
   COURSE: "Course",
   PROJECT: "Project",
   MOCK_INTERVIEW: "Mock interview",
+  CHAPTER: "Chapter",
+  ARTICLE: "Article",
+  VIDEO: "Video",
   TASK: "Task",
+  QUIZ: "Quiz",
+  EXERCISE: "Exercise",
+  CUSTOM: "Task",
 };
 
 const STATE_LABELS: Record<AssignmentItemState, string> = {
@@ -141,14 +147,14 @@ export function AssignmentDetailDialog({
                     // only as a last resort for a title that's absent for
                     // some other reason.
                     const unavailable =
-                      item.type !== "TASK" &&
+                      item.type !== "CUSTOM" &&
                       detail.people.some((p) => p.states[item.id] === "UNAVAILABLE");
                     return (
                       <th
                         key={item.id}
                         className="whitespace-nowrap px-2 py-2 text-left font-medium text-muted-foreground"
                       >
-                        {item.type === "TASK"
+                        {item.type === "CUSTOM"
                           ? (item.text ?? "Task")
                           : unavailable
                             ? "Unavailable"

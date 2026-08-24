@@ -51,6 +51,8 @@ import {
   TeamGroup,
   MyAssignment,
   TeamAssignment,
+  AssignmentItemType,
+  AssignableResult,
   AssignmentDetail,
   AssignmentInput,
   AssignmentItemInput,
@@ -344,6 +346,7 @@ interface AppState {
   getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
   getMyAssignments: (teamId: string) => Promise<MyAssignment[]>;
   getTeamAssignments: (teamId: string) => Promise<TeamAssignment[]>;
+  searchAssignable: (teamId: string, type: AssignmentItemType, q: string) => Promise<AssignableResult[]>;
   getTeamAssignmentDetail: (teamId: string, assignmentId: string) => Promise<AssignmentDetail>;
   createTeamAssignment: (teamId: string, input: AssignmentInput) => Promise<{ id: string; name: string }>;
   updateTeamAssignment: (
@@ -1536,6 +1539,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   getTeamAssignments: async (teamId: string) => {
     const { data } = await api.get(`/teams/${teamId}/assignments`);
     return data?.data as TeamAssignment[];
+  },
+  searchAssignable: async (teamId: string, type: AssignmentItemType, q: string) => {
+    const { data } = await api.get(`/teams/${teamId}/assignable`, { params: { type, q } });
+    return data?.data as AssignableResult[];
   },
   getTeamAssignmentDetail: async (teamId: string, assignmentId: string) => {
     const { data } = await api.get(`/teams/${teamId}/assignments/${assignmentId}`);

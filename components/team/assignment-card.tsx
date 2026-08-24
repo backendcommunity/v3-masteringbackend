@@ -17,7 +17,13 @@ const TYPE_LABELS: Record<AssignmentItem["type"], string> = {
   COURSE: "Course",
   PROJECT: "Project",
   MOCK_INTERVIEW: "Mock interview",
+  CHAPTER: "Chapter",
+  ARTICLE: "Article",
+  VIDEO: "Video",
   TASK: "Task",
+  QUIZ: "Quiz",
+  EXERCISE: "Exercise",
+  CUSTOM: "Task",
 };
 
 const STATE_LABELS: Record<AssignmentItemState, string> = {
@@ -103,7 +109,7 @@ export function AssignmentCard({ assignment, onToggle }: AssignmentCardProps) {
 
             return (
               <li key={item.id} className="flex items-center gap-3 py-3">
-                {item.type === "TASK" ? (
+                {item.type === "CUSTOM" ? (
                   <>
                     <Checkbox
                       aria-label={item.text ?? "Task"}

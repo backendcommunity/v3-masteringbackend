@@ -43,7 +43,7 @@ const ASSIGNMENT = {
   isOverdue: false,
   items: [
     { id: "i1", type: "COURSE", refId: "c1", text: null, position: 0, state: "DONE" },
-    { id: "i2", type: "TASK", refId: null, text: "Read the runbook", position: 1, state: "NOT_STARTED" },
+    { id: "i2", type: "CUSTOM", refId: null, text: "Read the runbook", position: 1, state: "NOT_STARTED" },
     { id: "i3", type: "PROJECT", refId: "p1", text: null, position: 2, state: "IN_PROGRESS" },
   ],
 };
@@ -87,7 +87,7 @@ describe("a member's Assignments tab", () => {
   it("gives a content item no tick box, because those are derived", async () => {
     render(<TeamAssignmentsPage />);
     await screen.findByText("Backend Onboarding");
-    // Exactly one checkbox: the TASK. The course and project are completed by
+    // Exactly one checkbox: the CUSTOM item. The course and project are completed by
     // doing them, and a tick would be a second representation.
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
   });
@@ -136,7 +136,7 @@ describe("a member's Assignments tab", () => {
         total: 1,
         items: [
           { id: "i9", type: "COURSE", refId: "gone", text: null, position: 0, state: "UNAVAILABLE" },
-          { id: "i2", type: "TASK", refId: null, text: "Read the runbook", position: 1, state: "NOT_STARTED" },
+          { id: "i2", type: "CUSTOM", refId: null, text: "Read the runbook", position: 1, state: "NOT_STARTED" },
         ],
       },
     ]);

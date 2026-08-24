@@ -503,26 +503,49 @@ export interface TeamGroup {
   createdAt: string;
 }
 
-export type AssignmentItemType = "PATH" | "COURSE" | "PROJECT" | "MOCK_INTERVIEW" | "TASK";
+export type AssignmentItemType =
+  | "PATH"
+  | "COURSE"
+  | "PROJECT"
+  | "MOCK_INTERVIEW"
+  | "CHAPTER"
+  | "ARTICLE"
+  | "VIDEO"
+  | "TASK"
+  | "QUIZ"
+  | "EXERCISE"
+  | "CUSTOM";
 export type AssignmentItemState = "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "UNAVAILABLE";
 export type AssignmentTargetType = "TEAM" | "GROUP" | "MEMBER";
+
+/**
+ * One catalogue search hit. `parentLabel` is the breadcrumb that tells two
+ * videos called "Introduction" apart — display only, never used for identity.
+ */
+export interface AssignableResult {
+  id: string;
+  title: string;
+  parentLabel: string;
+}
 
 export interface AssignmentItem {
   id: string;
   type: AssignmentItemType;
-  /** Null for a TASK. Points at a course, path, project or interview template. */
+  /** Null for a CUSTOM item. Points at a course, path, project or interview template. */
   refId: string | null;
-  /** The task's words. Null for every content type. */
+  /** The free-text item's words. Null for every content type. */
   text: string | null;
   /**
    * Resolved from the catalogue at read time — never stored, so it can't go
-   * stale when a course is renamed. Null for a TASK (its `text` is its
+   * stale when a course is renamed. Null for a CUSTOM item (its `text` is its
    * content, there's nothing to look up) and also null when the catalogue
    * row `refId` points at is gone, in which case `state` is UNAVAILABLE for
    * everyone. Those are different reasons for the same null value; only the
    * state tells you which one you're looking at.
    */
   title: string | null;
+  /** The breadcrumb from the catalogue search, e.g. a chapter's course. Display only. */
+  parentLabel?: string;
   position: number;
 }
 

@@ -26,7 +26,7 @@ import type { MyAssignment, TeamAssignment, TeamSummary } from "@/lib/data";
 
 /**
  * A member's Assignments tab: what they were given, and the ability to tick
- * off free-text TASK items.
+ * off free-text CUSTOM items.
  *
  * Sub-project 3a shipped a member view that showed nothing at all — the API
  * served a member's data fine, but every piece of UI sat behind a canManage

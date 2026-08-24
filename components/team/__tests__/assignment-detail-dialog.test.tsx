@@ -35,7 +35,7 @@ const DETAIL_WITH_TITLES = {
   targetType: "TEAM" as const,
   items: [
     { id: "i1", type: "COURSE" as const, refId: "c1", text: null, title: "Intro to Postgres", position: 0 },
-    { id: "i2", type: "TASK" as const, refId: null, text: "Read the runbook", title: null, position: 1 },
+    { id: "i2", type: "CUSTOM" as const, refId: null, text: "Read the runbook", title: null, position: 1 },
     { id: "i3", type: "COURSE" as const, refId: "deleted", text: null, title: null, position: 2 },
   ],
   people: [
@@ -80,7 +80,7 @@ describe("AssignmentDetailDialog", () => {
     expect(screen.getAllByText("Unavailable")).toHaveLength(2);
   });
 
-  it("still labels a TASK column with its own text", async () => {
+  it("still labels a CUSTOM column with its own text", async () => {
     render(
       <AssignmentDetailDialog teamId="t1" assignmentId="a1" onOpenChange={() => {}} />,
     );
