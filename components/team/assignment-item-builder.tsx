@@ -81,6 +81,8 @@ export function AssignmentItemBuilder({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AssignableResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
 
   const atCap = items.length >= MAX_ITEMS;
@@ -89,11 +91,14 @@ export function AssignmentItemBuilder({
   // why useAppStore()'s identity is unsafe to depend on (it changes on any
   // set() anywhere in the app, including background polling). An effect
   // that depended on it would refetch on unrelated churn and could stomp
-  // whatever the manager is mid-typing.
+  // whatever the manager is mid-typing. `retryTick` is a local counter (not
+  // store-derived) that only moves when the manager clicks "Try again", so
+  // it's safe to depend on.
   useEffect(() => {
     if (type === "CUSTOM") {
       setResults([]);
       setSearching(false);
+      setSearchFailed(false);
       return;
     }
     const term = query.trim();
@@ -101,18 +106,26 @@ export function AssignmentItemBuilder({
       // The endpoint 422s on a blank `q` — don't even ask.
       setResults([]);
       setSearching(false);
+      setSearchFailed(false);
       return;
     }
     let cancelled = false;
     setSearching(true);
+    setSearchFailed(false);
     const handle = setTimeout(() => {
       store
         .searchAssignable(teamId, type, term)
         .then((r: AssignableResult[]) => {
-          if (!cancelled) setResults(r);
+          if (!cancelled) {
+            setResults(r);
+            setSearchFailed(false);
+          }
         })
         .catch(() => {
-          if (!cancelled) setResults([]);
+          if (!cancelled) {
+            setResults([]);
+            setSearchFailed(true);
+          }
         })
         .finally(() => {
           if (!cancelled) setSearching(false);
@@ -123,7 +136,7 @@ export function AssignmentItemBuilder({
       clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, query, teamId]);
+  }, [type, query, teamId, retryTick]);
 
   function addContent(result: AssignableResult) {
     if (atCap) return;
@@ -216,6 +229,23 @@ export function AssignmentItemBuilder({
         <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
           {searching ? (
             <p className="text-sm text-muted-foreground">Searching…</p>
+          ) : searchFailed ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-destructive">Search failed.</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setRetryTick((n) => n + 1)}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : query.trim() === "" ? (
+            <p className="text-sm text-muted-foreground">
+              Search for {/^[aeiou]/i.test(TYPE_LABELS[type]) ? "an" : "a"}{" "}
+              {TYPE_LABELS[type].toLowerCase()} to add.
+            </p>
           ) : results.length === 0 ? (
             <p className="text-sm text-muted-foreground">No results.</p>
           ) : (

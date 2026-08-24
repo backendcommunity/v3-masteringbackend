@@ -208,6 +208,58 @@ describe("AssignmentItemBuilder", () => {
     ]);
   });
 
+  it("prompts to search — naming the chosen type — instead of claiming 'No results.' before any query is typed", () => {
+    render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
+
+    expect(screen.getByText(/search for a course to add/i)).toBeInTheDocument();
+    expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+    expect(mockSearchAssignable).not.toHaveBeenCalled();
+  });
+
+  it("shows an error state with a retry option when searchAssignable rejects, not 'No results.'", async () => {
+    mockSearchAssignable.mockRejectedValue(new Error("network blip"));
+    render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
+    fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "postgres" } });
+
+    expect(await screen.findByText(/search failed/i)).toBeInTheDocument();
+    expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: /try again/i });
+    mockSearchAssignable.mockResolvedValue([]);
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(mockSearchAssignable).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("No results.")).toBeInTheDocument();
+  });
+
+  it("shows 'No results.' only once a search has actually resolved empty", async () => {
+    mockSearchAssignable.mockResolvedValue([]);
+    render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
+    fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "postgres" } });
+
+    expect(await screen.findByText("No results.")).toBeInTheDocument();
+  });
+
+  it("returns to the search prompt (not 'No results.') when the query is typed then cleared", async () => {
+    mockSearchAssignable.mockResolvedValue([]);
+    render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
+    fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "postgres" } });
+    await screen.findByText("No results.");
+
+    fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "" } });
+
+    expect(await screen.findByText(/search for a course to add/i)).toBeInTheDocument();
+    expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+  });
+
   it("does not list `store` in the search effect's deps — an unrelated re-render must not refetch", async () => {
     mockSearchAssignable.mockResolvedValue([]);
     const { rerender } = render(
