@@ -252,6 +252,132 @@ describe("a member's Assignments tab", () => {
     expect(title.parentElement?.children).toHaveLength(1);
   });
 
+  /**
+   * IMPORTANT from the final review: six of eleven assignable types
+   * (CHAPTER, ARTICLE, VIDEO, TASK, QUIZ, EXERCISE) fell through
+   * contentHref's switch to `null` — the six types this feature exists to
+   * add were the six a member couldn't open. No test asserted anything about
+   * `href` before, so the gap shipped silently. This block pins the real
+   * destination for each of the six, and the two (CHAPTER, TASK) that are
+   * deliberately left unlinked because neither is a navigable step in the
+   * course workspace.
+   */
+  it("links a video through courseWatch, using courseSlug/chapterSlug and its own refId as the step needle", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "iv", type: "VIDEO", refId: "v1", text: null, position: 0, state: "NOT_STARTED",
+            title: "EXPLAIN ANALYZE", courseSlug: "postgresql", chapterSlug: "indexes",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    const link = await screen.findByRole("link", { name: "EXPLAIN ANALYZE" });
+    expect(link).toHaveAttribute("href", "/courses/postgresql/watch/indexes/v1");
+  });
+
+  it("links an article the same way as a video", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "ia", type: "ARTICLE", refId: "a1", text: null, position: 0, state: "NOT_STARTED",
+            title: "Query planning", courseSlug: "postgresql", chapterSlug: "indexes",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    const link = await screen.findByRole("link", { name: "Query planning" });
+    expect(link).toHaveAttribute("href", "/courses/postgresql/watch/indexes/a1");
+  });
+
+  it("links a quiz to its standalone course-quiz page, off courseSlug alone", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "iq", type: "QUIZ", refId: "q1", text: null, position: 0, state: "NOT_STARTED",
+            title: "Indexing quiz", courseSlug: "postgresql",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    const link = await screen.findByRole("link", { name: "Indexing quiz" });
+    expect(link).toHaveAttribute("href", "/courses/postgresql/quizzes/q1");
+  });
+
+  it("links an exercise to its standalone course-exercise page, off courseSlug alone", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "ie", type: "EXERCISE", refId: "e1", text: null, position: 0, state: "NOT_STARTED",
+            title: "Write the query", courseSlug: "postgresql",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    const link = await screen.findByRole("link", { name: "Write the query" });
+    expect(link).toHaveAttribute("href", "/courses/postgresql/exercises/e1");
+  });
+
+  it("leaves a chapter unlinked on purpose — it is not a step in the course workspace", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "ic", type: "CHAPTER", refId: "ch1", text: null, position: 0, state: "NOT_STARTED",
+            title: "Indexes", courseSlug: "postgresql", chapterSlug: "indexes",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    await screen.findByText("Indexes");
+    expect(screen.queryByRole("link", { name: "Indexes" })).not.toBeInTheDocument();
+  });
+
+  it("leaves a task unlinked on purpose — it hangs off another step, it is not one", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "it", type: "TASK", refId: "t1", text: null, position: 0, state: "NOT_STARTED",
+            title: "Add an index",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    await screen.findByText("Add an index");
+    expect(screen.queryByRole("link", { name: "Add an index" })).not.toBeInTheDocument();
+  });
+
+  it("leaves a video unlinked when courseSlug/chapterSlug didn't resolve, rather than building a broken href", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          { id: "iv2", type: "VIDEO", refId: "v2", text: null, position: 0, state: "NOT_STARTED", title: "Orphan video" },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+    await screen.findByText("Orphan video");
+    expect(screen.queryByRole("link", { name: "Orphan video" })).not.toBeInTheDocument();
+  });
+
   it("shows an unavailable item as unavailable rather than as incomplete", async () => {
     mockGetMyAssignments.mockResolvedValue([
       {

@@ -546,6 +546,17 @@ export interface AssignmentItem {
   title: string | null;
   /** The breadcrumb from the catalogue search, e.g. a chapter's course. Display only. */
   parentLabel?: string;
+  /**
+   * Enough of a course/chapter trail to build a real link — set only for
+   * VIDEO, ARTICLE, QUIZ and EXERCISE, the four fine-grained types that live
+   * inside a course. Null for every other type: CHAPTER and TASK have no
+   * viewable destination of their own (neither is a step the course
+   * workspace can land on), and PATH/COURSE/PROJECT/MOCK_INTERVIEW link
+   * directly off their own `refId`. Display-only, like parentLabel — never
+   * used for identity or completion.
+   */
+  courseSlug?: string | null;
+  chapterSlug?: string | null;
   position: number;
 }
 

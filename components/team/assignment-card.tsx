@@ -44,6 +44,32 @@ function contentHref(item: AssignmentItem): string | null {
       return routes.projectDetail(item.refId);
     case "MOCK_INTERVIEW":
       return routes.mockInterviewDetail(item.refId);
+    case "VIDEO":
+    case "ARTICLE":
+      // courseWatch's legacy-redirect route (app/courses/[slug]/watch/
+      // [chapterId]/[videoId]) resolves the target step by matching its
+      // third argument against the compiled course session's step `itemId`
+      // — which is the video/article's own DB id, not its slug. Passing
+      // `refId` here (rather than a slug this component doesn't have) lands
+      // on the exact step. No link without courseSlug/chapterSlug — the
+      // catalogue row backing this item may be gone (state UNAVAILABLE,
+      // rendered separately) or its course/chapter may not resolve.
+      return item.courseSlug && item.chapterSlug
+        ? routes.courseWatch(item.courseSlug, item.chapterSlug, item.refId)
+        : null;
+    case "QUIZ":
+      return item.courseSlug ? routes.courseQuiz(item.courseSlug, item.refId) : null;
+    case "EXERCISE":
+      return item.courseSlug ? routes.courseExercise(item.courseSlug, item.refId) : null;
+    case "CHAPTER":
+    case "TASK":
+      // Deliberately unlinked, not an oversight: compileCourse only ever
+      // emits VIDEO/ARTICLE/QUIZ/EXERCISE/PROJECT/MOCK_INTERVIEW steps into
+      // the course session (see build-course-session.ts on the backend) — a
+      // chapter is a grouping construct and a task hangs off another step,
+      // so neither has a page of its own in the course workspace to send a
+      // member to.
+      return null;
     default:
       return null;
   }
