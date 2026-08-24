@@ -53,6 +53,68 @@ const DETAIL_WITH_TITLES = {
   ],
 };
 
+// Two VIDEO items share the title "Introduction" — only their `parentLabel`
+// breadcrumbs ("PostgreSQL · Chapter 3: Indexes" vs. "Docker · Chapter 1:
+// Setup") tell them apart in the column header. j4 is UNAVAILABLE but
+// carries a `parentLabel` anyway, to prove the header never renders a
+// breadcrumb for a retired item even when one is present on the data.
+const DETAIL_WITH_BREADCRUMBS = {
+  id: "a2",
+  name: "Backend Onboarding",
+  dueAt: null,
+  targetType: "TEAM" as const,
+  items: [
+    {
+      id: "j1",
+      type: "VIDEO" as const,
+      refId: "v1",
+      text: null,
+      title: "Introduction",
+      parentLabel: "PostgreSQL · Chapter 3: Indexes",
+      position: 0,
+    },
+    {
+      id: "j2",
+      type: "VIDEO" as const,
+      refId: "v2",
+      text: null,
+      title: "Introduction",
+      parentLabel: "Docker · Chapter 1: Setup",
+      position: 1,
+    },
+    {
+      id: "j3",
+      type: "CUSTOM" as const,
+      refId: null,
+      text: "Read the runbook",
+      title: null,
+      position: 2,
+    },
+    {
+      id: "j4",
+      type: "COURSE" as const,
+      refId: "deleted",
+      text: null,
+      title: null,
+      parentLabel: "Should never render",
+      position: 3,
+    },
+  ],
+  people: [
+    {
+      teamMemberId: "m1",
+      userId: "u1",
+      name: "Ada Lovelace",
+      email: "ada@acme.com",
+      avatar: null,
+      done: 1,
+      total: 3,
+      isOverdue: false,
+      states: { j1: "DONE", j2: "NOT_STARTED", j3: "NOT_STARTED", j4: "UNAVAILABLE" },
+    },
+  ],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetTeamAssignmentDetail.mockResolvedValue(DETAIL_WITH_TITLES);
@@ -104,5 +166,36 @@ describe("AssignmentDetailDialog", () => {
     await waitFor(() => expect(mockGetTeamAssignmentDetail).toHaveBeenCalledWith("t1", "a1"));
     expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
+  });
+
+  it("distinguishes two same-titled columns by their breadcrumb", async () => {
+    mockGetTeamAssignmentDetail.mockResolvedValue(DETAIL_WITH_BREADCRUMBS);
+    render(
+      <AssignmentDetailDialog teamId="t1" assignmentId="a2" onOpenChange={() => {}} />,
+    );
+
+    expect(await screen.findAllByText("Introduction")).toHaveLength(2);
+    expect(screen.getByText("PostgreSQL · Chapter 3: Indexes")).toBeInTheDocument();
+    expect(screen.getByText("Docker · Chapter 1: Setup")).toBeInTheDocument();
+  });
+
+  it("shows a CUSTOM column's text with no breadcrumb — it has no parent", async () => {
+    mockGetTeamAssignmentDetail.mockResolvedValue(DETAIL_WITH_BREADCRUMBS);
+    render(
+      <AssignmentDetailDialog teamId="t1" assignmentId="a2" onOpenChange={() => {}} />,
+    );
+
+    const header = await screen.findByRole("columnheader", { name: "Read the runbook" });
+    expect(header).toBeInTheDocument();
+  });
+
+  it("shows no breadcrumb on an Unavailable column, even though the item carries a parentLabel", async () => {
+    mockGetTeamAssignmentDetail.mockResolvedValue(DETAIL_WITH_BREADCRUMBS);
+    render(
+      <AssignmentDetailDialog teamId="t1" assignmentId="a2" onOpenChange={() => {}} />,
+    );
+
+    expect(await screen.findByRole("columnheader", { name: "Unavailable" })).toBeInTheDocument();
+    expect(screen.queryByText("Should never render")).not.toBeInTheDocument();
   });
 });

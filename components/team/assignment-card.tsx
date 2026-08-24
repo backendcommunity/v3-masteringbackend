@@ -126,19 +126,26 @@ export function AssignmentCard({ assignment, onToggle }: AssignmentCardProps) {
                   </span>
                 ) : (
                   <div className="flex flex-1 items-center justify-between gap-2">
-                    {href ? (
-                      <a
-                        href={href}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {item.title ?? TYPE_LABELS[item.type]}
-                      </a>
-                    ) : (
-                      <span className="text-sm font-medium">
-                        {item.title ?? TYPE_LABELS[item.type]}
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      {href ? (
+                        <a
+                          href={href}
+                          className="block truncate text-sm font-medium text-primary hover:underline"
+                        >
+                          {item.title ?? TYPE_LABELS[item.type]}
+                        </a>
+                      ) : (
+                        <span className="block truncate text-sm font-medium">
+                          {item.title ?? TYPE_LABELS[item.type]}
+                        </span>
+                      )}
+                      {item.parentLabel && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {item.parentLabel}
+                        </span>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       {STATE_LABELS[item.state]}
                     </span>
                   </div>

@@ -128,6 +128,90 @@ describe("a member's Assignments tab", () => {
     expect(await screen.findByText(/nothing assigned/i)).toBeInTheDocument();
   });
 
+  it("renders each content item's breadcrumb beneath its title, and nothing extra when it's absent", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "i1",
+            type: "COURSE",
+            refId: "c1",
+            text: null,
+            title: "Introduction",
+            parentLabel: "PostgreSQL · Chapter 3: Indexes",
+            position: 0,
+            state: "DONE",
+          },
+          {
+            id: "i4",
+            type: "PROJECT",
+            refId: "p2",
+            text: null,
+            title: "Build a CLI",
+            position: 1,
+            state: "NOT_STARTED",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+
+    await screen.findByText("Introduction");
+    expect(screen.getByText("PostgreSQL · Chapter 3: Indexes")).toBeInTheDocument();
+
+    // "Build a CLI" has no parentLabel — its title renders with no breadcrumb
+    // beneath it, and nothing else in the card should carry that item's text.
+    expect(await screen.findByText("Build a CLI")).toBeInTheDocument();
+  });
+
+  it("shows a CUSTOM item's text with no breadcrumb — it has no parent", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "i2",
+            type: "CUSTOM",
+            refId: null,
+            text: "Read the runbook",
+            parentLabel: "Should never render",
+            position: 0,
+            state: "NOT_STARTED",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+
+    await screen.findByText("Read the runbook");
+    expect(screen.queryByText("Should never render")).not.toBeInTheDocument();
+  });
+
+  it("shows no breadcrumb on an unavailable item, even though it carries a parentLabel", async () => {
+    mockGetMyAssignments.mockResolvedValue([
+      {
+        ...ASSIGNMENT,
+        items: [
+          {
+            id: "i9",
+            type: "COURSE",
+            refId: "gone",
+            text: null,
+            title: null,
+            parentLabel: "Should never render",
+            position: 0,
+            state: "UNAVAILABLE",
+          },
+        ],
+      },
+    ]);
+    render(<TeamAssignmentsPage />);
+
+    await screen.findByText(/no longer available/i);
+    expect(screen.queryByText("Should never render")).not.toBeInTheDocument();
+  });
+
   it("shows an unavailable item as unavailable rather than as incomplete", async () => {
     mockGetMyAssignments.mockResolvedValue([
       {

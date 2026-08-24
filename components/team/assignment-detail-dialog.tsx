@@ -145,7 +145,12 @@ export function AssignmentDetailDialog({
                     // (every person shares that state for a given item, so
                     // checking any one of them is enough), and the type name
                     // only as a last resort for a title that's absent for
-                    // some other reason.
+                    // some other reason. `parentLabel` is display-only and
+                    // rides along under the title in exactly that one case —
+                    // a CUSTOM item has no parent to describe, and an
+                    // UNAVAILABLE one no longer has a catalogue row for the
+                    // breadcrumb to describe, so neither ever renders one
+                    // even if the data carries one.
                     const unavailable =
                       item.type !== "CUSTOM" &&
                       detail.people.some((p) => p.states[item.id] === "UNAVAILABLE");
@@ -154,11 +159,22 @@ export function AssignmentDetailDialog({
                         key={item.id}
                         className="whitespace-nowrap px-2 py-2 text-left font-medium text-muted-foreground"
                       >
-                        {item.type === "CUSTOM"
-                          ? (item.text ?? "Custom")
-                          : unavailable
-                            ? "Unavailable"
-                            : (item.title ?? TYPE_LABELS[item.type])}
+                        {item.type === "CUSTOM" ? (
+                          (item.text ?? "Custom")
+                        ) : unavailable ? (
+                          "Unavailable"
+                        ) : (
+                          <>
+                            <span className="block">
+                              {item.title ?? TYPE_LABELS[item.type]}
+                            </span>
+                            {item.parentLabel && (
+                              <span className="block text-xs font-normal text-muted-foreground">
+                                {item.parentLabel}
+                              </span>
+                            )}
+                          </>
+                        )}
                       </th>
                     );
                   })}
