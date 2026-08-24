@@ -208,14 +208,31 @@ describe("AssignmentItemBuilder", () => {
     ]);
   });
 
-  it("prompts to search — naming the chosen type — instead of claiming 'No results.' before any query is typed", () => {
+  it("fetches and renders the list immediately on selecting a type, with no query typed — the prompt is gone", async () => {
+    mockSearchAssignable.mockResolvedValue([
+      { id: "c1", title: "Intro to Postgres", parentLabel: "Databases" },
+    ]);
     render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
 
     fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
 
-    expect(screen.getByText(/search for a course to add/i)).toBeInTheDocument();
+    await waitFor(() => expect(mockSearchAssignable).toHaveBeenCalledWith("t1", "COURSE", ""));
+    expect(await screen.findByText("Intro to Postgres")).toBeInTheDocument();
+    expect(screen.queryByText(/search for a course to add/i)).not.toBeInTheDocument();
     expect(screen.queryByText("No results.")).not.toBeInTheDocument();
-    expect(mockSearchAssignable).not.toHaveBeenCalled();
+  });
+
+  it("narrows the browsed list through the same path when a query is typed", async () => {
+    mockSearchAssignable.mockResolvedValue([]);
+    render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "COURSE" } });
+    await waitFor(() => expect(mockSearchAssignable).toHaveBeenCalledWith("t1", "COURSE", ""));
+
+    fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "postgres" } });
+    await waitFor(() =>
+      expect(mockSearchAssignable).toHaveBeenCalledWith("t1", "COURSE", "postgres"),
+    );
   });
 
   it("shows an error state with a retry option when searchAssignable rejects, not 'No results.'", async () => {
@@ -246,7 +263,7 @@ describe("AssignmentItemBuilder", () => {
     expect(await screen.findByText("No results.")).toBeInTheDocument();
   });
 
-  it("returns to the search prompt (not 'No results.') when the query is typed then cleared", async () => {
+  it("re-browses (not a stuck 'No results.') when the query is typed then cleared", async () => {
     mockSearchAssignable.mockResolvedValue([]);
     render(<AssignmentItemBuilder teamId="t1" items={[]} onChange={() => {}} />);
 
@@ -254,10 +271,15 @@ describe("AssignmentItemBuilder", () => {
     fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "postgres" } });
     await screen.findByText("No results.");
 
+    mockSearchAssignable.mockResolvedValue([
+      { id: "c1", title: "Intro to Postgres", parentLabel: "Databases" },
+    ]);
     fireEvent.change(screen.getByPlaceholderText("Search…"), { target: { value: "" } });
 
-    expect(await screen.findByText(/search for a course to add/i)).toBeInTheDocument();
-    expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockSearchAssignable).toHaveBeenLastCalledWith("t1", "COURSE", ""),
+    );
+    expect(await screen.findByText("Intro to Postgres")).toBeInTheDocument();
   });
 
   it("does not list `store` in the search effect's deps — an unrelated re-render must not refetch", async () => {

@@ -101,14 +101,11 @@ export function AssignmentItemBuilder({
       setSearchFailed(false);
       return;
     }
+    // A blank query browses the first page of the chosen type — the
+    // endpoint no longer 422s on it, `take: 20` bounds the result set, and
+    // this is what lets a manager see the list immediately on picking a
+    // type rather than needing to type first.
     const term = query.trim();
-    if (!term) {
-      // The endpoint 422s on a blank `q` — don't even ask.
-      setResults([]);
-      setSearching(false);
-      setSearchFailed(false);
-      return;
-    }
     let cancelled = false;
     setSearching(true);
     setSearchFailed(false);
@@ -241,11 +238,6 @@ export function AssignmentItemBuilder({
                 Try again
               </Button>
             </div>
-          ) : query.trim() === "" ? (
-            <p className="text-sm text-muted-foreground">
-              Search for {/^[aeiou]/i.test(TYPE_LABELS[type]) ? "an" : "a"}{" "}
-              {TYPE_LABELS[type].toLowerCase()} to add.
-            </p>
           ) : results.length === 0 ? (
             <p className="text-sm text-muted-foreground">No results.</p>
           ) : (
