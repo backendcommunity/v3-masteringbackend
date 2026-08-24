@@ -25,7 +25,7 @@ const TYPE_LABELS: Record<AssignmentItem["type"], string> = {
   TASK: "Task",
   QUIZ: "Quiz",
   EXERCISE: "Exercise",
-  CUSTOM: "Task",
+  CUSTOM: "Custom",
 };
 
 const STATE_LABELS: Record<AssignmentItemState, string> = {
@@ -155,7 +155,7 @@ export function AssignmentDetailDialog({
                         className="whitespace-nowrap px-2 py-2 text-left font-medium text-muted-foreground"
                       >
                         {item.type === "CUSTOM"
-                          ? (item.text ?? "Task")
+                          ? (item.text ?? "Custom")
                           : unavailable
                             ? "Unavailable"
                             : (item.title ?? TYPE_LABELS[item.type])}

@@ -23,7 +23,7 @@ const TYPE_LABELS: Record<AssignmentItem["type"], string> = {
   TASK: "Task",
   QUIZ: "Quiz",
   EXERCISE: "Exercise",
-  CUSTOM: "Task",
+  CUSTOM: "Custom",
 };
 
 const STATE_LABELS: Record<AssignmentItemState, string> = {
@@ -112,7 +112,7 @@ export function AssignmentCard({ assignment, onToggle }: AssignmentCardProps) {
                 {item.type === "CUSTOM" ? (
                   <>
                     <Checkbox
-                      aria-label={item.text ?? "Task"}
+                      aria-label={item.text ?? "Custom"}
                       checked={checked}
                       onCheckedChange={(value) =>
                         handleToggle(item.id, value === true)

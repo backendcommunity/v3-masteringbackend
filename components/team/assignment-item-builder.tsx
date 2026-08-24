@@ -9,7 +9,7 @@ import { useAppStore } from "@/lib/store";
 import type { AssignmentItemInput, AssignmentItemType } from "@/lib/data";
 
 const ITEM_TYPES: Array<{ value: AssignmentItemType; label: string }> = [
-  { value: "CUSTOM", label: "Task" },
+  { value: "CUSTOM", label: "Custom" },
   { value: "PATH", label: "Path" },
   { value: "COURSE", label: "Course" },
   { value: "PROJECT", label: "Project" },
@@ -27,7 +27,7 @@ const TYPE_LABELS: Record<AssignmentItemType, string> = {
   TASK: "Task",
   QUIZ: "Quiz",
   EXERCISE: "Exercise",
-  CUSTOM: "Task",
+  CUSTOM: "Custom",
 };
 
 const MAX_ITEMS = 25;
