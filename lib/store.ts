@@ -82,7 +82,10 @@ import {
 import { api, socketAPI } from "./api";
 
 // Single source for the REST base URL used by the raw-fetch (streaming) actions.
-const API_BASE =
+// Exported so a plain (non-axios) link — e.g. the reports CSV export, which must
+// be a top-level GET navigation rather than a fetch, see team-reports.tsx — can
+// build its href from the same value instead of a third copy of this literal.
+export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
