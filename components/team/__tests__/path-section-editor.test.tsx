@@ -508,6 +508,46 @@ describe("PathSectionEditor", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  /**
+   * A malformed 200 — an empty body, a proxy's error page, a contract change
+   * — makes `result` itself undefined, and the id-adoption line runs AFTER
+   * sectionsCommitted. `result.sections?.[i]` optional-chained one level too
+   * few, so it threw a raw TypeError past the point of no return and the
+   * manager read "Your sections were saved, but Cannot read properties of
+   * undefined (reading 'sections')". The file already guards exactly this
+   * shape for the getTeamPath read twelve lines above.
+   */
+  it("survives a malformed 200 with the readable message, not a raw TypeError", async () => {
+    mockSetPathSections.mockResolvedValue(undefined);
+    mockSearchAssignable.mockResolvedValue([
+      { type: "VIDEO", refId: "v9", title: "Indexes", parentLabel: "Postgres" },
+    ]);
+    const { onSaved } = renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.change(screen.getByLabelText("Section 3 title"), {
+      target: { value: "Week 3 - Queues" },
+    });
+    fireEvent.click(within(sectionRegion(3)).getByRole("button", { name: /add content/i }));
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "VIDEO" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^add Indexes$/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    const notice = await screen.findByText(/your sections were saved, but/i);
+    expect(notice).toBeInTheDocument();
+    expect(notice.textContent ?? "").not.toMatch(/cannot read propert/i);
+    expect(notice.textContent ?? "").toMatch(/couldn't confirm which section/i);
+    // Committed, so the caller is told — and the manager's work is still here.
+    expect(onSaved).toHaveBeenCalled();
+    expect(sectionTitles()).toEqual([
+      "Week 1 - HTTP",
+      "Week 2 - Databases",
+      "Week 3 - Queues",
+    ]);
+  });
+
   it("keeps the adopted ids when the item save fails, so a retry updates rather than re-creates", async () => {
     mockSearchAssignable.mockResolvedValue([
       { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },

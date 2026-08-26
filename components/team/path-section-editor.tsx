@@ -321,9 +321,16 @@ export function PathSectionEditor({
       // section's id is simply the one the backend just assigned it, and a
       // concurrent insert by another manager cannot land on the wrong row
       // because nothing here ever looks at anyone else's rows to find it.
+      //
+      // `result?` as well as `result.sections?`: a malformed 200 (an empty
+      // body, a proxy's error page) makes `result` itself undefined, and this
+      // line runs AFTER sectionsCommitted — so a bare `result.sections` threw
+      // a raw TypeError and the manager read "Your sections were saved, but
+      // Cannot read properties of undefined". The getTeamPath read twelve
+      // lines up already guards exactly this shape.
       const working = sections.map((s, i) => ({
         ...s,
-        id: result.sections?.[i]?.id ?? s.id,
+        id: result?.sections?.[i]?.id ?? s.id,
       }));
       // Adopted into state BEFORE the item calls below, which are the ones
       // that can still fail. The backend is a set-replace, so a retry that
