@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Map } from "lucide-react";
+import { Map, Pencil } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,7 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { PathSectionEditor } from "@/components/team/path-section-editor";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -27,7 +29,13 @@ import type { TeamPath, TeamSummary } from "@/lib/data";
  * That's also why this file never calls the manager-only endpoints
  * (getTeamPath, createTeamPath, updateTeamPath, archiveTeamPath,
  * setPathSections, setSectionItems) — not "handle their 403 gracefully",
- * just never call them here. Task 11 adds the authoring UI on top of this.
+ * just never call them here.
+ *
+ * Task 11 added the manager surface UNDERNEATH that member view rather than
+ * around it: `canManage` gates the "Manage paths" section and nothing else,
+ * so a plain member still sees exactly what they saw before it existed, and
+ * `getTeamPath` is still never called for them — it fires only when a
+ * manager actually opens the editor.
  */
 export function TeamPathsPage() {
   const store = useAppStore();
@@ -75,6 +83,17 @@ export function TeamPathsPage() {
   useEffect(() => {
     if (team) loadPaths(team.id);
   }, [team, loadPaths]);
+
+  // Gates the manager section below and nothing else. The member view above
+  // stays unconditional — a manager is also a person working through their
+  // team's paths, and sub-project 3a's mistake was letting a canManage check
+  // creep upward until the member saw an empty screen.
+  const canManage = team?.role === "OWNER" || team?.role === "ADMIN";
+
+  // Which path's sections are being edited. The editor is MOUNTED only while
+  // this is set, which is also what keeps its `getTeamPath` call out of a
+  // member's session entirely.
+  const [editing, setEditing] = useState<TeamPath | null>(null);
 
   if (teamFailed) {
     return (
@@ -141,6 +160,59 @@ export function TeamPathsPage() {
             </a>
           ))}
         </div>
+      )}
+
+      {canManage && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Manage paths</h2>
+            <p className="text-sm text-muted-foreground">
+              Name each path&apos;s sections, put them in order, and choose
+              what goes inside.
+            </p>
+          </div>
+
+          {!paths || pathsFailed ? null : paths.length === 0 ? (
+            <EmptyStateCard
+              icon={Map}
+              title="Nothing to edit yet"
+              description="Once your team has a path, its sections can be built here."
+            />
+          ) : (
+            <div className="space-y-2">
+              {paths.map((path) => (
+                <Card key={path.id}>
+                  <CardContent className="flex flex-wrap items-center gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{path.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {path.sectionCount}{" "}
+                        {path.sectionCount === 1 ? "section" : "sections"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditing(path)}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit sections
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {editing && (
+        <PathSectionEditor
+          teamId={team.id}
+          path={editing}
+          onSaved={() => loadPaths(team.id)}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   );

@@ -51,7 +51,7 @@ import {
   TeamGroup,
   MyAssignment,
   TeamAssignment,
-  AssignmentItemType,
+  AssignableSearchType,
   AssignableResult,
   AssignmentDetail,
   AssignmentInput,
@@ -351,7 +351,7 @@ interface AppState {
   getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
   getMyAssignments: (teamId: string) => Promise<MyAssignment[]>;
   getTeamAssignments: (teamId: string) => Promise<TeamAssignment[]>;
-  searchAssignable: (teamId: string, type: AssignmentItemType, q: string) => Promise<AssignableResult[]>;
+  searchAssignable: (teamId: string, type: AssignableSearchType, q: string) => Promise<AssignableResult[]>;
   getTeamAssignmentDetail: (teamId: string, assignmentId: string) => Promise<AssignmentDetail>;
   createTeamAssignment: (teamId: string, input: AssignmentInput) => Promise<{ id: string; name: string }>;
   updateTeamAssignment: (
@@ -1569,7 +1569,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(`/teams/${teamId}/assignments`);
     return data?.data as TeamAssignment[];
   },
-  searchAssignable: async (teamId: string, type: AssignmentItemType, q: string) => {
+  searchAssignable: async (teamId: string, type: AssignableSearchType, q: string) => {
     // An empty `q` is meaningless — it means "no filter", not "filter on
     // the empty string" — so it is omitted from the wire entirely rather
     // than sent as `q=`. The backend validator now accepts `q=` too (see
