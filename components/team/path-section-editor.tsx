@@ -48,10 +48,10 @@ const TYPE_LABELS: Record<PathItemType, string> = {
  *    though the assignment picker this borrows from offers `PATH`. Nor
  *    `CUSTOM`/`TASK`: a path section holds catalogue content, not free text.
  *  - `AssignableSearchType` is what `GET /teams/:id/assignable` will search.
- *    It has no `BOOTCAMP` and no `RESOURCE` (see ValidateAssignableSearch),
- *    so those two drop out of the intersection: they are legal in a saved
- *    section but there is no search behind them, and offering them would
- *    only produce a 422 dressed up as "Search failed."
+ *    It covers every path item kind, so the intersection is now the whole of
+ *    `PathItemType` minus the two exclusions above. Anything added to
+ *    `PathItemType` without a matching branch in `ValidateAssignableSearch`
+ *    would drop back out of it rather than 422 as "Search failed."
  */
 type PickableItemType = Extract<PathItemType, AssignableSearchType>;
 
@@ -66,6 +66,8 @@ const PICKABLE_TYPES: PickableItemType[] = [
   "QUIZ",
   "MOCK_INTERVIEW",
   "COHORT",
+  "BOOTCAMP",
+  "RESOURCE",
 ];
 
 // Mirrors the backend's own caps (team-path-sections.ts) so a manager is

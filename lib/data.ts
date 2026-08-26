@@ -518,15 +518,21 @@ export type AssignmentItemType =
 /**
  * What `GET /teams/:id/assignable` will actually search — every
  * `AssignmentItemType` except CUSTOM (which has no catalogue behind it),
- * plus `LESSON` and `COHORT`, added for the team-path editor.
+ * plus `LESSON`, `COHORT`, `BOOTCAMP` and `RESOURCE`, added for the
+ * team-path editor.
  *
- * This is NOT the same set as `PathItemType`: the endpoint's validator
- * (`ValidateAssignableSearch`) has no `BOOTCAMP` and no `RESOURCE`, so
- * those two path item kinds cannot be picked through search and asking for
- * them 422s. `Extract<PathItemType, AssignableSearchType>` is the honest
- * intersection, and is what the path picker offers.
+ * This is still NOT the same set as `PathItemType`: `ROADMAP` has no branch
+ * in `ValidateAssignableSearch` and never will, because nesting a path
+ * inside a path is unsupported. `Extract<PathItemType,
+ * AssignableSearchType>` is the honest intersection, and is what the path
+ * picker offers — every path item kind except that one.
  */
-export type AssignableSearchType = AssignmentItemType | "LESSON" | "COHORT";
+export type AssignableSearchType =
+  | AssignmentItemType
+  | "LESSON"
+  | "COHORT"
+  | "BOOTCAMP"
+  | "RESOURCE";
 export type AssignmentItemState = "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "UNAVAILABLE";
 export type AssignmentTargetType = "TEAM" | "GROUP" | "MEMBER";
 
