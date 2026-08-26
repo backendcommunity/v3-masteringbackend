@@ -154,10 +154,34 @@ async function loaded() {
   await screen.findByDisplayValue("Week 1 - HTTP");
 }
 
+/**
+ * Stands in for the real endpoint: every submitted section's id, in
+ * submitted order, exactly what setPathSections now returns. An existing
+ * section keeps the id it was submitted with; a new one gets a fresh,
+ * deterministic one — matching real behaviour closely enough that a test
+ * asserting position-by-position correctness works, without hand-writing
+ * the response in every test that just needs *a* successful save.
+ */
+function echoSections(sections: Array<{ id?: string; title: string }>) {
+  return {
+    id: "p1",
+    sectionCount: sections.length,
+    sections: sections.map((s, i) => ({ id: s.id ?? `fresh-${i}`, title: s.title })),
+  };
+}
+
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks, not clearAllMocks: a test that queues a second
+  // `mockResolvedValueOnce` it never expects to be consumed (the
+  // concurrent-insert test below queues a "confusing" second answer to
+  // prove it's never asked for) would otherwise leak that unconsumed value
+  // into the NEXT test's first call — clearAllMocks resets call history but
+  // leaves a queued implementation in place.
+  vi.resetAllMocks();
   mockGetTeamPath.mockResolvedValue(detail());
-  mockSetPathSections.mockResolvedValue({ id: "p1", sectionCount: 2 });
+  mockSetPathSections.mockImplementation(
+    async (_teamId: string, _pathId: string, sections: any[]) => echoSections(sections),
+  );
   mockSetSectionItems.mockResolvedValue({ id: "sec-1", itemCount: 2 });
   mockSearchAssignable.mockResolvedValue([]);
 });
@@ -399,20 +423,13 @@ describe("PathSectionEditor", () => {
     expect(mockSetPathSections).not.toHaveBeenCalled();
   });
 
-  it("sends a new section's items to the id read back for it, not to a guessed one", async () => {
+  it("sends a new section's items to the id setPathSections returned for it directly, with no re-read", async () => {
     mockSearchAssignable.mockResolvedValue([
       { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
     ]);
-    // The re-read after the section save is the ONLY way the client learns
-    // the id of a section the server just created — setPathSections returns
-    // a count.
-    mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
-      ...detail(),
-      sections: [
-        ...detail().sections,
-        { id: "sec-3", title: "Week 3 - Queues", order: 2, items: [] },
-      ],
-    });
+    // The default `echoSections` implementation already gives the new
+    // section (position 2) a fresh id of its own — that IS the mechanism
+    // under test, so nothing extra needs mocking here.
     renderEditor();
     await loaded();
 
@@ -427,21 +444,39 @@ describe("PathSectionEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(mockSetSectionItems).toHaveBeenCalledTimes(1));
 
-    expect(mockSetSectionItems).toHaveBeenCalledWith("t1", "p1", "sec-3", [
+    expect(mockSetSectionItems).toHaveBeenCalledWith("t1", "p1", "fresh-2", [
       { type: "VIDEO", refId: "v9" },
     ]);
+    // The id came straight from setPathSections's own response — getTeamPath
+    // is called only once, for the initial load, never again to find it.
+    expect(mockGetTeamPath).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses to adopt an id whose section does not corroborate its position", async () => {
+  /**
+   * The property the old title-and-unheld-id heuristic could not always
+   * prove: with real ids returned directly by setPathSections, in submitted
+   * order, there is no candidate to corroborate and nothing to guess — the
+   * response IS the answer, regardless of what any other manager did to the
+   * path in between. A concurrent insert by another manager is simulated by
+   * arming getTeamPath with a second, "confusing" answer it must never be
+   * asked for; if anything in the component still re-read the path to
+   * locate the new section, it would find this instead and misfire, handing
+   * this video's items to "sec-2" — a stored section that has nothing to do
+   * with "Week 3" — and replacing its entire item list.
+   */
+  it("attaches a new section's items to the id returned for it, even though another manager concurrently inserted a section", async () => {
     mockSearchAssignable.mockResolvedValue([
       { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
     ]);
-    // Another manager inserted a section at the top between the two calls,
-    // so position 2 in the re-read is sec-2 — an existing section that has
-    // nothing to do with "Week 3". Adopting by bare position would hand
-    // sec-2's id to setSectionItems, and the backend would replace sec-2's
-    // ENTIRE item list with this one video: every join row deleted, taking
-    // assignedAt and the per-link flags with it, while Week 3 stays empty.
+    mockSetPathSections.mockResolvedValueOnce({
+      id: "p1",
+      sectionCount: 3,
+      sections: [
+        { id: "sec-1", title: "Week 1 - HTTP" },
+        { id: "sec-2", title: "Week 2 - Databases" },
+        { id: "sec-3", title: "Week 3 - Queues" },
+      ],
+    });
     mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
       ...detail(),
       sections: [
@@ -461,28 +496,22 @@ describe("PathSectionEditor", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^add Indexes$/i }));
 
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockSetSectionItems).toHaveBeenCalledTimes(1));
 
-    expect(await screen.findByText(/couldn't confirm which section/i)).toBeInTheDocument();
-    // The whole point: nobody else's section was written to.
-    expect(mockSetSectionItems).not.toHaveBeenCalled();
-    // The sections themselves DID commit, so the list behind the dialog is
-    // refreshed and the manager is told so rather than told nothing saved.
-    expect(screen.getByText(/your sections were saved/i)).toBeInTheDocument();
+    // Structurally impossible to get wrong: the items landed on the id this
+    // request's own response assigned the new section, never on "sec-2".
+    expect(mockSetSectionItems).toHaveBeenCalledWith("t1", "p1", "sec-3", [
+      { type: "VIDEO", refId: "v9" },
+    ]);
+    expect(mockGetTeamPath).toHaveBeenCalledTimes(1);
     expect(onSaved).toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("keeps the adopted ids when the item save fails, so a retry updates rather than re-creates", async () => {
     mockSearchAssignable.mockResolvedValue([
       { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
     ]);
-    mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
-      ...detail(),
-      sections: [
-        ...detail().sections,
-        { id: "sec-3", title: "Week 3 - Queues", order: 2, items: [] },
-      ],
-    });
     mockSetSectionItems.mockRejectedValueOnce({
       response: { data: { message: "That item is on the path twice." } },
     });
@@ -512,39 +541,22 @@ describe("PathSectionEditor", () => {
     ]);
     expect(within(itemList(3)).getByText("Indexes")).toBeInTheDocument();
 
-    // The retry: sec-3 exists now, and the second payload must say so.
-    // Without adoption it would go back as a new section, and the backend's
-    // set-replace would unlink the row it just made and create another.
-    mockSetSectionItems.mockResolvedValue({ id: "sec-3", itemCount: 1 });
+    // The retry: the section-editor state already carries the id
+    // setPathSections handed back on the first save (fresh-2), and the
+    // second payload must say so. Without that carried id this would go
+    // back as a new section, and the backend's set-replace would unlink the
+    // row it just made and create another.
+    mockSetSectionItems.mockResolvedValue({ id: "fresh-2", itemCount: 1 });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(mockSetPathSections).toHaveBeenCalledTimes(2));
     expect(sectionsPayload(1)).toEqual([
       { id: "sec-1", title: "Week 1 - HTTP" },
       { id: "sec-2", title: "Week 2 - Databases" },
-      { id: "sec-3", title: "Week 3 - Queues" },
+      { id: "fresh-2", title: "Week 3 - Queues" },
     ]);
-    // And no second re-read was needed, because nothing lacks an id now.
-    expect(mockGetTeamPath).toHaveBeenCalledTimes(2);
-  });
-
-  it("says the sections were saved when only the re-read fails, and refreshes the list behind it", async () => {
-    mockGetTeamPath
-      .mockResolvedValueOnce(detail())
-      .mockRejectedValueOnce(new Error("network error"));
-    const { onSaved, onClose } = renderEditor();
-    await loaded();
-
-    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
-    fireEvent.change(screen.getByLabelText("Section 3 title"), {
-      target: { value: "Week 3 - Queues" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-
-    // setPathSections committed; saying "couldn't save" here is a lie the
-    // manager would act on by doing it all again.
-    expect(await screen.findByText(/your sections were saved/i)).toBeInTheDocument();
-    expect(onSaved).toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+    // No re-read anywhere in this flow — every id the second save needs was
+    // already carried in state from the first response.
+    expect(mockGetTeamPath).toHaveBeenCalledTimes(1);
   });
 
   it("marks an item the catalogue no longer has, instead of showing a bare id", async () => {

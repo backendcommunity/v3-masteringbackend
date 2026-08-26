@@ -60,6 +60,7 @@ import {
   TeamPathDetail,
   TeamPathUpdateInput,
   TeamPathSectionInput,
+  TeamPathSectionResult,
   TeamPathItemInput,
   TeamSeatPreview,
   TeamInvite,
@@ -388,7 +389,7 @@ interface AppState {
     teamId: string,
     pathId: string,
     sections: TeamPathSectionInput[],
-  ) => Promise<{ id: string; sectionCount: number }>;
+  ) => Promise<{ id: string; sectionCount: number; sections: TeamPathSectionResult[] }>;
   setSectionItems: (
     teamId: string,
     pathId: string,
@@ -1647,7 +1648,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setPathSections: async (teamId: string, pathId: string, sections: TeamPathSectionInput[]) => {
     const { data } = await api.put(`/teams/${teamId}/paths/${pathId}/sections`, { sections });
-    return data?.data as { id: string; sectionCount: number };
+    // `sections` on the response is every submitted section's real id, in
+    // submitted order — that's what lets the editor bind a brand-new
+    // section's id by position, with no re-read and no guessing.
+    return data?.data as { id: string; sectionCount: number; sections: TeamPathSectionResult[] };
   },
   setSectionItems: async (
     teamId: string,

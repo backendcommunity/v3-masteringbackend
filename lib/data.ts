@@ -710,11 +710,11 @@ export interface PathSection {
 }
 
 /**
- * `GET /teams/:id/paths/:pathId` — the only endpoint that returns section
- * and item ids. The editor (Task 11) must round-trip those ids back through
- * `setPathSections`/`setSectionItems`; the backend diffs by identity, and
- * submitting without ids degrades into delete-and-recreate, destroying every
- * member's progress on that path.
+ * `GET /teams/:id/paths/:pathId` — the read the editor uses to populate
+ * itself when it first opens. The editor (Task 11) round-trips these ids
+ * back through `setPathSections`/`setSectionItems`; the backend diffs by
+ * identity, and submitting without ids degrades into delete-and-recreate,
+ * destroying every member's progress on that path.
  */
 export interface TeamPathDetail {
   id: string;
@@ -732,6 +732,21 @@ export interface TeamPathUpdateInput {
 /** One entry in `PUT /teams/:id/paths/:pathId/sections`. Omit `id` for a new section. */
 export interface TeamPathSectionInput {
   id?: string;
+  title: string;
+}
+
+/**
+ * One entry of `setPathSections`'s response — every section it just wrote,
+ * in SUBMITTED order (not stored order, which is exactly where a reorder
+ * differs). Position i here is position i of the `TeamPathSectionInput[]`
+ * that was sent, so a caller binds a brand-new section's real id by index
+ * alone: no title match, no re-read, no guessing which row in a later
+ * `getTeamPath` call is the one it just created. An existing section's `id`
+ * here is unchanged from what was submitted; a new section's `id` is the row
+ * the backend just created for it.
+ */
+export interface TeamPathSectionResult {
+  id: string;
   title: string;
 }
 

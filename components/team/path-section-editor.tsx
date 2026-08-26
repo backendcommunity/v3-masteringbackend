@@ -128,10 +128,12 @@ const itemLabel = (item: TeamPathItemInput) =>
  *
  * Save order is a real requirement, not tidiness: `setPathSections` runs
  * first because a brand-new section has no id to attach items to until the
- * server has created it. Since that endpoint returns only a count, the ids
- * are then read back with `getTeamPath` and ADOPTED INTO STATE before any
- * item call — without that, a retry after a failed item save would resubmit
- * the new sections as new all over again and duplicate them.
+ * server has created it. That endpoint now returns every submitted
+ * section's real id, in submitted order, so those ids are ADOPTED INTO
+ * STATE directly from the response — no re-read, no matching by title —
+ * before any item call. Without that adoption, a retry after a failed item
+ * save would resubmit the new sections as new all over again and duplicate
+ * them.
  */
 export function PathSectionEditor({
   teamId,
@@ -306,64 +308,41 @@ export function PathSectionEditor({
       const payload: TeamPathSectionInput[] = sections.map((s) =>
         s.id ? { id: s.id, title: s.title.trim() } : { title: s.title.trim() },
       );
-      await store.setPathSections(teamId, path.id, payload);
+      const result = await store.setPathSections(teamId, path.id, payload);
       // Past this line the section replace has COMMITTED. Everything below
       // can still fail, and when it does the manager must not be told that
       // nothing was saved — see the catch.
       sectionsCommitted = true;
 
-      // setPathSections returns only { id, sectionCount }, so the ids of
-      // sections it just created have to be read back before anything can
-      // be attached to them.
-      let working = sections;
-      if (sections.some((s) => !s.id)) {
-        let detail;
-        try {
-          detail = await store.getTeamPath(teamId, path.id);
-        } catch {
-          throw new Error(
-            "couldn't re-read the path to find the new sections. Reopen this path and add their content.",
-          );
-        }
-        const fresh = detail?.sections ?? [];
-        // Position alone is NOT identity. The backend writes `order` as the
-        // submitted index and getTeamPath sorts by it, so position i here
-        // is position i there — but only if nothing else wrote to the path
-        // between the two calls. If another manager inserted a section at
-        // the top, `fresh[i]` is somebody else's row, and handing its id to
-        // setSectionItems below would replace THAT section's entire item
-        // list with this one's — every join row deleted, taking assignedAt,
-        // the per-link isCompleted/isOptional flags and a mock interview's
-        // modality with it, while the section actually being saved stays
-        // empty. Silent destruction of a section nobody touched, so the
-        // candidate has to corroborate its position: same title, and an id
-        // no other section here already holds. A candidate that fails is
-        // left unadopted, and the item loop below refuses to guess.
-        const heldIds = new Set(
-          sections.map((s) => s.id).filter((id): id is string => !!id),
-        );
-        working = sections.map((s, i) => {
-          if (s.id) return s;
-          const candidate = fresh[i];
-          if (!candidate || candidate.title !== s.title.trim()) return s;
-          if (heldIds.has(candidate.id)) return s;
-          heldIds.add(candidate.id);
-          return { ...s, id: candidate.id };
-        });
-        // Adopted into state BEFORE the item calls below, which are the
-        // ones that can still fail. The backend is a set-replace, so a
-        // retry that had forgotten these ids would not duplicate anything —
-        // the un-adopted row simply falls out of `keptIds`, is unlinked and
-        // recreated under a new id, orphaning the first one. What adoption
-        // buys is that a retry's item PUTs are aimed at rows that still
-        // exist, and that each attempt stops leaking another unlinked
-        // RoadmapTopic.
-        setSections(working);
-      }
+      // `result.sections` is every submitted section's real id, in
+      // SUBMITTED order — position i of the response is position i of
+      // `sections` above, by construction of the endpoint itself. No
+      // re-read, no title match, nothing to corroborate: a brand-new
+      // section's id is simply the one the backend just assigned it, and a
+      // concurrent insert by another manager cannot land on the wrong row
+      // because nothing here ever looks at anyone else's rows to find it.
+      const working = sections.map((s, i) => ({
+        ...s,
+        id: result.sections?.[i]?.id ?? s.id,
+      }));
+      // Adopted into state BEFORE the item calls below, which are the ones
+      // that can still fail. The backend is a set-replace, so a retry that
+      // had forgotten these ids would not duplicate anything — the
+      // un-adopted row simply falls out of `keptIds`, is unlinked and
+      // recreated under a new id, orphaning the first one. What adoption
+      // buys is that a retry's item PUTs are aimed at rows that still
+      // exist, and that each attempt stops leaking another unlinked
+      // RoadmapTopic.
+      setSections(working);
 
       for (const section of working) {
         const key = itemsKey(section.items);
         if (key === (baseline[section.key] ?? "")) continue;
+        // Unreachable in the normal case: `result.sections` carries one
+        // entry per submitted section, by contract of the endpoint. Kept as
+        // a guard against a malformed or short response, so a broken
+        // contract fails loudly here rather than sending an item PUT to
+        // `undefined`.
         if (!section.id)
           throw new Error(
             `couldn't confirm which section "${section.title.trim()}" is, so its content was left alone. Reopen this path and add it again.`,
