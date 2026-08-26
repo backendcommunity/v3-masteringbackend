@@ -291,7 +291,11 @@ export function TeamReportsPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      // Deferred, not synchronous. Chrome and Firefox start the download
+      // during click dispatch so the blob survives an immediate revoke;
+      // Safari has a long history of not, and saves nothing. jsdom stubs
+      // both createObjectURL and revokeObjectURL, so no test can see this.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setDownloadFailed(true);
     } finally {
