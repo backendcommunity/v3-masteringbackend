@@ -376,6 +376,7 @@ interface AppState {
   createTeamPath: (
     teamId: string,
     title: string,
+    summary?: string | null,
   ) => Promise<{ id: string; title: string; slug: string }>;
   updateTeamPath: (
     teamId: string,
@@ -1627,8 +1628,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(`/teams/${teamId}/paths/${pathId}`);
     return data?.data as TeamPathDetail;
   },
-  createTeamPath: async (teamId: string, title: string) => {
-    const { data } = await api.post(`/teams/${teamId}/paths`, { title });
+  createTeamPath: async (teamId: string, title: string, summary?: string | null) => {
+    // `summary` is optional on the wire (ValidateCreateTeamPath) — omitted
+    // entirely rather than sent as `undefined` when the caller doesn't pass
+    // one, same "don't put a meaningless value on the wire" rule as
+    // searchAssignable's `q`.
+    const body = summary !== undefined ? { title, summary } : { title };
+    const { data } = await api.post(`/teams/${teamId}/paths`, body);
     // NOT a full TeamPath — the backend returns exactly these three fields.
     return data?.data as { id: string; title: string; slug: string };
   },
@@ -1649,9 +1655,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     sectionId: string,
     items: TeamPathItemInput[],
   ) => {
+    // Rebuilt to exactly {type, refId} rather than forwarded as-is: items
+    // diff by that composite, NOT by an id (unlike sections). A caller that
+    // spreads a `PathItem` (which carries a derived `id` of `type:refId`,
+    // for React keys only) into an item would otherwise leak that field
+    // onto the wire and 422 — "items[0].id" is not allowed — on every save
+    // after the section's first, per ValidateSetSectionItems having no `id`
+    // key and no allowUnknown. Stripping here means the type not allowing
+    // `id` isn't the only thing standing between a caller and that bug.
+    const body = { items: items.map(({ type, refId }) => ({ type, refId })) };
     const { data } = await api.put(
       `/teams/${teamId}/paths/${pathId}/sections/${sectionId}/items`,
-      { items },
+      body,
     );
     return data?.data as { id: string; itemCount: number };
   },

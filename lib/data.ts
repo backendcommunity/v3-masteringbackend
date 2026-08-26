@@ -725,11 +725,19 @@ export interface TeamPathSectionInput {
 
 /**
  * One entry in `PUT /teams/:id/paths/:pathId/sections/:sectionId/items`.
- * Omit `id` for a new item — an existing id is what lets the backend match
- * it back to its stored row instead of recreating it.
+ *
+ * NO `id` field — unlike sections, items are diffed by the composite
+ * `(type, refId)`, not by a stored surrogate id (`ValidateSetSectionItems`
+ * in the backend validator has no `id` key and no `allowUnknown`, so
+ * sending one 422s: `"items[0].id" is not allowed`). `PathItem.id` as
+ * returned by `getTeamPath` is a derived display key (literally
+ * `` `${type}:${refId}` ``), not a row id — it exists for React keys and
+ * UI bookkeeping, and must never be forwarded here. The fetcher
+ * (`setSectionItems` in `lib/store.ts`) reconstructs the wire body from
+ * only `type`/`refId` for this reason, so even a caller that spreads a
+ * `PathItem` in here cannot leak an `id` onto the wire.
  */
 export interface TeamPathItemInput {
-  id?: string;
   type: PathItemType;
   refId: string;
   /** Client-side only, same rule as AssignmentItemInput.title — never sent. */
