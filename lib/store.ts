@@ -56,6 +56,11 @@ import {
   AssignmentDetail,
   AssignmentInput,
   AssignmentItemInput,
+  TeamPath,
+  TeamPathDetail,
+  TeamPathUpdateInput,
+  TeamPathSectionInput,
+  TeamPathItemInput,
   TeamSeatPreview,
   TeamInvite,
   TeamInvitePreview,
@@ -366,6 +371,29 @@ interface AppState {
     itemId: string,
     done: boolean,
   ) => Promise<void>;
+  getTeamPaths: (teamId: string) => Promise<TeamPath[]>;
+  getTeamPath: (teamId: string, pathId: string) => Promise<TeamPathDetail>;
+  createTeamPath: (
+    teamId: string,
+    title: string,
+  ) => Promise<{ id: string; title: string; slug: string }>;
+  updateTeamPath: (
+    teamId: string,
+    pathId: string,
+    input: TeamPathUpdateInput,
+  ) => Promise<{ id: string; title: string }>;
+  archiveTeamPath: (teamId: string, pathId: string) => Promise<void>;
+  setPathSections: (
+    teamId: string,
+    pathId: string,
+    sections: TeamPathSectionInput[],
+  ) => Promise<{ id: string; sectionCount: number }>;
+  setSectionItems: (
+    teamId: string,
+    pathId: string,
+    sectionId: string,
+    items: TeamPathItemInput[],
+  ) => Promise<{ id: string; itemCount: number }>;
   createTeamGroup: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
   renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<{ id: string; name: string }>;
   deleteTeamGroup: (teamId: string, groupId: string) => Promise<void>;
@@ -1587,6 +1615,45 @@ export const useAppStore = create<AppState>((set, get) => ({
     const url = `/teams/${teamId}/assignments/${assignmentId}/items/${itemId}/done`;
     if (done) await api.put(url);
     else await api.delete(url);
+  },
+  getTeamPaths: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/paths`);
+    return data?.data as TeamPath[];
+  },
+  // The only endpoint that returns section/item ids — required by the
+  // editor (Task 11) so a reorder or edit round-trips identity instead of
+  // degrading into delete-and-recreate on save.
+  getTeamPath: async (teamId: string, pathId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/paths/${pathId}`);
+    return data?.data as TeamPathDetail;
+  },
+  createTeamPath: async (teamId: string, title: string) => {
+    const { data } = await api.post(`/teams/${teamId}/paths`, { title });
+    // NOT a full TeamPath — the backend returns exactly these three fields.
+    return data?.data as { id: string; title: string; slug: string };
+  },
+  updateTeamPath: async (teamId: string, pathId: string, input: TeamPathUpdateInput) => {
+    const { data } = await api.patch(`/teams/${teamId}/paths/${pathId}`, input);
+    return data?.data as { id: string; title: string };
+  },
+  archiveTeamPath: async (teamId: string, pathId: string) => {
+    await api.delete(`/teams/${teamId}/paths/${pathId}`);
+  },
+  setPathSections: async (teamId: string, pathId: string, sections: TeamPathSectionInput[]) => {
+    const { data } = await api.put(`/teams/${teamId}/paths/${pathId}/sections`, { sections });
+    return data?.data as { id: string; sectionCount: number };
+  },
+  setSectionItems: async (
+    teamId: string,
+    pathId: string,
+    sectionId: string,
+    items: TeamPathItemInput[],
+  ) => {
+    const { data } = await api.put(
+      `/teams/${teamId}/paths/${pathId}/sections/${sectionId}/items`,
+      { items },
+    );
+    return data?.data as { id: string; itemCount: number };
   },
   createTeamGroup: async (teamId: string, name: string) => {
     const { data } = await api.post(`/teams/${teamId}/groups`, { name });

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, FolderTree, ClipboardList, Trophy, Settings } from "lucide-react";
+import { LayoutDashboard, Users, FolderTree, Map, ClipboardList, Trophy, Settings } from "lucide-react";
 import { routes } from "@/lib/routes";
 
 /**
@@ -22,6 +22,12 @@ export const TEAM_NAV_ITEMS: TeamNavItem[] = [
   { href: routes.teamOverview, label: "Overview", icon: LayoutDashboard, managerOnly: true },
   { href: routes.teamMembers, label: "Members", icon: Users, managerOnly: false },
   { href: routes.teamGroups, label: "Groups", icon: FolderTree, managerOnly: true },
+  // managerOnly: FALSE. A member sees their team's paths and opens them —
+  // only authoring (create/edit/archive/reorder) is manager-gated within the
+  // page itself. Gating the tab on canManage is exactly the mistake
+  // sub-project 3a shipped, where the API served a member's data and the UI
+  // threw it away before it ever reached the screen.
+  { href: routes.teamPaths, label: "Paths", icon: Map, managerOnly: false },
   // managerOnly: FALSE. Both audiences live here — a member sees what they
   // were given, a manager additionally sees the team's lists. Gating this tab
   // on canManage is exactly the mistake sub-project 3a shipped, where the API

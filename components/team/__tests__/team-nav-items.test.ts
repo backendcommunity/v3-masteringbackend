@@ -5,20 +5,28 @@
  *
  * Assignments must be false. A plain member is half this feature's audience —
  * they are the ones being assigned things.
+ *
+ * Paths must be false too, for the same reason: a member sees their team's
+ * paths and opens them, only authoring is manager-gated.
  */
 import { describe, it, expect } from "vitest";
 import { TEAM_NAV_ITEMS } from "../team-nav-items";
 
 describe("TEAM_NAV_ITEMS", () => {
-  it("puts Assignments between Groups and Leaderboard", () => {
+  it("puts Paths between Groups and Assignments", () => {
     const labels = TEAM_NAV_ITEMS.map((i) => i.label);
     expect(labels).toEqual([
-      "Overview", "Members", "Groups", "Assignments", "Leaderboard", "Settings",
+      "Overview", "Members", "Groups", "Paths", "Assignments", "Leaderboard", "Settings",
     ]);
   });
 
   it("leaves Assignments open to a plain member", () => {
     const item = TEAM_NAV_ITEMS.find((i) => i.label === "Assignments");
+    expect(item?.managerOnly).toBe(false);
+  });
+
+  it("leaves Paths open to a plain member", () => {
+    const item = TEAM_NAV_ITEMS.find((i) => i.label === "Paths");
     expect(item?.managerOnly).toBe(false);
   });
 

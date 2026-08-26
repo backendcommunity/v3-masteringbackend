@@ -116,6 +116,7 @@ export const routes = {
   teamOverview: "/team/overview",
   teamMembers: "/team/members",
   teamGroups: "/team/groups",
+  teamPaths: "/team/paths",
   teamAssignments: "/team/assignments",
   teamLeaderboard: "/team/leaderboard",
   teamSettings: "/team/settings",

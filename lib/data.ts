@@ -649,6 +649,96 @@ export interface AssignmentItemInput {
 }
 
 /**
+ * The twelve content kinds a team's own path can be built from. No `ROADMAP`
+ * and no `PATH` — nesting a path inside a path is not supported (ruling
+ * R18). `PATH` still exists as an `AssignmentItemType`, a different feature:
+ * assigning an existing catalogue path to people, not composing one.
+ */
+export type PathItemType =
+  | "COURSE"
+  | "CHAPTER"
+  | "ARTICLE"
+  | "VIDEO"
+  | "LESSON"
+  | "PROJECT"
+  | "EXERCISE"
+  | "QUIZ"
+  | "BOOTCAMP"
+  | "MOCK_INTERVIEW"
+  | "COHORT"
+  | "RESOURCE";
+
+/** One row of the team paths list — `GET /teams/:id/paths`. */
+export interface TeamPath {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  sectionCount: number;
+  createdAt: string;
+}
+
+/** One item inside a section, as returned by `GET /teams/:id/paths/:pathId`. */
+export interface PathItem {
+  id: string;
+  type: PathItemType;
+  refId: string;
+  /** Resolved from the catalogue at read time, like AssignmentItem.title. */
+  title: string | null;
+  /** Breadcrumb, e.g. a chapter's course. Display only. */
+  parentLabel?: string;
+}
+
+/** One named section, as returned by `GET /teams/:id/paths/:pathId`. */
+export interface PathSection {
+  id: string;
+  title: string;
+  order: number;
+  items: PathItem[];
+}
+
+/**
+ * `GET /teams/:id/paths/:pathId` — the only endpoint that returns section
+ * and item ids. The editor (Task 11) must round-trip those ids back through
+ * `setPathSections`/`setSectionItems`; the backend diffs by identity, and
+ * submitting without ids degrades into delete-and-recreate, destroying every
+ * member's progress on that path.
+ */
+export interface TeamPathDetail {
+  id: string;
+  title: string;
+  summary: string | null;
+  sections: PathSection[];
+}
+
+/** `PATCH /teams/:id/paths/:pathId` body. `summary: null` clears it, same as `""`. */
+export interface TeamPathUpdateInput {
+  title?: string;
+  summary?: string | null;
+}
+
+/** One entry in `PUT /teams/:id/paths/:pathId/sections`. Omit `id` for a new section. */
+export interface TeamPathSectionInput {
+  id?: string;
+  title: string;
+}
+
+/**
+ * One entry in `PUT /teams/:id/paths/:pathId/sections/:sectionId/items`.
+ * Omit `id` for a new item — an existing id is what lets the backend match
+ * it back to its stored row instead of recreating it.
+ */
+export interface TeamPathItemInput {
+  id?: string;
+  type: PathItemType;
+  refId: string;
+  /** Client-side only, same rule as AssignmentItemInput.title — never sent. */
+  title?: string | null;
+  /** Client-side only, same rule as AssignmentItemInput.parentLabel — never sent. */
+  parentLabel?: string | null;
+}
+
+/**
  * `POST /teams/:id/seats/preview` response. `currency` is NOT always USD —
  * Paddle's currency localization can preview a USD-priced plan in another
  * currency (e.g. INR) depending on the buyer's location. Always format with
