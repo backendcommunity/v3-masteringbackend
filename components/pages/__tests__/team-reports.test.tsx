@@ -210,6 +210,37 @@ describe("TeamReportsPage", () => {
     expect(within(membersTile).getByTestId("change-pill").textContent).toMatch(/67%/);
   });
 
+  it("labels membersWhoFinished as course-OR-path, so it can't contradict a zero pathsFinished tile", async () => {
+    // Live-browser finding: team-reports.ts's SQL counts membersWhoFinished
+    // as `COUNT(DISTINCT userId) FILTER (WHERE kind <> 'activity')` — course
+    // OR path, not path alone. A team where one member finished a COURSE
+    // (and nobody finished a path) renders "0" on the Paths Finished tile
+    // sitting right next to "1" on a tile whose old label said "Members who
+    // finished A PATH" — a direct contradiction between two adjacent tiles.
+    // This reproduces exactly that data shape.
+    const report = buildReport();
+    report.totals = {
+      ...report.totals,
+      coursesFinished: 1,
+      pathsFinished: 0,
+      membersWhoFinished: 1,
+    };
+    mockGetTeamReport.mockResolvedValue(report);
+    render(<TeamReportsPage />);
+
+    const membersTile = await screen.findByTestId("report-stat-membersWhoFinished");
+    const pathsTile = screen.getByTestId("report-stat-pathsFinished");
+
+    // The label must say "course" — not just "path" — so it can never claim
+    // fewer people finished something than a course-only finisher allows.
+    expect(membersTile.textContent).toMatch(/course/i);
+    // Sanity: this is the exact contradictory-looking pair from the live
+    // report (0 paths finished, 1 member who finished SOMETHING) — both
+    // numbers are correct once the label matches what's actually counted.
+    expect(pathsTile.textContent).toContain("0");
+    expect(membersTile.textContent).toContain("1");
+  });
+
   it("undercounts completions before completionsBegin when it's later than dataBegins", async () => {
     mockGetTeamReport.mockResolvedValue(
       buildReport({ completionsBegin: addDays(DATA_BEGINS, 21) }),

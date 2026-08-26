@@ -23,11 +23,24 @@ const RANGE_LABELS: Record<TeamReportRange, string> = {
   "12m": "Last 12 months",
 };
 
+// Labels are checked against what team-reports.ts's SQL actually counts, not
+// against what the field name suggests — see the doc comments below each.
 const METRIC_LABELS: Record<keyof TeamReportTotals, string> = {
+  // Distinct members with a genuine (non-notification) Activity row in the
+  // bucket — any feed event, including a login, not specifically learning
+  // activity. "Active members" doesn't claim more than that.
   activeMembers: "Active members",
+  // COUNT(*) of course-completion events in the bucket — an event count,
+  // not distinct members (one person finishing two courses counts twice).
   coursesFinished: "Courses finished",
+  // Same shape as coursesFinished, for path completions.
   pathsFinished: "Paths finished",
-  membersWhoFinished: "Members who finished a path",
+  // COUNT(DISTINCT userId) WHERE kind <> 'activity' — course OR path, not
+  // path alone. The earlier "Members who finished a path" label claimed
+  // fewer people finished something than the pathsFinished tile right next
+  // to it could ever allow (a member who only finished a COURSE still
+  // counts here) — this wording covers both.
+  membersWhoFinished: "Members who finished a course or path",
 };
 
 // The three totals that also have a per-bucket series to chart. `membersWhoFinished`
