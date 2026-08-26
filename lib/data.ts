@@ -792,6 +792,65 @@ export interface TeamSeatPreview {
   nextBilledAt: string | null;
 }
 
+/** `range` query param for `GET /teams/:id/reports` — mirrors the backend's
+ * `ReportRange` (`report-window.ts`) exactly: two fixed values, never
+ * request-derived text. */
+export type TeamReportRange = "12w" | "12m";
+export type TeamReportPeriod = "week" | "month";
+
+export interface TeamReportTotals {
+  activeMembers: number;
+  coursesFinished: number;
+  pathsFinished: number;
+  membersWhoFinished: number;
+}
+
+export interface TeamReportBucket {
+  bucket: string;
+  activeMembers: number;
+  coursesFinished: number;
+  pathsFinished: number;
+}
+
+/**
+ * `GET /teams/:id/reports?range=12w|12m` — "did this subscription do
+ * anything". Mirrors `TeamReport` in
+ * `academy/src/modules/teams/helpers/team-reports.ts` exactly. OWNER/ADMIN
+ * only.
+ *
+ * - `range.to` is EXCLUSIVE — one full bucket past the last one rendered,
+ *   not the last rendered instant.
+ * - `range.dataBegins` is the later of the team's creation and `range.from`.
+ * - `range.completionsBegin` is the later of `dataBegins` and the instant
+ *   this database gained reliable completion dates (a migration
+ *   `finished_at`, not a hardcoded date). When it is later than
+ *   `dataBegins`, `coursesFinished`/`pathsFinished` UNDERCOUNT before it —
+ *   an unknown number of completions were never dated, not zero of them.
+ *   Callers must caption that span "at least" / "undercounts", never "none".
+ * - `seats.used` includes pending invites — the same definition the invite
+ *   flow enforces (`seatUsage`), so this screen never says "12 of 15" while
+ *   the next invite is refused as full.
+ * - `change` values are `number | null`. `null` means the previous window
+ *   was zero — never render it as `Infinity` or `NaN`.
+ */
+export interface TeamReport {
+  range: {
+    period: TeamReportPeriod;
+    buckets: number;
+    /** Inclusive, `YYYY-MM-DD`. */
+    from: string;
+    /** Exclusive, `YYYY-MM-DD`. */
+    to: string;
+    dataBegins: string;
+    completionsBegin: string;
+  };
+  seats: { total: number; used: number };
+  series: TeamReportBucket[];
+  totals: TeamReportTotals;
+  previous: TeamReportTotals;
+  change: Record<keyof TeamReportTotals, number | null>;
+}
+
 export interface TeamInvite {
   id: string;
   teamId: string;

@@ -13,11 +13,16 @@ import { describe, it, expect } from "vitest";
 import { TEAM_NAV_ITEMS } from "../team-nav-items";
 
 describe("TEAM_NAV_ITEMS", () => {
-  it("puts Paths between Groups and Assignments", () => {
+  it("puts Paths between Groups and Assignments, and Reports after Settings", () => {
     const labels = TEAM_NAV_ITEMS.map((i) => i.label);
     expect(labels).toEqual([
-      "Overview", "Members", "Groups", "Paths", "Assignments", "Leaderboard", "Settings",
+      "Overview", "Members", "Groups", "Paths", "Assignments", "Leaderboard", "Settings", "Reports",
     ]);
+  });
+
+  it("gates Reports to managers only", () => {
+    const item = TEAM_NAV_ITEMS.find((i) => i.label === "Reports");
+    expect(item?.managerOnly).toBe(true);
   });
 
   it("leaves Assignments open to a plain member", () => {
@@ -32,6 +37,6 @@ describe("TEAM_NAV_ITEMS", () => {
 
   it("keeps the manager-only screens manager-only", () => {
     const managerOnly = TEAM_NAV_ITEMS.filter((i) => i.managerOnly).map((i) => i.label);
-    expect(managerOnly).toEqual(["Overview", "Groups", "Settings"]);
+    expect(managerOnly).toEqual(["Overview", "Groups", "Settings", "Reports"]);
   });
 });

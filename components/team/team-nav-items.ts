@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, FolderTree, Map, ClipboardList, Trophy, Settings } from "lucide-react";
+import { LayoutDashboard, Users, FolderTree, Map, ClipboardList, Trophy, Settings, BarChart3 } from "lucide-react";
 import { routes } from "@/lib/routes";
 
 /**
@@ -35,4 +35,8 @@ export const TEAM_NAV_ITEMS: TeamNavItem[] = [
   { href: routes.teamAssignments, label: "Assignments", icon: ClipboardList, managerOnly: false },
   { href: routes.teamLeaderboard, label: "Leaderboard", icon: Trophy, managerOnly: false },
   { href: routes.teamSettings, label: "Settings", icon: Settings, managerOnly: true },
+  // managerOnly: TRUE — "did this subscription do anything" is billing-visible
+  // management information, same tier as Overview/Groups/Settings, not roster
+  // information a plain member should see.
+  { href: routes.teamReports, label: "Reports", icon: BarChart3, managerOnly: true },
 ];
