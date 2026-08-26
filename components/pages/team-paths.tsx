@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Map, Pencil } from "lucide-react";
+import { Archive, ListOrdered, Map, Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -11,7 +12,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyStateCard } from "@/components/empty-state-card";
+import { PathFormDialog } from "@/components/team/path-form-dialog";
 import { PathSectionEditor } from "@/components/team/path-section-editor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useAppStore } from "@/lib/store";
 import { routes } from "@/lib/routes";
@@ -92,8 +104,32 @@ export function TeamPathsPage() {
 
   // Which path's sections are being edited. The editor is MOUNTED only while
   // this is set, which is also what keeps its `getTeamPath` call out of a
-  // member's session entirely.
+  // member's session entirely. Same for the create/rename dialog and the
+  // archive confirmation below.
   const [editing, setEditing] = useState<TeamPath | null>(null);
+  // `formOpen` is separate from `formPath` because null is a meaningful
+  // value there — it is the CREATE case, not "nothing open".
+  const [formOpen, setFormOpen] = useState(false);
+  const [formPath, setFormPath] = useState<TeamPath | null>(null);
+  const [archiving, setArchiving] = useState<TeamPath | null>(null);
+  const [archivePending, setArchivePending] = useState(false);
+
+  async function handleArchive() {
+    if (!team || !archiving) return;
+    setArchivePending(true);
+    try {
+      await store.archiveTeamPath(team.id, archiving.id);
+      setArchiving(null);
+      toast.success(`"${archiving.title}" archived.`);
+      loadPaths(team.id);
+    } catch (e: any) {
+      // The dialog stays open on failure rather than closing as if it had
+      // worked — this is the destructive one.
+      toast.error(e?.response?.data?.message ?? "Couldn't archive that path.");
+    } finally {
+      setArchivePending(false);
+    }
+  }
 
   if (teamFailed) {
     return (
@@ -164,19 +200,31 @@ export function TeamPathsPage() {
 
       {canManage && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Manage paths</h2>
-            <p className="text-sm text-muted-foreground">
-              Name each path&apos;s sections, put them in order, and choose
-              what goes inside.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Manage paths</h2>
+              <p className="text-sm text-muted-foreground">
+                Put a path together for your team: name it, then build its
+                sections and choose what goes inside.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                setFormPath(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New path
+            </Button>
           </div>
 
           {!paths || pathsFailed ? null : paths.length === 0 ? (
             <EmptyStateCard
               icon={Map}
-              title="Nothing to edit yet"
-              description="Once your team has a path, its sections can be built here."
+              title="No paths yet"
+              description="Create one, then build its sections from your team's courses, projects and interviews."
             />
           ) : (
             <div className="space-y-2">
@@ -195,8 +243,27 @@ export function TeamPathsPage() {
                       variant="outline"
                       onClick={() => setEditing(path)}
                     >
-                      <Pencil className="mr-2 h-4 w-4" />
+                      <ListOrdered className="mr-2 h-4 w-4" />
                       Edit sections
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Rename ${path.title}`}
+                      onClick={() => {
+                        setFormPath(path);
+                        setFormOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Archive ${path.title}`}
+                      onClick={() => setArchiving(path)}
+                    >
+                      <Archive className="h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -214,6 +281,50 @@ export function TeamPathsPage() {
           onClose={() => setEditing(null)}
         />
       )}
+
+      {formOpen && (
+        <PathFormDialog
+          teamId={team.id}
+          path={formPath}
+          onSaved={() => loadPaths(team.id)}
+          onClose={() => setFormOpen(false)}
+        />
+      )}
+
+      {/* Archiving is the destructive one — it is reversible only by a
+          developer (the path leaves getTeamPaths and there is no un-archive
+          endpoint), so it asks first and says what does NOT happen too. */}
+      <AlertDialog
+        open={archiving !== null}
+        onOpenChange={(open) => !open && !archivePending && setArchiving(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {archiving?.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It disappears from your team&apos;s paths for everyone. Nobody
+              loses the work they already did, but bringing it back needs a
+              developer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={archivePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              // preventDefault: Radix closes an Action on click, and a
+              // failed archive that closed the confirmation would look
+              // exactly like a successful one. `handleArchive` closes it
+              // itself once the call actually resolves.
+              onClick={(e) => {
+                e.preventDefault();
+                handleArchive();
+              }}
+              disabled={archivePending}
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

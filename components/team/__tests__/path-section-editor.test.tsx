@@ -243,7 +243,14 @@ describe("PathSectionEditor", () => {
     renderEditor();
     await loaded();
 
-    fireEvent.click(screen.getByRole("button", { name: /remove section 1/i }));
+    // Removing a STORED section unlinks its RoadmapTopic on save and clears
+    // the "you are here" marker of everyone sitting in it, so one click
+    // arms it and does not remove it.
+    fireEvent.click(screen.getByRole("button", { name: /^Remove section 1$/ }));
+    expect(sectionTitles()).toEqual(["Week 1 - HTTP", "Week 2 - Databases"]);
+    expect(screen.getByText(/loses their place/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm removing section 1$/ }));
     expect(sectionTitles()).toEqual(["Week 2 - Databases"]);
 
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -358,6 +365,207 @@ describe("PathSectionEditor", () => {
     expect(onSaved).not.toHaveBeenCalled();
     // And it is retryable, not wedged in a saving state.
     expect(screen.getByRole("button", { name: /^save$/i })).toBeEnabled();
+  });
+
+  it("backs out of an armed removal, and drops an unsaved section without asking", async () => {
+    renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Remove section 1$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Keep section 1$/ }));
+    expect(sectionTitles()).toEqual(["Week 1 - HTTP", "Week 2 - Databases"]);
+
+    // A section added in this dialog has nothing behind it on the server —
+    // there is no member's place to lose, so it just goes.
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Remove section 3$/ }));
+    expect(sectionTitles()).toEqual(["Week 1 - HTTP", "Week 2 - Databases"]);
+  });
+
+  it("treats a path whose sections could not be read as a failure, never as an empty path", async () => {
+    // `getTeamPath` returns `data?.data` unchecked, so a 200 whose body
+    // isn't the expected envelope resolves undefined. Rendered as an empty
+    // editor, the very next Save would send `sections: []` — the backend
+    // unlinks every stored section and clears currentTopicId for every
+    // enrolment on the path.
+    mockGetTeamPath.mockResolvedValueOnce(undefined);
+    renderEditor();
+
+    expect(await screen.findByText(/couldn't load this path/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no sections yet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+    // The dialog is titled in the failed branch too.
+    expect(screen.getByRole("heading", { name: /backend fundamentals/i })).toBeInTheDocument();
+    expect(mockSetPathSections).not.toHaveBeenCalled();
+  });
+
+  it("sends a new section's items to the id read back for it, not to a guessed one", async () => {
+    mockSearchAssignable.mockResolvedValue([
+      { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
+    ]);
+    // The re-read after the section save is the ONLY way the client learns
+    // the id of a section the server just created — setPathSections returns
+    // a count.
+    mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
+      ...detail(),
+      sections: [
+        ...detail().sections,
+        { id: "sec-3", title: "Week 3 - Queues", order: 2, items: [] },
+      ],
+    });
+    renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.change(screen.getByLabelText("Section 3 title"), {
+      target: { value: "Week 3 - Queues" },
+    });
+    fireEvent.click(within(sectionRegion(3)).getByRole("button", { name: /add content/i }));
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "VIDEO" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^add Indexes$/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockSetSectionItems).toHaveBeenCalledTimes(1));
+
+    expect(mockSetSectionItems).toHaveBeenCalledWith("t1", "p1", "sec-3", [
+      { type: "VIDEO", refId: "v9" },
+    ]);
+  });
+
+  it("refuses to adopt an id whose section does not corroborate its position", async () => {
+    mockSearchAssignable.mockResolvedValue([
+      { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
+    ]);
+    // Another manager inserted a section at the top between the two calls,
+    // so position 2 in the re-read is sec-2 — an existing section that has
+    // nothing to do with "Week 3". Adopting by bare position would hand
+    // sec-2's id to setSectionItems, and the backend would replace sec-2's
+    // ENTIRE item list with this one video: every join row deleted, taking
+    // assignedAt and the per-link flags with it, while Week 3 stays empty.
+    mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
+      ...detail(),
+      sections: [
+        { id: "sec-0", title: "Onboarding", order: 0, items: [] },
+        ...detail().sections,
+      ],
+    });
+    const { onSaved, onClose } = renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.change(screen.getByLabelText("Section 3 title"), {
+      target: { value: "Week 3 - Queues" },
+    });
+    fireEvent.click(within(sectionRegion(3)).getByRole("button", { name: /add content/i }));
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "VIDEO" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^add Indexes$/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText(/couldn't confirm which section/i)).toBeInTheDocument();
+    // The whole point: nobody else's section was written to.
+    expect(mockSetSectionItems).not.toHaveBeenCalled();
+    // The sections themselves DID commit, so the list behind the dialog is
+    // refreshed and the manager is told so rather than told nothing saved.
+    expect(screen.getByText(/your sections were saved/i)).toBeInTheDocument();
+    expect(onSaved).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps the adopted ids when the item save fails, so a retry updates rather than re-creates", async () => {
+    mockSearchAssignable.mockResolvedValue([
+      { id: "v9", title: "Indexes", parentLabel: "Postgres Deep Dive" },
+    ]);
+    mockGetTeamPath.mockResolvedValueOnce(detail()).mockResolvedValueOnce({
+      ...detail(),
+      sections: [
+        ...detail().sections,
+        { id: "sec-3", title: "Week 3 - Queues", order: 2, items: [] },
+      ],
+    });
+    mockSetSectionItems.mockRejectedValueOnce({
+      response: { data: { message: "That item is on the path twice." } },
+    });
+    const { onSaved, onClose } = renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.change(screen.getByLabelText("Section 3 title"), {
+      target: { value: "Week 3 - Queues" },
+    });
+    fireEvent.click(within(sectionRegion(3)).getByRole("button", { name: /add content/i }));
+    fireEvent.change(screen.getByLabelText("Item type"), { target: { value: "VIDEO" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^add Indexes$/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(
+      await screen.findByText(/your sections were saved, but that item is on the path twice\./i),
+    ).toBeInTheDocument();
+    expect(onSaved).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    // The manager's work is all still here.
+    expect(sectionTitles()).toEqual([
+      "Week 1 - HTTP",
+      "Week 2 - Databases",
+      "Week 3 - Queues",
+    ]);
+    expect(within(itemList(3)).getByText("Indexes")).toBeInTheDocument();
+
+    // The retry: sec-3 exists now, and the second payload must say so.
+    // Without adoption it would go back as a new section, and the backend's
+    // set-replace would unlink the row it just made and create another.
+    mockSetSectionItems.mockResolvedValue({ id: "sec-3", itemCount: 1 });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockSetPathSections).toHaveBeenCalledTimes(2));
+    expect(sectionsPayload(1)).toEqual([
+      { id: "sec-1", title: "Week 1 - HTTP" },
+      { id: "sec-2", title: "Week 2 - Databases" },
+      { id: "sec-3", title: "Week 3 - Queues" },
+    ]);
+    // And no second re-read was needed, because nothing lacks an id now.
+    expect(mockGetTeamPath).toHaveBeenCalledTimes(2);
+  });
+
+  it("says the sections were saved when only the re-read fails, and refreshes the list behind it", async () => {
+    mockGetTeamPath
+      .mockResolvedValueOnce(detail())
+      .mockRejectedValueOnce(new Error("network error"));
+    const { onSaved, onClose } = renderEditor();
+    await loaded();
+
+    fireEvent.click(screen.getByRole("button", { name: /add section/i }));
+    fireEvent.change(screen.getByLabelText("Section 3 title"), {
+      target: { value: "Week 3 - Queues" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    // setPathSections committed; saying "couldn't save" here is a lie the
+    // manager would act on by doing it all again.
+    expect(await screen.findByText(/your sections were saved/i)).toBeInTheDocument();
+    expect(onSaved).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("marks an item the catalogue no longer has, instead of showing a bare id", async () => {
+    const withDangling = detail();
+    withDangling.sections[0].items.push({
+      id: "COURSE:cmg0deleted",
+      type: "COURSE",
+      refId: "cmg0deleted",
+      title: null,
+      parentLabel: undefined,
+    });
+    mockGetTeamPath.mockResolvedValueOnce(withDangling);
+    renderEditor();
+    await loaded();
+
+    expect(within(itemList(1)).getByText(/no longer available/i)).toBeInTheDocument();
+
+    // It is still preserved on save — flagging it must not silently drop it.
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(mockSetPathSections).toHaveBeenCalledTimes(1));
+    expect(mockSetSectionItems).not.toHaveBeenCalled();
   });
 
   it("does not list `store` in the picker's search effect deps — unrelated store churn must not refetch", async () => {

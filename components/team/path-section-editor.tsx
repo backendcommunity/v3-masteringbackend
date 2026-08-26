@@ -107,6 +107,15 @@ interface EditorSection {
 const itemsKey = (items: TeamPathItemInput[]) =>
   items.map((i) => `${i.type}:${i.refId}`).join("|");
 
+/**
+ * An item whose `title` is null is one the backend could not resolve: the
+ * catalogue row it points at is gone (`AssignmentItem.title` documents the
+ * same convention). It is still a real, stored item and it is preserved
+ * through a save — but it must not render as a bare `Course · cmg0…`, which
+ * tells the manager neither what it was nor that anything is wrong.
+ */
+const isUnavailable = (item: TeamPathItemInput) => item.title == null;
+
 const itemLabel = (item: TeamPathItemInput) =>
   item.title ?? `${TYPE_LABELS[item.type]} · ${item.refId}`;
 
@@ -145,6 +154,12 @@ export function PathSectionEditor({
   // item lists.
   const [baseline, setBaseline] = useState<Record<string, string>>({});
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  // Which stored section is one click from being dropped. Removing a
+  // section that exists on the server unlinks its RoadmapTopic on save and
+  // clears the "you are here" marker of every member sitting in it, so it
+  // asks first. A section the manager added in this dialog and hasn't saved
+  // yet has nothing behind it and just goes.
+  const [confirmRemoveKey, setConfirmRemoveKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const newSectionCount = useRef(0);
@@ -162,7 +177,19 @@ export function PathSectionEditor({
       .getTeamPath(teamId, path.id)
       .then((detail) => {
         if (cancelled) return;
-        const loaded: EditorSection[] = (detail?.sections ?? []).map((s) => ({
+        // This is the one file where "loaded nothing" and "has nothing"
+        // must never be the same state. `getTeamPath` returns `data?.data`
+        // with no shape check, so a 200 whose body isn't the expected
+        // envelope resolves `undefined` — and an empty editor is one click
+        // away from `setPathSections(teamId, pathId, [])`, which unlinks
+        // every stored section and clears `currentTopicId` /
+        // `currentUserTopicId` for every enrolment on the path. A path with
+        // genuinely zero sections still arrives as `{ sections: [] }`.
+        if (!detail || !Array.isArray(detail.sections)) {
+          setLoadFailed(true);
+          return;
+        }
+        const loaded: EditorSection[] = detail.sections.map((s) => ({
           // The stored row id, kept on both `key` and `id`: `key` is what
           // React and the baseline use, `id` is what goes back on the wire.
           key: s.id,
@@ -214,7 +241,13 @@ export function PathSectionEditor({
   function removeSection(index: number) {
     if (!sections) return;
     const removed = sections[index];
+    // Never destructive for a section that isn't on the server yet.
+    if (removed.id && confirmRemoveKey !== removed.key) {
+      setConfirmRemoveKey(removed.key);
+      return;
+    }
     if (activeKey === removed.key) setActiveKey(null);
+    setConfirmRemoveKey(null);
     update(sections.filter((_, i) => i !== index));
   }
 
@@ -265,6 +298,7 @@ export function PathSectionEditor({
     if (!sections || !canSave) return;
     setSaving(true);
     setError(null);
+    let sectionsCommitted = false;
     try {
       // An existing section goes back WITH its id; a new one carries no
       // `id` key at all. Both halves are load-bearing: the id is what keeps
@@ -273,20 +307,57 @@ export function PathSectionEditor({
         s.id ? { id: s.id, title: s.title.trim() } : { title: s.title.trim() },
       );
       await store.setPathSections(teamId, path.id, payload);
+      // Past this line the section replace has COMMITTED. Everything below
+      // can still fail, and when it does the manager must not be told that
+      // nothing was saved — see the catch.
+      sectionsCommitted = true;
 
       // setPathSections returns only { id, sectionCount }, so the ids of
       // sections it just created have to be read back before anything can
-      // be attached to them. The backend writes `order` as the submitted
-      // index and getTeamPath sorts by it, so position i here is position i
-      // there.
+      // be attached to them.
       let working = sections;
       if (sections.some((s) => !s.id)) {
-        const detail = await store.getTeamPath(teamId, path.id);
+        let detail;
+        try {
+          detail = await store.getTeamPath(teamId, path.id);
+        } catch {
+          throw new Error(
+            "couldn't re-read the path to find the new sections. Reopen this path and add their content.",
+          );
+        }
         const fresh = detail?.sections ?? [];
-        working = sections.map((s, i) => (s.id ? s : { ...s, id: fresh[i]?.id }));
-        // Adopted into state BEFORE the item calls below — those are the
-        // ones that can still fail, and a retry that had forgotten these
-        // ids would create the same sections a second time.
+        // Position alone is NOT identity. The backend writes `order` as the
+        // submitted index and getTeamPath sorts by it, so position i here
+        // is position i there — but only if nothing else wrote to the path
+        // between the two calls. If another manager inserted a section at
+        // the top, `fresh[i]` is somebody else's row, and handing its id to
+        // setSectionItems below would replace THAT section's entire item
+        // list with this one's — every join row deleted, taking assignedAt,
+        // the per-link isCompleted/isOptional flags and a mock interview's
+        // modality with it, while the section actually being saved stays
+        // empty. Silent destruction of a section nobody touched, so the
+        // candidate has to corroborate its position: same title, and an id
+        // no other section here already holds. A candidate that fails is
+        // left unadopted, and the item loop below refuses to guess.
+        const heldIds = new Set(
+          sections.map((s) => s.id).filter((id): id is string => !!id),
+        );
+        working = sections.map((s, i) => {
+          if (s.id) return s;
+          const candidate = fresh[i];
+          if (!candidate || candidate.title !== s.title.trim()) return s;
+          if (heldIds.has(candidate.id)) return s;
+          heldIds.add(candidate.id);
+          return { ...s, id: candidate.id };
+        });
+        // Adopted into state BEFORE the item calls below, which are the
+        // ones that can still fail. The backend is a set-replace, so a
+        // retry that had forgotten these ids would not duplicate anything —
+        // the un-adopted row simply falls out of `keptIds`, is unlinked and
+        // recreated under a new id, orphaning the first one. What adoption
+        // buys is that a retry's item PUTs are aimed at rows that still
+        // exist, and that each attempt stops leaking another unlinked
+        // RoadmapTopic.
         setSections(working);
       }
 
@@ -295,7 +366,7 @@ export function PathSectionEditor({
         if (key === (baseline[section.key] ?? "")) continue;
         if (!section.id)
           throw new Error(
-            `Saved the sections, but couldn't work out where "${section.title.trim()}" lives yet. Open it again and add its content.`,
+            `couldn't confirm which section "${section.title.trim()}" is, so its content was left alone. Reopen this path and add it again.`,
           );
         // Rebuilt as exactly { type, refId }: `title`/`parentLabel` are
         // client-only display fields and the item validator rejects unknown
@@ -319,10 +390,22 @@ export function PathSectionEditor({
       // Surfaced inline as well as in a toast, and the dialog stays open
       // with every edit still in state: a silent failure here costs a
       // manager the whole afternoon's work.
-      const message =
-        e?.response?.data?.message ?? e?.message ?? "Couldn't save these sections.";
-      setError(message);
-      toast.error(message);
+      const reason =
+        e?.response?.data?.message ?? e?.message ?? "something went wrong.";
+      // Two genuinely different outcomes, and telling them apart is the
+      // whole point: if `setPathSections` resolved, the section replace has
+      // COMMITTED even though the save as a whole failed. Saying "couldn't
+      // save" there is a lie the manager would act on, and the list behind
+      // this dialog is stale until it is re-read.
+      if (sectionsCommitted) {
+        onSaved();
+        setError(`Your sections were saved, but ${reason}`);
+      } else {
+        setError(
+          e?.response?.data?.message ?? e?.message ?? "Couldn't save these sections.",
+        );
+      }
+      toast.error(reason);
     } finally {
       setSaving(false);
     }
@@ -404,17 +487,50 @@ export function PathSectionEditor({
                   >
                     <ArrowDown className="h-4 w-4" />
                   </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Remove section ${index + 1}`}
-                    disabled={saving}
-                    onClick={() => removeSection(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {confirmRemoveKey === section.key ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        aria-label={`Confirm removing section ${index + 1}`}
+                        disabled={saving}
+                        onClick={() => removeSection(index)}
+                      >
+                        Remove
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Keep section ${index + 1}`}
+                        disabled={saving}
+                        onClick={() => setConfirmRemoveKey(null)}
+                      >
+                        Keep
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove section ${index + 1}`}
+                      disabled={saving}
+                      onClick={() => removeSection(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
+
+                {confirmRemoveKey === section.key && (
+                  <p className="text-sm text-destructive">
+                    Removing this section drops it from the path when you
+                    save, and anyone currently working through it loses their
+                    place in it. Their completed work is kept.
+                  </p>
+                )}
 
                 <ol
                   aria-label={`Section ${index + 1} content`}
@@ -431,11 +547,26 @@ export function PathSectionEditor({
                       className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
                     >
                       <span className="min-w-0 flex-1 truncate">
-                        <span className="block truncate">{itemLabel(item)}</span>
-                        {item.parentLabel && (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {item.parentLabel}
+                        <span
+                          className={
+                            isUnavailable(item)
+                              ? "block truncate text-muted-foreground"
+                              : "block truncate"
+                          }
+                        >
+                          {itemLabel(item)}
+                        </span>
+                        {isUnavailable(item) ? (
+                          <span className="block truncate text-xs text-destructive">
+                            No longer available — remove it, or leave it and
+                            it stays as it is.
                           </span>
+                        ) : (
+                          item.parentLabel && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {item.parentLabel}
+                            </span>
+                          )
                         )}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
