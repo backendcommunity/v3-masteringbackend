@@ -73,6 +73,7 @@ export default defineConfig({
       "components/pages/__tests__/team-assignments-member.test.tsx",
       "components/pages/__tests__/team-assignments-manager.test.tsx",
       "components/pages/__tests__/team-paths-member.test.tsx",
+      "components/pages/__tests__/learning-paths-team-section.test.tsx",
       "components/team/__tests__/member-progress-sheet.test.tsx",
       "components/team/__tests__/path-section-editor.test.tsx",
       "components/team/__tests__/path-form-dialog.test.tsx",
