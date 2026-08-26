@@ -123,12 +123,20 @@ function buildReport(overrides: Partial<TeamReport["range"]> = {}): TeamReport {
       membersWhoFinished: 3,
     },
     change: {
-      activeMembers: 40,
+      // FRACTIONS, not percentage-scaled integers — this is what the real
+      // backend sends. percentChange() in report-window.ts is
+      // (current - previous) / previous, and its own docstring says
+      // "never a percentage-scaled number". A fixture using `40` here
+      // would let a `Math.round(value)` bug (treating the fraction as
+      // already-scaled) sail through undetected, since 40 stays >0 either
+      // way — every value below is deliberately in the (-1, 1) range a
+      // real fraction lives in, so a unit-scaling bug changes the outcome.
+      activeMembers: 0.29, // must render "29%", not "No change"
       // The previous window was zero courses finished — must render as no
       // pill, never Infinity/NaN.
       coursesFinished: null,
-      pathsFinished: -50,
-      membersWhoFinished: 67,
+      pathsFinished: -0.42, // must render "42%" (down), not "No change"
+      membersWhoFinished: 0.67, // must render "67%", not "1%"
     },
   };
 }
@@ -178,6 +186,28 @@ describe("TeamReportsPage", () => {
     // above is specific to the null case, not every pill being suppressed.
     const activeTile = screen.getByTestId("report-stat-activeMembers");
     expect(within(activeTile).getByTestId("change-pill")).toBeTruthy();
+  });
+
+  it("renders change as a percentage, given the fraction the backend sends", async () => {
+    // percentChange() in the backend's report-window.ts returns a FRACTION
+    // ((current - previous) / previous), documented on its own line as
+    // "never a percentage-scaled number" — not a number already scaled to
+    // percentage points. A `Math.round(value)` bug (treating 0.29 as if it
+    // were already "29") rounds every one of these to 0 or 1 and mislabels
+    // real double-digit growth as "No change" — the exact defect this test
+    // exists to catch, demonstrated against the pre-fix code in the fix
+    // report alongside this test.
+    mockGetTeamReport.mockResolvedValue(buildReport());
+    render(<TeamReportsPage />);
+
+    const activeTile = await screen.findByTestId("report-stat-activeMembers");
+    expect(within(activeTile).getByTestId("change-pill").textContent).toMatch(/29%/);
+
+    const pathsTile = screen.getByTestId("report-stat-pathsFinished");
+    expect(within(pathsTile).getByTestId("change-pill").textContent).toMatch(/42%/);
+
+    const membersTile = screen.getByTestId("report-stat-membersWhoFinished");
+    expect(within(membersTile).getByTestId("change-pill").textContent).toMatch(/67%/);
   });
 
   it("undercounts completions before completionsBegin when it's later than dataBegins", async () => {

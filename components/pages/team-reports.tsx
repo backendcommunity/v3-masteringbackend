@@ -54,7 +54,11 @@ function formatLongDate(iso: string): string {
 function ChangePill({ value }: { value: number | null }) {
   if (value === null) return null;
 
-  const rounded = Math.round(value);
+  // `value` is a FRACTION — percentChange() in the backend's report-window.ts
+  // returns (current - previous) / previous, "never a percentage-scaled
+  // number" per its own docstring. Scale to a percentage here, at the one
+  // place this number becomes text, rather than trusting it arrives pre-scaled.
+  const rounded = Math.round(value * 100);
   const isUp = rounded > 0;
   const isDown = rounded < 0;
 
