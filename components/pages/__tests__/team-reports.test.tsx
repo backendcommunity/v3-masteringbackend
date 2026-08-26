@@ -34,6 +34,14 @@ vi.mock("@/lib/store", () => ({
   API_BASE: "http://localhost:8081/api/v3",
 }));
 
+// The CSV download goes through the shared axios instance so it inherits
+// lib/api.ts's refresh-on-401 interceptor. A plain <a href> bypassed it: a
+// manager with a long-open tab clicked Download, the cookie was expired, and
+// the browser NAVIGATED AWAY from the SPA onto a raw JSON error body — every
+// other action in the app would have refreshed silently.
+const mockApiGet = vi.fn();
+vi.mock("@/lib/api", () => ({ api: { get: (...args: unknown[]) => mockApiGet(...args) } }));
+
 // ResponsiveContainer needs a ResizeObserver, which jsdom doesn't ship, and
 // measures its host via getBoundingClientRect, which jsdom always reports as
 // 0x0 — recharts then renders nothing at all. Both are stubbed the same way
@@ -48,6 +56,10 @@ class MockResizeObserver {
 beforeAll(() => {
   (global as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
     MockResizeObserver as unknown as typeof ResizeObserver;
+  // jsdom ships neither, and the download path needs both to hand the blob
+  // to the browser.
+  URL.createObjectURL = (() => "blob:mock") as typeof URL.createObjectURL;
+  URL.revokeObjectURL = (() => {}) as typeof URL.revokeObjectURL;
   Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
     configurable: true,
     value: () => ({
@@ -77,13 +89,15 @@ const team = (role: "OWNER" | "ADMIN" | "MEMBER" = "OWNER"): TeamSummary => ({
 // never have to be hand-computed/hardcoded — see the range.to test below,
 // which depends on `to` genuinely being later than anything rendered.
 const DATA_BEGINS = "2026-06-08";
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+// UTC throughout: the backend labels every bucket with a UTC date
+// (report-window.ts truncates in UTC), so a fixture that walked days in LOCAL
+// time and then read them back with toISOString() shifted every generated
+// label a day west of UTC — which silently collapsed `range.to` onto the last
+// bucket's own end date and made those two assertions test the same string.
 function addDays(iso: string, days: number) {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return isoDate(d);
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 const BUCKET_COUNT = 12;
 // Index 5 is a deliberate zero — "activeMembers" is nonzero everywhere else,
@@ -320,5 +334,199 @@ describe("TeamReportsPage", () => {
 
     await screen.findByTestId("report-seats");
     expect(mockGetTeamReport).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders the tiles in a declared order, not the payload's key order", async () => {
+    // `Object.keys(report.totals)` put the tiles in whatever order a backend
+    // object literal happened to be written in — reordering two fields in
+    // team-reports.ts's TeamReportTotals silently reorders this screen. The
+    // fixture below hands back the keys REVERSED to prove the order comes
+    // from this file.
+    const report = buildReport();
+    report.totals = {
+      membersWhoFinished: 5,
+      pathsFinished: 4,
+      coursesFinished: 10,
+      activeMembers: 7,
+    } as typeof report.totals;
+    mockGetTeamReport.mockResolvedValue(report);
+
+    const { container } = render(<TeamReportsPage />);
+    await screen.findByTestId("report-seats");
+
+    const order = Array.from(
+      container.querySelectorAll('[data-testid^="report-stat-"]'),
+    ).map((el) => el.getAttribute("data-testid"));
+    expect(order).toEqual([
+      "report-stat-activeMembers",
+      "report-stat-coursesFinished",
+      "report-stat-pathsFinished",
+      "report-stat-membersWhoFinished",
+    ]);
+  });
+
+  it("renders the END of the last bucket as the range end, not its start", async () => {
+    // The last weekly bucket is labelled by its MONDAY, so printing the label
+    // said "through 24 August" for a window that covers through the 30th —
+    // understating the report's coverage by up to a full bucket. `range.to`
+    // is still never printed: it is one bucket PAST the last one.
+    mockGetTeamReport.mockResolvedValue(buildReport());
+    const { container } = render(<TeamReportsPage />);
+    await screen.findByTestId("report-seats");
+
+    const lastBucketEnd = addDays(LAST_BUCKET, 6);
+    const expected = new Date(`${lastBucketEnd}T00:00:00`).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    expect(container.textContent).toContain(expected);
+
+    const lastBucketStart = new Date(`${LAST_BUCKET}T00:00:00`).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    expect(container.textContent).not.toContain(lastBucketStart);
+    expect(container.textContent).not.toContain(RANGE_TO);
+  });
+
+  it("renders the last day of the month for a 12m report", async () => {
+    // Monthly buckets are labelled by the 1st, and "the end of the bucket" is
+    // a month length away, not seven days — a week-shaped +6 would print
+    // "6 August" for the August bucket.
+    const report = buildReport({ period: "month" });
+    report.series = [
+      { bucket: "2026-07-01", activeMembers: 1, coursesFinished: 1, pathsFinished: 0 },
+      { bucket: "2026-08-01", activeMembers: 1, coursesFinished: 1, pathsFinished: 0 },
+    ];
+    mockGetTeamReport.mockResolvedValue(report);
+
+    const { container } = render(<TeamReportsPage />);
+    await screen.findByTestId("report-seats");
+
+    expect(container.textContent).toContain("31 August 2026");
+  });
+
+  it("renders no denominator when the team has no subscription", async () => {
+    // The backend sends `seats.total: null` for a team whose subscription was
+    // removed — "4 of 0" asserted a paid-seat figure no subscription made.
+    const report = buildReport();
+    report.seats = { total: null, used: 4 };
+    mockGetTeamReport.mockResolvedValue(report);
+
+    render(<TeamReportsPage />);
+    const seats = await screen.findByTestId("report-seats");
+
+    expect(seats.textContent).toContain("4");
+    // No denominator at all — not "4 of 0", and not "4 of " with the null
+    // silently swallowed by React, which reads as a truncated number.
+    expect(seats.textContent).not.toMatch(/\bof\b/);
+    expect(seats.textContent).toMatch(/no active plan/i);
+  });
+
+  it("still renders a real zero-seat subscription as a denominator", async () => {
+    const report = buildReport();
+    report.seats = { total: 0, used: 4 };
+    mockGetTeamReport.mockResolvedValue(report);
+
+    render(<TeamReportsPage />);
+    const seats = await screen.findByTestId("report-seats");
+    expect(seats.textContent).toContain("4 of 0");
+  });
+});
+
+describe("TeamReportsPage — the CSV download", () => {
+  beforeEach(() => {
+    mockGetTeamReport.mockResolvedValue(buildReport());
+    mockApiGet.mockResolvedValue({
+      data: new Blob(["a,b\r\n"], { type: "text/csv" }),
+      headers: {
+        "content-disposition": 'attachment; filename="acme-engineering-reports-12w.csv"',
+      },
+    });
+  });
+
+  it("fetches through the shared api client rather than navigating the tab", async () => {
+    render(<TeamReportsPage />);
+    const button = await screen.findByRole("button", { name: /download csv/i });
+
+    // A plain <a href> to the API origin bypasses lib/api.ts's
+    // refresh-on-401 interceptor entirely, so an expired cookie replaces the
+    // whole SPA with a raw JSON error page — the 503 the report transaction
+    // raises has the same shape. There must be no anchor to navigate with.
+    expect(document.querySelector('a[href*="export.csv"]')).toBeNull();
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalledTimes(1));
+    const [url, config] = mockApiGet.mock.calls[0];
+    expect(url).toBe("/teams/t1/reports/export.csv");
+    expect(config).toMatchObject({ params: { range: "12w" }, responseType: "blob" });
+  });
+
+  it("saves under the filename the backend built, not a generic one", async () => {
+    // The export slugifies the team's own name (with a "team" fallback for a
+    // name that slugifies to nothing) — a client-side filename would throw
+    // that away and give every team's file the same name in a manager's
+    // Downloads folder.
+    const clicks: string[] = [];
+    const realCreate = document.createElement.bind(document);
+    const spy = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tag: string, ...rest: unknown[]) => {
+        const el = realCreate(tag as "a", ...(rest as []));
+        if (tag === "a") {
+          el.click = () => clicks.push((el as HTMLAnchorElement).download);
+        }
+        return el;
+      });
+
+    render(<TeamReportsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /download csv/i }));
+
+    await waitFor(() => expect(clicks).toHaveLength(1));
+    expect(clicks[0]).toBe("acme-engineering-reports-12w.csv");
+    spy.mockRestore();
+  });
+
+  it("falls back to a name of its own when the header cannot be read", async () => {
+    // A proxy that strips Content-Disposition, or a CORS config that stops
+    // exposing it, must not leave the file called "export.csv".
+    mockApiGet.mockResolvedValueOnce({
+      data: new Blob(["a,b\r\n"], { type: "text/csv" }),
+      headers: {},
+    });
+    const clicks: string[] = [];
+    const realCreate = document.createElement.bind(document);
+    const spy = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tag: string, ...rest: unknown[]) => {
+        const el = realCreate(tag as "a", ...(rest as []));
+        if (tag === "a") {
+          el.click = () => clicks.push((el as HTMLAnchorElement).download);
+        }
+        return el;
+      });
+
+    render(<TeamReportsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /download csv/i }));
+
+    await waitFor(() => expect(clicks).toHaveLength(1));
+    expect(clicks[0]).toBe("team-reports-12w.csv");
+    spy.mockRestore();
+  });
+
+  it("keeps the manager on the screen when the export fails", async () => {
+    mockApiGet.mockRejectedValueOnce(new Error("503"));
+    render(<TeamReportsPage />);
+    const button = await screen.findByRole("button", { name: /download csv/i });
+
+    fireEvent.click(button);
+
+    // The report itself is still on screen — a failed download must not tear
+    // the page down or throw an unhandled rejection.
+    await screen.findByText(/couldn.t download/i);
+    expect(screen.getByTestId("report-seats")).toBeTruthy();
   });
 });

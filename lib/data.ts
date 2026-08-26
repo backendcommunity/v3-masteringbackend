@@ -844,7 +844,15 @@ export interface TeamReport {
     dataBegins: string;
     completionsBegin: string;
   };
-  seats: { total: number; used: number };
+  seats: {
+    /** Paid seats, or `null` when the team has no subscription at all —
+     * rendering "4 of 0" for a team whose subscription was removed asserts a
+     * paid-seat figure no subscription is making. `0` here means a real
+     * subscription that pays for zero seats, and still renders as a
+     * denominator. */
+    total: number | null;
+    used: number;
+  };
   series: TeamReportBucket[];
   totals: TeamReportTotals;
   previous: TeamReportTotals;
