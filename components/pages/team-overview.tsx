@@ -233,7 +233,16 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   const [teamFailed, setTeamFailed] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewFailed, setOverviewFailed] = useState(false);
+  // Two retry tokens, not one. `retryToken` belongs to the overview's own
+  // CTAs; `reportRetryToken` belongs to the report's. Sharing one made the
+  // report's "Try again" re-issue the overview fetch as well — which
+  // unmounted the stat grid, the caption and the stalled callout for a round
+  // trip on the happy path, and on an unlucky one let a transient overview
+  // error collapse the whole page (`teamFailed || overviewFailed` below),
+  // taking the stalled callout AND the report's own error card with it. A
+  // report-only failure must have a report-only recovery.
   const [retryToken, setRetryToken] = useState(0);
+  const [reportRetryToken, setReportRetryToken] = useState(0);
   const [groups, setGroups] = useState<TeamGroup[]>([]);
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const prevGroupFilterRef = useRef(groupFilter);
@@ -253,30 +262,31 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   // over a chart of monthly buckets. Only the newest request may write state.
   const reportRequestRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const teams = await store.getMyTeams();
-        const team = teams?.[0];
-        if (!team) throw new Error("No team found");
-        if (!cancelled) setTeamId(team.id);
-      } catch {
-        if (!cancelled) setTeamFailed(true);
-      }
+  // A callback rather than an inline effect body so the failure branch can
+  // offer an in-page retry — the shape the Reports screen used before it was
+  // folded in here. Re-issuing one request is the honest recovery for one
+  // failed request; a full page reload throws away the rest of the session
+  // to do it.
+  const loadTeam = useCallback(async () => {
+    setTeamFailed(false);
+    try {
+      const teams = await store.getMyTeams();
+      const team = teams?.[0];
+      if (!team) throw new Error("No team found");
+      setTeamId(team.id);
+    } catch {
+      setTeamFailed(true);
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
     // `store` is deliberately excluded — useAppStore() has no selector, so
     // its identity changes on any set() anywhere in the app. Depending on it
     // would re-run this fetch on unrelated churn. Same pattern as
     // loadTeams/loadRoster in components/pages/team.tsx.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadTeam();
+  }, [loadTeam]);
 
   // A failed fetch here used to flip a single `failed` flag that replaced
   // the ENTIRE page, unmounting the group Select along with everything
@@ -339,9 +349,10 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
       });
     // `store` is deliberately excluded — useAppStore() has no selector, so its
     // identity changes on any set() anywhere in the app, and depending on it
-    // here is an unbounded fetch loop.
+    // here is an unbounded fetch loop. `reportRetryToken`, not `retryToken`:
+    // this effect answers to the report's own CTA only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId, groupFilter, range, retryToken]);
+  }, [teamId, groupFilter, range, reportRetryToken]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -453,13 +464,18 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   // An unfiltered fetch failing means the team itself couldn't be loaded —
   // the whole-page error is still the right read there, same as before.
   if (teamFailed || (overviewFailed && groupFilter === "all")) {
+    // `teamFailed` is getMyTeams itself failing, and that case has a real
+    // in-page recovery: re-run the one request that failed. The Reports
+    // screen offered exactly this and the fold-in absorbed its case into the
+    // overview's harder branch, which only ever knew how to reload the tab.
+    const retry = teamFailed ? loadTeam : () => window.location.reload();
     return (
       <Card>
         <CardHeader>
           <CardTitle>Couldn&apos;t load your team</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => window.location.reload()}>Try again</Button>
+          <Button onClick={retry}>Try again</Button>
         </CardContent>
       </Card>
     );
@@ -586,32 +602,35 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
           secondaryCTA={{ label: "Try again", onClick: () => setRetryToken((t) => t + 1) }}
         />
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {stats.map((s) => (
-              <Card key={s.label}>
-                <CardContent className="pt-5">
-                  <s.icon className="mb-2 h-4 w-4 text-muted-foreground" />
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {s.label}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {stats.map((s) => (
+            <Card key={s.label}>
+              <CardContent className="pt-5">
+                <s.icon className="mb-2 h-4 w-4 text-muted-foreground" />
+                <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {s.label}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-          {groupFilter !== "all" && (
-            // Both halves are load-bearing. The first says what narrowed —
-            // every figure on this screen except one is this group's. The
-            // second says what did not: seats are a team-level fact (a group
-            // does not own seats), and a reader who assumed otherwise would
-            // read the tile above as "Platform has 4 of 6 seats".
-            <p className="text-sm text-muted-foreground">
-              Showing {activeGroupName}. Seats are counted for the whole team.
-            </p>
-          )}
-        </>
+      {/* The caption belongs to the SCOPE, not to the tiles' fetch. Sitting
+          inside the tiles' success branch, it vanished whenever the overview
+          request failed — leaving a group-scoped report, a group-scoped
+          chart and a group-scoped CSV button on screen with nothing saying
+          what they were scoped to. Both halves are load-bearing wherever it
+          renders: the first says what narrowed — every figure on this screen
+          except one is this group's — and the second says what did not.
+          Seats are a team-level fact (a group does not own seats), and a
+          reader who assumed otherwise would read the tile above as "Platform
+          has 4 of 6 seats". */}
+      {groupFilter !== "all" && (
+        <p className="text-sm text-muted-foreground">
+          Showing {activeGroupName}. Seats are counted for the whole team.
+        </p>
       )}
 
       {/* The report region. Its loading and failure states are confined to
@@ -624,7 +643,10 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
           icon={BarChart3}
           title="Couldn't load this report"
           description="Something went wrong loading your team's report. Please try again."
-          primaryCTA={{ label: "Try again", onClick: () => setRetryToken((t) => t + 1) }}
+          primaryCTA={{
+            label: "Try again",
+            onClick: () => setReportRetryToken((t) => t + 1),
+          }}
         />
       ) : report ? (
         <div className="space-y-4">

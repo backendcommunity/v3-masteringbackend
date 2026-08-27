@@ -662,6 +662,99 @@ describe("TeamOverviewPage — the group filter reaches the report", () => {
   });
 });
 
+describe("TeamOverviewPage — a report-only failure has a report-only recovery", () => {
+  it("refetches only the report from the report's own Try again", async () => {
+    // One shared retry token made the report's CTA re-issue the OVERVIEW
+    // request too: the stat grid, the scope caption and the stalled callout
+    // all unmounted for a round trip nobody asked for.
+    mockGetTeamReport.mockRejectedValueOnce(new Error("503"));
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByText("Couldn't load this report");
+    expect(mockGetTeamOverview).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    // Immediately, in the same frame the click produced: the halves that did
+    // not fail are still on screen. `fireEvent` has already flushed the
+    // effects, so a piggy-backed overview fetch would have set its loading
+    // flag and unmounted all three by now.
+    expect(screen.getByText("Seats used")).toBeInTheDocument();
+    expect(screen.getByText("2 people have stopped learning")).toBeInTheDocument();
+    expect(screen.getByTestId("group-filter-select")).toBeInTheDocument();
+
+    await screen.findByTestId("report-stat-activeMembers");
+    expect(mockGetTeamReport).toHaveBeenCalledTimes(2);
+    expect(mockGetTeamOverview).toHaveBeenCalledTimes(1);
+  });
+
+  it("cannot collapse the whole page through the report's Try again", async () => {
+    // The reachable disaster: the report 503s on its RepeatableRead timeout,
+    // the manager clicks Try again, the piggy-backed overview request hits a
+    // transient error, and `overviewFailed && groupFilter === "all"` returns
+    // the full-page card — which takes the stalled callout, the group Select
+    // and the report's own error away, leaving a hard reload as the only
+    // recovery. The report's CTA must not be able to reach that branch.
+    mockGetTeamOverview.mockResolvedValueOnce(OVERVIEW);
+    mockGetTeamOverview.mockRejectedValue(new Error("500"));
+    mockGetTeamReport.mockRejectedValueOnce(new Error("503"));
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByText("Couldn't load this report");
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    await screen.findByTestId("report-stat-activeMembers");
+
+    expect(screen.queryByText("Couldn't load your team")).not.toBeInTheDocument();
+    expect(screen.getByText("2 people have stopped learning")).toBeInTheDocument();
+    expect(screen.getByText("Seats used")).toBeInTheDocument();
+  });
+
+  it("retries the team in place when the team itself fails to load", async () => {
+    // The screen this one absorbed had an in-page retry for exactly this
+    // condition; the fold-in left only `window.location.reload()`, which
+    // throws away the whole session to re-issue one request.
+    mockGetMyTeams.mockRejectedValueOnce(new Error("network"));
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByText("Couldn't load your team");
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    await screen.findByText("Seats used");
+    expect(mockGetMyTeams).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Couldn't load your team")).not.toBeInTheDocument();
+  });
+});
+
+describe("TeamOverviewPage — the scope caption", () => {
+  it("still says what narrowed when the tiles fail but the report does not", async () => {
+    // Nothing here is wrong, and that is the point: a group-scoped report, a
+    // group-scoped chart and a Download CSV that will export Platform's rows,
+    // with the caption gone because it lived inside the tiles' success
+    // branch. The weak form of the screen saying two things at once.
+    mockGetTeamOverview.mockImplementation((_teamId: string, gid?: string) =>
+      gid ? Promise.reject(new Error("500")) : Promise.resolve(OVERVIEW),
+    );
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    const { container } = render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByTestId("report-stat-activeMembers");
+
+    fireEvent.change(screen.getByTestId("group-filter-select"), { target: { value: "g1" } });
+    await screen.findByText("Couldn't load this view");
+
+    // The report below the failed tiles is Platform's, and says so.
+    await screen.findByTestId("report-stat-activeMembers");
+    expect(container.textContent).toContain(
+      "Showing Platform. Seats are counted for the whole team.",
+    );
+  });
+});
+
 describe("TeamOverviewPage — the render-phase reset", () => {
   /**
    * Records DOM mutations in order, tagging two of them: the removal of
