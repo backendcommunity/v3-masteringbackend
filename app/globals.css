@@ -1077,3 +1077,26 @@ article ul li {
 .driver-popover.mb-tour-light .driver-popover-arrow {
   border-color: #ffffff;
 }
+
+/*
+ * Radix poppers: never paint the frame before Floating UI has positioned them.
+ *
+ * @radix-ui/react-popper inserts the content wrapper at `left:0; top:0` with
+ * `transform: translate(0px, -200%)` as a "park it off-screen until measured"
+ * guard, then replaces that transform with the real anchored offset on the
+ * next animation frame. The guard does not hold: -200% resolves against the
+ * element's OWN height, which is still 0 on the frame it is inserted, so the
+ * transform computes to translate(0,0) and the panel paints in the top-left
+ * corner of the viewport before jumping to its trigger. On a busy frame that
+ * is visible, and it reads as the menu flying in from the left — reported by
+ * a user against the team Overview group filter, and reproduced by observing
+ * the wrapper at insertion time.
+ *
+ * Keyed on the sentinel transform rather than on the presence of Radix's
+ * positioning custom properties, so the failure direction is safe: if a
+ * future Radix version stops emitting this exact string we lose the fix, but
+ * no popper is ever left invisible.
+ */
+[data-radix-popper-content-wrapper][style*="-200%"] {
+  visibility: hidden;
+}
