@@ -19,7 +19,14 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 w-1/3 rounded-md border overflow-y-auto bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        // Deliberately no `slide-in-from-*` or `zoom-*`. The stock shadcn
+        // classes translate the panel 8px toward the trigger and scale it from
+        // 95%, which reads as the menu flying in from an edge that changes
+        // depending on where the trigger sits on screen. A user reported it.
+        // The fade stays: it takes the hard edge off the appearance without
+        // moving anything. If this file is ever regenerated with the shadcn
+        // CLI, strip the motion classes again.
+        "z-50 w-1/3 rounded-md border overflow-y-auto bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className
       )}
       {...props}
