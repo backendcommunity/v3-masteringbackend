@@ -353,7 +353,7 @@ interface AppState {
   getTeamProgress: (teamId: string, groupId?: string) => Promise<TeamRosterProgress>;
   getTeamMemberProgress: (teamId: string, memberId: string) => Promise<TeamMemberProgress>;
   getTeamLeaderboard: (teamId: string, groupId?: string) => Promise<TeamLeaderboard>;
-  getTeamReport: (teamId: string, range: TeamReportRange) => Promise<TeamReport>;
+  getTeamReport: (teamId: string, range: TeamReportRange, groupId?: string) => Promise<TeamReport>;
   getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
   getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
   getMyAssignments: (teamId: string) => Promise<MyAssignment[]>;
@@ -1564,8 +1564,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data } = await api.get(`/teams/${teamId}/me`);
     return data?.data as TeamMemberProgress;
   },
-  getTeamReport: async (teamId: string, range: TeamReportRange) => {
-    const { data } = await api.get(`/teams/${teamId}/reports`, { params: { range } });
+  getTeamReport: async (teamId: string, range: TeamReportRange, groupId?: string) => {
+    const { data } = await api.get(`/teams/${teamId}/reports`, {
+      params: groupId ? { range, groupId } : { range },
+    });
     return data?.data as TeamReport;
   },
   getTeamGroups: async (teamId: string) => {
