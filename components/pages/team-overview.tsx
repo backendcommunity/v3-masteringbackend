@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { ReportChart, type ReportChartMetric } from "@/components/team/report-chart";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -186,13 +187,19 @@ function StatTile({
   return (
     <Card data-testid={`report-stat-${metric}`}>
       <CardContent className="pt-5">
-        <p className="text-2xl font-bold tabular-nums">{value}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {METRIC_LABELS[metric]}
-          </p>
+        {/* The pill rides with the NUMBER, not with the label. Inline with
+            the label, a name long enough to wrap ("Members who finished a
+            course or path") pushed its pill onto a third line while its
+            neighbours' sat on the first, so the row of pills read as ragged
+            rather than as one comparable set. Labels wrap last, where a
+            wrap costs nothing. */}
+        <div className="flex flex-wrap items-baseline gap-2">
+          <p className="text-2xl font-bold tabular-nums">{value}</p>
           <ChangePill value={change} />
         </div>
+        <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+          {METRIC_LABELS[metric]}
+        </p>
       </CardContent>
     </Card>
   );
@@ -633,9 +640,55 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         </p>
       )}
 
+      {/* Everything above the divider is the team RIGHT NOW — the tiles, who
+          has stalled, and what is still unused. The seats-free line sits with
+          the seats tile it refers to rather than at the foot of the page, and
+          the stalled callout sits with the "Stalled" tile it acts on. */}
+      {overviewReady && overview.stalled > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {overview.stalled === 1
+                ? "One person has stopped learning"
+                : `${overview.stalled} people have stopped learning`}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              No activity in the last 14 days. Seats they aren&apos;t using
+              are seats someone else could have.
+            </p>
+            <Button variant="outline" onClick={() => onNavigate(routes.teamMembers)}>
+              See who
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {overviewReady && overview.seats.available > 0 && (
+        <p className="text-sm text-muted-foreground">
+          You have {overview.seats.available}{" "}
+          {overview.seats.available === 1 ? "seat" : "seats"} free.{" "}
+          <button
+            type="button"
+            className="font-semibold text-primary hover:underline"
+            onClick={() => onNavigate(routes.teamMembers)}
+          >
+            Invite someone
+          </button>
+        </p>
+      )}
+
+      {/* The divider between "right now" and "over time". The two halves
+          answer different questions and are counted over different windows —
+          the tiles are a snapshot, the report is a trend — so running them
+          together as one column of cards invited reading a tile as part of
+          the report's window. */}
+      <Separator />
+
       {/* The report region. Its loading and failure states are confined to
           it: a report that failed must never take down the stalled callout
-          below, which is the most valuable line on the screen. */}
+          above, which is the most valuable line on the screen. */}
       {reportLoading ? (
         <PageSkeleton rows={4} />
       ) : reportFailed ? (
@@ -670,34 +723,45 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
             ))}
           </div>
 
-          {/* A real group of buttons rather than a Select: three options that
-              are always visible cost one glance, where a Select hides two of
-              them behind a click and hides which one is showing. */}
-          <div role="group" aria-label="Chart metric" className="flex flex-wrap gap-2">
-            {CHART_METRICS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={metric === m}
-                onClick={() => setMetric(m)}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-                  metric === m
-                    ? "border-[#13AECE] bg-[#13AECE]/10 text-[#13AECE]"
-                    : "hover:bg-accent",
-                )}
-              >
-                {METRIC_LABELS[m]}
-              </button>
-            ))}
-          </div>
+          {/* The toggle and the chart share one card so they read as one
+              control and its output, and so the chart sits on the same
+              surface as the tiles above it rather than floating on the page
+              background. The plot area itself stays transparent — a second
+              background behind the Area's translucent gradient fill is what
+              makes a chart look muddy. */}
+          <Card>
+            <CardContent className="space-y-4 pt-5">
+              {/* A real group of buttons rather than a Select: three options
+                  that are always visible cost one glance, where a Select
+                  hides two of them behind a click and hides which one is
+                  showing. */}
+              <div role="group" aria-label="Chart metric" className="flex flex-wrap gap-2">
+                {CHART_METRICS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={metric === m}
+                    onClick={() => setMetric(m)}
+                    className={cn(
+                      "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                      metric === m
+                        ? "border-[#13AECE] bg-[#13AECE]/10 text-[#13AECE]"
+                        : "hover:bg-accent",
+                    )}
+                  >
+                    {METRIC_LABELS[m]}
+                  </button>
+                ))}
+              </div>
 
-          <ReportChart
-            data={report.series}
-            metric={metric}
-            period={report.range.period}
-            label={METRIC_LABELS[metric]}
-          />
+              <ReportChart
+                data={report.series}
+                metric={metric}
+                period={report.range.period}
+                label={METRIC_LABELS[metric]}
+              />
+            </CardContent>
+          </Card>
 
           {hasCompletionsGap && (
             <p className="text-sm text-muted-foreground">
@@ -709,44 +773,6 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         </div>
       ) : null}
 
-      {overviewReady && (
-        <>
-          {overview.stalled > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {overview.stalled === 1
-                    ? "One person has stopped learning"
-                    : `${overview.stalled} people have stopped learning`}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  No activity in the last 14 days. Seats they aren&apos;t using
-                  are seats someone else could have.
-                </p>
-                <Button variant="outline" onClick={() => onNavigate(routes.teamMembers)}>
-                  See who
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {overview.seats.available > 0 && (
-            <p className="text-sm text-muted-foreground">
-              You have {overview.seats.available}{" "}
-              {overview.seats.available === 1 ? "seat" : "seats"} free.{" "}
-              <button
-                type="button"
-                className="font-semibold text-primary hover:underline"
-                onClick={() => onNavigate(routes.teamMembers)}
-              >
-                Invite someone
-              </button>
-            </p>
-          )}
-        </>
-      )}
     </div>
   );
 }
