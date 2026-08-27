@@ -432,6 +432,15 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   // weaker one: its numbers, its failure card and a failed download's alert
   // all describe the group that was selected a moment ago, and any of them
   // sitting under the new group's caption is the same lie.
+  //
+  // Two of the three are pinned by tests that measure how many commits the
+  // switch takes (see "the render-phase reset" in
+  // __tests__/team-overview-report.test.tsx). `setReportFailed(false)` is
+  // not, and cannot be while it sits below `setReportLoading(true)`: the
+  // render below reads `reportLoading ? skeleton : reportFailed ? card`, so
+  // a stale failure has no frame in which it is visible. It stays because it
+  // becomes load-bearing the moment the loading line above it is removed or
+  // the two branches are reordered — do not delete it as unreachable.
   if (groupFilter !== prevGroupFilterRef.current) {
     prevGroupFilterRef.current = groupFilter;
     setOverviewLoading(true);
@@ -458,10 +467,19 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
 
   if (!overview) return <PageSkeleton rows={3} />;
 
+  // A denominator is only honest when a subscription is making the claim.
+  // `paidSeats: 0` means both "no subscription" and "a subscription that
+  // pays for zero seats", and rendering the first as "4 of 0" asserts a
+  // figure nobody is asserting — the bug `seatUsage()` added `subscribed`
+  // to keep distinguishable. Only an explicit `false` suppresses the
+  // denominator: an absent field is an older payload, not a missing plan.
+  const noActivePlan = overview.seats.subscribed === false;
   const stats = [
     {
-      label: "Seats used",
-      value: `${overview.seats.used} of ${overview.seats.paidSeats}`,
+      label: noActivePlan ? "Seats in use \u2014 no active plan" : "Seats used",
+      value: noActivePlan
+        ? String(overview.seats.used)
+        : `${overview.seats.used} of ${overview.seats.paidSeats}`,
       icon: Users,
     },
     { label: "Signed in this week", value: String(overview.activeThisWeek), icon: Flame },

@@ -264,6 +264,28 @@ describe("TeamOverviewPage — the report", () => {
     expect(await screen.findByText(/over the last 12 weeks/i)).toBeTruthy();
   });
 
+  it("heads the report with the window the payload covers, not the one the Select asked for", async () => {
+    // The heading is derived from `report.range.period`, never from the
+    // `range` state: the Select and the payload can disagree for a frame
+    // (and a backend is free to answer with a window of its own choosing),
+    // and the numbers underneath are what the heading is describing. This
+    // fixture makes the two disagree on purpose — the Select still reads
+    // 12w while a MONTHLY payload is on screen.
+    const report = buildReport({ period: "month" });
+    report.series = [
+      { bucket: "2026-07-01", activeMembers: 1, coursesFinished: 1, pathsFinished: 0 },
+      { bucket: "2026-08-01", activeMembers: 1, coursesFinished: 1, pathsFinished: 0 },
+    ];
+    mockGetTeamReport.mockResolvedValue(report);
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByTestId("report-stat-activeMembers");
+
+    expect((screen.getByTestId("range-select") as HTMLSelectElement).value).toBe("12w");
+    expect(screen.getByText(/over the last 12 months/i)).toBeInTheDocument();
+    expect(screen.queryByText(/over the last 12 weeks/i)).not.toBeInTheDocument();
+  });
+
   it("shows no change pill when the previous period was zero", async () => {
     mockGetTeamReport.mockResolvedValue(buildReport());
     render(<TeamOverviewPage onNavigate={vi.fn()} />);
@@ -487,13 +509,67 @@ describe("TeamOverviewPage — the report", () => {
     expect(container.textContent).toContain("31 August 2026");
   });
 
+  it("renders no denominator when the team has no active plan", async () => {
+    // `paidSeats: 0` is what the backend sends for a team whose subscription
+    // was removed AND for a subscription that pays for zero seats;
+    // `seatUsage()` sends `subscribed` to keep them apart, and its own
+    // comment records the bug that follows — "4 of 0" asserts a paid-seat
+    // figure no subscription is making. The Reports screen fixed this on its
+    // own seats tile; that tile is gone now, so Overview's has to carry it.
+    mockGetTeamOverview.mockResolvedValue({
+      ...OVERVIEW,
+      seats: {
+        subscribed: false,
+        paidSeats: 0,
+        activeMembers: 4,
+        pendingInvites: 0,
+        used: 4,
+        available: 0,
+      },
+    });
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+
+    const label = await screen.findByText("Seats in use \u2014 no active plan");
+    const tile = label.closest(".pt-5") as HTMLElement;
+    expect(within(tile).getByText("4")).toBeTruthy();
+    // No denominator at all — not "4 of 0", and not "4 of " with the zero
+    // silently swallowed, which reads as a truncated number.
+    expect(tile.textContent).not.toMatch(/\bof\b/);
+    expect(screen.queryByText("Seats used")).not.toBeInTheDocument();
+  });
+
+  it("still renders a denominator for a real zero-seat subscription", async () => {
+    // A subscription that pays for zero seats is a real claim, and still
+    // gets a denominator. This is the half of the pair a `paidSeats === 0`
+    // shortcut would have broken.
+    mockGetTeamOverview.mockResolvedValue({
+      ...OVERVIEW,
+      seats: {
+        subscribed: true,
+        paidSeats: 0,
+        activeMembers: 4,
+        pendingInvites: 0,
+        used: 4,
+        available: 0,
+      },
+    });
+    mockGetTeamReport.mockResolvedValue(buildReport());
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+
+    const tile = (await screen.findByText("Seats used")).closest(".pt-5") as HTMLElement;
+    expect(within(tile).getByText("4 of 0")).toBeTruthy();
+    expect(screen.queryByText(/no active plan/i)).not.toBeInTheDocument();
+  });
+
   it("shows exactly one seats figure — the overview's, not a second one from the report", async () => {
-    // The Reports screen carried its own seats tile (`seats.used of
-    // seats.total`, with a null-total "no active plan" variant). Two seats
-    // figures on one screen is one too many: they are computed from
-    // different payloads and can disagree the moment a subscription changes
-    // mid-request. The report's tile is the one that goes, so the report
-    // payload's own seat numbers must reach no pixel of this page.
+    // The Reports screen carried its own seats tile. Two seats figures on
+    // one screen is one too many: they come from different payloads and can
+    // disagree the moment a subscription changes mid-request. The report
+    // payload's own seat numbers must reach no pixel of this page — this
+    // fixture makes them differ from the overview's on purpose.
     const report = buildReport();
     report.seats = { total: null, used: 4 };
     mockGetTeamReport.mockResolvedValue(report);
@@ -501,10 +577,12 @@ describe("TeamOverviewPage — the report", () => {
     const { container } = render(<TeamOverviewPage onNavigate={vi.fn()} />);
     await screen.findByTestId("report-stat-activeMembers");
 
-    expect(screen.getAllByText("Seats used")).toHaveLength(1);
+    expect(screen.getAllByText(/^Seats (used|in use)/)).toHaveLength(1);
+    expect(screen.getByText("7 of 10")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/no active plan/i);
     expect(container.textContent).not.toContain("4 of");
   });
+
 });
 
 describe("TeamOverviewPage — the group filter reaches the report", () => {
@@ -584,6 +662,113 @@ describe("TeamOverviewPage — the group filter reaches the report", () => {
   });
 });
 
+describe("TeamOverviewPage — the render-phase reset", () => {
+  /**
+   * Records DOM mutations in order, tagging two of them: the removal of
+   * something that belongs to the OLD group, and the insertion of the
+   * skeleton that belongs to the NEW one.
+   *
+   * Order is the whole assertion, because the difference between resetting
+   * during render and resetting in an effect is not WHAT the screen ends up
+   * showing — both end up correct — but how many commits it takes to get
+   * there. Reset during render: React throws the stale render away, so one
+   * commit removes the old group's content and inserts the skeleton
+   * together. Reset in an effect: commit one inserts the skeleton with the
+   * old group's content still beside it (the frame a manager's eye gets),
+   * and commit two removes it. React applies a commit's deletions before
+   * its insertions, so "removed then added" means one commit and "added
+   * then removed" means two.
+   *
+   * A plain assertion after `fireEvent` cannot tell these apart: Testing
+   * Library wraps events in `act`, which flushes passive effects before
+   * returning, so the screen already reads correct either way. Measured:
+   * with the reset lines removed, a post-`fireEvent` assertion still passes
+   * and this ordering check fails.
+   */
+  function recordCommitOrder(isStale: (el: Element) => boolean) {
+    const events: string[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        record.removedNodes.forEach((node) => {
+          if (node.nodeType === 1 && isStale(node as Element)) events.push("stale-removed");
+        });
+        record.addedNodes.forEach((node) => {
+          if (
+            node.nodeType === 1 &&
+            (node as Element).querySelector('[data-testid="page-skeleton-row"]')
+          ) {
+            events.push("skeleton-added");
+          }
+        });
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return {
+      events,
+      stop: () => observer.disconnect(),
+    };
+  }
+
+  function expectSingleCommit(events: string[]) {
+    expect(events).toContain("stale-removed");
+    expect(events).toContain("skeleton-added");
+    expect(events.indexOf("stale-removed")).toBeLessThan(events.indexOf("skeleton-added"));
+  }
+
+  it("never leaves a failed download's alert over the new group", async () => {
+    // The download alert renders OUTSIDE the report region, above
+    // everything. Without the render-phase clear it is committed once more
+    // after the filter has already changed — a red line describing a
+    // whole-team export that failed, sitting over Platform's screen.
+    mockGetTeamReport.mockResolvedValue(buildReport());
+    mockApiGet.mockRejectedValue(new Error("503"));
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByTestId("report-stat-activeMembers");
+
+    fireEvent.click(screen.getByRole("button", { name: /download csv/i }));
+    await screen.findByText(/couldn.t download the csv/i);
+
+    const recorder = recordCommitOrder(
+      (el) => el.textContent?.includes("Couldn't download the CSV") ?? false,
+    );
+    fireEvent.change(screen.getByTestId("group-filter-select"), { target: { value: "g1" } });
+    await waitFor(() =>
+      expect(mockGetTeamReport).toHaveBeenLastCalledWith("t1", "12w", "g1"),
+    );
+    await Promise.resolve();
+    recorder.stop();
+
+    expectSingleCommit(recorder.events);
+    expect(screen.queryByText(/couldn.t download the csv/i)).not.toBeInTheDocument();
+  });
+
+  it("never leaves the previous group's report numbers under the new group", async () => {
+    // The same rule the tiles above the report already follow: whole-team
+    // totals must not be committed underneath a caption that has already
+    // changed to Platform.
+    mockGetTeamReport.mockImplementation((_teamId: string, _r: string, gid?: string) =>
+      gid ? new Promise<TeamReport>(() => {}) : Promise.resolve(buildReport()),
+    );
+
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+    await screen.findByTestId("report-stat-activeMembers");
+
+    const recorder = recordCommitOrder(
+      (el) => !!el.querySelector('[data-testid="report-stat-activeMembers"]'),
+    );
+    fireEvent.change(screen.getByTestId("group-filter-select"), { target: { value: "g1" } });
+    await waitFor(() =>
+      expect(mockGetTeamReport).toHaveBeenLastCalledWith("t1", "12w", "g1"),
+    );
+    await Promise.resolve();
+    recorder.stop();
+
+    expectSingleCommit(recorder.events);
+    expect(screen.queryByTestId("report-stat-activeMembers")).not.toBeInTheDocument();
+  });
+});
+
 describe("TeamOverviewPage — range last-write-wins", () => {
   /**
    * The report fetch had no staleness guard on the Reports screen once: it
@@ -624,18 +809,39 @@ describe("TeamOverviewPage — range last-write-wins", () => {
 
   /**
    * Drives the ordering the guard exists for: request the slow range, switch
-   * back before it resolves, then release it. Returns the range Select once
-   * the abandoned payload has had every chance to paint.
+   * back before it settles, then settle it. Returns the range Select once the
+   * abandoned request has had every chance to paint.
+   *
+   * `settle` picks how the abandoned request ends — a slow range does not
+   * only resolve late, it also FAILS late (the cold range runs a
+   * RepeatableRead transaction over two windows and 503s on timeout), and
+   * the failure path needs the same guard as the success path.
+   *
+   * `holdNewest` leaves the request that superseded it still in flight,
+   * which is the only arrangement in which the `finally` guard is
+   * observable: an unguarded `setReportLoading(false)` there re-paints the
+   * PREVIOUS payload while the request the user is actually waiting on has
+   * not landed.
    */
-  async function raceRanges() {
+  async function raceRanges(
+    opts: { settle?: "resolve" | "reject"; holdNewest?: boolean } = {},
+  ) {
     let releaseSlow: (value: TeamReport) => void = () => {};
-    const slow = new Promise<TeamReport>((resolve) => {
+    let failSlow: (error: Error) => void = () => {};
+    const slow = new Promise<TeamReport>((resolve, reject) => {
       releaseSlow = resolve;
+      failSlow = reject;
     });
 
-    mockGetTeamReport.mockImplementation((_teamId: string, r: string) =>
-      r === "12m" ? slow : Promise.resolve(report("week", 7)),
-    );
+    let weeklyCalls = 0;
+    mockGetTeamReport.mockImplementation((_teamId: string, r: string) => {
+      if (r === "12m") return slow;
+      weeklyCalls += 1;
+      // The FIRST weekly call is the initial paint and must land; the second
+      // is the one that supersedes 12m, and `holdNewest` keeps it pending.
+      if (opts.holdNewest && weeklyCalls > 1) return new Promise<TeamReport>(() => {});
+      return Promise.resolve(report("week", 7));
+    });
 
     render(<TeamOverviewPage onNavigate={vi.fn()} />);
     await screen.findByTestId("report-stat-activeMembers");
@@ -654,9 +860,11 @@ describe("TeamOverviewPage — range last-write-wins", () => {
       expect(mockGetTeamReport.mock.calls.filter((c) => c[1] === "12w")).toHaveLength(2),
     );
 
-    // Now the abandoned monthly response arrives, carrying a distinctive
-    // total nothing else in this test produces.
-    releaseSlow(report("month", 999));
+    // Now the abandoned monthly request settles — with a distinctive total
+    // nothing else in this test produces, or with the 503 the report
+    // transaction raises on a timeout.
+    if (opts.settle === "reject") failSlow(new Error("503"));
+    else releaseSlow(report("month", 999));
     await new Promise((r) => setTimeout(r, 50));
 
     return select;
@@ -671,6 +879,32 @@ describe("TeamOverviewPage — range last-write-wins", () => {
     // looking at, under a Select that says otherwise.
     expect(coursesTile.textContent).not.toContain("999");
     expect(select.value).toBe("12w");
+  });
+
+  it("does not let an abandoned range's failure wipe the report that did land", async () => {
+    // The failure path needs the same guard as the success path, and fails
+    // in a nastier way: the manager asks for 12m, gives up and switches back
+    // to 12w which is warm and paints correctly — and then the abandoned 12m
+    // request 503s and replaces a correct, freshly-painted report with
+    // "Couldn't load this report".
+    const select = await raceRanges({ settle: "reject" });
+
+    expect(screen.queryByText("Couldn't load this report")).not.toBeInTheDocument();
+    expect(screen.getByTestId("report-stat-coursesFinished").textContent).toContain("7");
+    expect(select.value).toBe("12w");
+  });
+
+  it("does not clear the loading state for a request it has abandoned", async () => {
+    // Both the abandoned request and the one that superseded it are in
+    // flight; only the abandoned one settles. An unguarded `finally` marks
+    // the region loaded on its way out, re-painting the PREVIOUS payload
+    // under a request that has not landed — the region must stay a skeleton
+    // until the newest request answers.
+    await raceRanges({ settle: "reject", holdNewest: true });
+
+    expect(screen.queryByTestId("report-stat-activeMembers")).not.toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load this report")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("page-skeleton-row").length).toBeGreaterThan(0);
   });
 
   it("does not paint a stale report under a newer range label", async () => {

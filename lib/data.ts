@@ -401,6 +401,16 @@ export interface TeamMember {
 /** Billing figures for a team — `paidSeats` is what the company is billed
  * for. Only ever present on `TeamRoster.usage` for an OWNER/ADMIN viewer. */
 export interface TeamSeatUsage {
+  /** Whether a subscription exists at all, which `paidSeats` alone cannot
+   * say: `seatUsage()` in academy sends 0 both for a team whose subscription
+   * was removed and for a real subscription that pays for zero seats, and
+   * its own comment records the bug that follows — "a team whose
+   * subscription was removed read '4 of 0', asserting a paid-seat figure no
+   * subscription was making". The backend has always sent this; only this
+   * type had not declared it. Optional because a caller reading an older
+   * cached payload must fall back to the existing rendering, never to
+   * "no active plan" for every team. */
+  subscribed?: boolean;
   paidSeats: number;
   activeMembers: number;
   pendingInvites: number;
