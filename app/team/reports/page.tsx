@@ -1,15 +1,11 @@
-"use client";
+import { redirect } from "next/navigation";
+import { routes } from "@/lib/routes";
 
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { TeamHubLayout } from "@/components/team/team-hub-layout";
-import { TeamReportsPage } from "@/components/pages/team-reports";
-
+/**
+ * The Reports tab was folded into Overview. This route stays as a redirect
+ * rather than being deleted: managers bookmark screens, and a 404 on a URL
+ * that worked last week reads as the feature being withdrawn.
+ */
 export default function TeamReportsRoute() {
-  return (
-    <DashboardLayout>
-      <TeamHubLayout>
-        <TeamReportsPage />
-      </TeamHubLayout>
-    </DashboardLayout>
-  );
+  redirect(routes.teamOverview);
 }

@@ -81,10 +81,9 @@ import {
 } from "./courses";
 import { api, socketAPI } from "./api";
 
-// Single source for the REST base URL used by the raw-fetch (streaming) actions.
-// Exported so a plain (non-axios) link — e.g. the reports CSV export, which must
-// be a top-level GET navigation rather than a fetch, see team-reports.tsx — can
-// build its href from the same value instead of a third copy of this literal.
+// Single source for the REST base URL used by the raw-fetch (streaming) actions
+// below. Exported so any consumer that needs to build a URL outside the axios
+// `api` client (rather than duplicating this literal) can import it directly.
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
 import { analytics } from "./analytics";

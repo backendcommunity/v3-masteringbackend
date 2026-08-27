@@ -13,16 +13,20 @@ import { describe, it, expect } from "vitest";
 import { TEAM_NAV_ITEMS } from "../team-nav-items";
 
 describe("TEAM_NAV_ITEMS", () => {
-  it("puts Paths between Groups and Assignments, and Reports after Settings", () => {
+  it("puts Paths between Groups and Assignments, and Settings last", () => {
     const labels = TEAM_NAV_ITEMS.map((i) => i.label);
     expect(labels).toEqual([
-      "Overview", "Members", "Groups", "Paths", "Assignments", "Leaderboard", "Settings", "Reports",
+      "Overview", "Members", "Groups", "Paths", "Assignments", "Leaderboard", "Settings",
     ]);
   });
 
-  it("gates Reports to managers only", () => {
-    const item = TEAM_NAV_ITEMS.find((i) => i.label === "Reports");
-    expect(item?.managerOnly).toBe(true);
+  it("no longer lists a Reports tab", () => {
+    expect(TEAM_NAV_ITEMS.find((i) => i.label === "Reports")).toBeUndefined();
+  });
+
+  it("keeps Overview manager-only — the report's gate now lives there", () => {
+    const overview = TEAM_NAV_ITEMS.find((i) => i.label === "Overview");
+    expect(overview?.managerOnly).toBe(true);
   });
 
   it("leaves Assignments open to a plain member", () => {
@@ -37,6 +41,6 @@ describe("TEAM_NAV_ITEMS", () => {
 
   it("keeps the manager-only screens manager-only", () => {
     const managerOnly = TEAM_NAV_ITEMS.filter((i) => i.managerOnly).map((i) => i.label);
-    expect(managerOnly).toEqual(["Overview", "Groups", "Settings", "Reports"]);
+    expect(managerOnly).toEqual(["Overview", "Groups", "Settings"]);
   });
 });

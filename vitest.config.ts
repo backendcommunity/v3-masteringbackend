@@ -81,8 +81,6 @@ export default defineConfig({
       "components/team/__tests__/group-members-dialog.test.tsx",
       "components/team/__tests__/report-chart.test.tsx",
       "components/pages/__tests__/team-overview-report.test.tsx",
-      "components/pages/__tests__/team-reports.test.tsx",
-      "components/pages/__tests__/team-reports-stale-range.test.tsx",
     ],
   },
   resolve: {
