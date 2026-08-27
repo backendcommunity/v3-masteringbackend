@@ -24,6 +24,25 @@ class MockResizeObserver {
 beforeAll(() => {
   (global as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
     MockResizeObserver as unknown as typeof ResizeObserver;
+  // recharts skips rendering axis ticks entirely at 0x0 (jsdom's default
+  // getBoundingClientRect), which would make the theming test below pass
+  // vacuously — nothing to assert on. Giving the container real dimensions,
+  // the same way team-reports.test.tsx does, is what makes tick <text>
+  // nodes actually appear in the DOM.
+  Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({
+      width: 300,
+      height: 100,
+      top: 0,
+      left: 0,
+      bottom: 100,
+      right: 300,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    }),
+  });
 });
 
 const SERIES: TeamReportBucket[] = [
@@ -49,5 +68,24 @@ describe("ReportChart", () => {
   it("renders nothing to chart when the series is empty, and says so", () => {
     render(<ReportChart data={[]} metric="activeMembers" period="week" label="Active members" />);
     expect(screen.getByText(/nothing to chart yet/i)).toBeInTheDocument();
+  });
+
+  // recharts puts `className` on the axis's outer <g> wrapper, never on the
+  // individual tick <text> elements — each tick gets its color from an
+  // explicit `fill` attribute instead, sourced from the `tick` prop. Putting
+  // the theme token in a `className` (as an earlier draft did) compiles and
+  // renders, but every tick silently falls back to recharts' own default
+  // stroke (#666) on both light and dark grounds. This asserts the actual
+  // rendered attribute so that regression can't silently ship again.
+  it("colors axis ticks with the muted-foreground token, not recharts' default", () => {
+    const { container } = render(
+      <ReportChart data={SERIES} metric="activeMembers" period="month" label="Active members" />
+    );
+    const ticks = container.querySelectorAll(".recharts-cartesian-axis-tick-value");
+    expect(ticks.length).toBeGreaterThan(0);
+    ticks.forEach((tick) => {
+      expect(tick.getAttribute("fill")).toBe("hsl(var(--muted-foreground))");
+      expect(tick.getAttribute("fill")).not.toBe("#666");
+    });
   });
 });

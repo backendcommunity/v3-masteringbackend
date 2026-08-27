@@ -64,14 +64,17 @@ export function ReportChart({
     <div className="h-64 w-full" data-testid={`report-chart-${metric}`}>
       {/* The exact array handed to recharts, so a test can assert the
           transform without depending on SVG layout jsdom does not compute.
-          The values here are numbers and a locale-formatted month/day
-          label — never team- or user-supplied text — so JSON.stringify
-          output cannot contain "</script>" and cannot break out of this
-          element. */}
+          JSON.stringify does not escape "<", and the HTML tokenizer ends a
+          <script> on the literal bytes "</script>" regardless of JS string
+          context, so every "<" is escaped as \u003c below. Today's fields
+          (axisLabel, bucket, value) can't produce that sequence, but that's
+          not why this is safe — the escape is what keeps this sidecar safe
+          if a caller-supplied string (e.g. `label`) is ever added to
+          `points`. */}
       <script
         type="application/json"
         data-testid="report-chart-data"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(points) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(points).replace(/</g, "\\u003c") }}
       />
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
@@ -86,16 +89,14 @@ export function ReportChart({
             dataKey="axisLabel"
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 12 }}
-            className="fill-muted-foreground"
+            tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
           />
           <YAxis
             allowDecimals={false}
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
             width={40}
-            className="fill-muted-foreground"
           />
           <Tooltip
             cursor={{ stroke: "#13AECE", strokeWidth: 1, strokeDasharray: "3 3" }}
