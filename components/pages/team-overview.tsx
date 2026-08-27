@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Users, Flame, MoonStar, UserX } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Download,
+  Flame,
+  MoonStar,
+  Users,
+  UserX,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { EmptyStateCard } from "@/components/empty-state-card";
@@ -13,15 +24,207 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ReportChart, type ReportChartMetric } from "@/components/team/report-chart";
 import { useAppStore } from "@/lib/store";
+import { api } from "@/lib/api";
 import { routes } from "@/lib/routes";
-import type { TeamGroup, TeamOverview } from "@/lib/data";
+import { cn } from "@/lib/utils";
+import type {
+  TeamGroup,
+  TeamOverview,
+  TeamReport,
+  TeamReportPeriod,
+  TeamReportRange,
+  TeamReportTotals,
+} from "@/lib/data";
+
+const RANGE_LABELS: Record<TeamReportRange, string> = {
+  "12w": "Last 12 weeks",
+  "12m": "Last 12 months",
+};
+
+// Labels are checked against what team-reports.ts's SQL actually counts, not
+// against what the field name suggests — see the doc comments below each.
+const METRIC_LABELS: Record<keyof TeamReportTotals, string> = {
+  // Distinct members with a genuine (non-notification) Activity row in the
+  // bucket — any feed event, including a login, not specifically learning
+  // activity. "Active members" doesn't claim more than that.
+  activeMembers: "Active members",
+  // COUNT(*) of course-completion events in the bucket — an event count,
+  // not distinct members (one person finishing two courses counts twice).
+  coursesFinished: "Courses finished",
+  // Same shape as coursesFinished, for path completions.
+  pathsFinished: "Paths finished",
+  // COUNT(DISTINCT userId) WHERE kind <> 'activity' — course OR path, not
+  // path alone. The earlier "Members who finished a path" label claimed
+  // fewer people finished something than the pathsFinished tile right next
+  // to it could ever allow (a member who only finished a COURSE still
+  // counts here) — this wording covers both.
+  membersWhoFinished: "Members who finished a course or path",
+};
+
+// The tile order, declared here rather than taken from `Object.keys(totals)`.
+// Key order on a JSON payload is the incidental order of a backend object
+// literal: reordering two fields in team-reports.ts's `TeamReportTotals`
+// would silently reshuffle this screen, and the reader's eye goes
+// engagement -> output -> reach.
+const TOTALS_METRICS = [
+  "activeMembers",
+  "coursesFinished",
+  "pathsFinished",
+  "membersWhoFinished",
+] as const;
+
+// The three totals that also have a per-bucket series, and therefore the
+// three the chart's metric toggle can offer. `membersWhoFinished` is a
+// totals-only figure — `TeamReportBucket` carries no matching field for it,
+// so it has a tile above but no line to draw.
+const CHART_METRICS: readonly ReportChartMetric[] = [
+  "activeMembers",
+  "coursesFinished",
+  "pathsFinished",
+];
+
+/** `YYYY-MM-DD` -> "8 June 2026". Parsed with an explicit local time so the
+ * date doesn't shift a day depending on the viewer's UTC offset. */
+function formatLongDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 /**
- * The Team Hub landing screen.
+ * The LAST DAY a bucket covers, from the bucket's own label and the report's
+ * period — never from `range.to`.
+ *
+ * A bucket is labelled by its first day: the Monday of its ISO week, or the
+ * 1st of its month. Printing that label as the end of the range said "through
+ * 24 August" for a window that runs through the 30th, understating the
+ * report's coverage by up to a full bucket. `range.to` is the wrong source for
+ * the fix — it is one bucket PAST the last one, so it would overshoot by a
+ * whole period — and deriving the day before it would still be reading a field
+ * this screen must not print. Computing it from the label keeps both problems
+ * out: +6 days for a week, and last-day-of-month for a month, which is a month
+ * length rather than a fixed number of days.
+ */
+function bucketEnd(bucket: string, period: TeamReportPeriod): string {
+  const d = new Date(`${bucket}T00:00:00`);
+  if (period === "month") {
+    // Day 0 of the NEXT month is the last day of this one, for every month
+    // length including February in a leap year.
+    d.setMonth(d.getMonth() + 1, 0);
+  } else {
+    d.setDate(d.getDate() + 6);
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * The filename out of a `Content-Disposition: attachment; filename="..."`
+ * header, or `null` if there isn't one to read.
+ *
+ * Only the quoted form is handled, which is the only form the export emits.
+ * Any path separator in the value is refused rather than sanitised: a
+ * filename is a name, and a value that tries to be a path is not one this
+ * screen should try to repair.
+ */
+function filenameFrom(headers: unknown): string | null {
+  const raw = (headers as Record<string, string> | undefined)?.["content-disposition"];
+  const match = raw?.match(/filename="([^"]+)"/);
+  const name = match?.[1];
+  if (!name || name.includes("/") || name.includes("\\")) return null;
+  return name;
+}
+
+/**
+ * `change` is `number | null` — `null` means the previous window was zero,
+ * and the only honest thing to render for that is nothing. Never "∞%",
+ * never "NaN%", never a bare "0%" standing in for "we don't know". A real
+ * zero-percent change (the previous window was equal, not empty) still
+ * renders — that pill just says so.
+ */
+function ChangePill({ value }: { value: number | null }) {
+  if (value === null) return null;
+
+  // `value` is a FRACTION — percentChange() in the backend's report-window.ts
+  // returns (current - previous) / previous, "never a percentage-scaled
+  // number" per its own docstring. Scale to a percentage here, at the one
+  // place this number becomes text, rather than trusting it arrives pre-scaled.
+  const rounded = Math.round(value * 100);
+  const isUp = rounded > 0;
+  const isDown = rounded < 0;
+
+  return (
+    <Badge
+      variant="outline"
+      data-testid="change-pill"
+      className={cn(
+        "gap-0.5 px-1.5 py-0 text-[10px] font-semibold",
+        isUp && "border-[#27AE60]/30 bg-[#27AE60]/10 text-[#27AE60]",
+        isDown && "border-red-500/30 bg-red-500/10 text-red-600",
+      )}
+    >
+      {isUp && <ArrowUp className="h-2.5 w-2.5" />}
+      {isDown && <ArrowDown className="h-2.5 w-2.5" />}
+      {rounded === 0 ? "No change" : `${Math.abs(rounded)}%`}
+    </Badge>
+  );
+}
+
+function StatTile({
+  metric,
+  value,
+  change,
+}: {
+  metric: keyof TeamReportTotals;
+  value: number;
+  change: number | null;
+}) {
+  return (
+    <Card data-testid={`report-stat-${metric}`}>
+      <CardContent className="pt-5">
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            {METRIC_LABELS[metric]}
+          </p>
+          <ChangePill value={change} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The Team Hub landing screen: what the team looks like NOW, and what it did
+ * over the last twelve weeks or months.
  *
  * Four numbers, and the one that matters is "stalled" — the point of buying
  * seats is that people use them, and this is the screen that says who isn't.
+ * The report below it answers the next question ("did that investment do
+ * anything") on the same page, so the two can never disagree by living on
+ * two tabs.
+ *
+ * Three payload facts drive the report half, all documented on `TeamReport`
+ * in lib/data.ts:
+ *  - `change` is `number | null` — a null pill renders as nothing, never a
+ *    fabricated "∞%"/"NaN%"/"0%".
+ *  - `range.completionsBegin` can be later than `range.dataBegins`, which
+ *    means the completion counters UNDERCOUNT before it (rows never got a
+ *    date, not zero of them) — captioned "at least" when that gap exists,
+ *    silent when it doesn't.
+ *  - `range.to` is exclusive (one bucket past the last rendered one), so the
+ *    visible range is built from `dataBegins` and the LAST series bucket,
+ *    never from `range.to`.
+ *
+ * The group filter scopes BOTH halves: the "now" tiles and the report are
+ * fetched with the same `groupId`, because a manager who filtered to
+ * "Platform" must never read whole-team numbers under Platform's name. Seats
+ * are the one deliberate exception — a group does not own seats — and the
+ * caption says so out loud rather than leaving the reader to guess.
  */
 export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) => void }) {
   const store = useAppStore();
@@ -34,6 +237,21 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   const [groups, setGroups] = useState<TeamGroup[]>([]);
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const prevGroupFilterRef = useRef(groupFilter);
+
+  const [range, setRange] = useState<TeamReportRange>("12w");
+  const [report, setReport] = useState<TeamReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(true);
+  const [reportFailed, setReportFailed] = useState(false);
+  const [metric, setMetric] = useState<ReportChartMetric>("activeMembers");
+  const [downloading, setDownloading] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+
+  // Monotonic request id. The report endpoint is cached per (team, group,
+  // range) for 900 seconds, so the two ranges' response times differ by an
+  // order of magnitude: toggling 12m -> 12w can land the slower, abandoned
+  // 12m payload LAST, and without this the Select would read "Last 12 weeks"
+  // over a chart of monthly buckets. Only the newest request may write state.
+  const reportRequestRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +311,38 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, groupFilter, retryToken]);
 
+  // The report is fetched with the SAME group as the tiles above it. A
+  // report that stayed whole-team under a "Showing Platform" caption is the
+  // single failure this screen exists to avoid — one page must not say two
+  // things at once.
+  useEffect(() => {
+    if (!teamId) return;
+    const requestId = ++reportRequestRef.current;
+    setReportLoading(true);
+    setReportFailed(false);
+    setDownloadFailed(false);
+    const gid = groupFilter === "all" ? undefined : groupFilter;
+    store
+      .getTeamReport(teamId, range, gid)
+      .then((data) => {
+        // The staleness guard, not a `cancelled` flag: switching 12w -> 12m
+        // and back leaves two responses in flight, and the slower one must
+        // not paint under the newer label. Monotonic id, checked on BOTH
+        // the success and failure paths.
+        if (requestId === reportRequestRef.current) setReport(data);
+      })
+      .catch(() => {
+        if (requestId === reportRequestRef.current) setReportFailed(true);
+      })
+      .finally(() => {
+        if (requestId === reportRequestRef.current) setReportLoading(false);
+      });
+    // `store` is deliberately excluded — useAppStore() has no selector, so its
+    // identity changes on any set() anywhere in the app, and depending on it
+    // here is an unbounded fetch loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, groupFilter, range, retryToken]);
+
   useEffect(() => {
     if (!teamId) return;
     let cancelled = false;
@@ -112,6 +362,62 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
+  /**
+   * The CSV export, fetched through the shared axios client rather than
+   * followed as a link.
+   *
+   * A plain `<a href>` to the API origin does carry the cookie (R10's
+   * reasoning about a top-level GET navigation is still true), and the happy
+   * path worked. The error path did not: on any non-200 the backend replies
+   * `res.status(...).json(...)` with no `Content-Disposition`, so the browser
+   * NAVIGATES the tab off the SPA and renders raw JSON. 401 is the sharp
+   * edge — `lib/api.ts` refreshes an expired token and replays the request,
+   * so every other action in the app just works for a manager with a
+   * long-open tab, and this one alone dumped them on an error page. The 503
+   * `resolveTeamReport` raises on a transaction timeout has the same shape.
+   *
+   * Going through `api` puts the download behind that same interceptor and
+   * keeps a failure inside the page.
+   */
+  const downloadCsv = useCallback(
+    async (id: string, r: TeamReportRange, groupId?: string) => {
+      setDownloading(true);
+      setDownloadFailed(false);
+      try {
+        const response = await api.get(`/teams/${id}/reports/export.csv`, {
+          // The export is scoped to whatever the screen is scoped to: a file
+          // of whole-team rows downloaded from a Platform-filtered view
+          // would be the same two-things-at-once bug, only harder to spot
+          // once it is sitting in a spreadsheet.
+          params: groupId ? { range: r, groupId } : { range: r },
+          responseType: "blob",
+        });
+        const url = URL.createObjectURL(response.data as Blob);
+        const link = document.createElement("a");
+        link.href = url;
+        // Prefer the filename the backend built — it carries the team's own
+        // slug. Readable cross-origin only because the API names
+        // `Content-Disposition` in its CORS `exposedHeaders`; the fallback
+        // covers a proxy that strips it rather than saving a file called
+        // "export.csv".
+        link.download = filenameFrom(response.headers) ?? `team-reports-${r}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        // Deferred, not synchronous. Chrome and Firefox start the download
+        // during click dispatch so the blob survives an immediate revoke;
+        // Safari has a long history of not, and saves nothing. jsdom stubs
+        // both createObjectURL and revokeObjectURL, so no test can see this.
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch {
+        setDownloadFailed(true);
+      } finally {
+        setDownloading(false);
+      }
+    },
+    [],
+  );
+
   // Adjusting state during render (React's sanctioned pattern for "reset
   // when a value changes") rather than in an effect: an effect fires AFTER
   // the click's own render commits, so for one frame `groupFilter` would
@@ -121,10 +427,18 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
   // re-renders with the reset state before anything paints, so the flash
   // never reaches the screen. `prevGroupFilterRef` tracks what render last
   // saw so this only fires ON the change, not every render.
+  //
+  // The report's own flags are reset here for the same reason and not a
+  // weaker one: its numbers, its failure card and a failed download's alert
+  // all describe the group that was selected a moment ago, and any of them
+  // sitting under the new group's caption is the same lie.
   if (groupFilter !== prevGroupFilterRef.current) {
     prevGroupFilterRef.current = groupFilter;
     setOverviewLoading(true);
     setOverviewFailed(false);
+    setReportLoading(true);
+    setReportFailed(false);
+    setDownloadFailed(false);
   }
 
   // An unfiltered fetch failing means the team itself couldn't be loaded —
@@ -155,22 +469,82 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
     { label: "Never started", value: String(overview.neverActive), icon: UserX },
   ];
 
+  const activeGroupName = groups.find((g) => g.id === groupFilter)?.name ?? "one group";
+  const overviewReady = !overviewLoading && !overviewFailed;
+
+  // Everything below is derived from the report payload itself, never from
+  // the `range` Select: a payload and the control that asked for it can
+  // disagree for one frame, and the numbers are the honest source.
+  const lastBucket = report?.series[report.series.length - 1];
+  const reportWindow: TeamReportRange = report?.range.period === "month" ? "12m" : "12w";
+  const dataBeginsLabel = report ? formatLongDate(report.range.dataBegins) : "";
+  // The END of the last bucket, not its label. See `bucketEnd`.
+  const rangeEndLabel =
+    report && lastBucket
+      ? formatLongDate(bucketEnd(lastBucket.bucket, report.range.period))
+      : dataBeginsLabel;
+  // Strict > only — equal means there's no gap, and the caption must not
+  // appear at all in that case (a caption that fires when there's nothing
+  // to explain contradicts the chart above it just as badly as omitting it
+  // when there IS a gap).
+  const hasCompletionsGap = !!report && report.range.completionsBegin > report.range.dataBegins;
+  const completionsBeginLabel = report ? formatLongDate(report.range.completionsBegin) : "";
+
   return (
     <div className="space-y-6">
-      {groups.length > 0 && (
-        <Select value={groupFilter} onValueChange={setGroupFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All groups" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All groups</SelectItem>
-            {groups.map((g) => (
-              <SelectItem key={g.id} value={g.id}>
-                {g.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-center gap-3">
+        {groups.length > 0 && (
+          <Select name="group-filter" value={groupFilter} onValueChange={setGroupFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All groups" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All groups</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <div className="ml-auto flex items-center gap-2">
+          <Select
+            name="range"
+            value={range}
+            onValueChange={(v) => setRange(v as TeamReportRange)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(RANGE_LABELS) as TeamReportRange[]).map((r) => (
+                <SelectItem key={r} value={r}>
+                  {RANGE_LABELS[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            onClick={() =>
+              teamId &&
+              downloadCsv(teamId, range, groupFilter === "all" ? undefined : groupFilter)
+            }
+            disabled={downloading || !teamId}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
+          >
+            <Download className="h-4 w-4" />
+            Download CSV
+          </button>
+        </div>
+      </div>
+
+      {downloadFailed && (
+        <p role="alert" className="text-sm text-red-600">
+          Couldn&apos;t download the CSV. Please try again.
+        </p>
       )}
 
       {overviewLoading ? (
@@ -210,12 +584,93 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
           </div>
 
           {groupFilter !== "all" && (
+            // Both halves are load-bearing. The first says what narrowed —
+            // every figure on this screen except one is this group's. The
+            // second says what did not: seats are a team-level fact (a group
+            // does not own seats), and a reader who assumed otherwise would
+            // read the tile above as "Platform has 4 of 6 seats".
             <p className="text-sm text-muted-foreground">
-              Showing {groups.find((g) => g.id === groupFilter)?.name ?? "one group"}.
-              Seats are counted for the whole team.
+              Showing {activeGroupName}. Seats are counted for the whole team.
             </p>
           )}
+        </>
+      )}
 
+      {/* The report region. Its loading and failure states are confined to
+          it: a report that failed must never take down the stalled callout
+          below, which is the most valuable line on the screen. */}
+      {reportLoading ? (
+        <PageSkeleton rows={4} />
+      ) : reportFailed ? (
+        <EmptyStateCard
+          icon={BarChart3}
+          title="Couldn't load this report"
+          description="Something went wrong loading your team's report. Please try again."
+          primaryCTA={{ label: "Try again", onClick: () => setRetryToken((t) => t + 1) }}
+        />
+      ) : report ? (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">
+              Over the {RANGE_LABELS[reportWindow].toLowerCase()}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Since {dataBeginsLabel} through {rangeEndLabel}.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {TOTALS_METRICS.map((m) => (
+              <StatTile
+                key={m}
+                metric={m}
+                value={report.totals[m]}
+                change={report.change[m]}
+              />
+            ))}
+          </div>
+
+          {/* A real group of buttons rather than a Select: three options that
+              are always visible cost one glance, where a Select hides two of
+              them behind a click and hides which one is showing. */}
+          <div role="group" aria-label="Chart metric" className="flex flex-wrap gap-2">
+            {CHART_METRICS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={metric === m}
+                onClick={() => setMetric(m)}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                  metric === m
+                    ? "border-[#13AECE] bg-[#13AECE]/10 text-[#13AECE]"
+                    : "hover:bg-accent",
+                )}
+              >
+                {METRIC_LABELS[m]}
+              </button>
+            ))}
+          </div>
+
+          <ReportChart
+            data={report.series}
+            metric={metric}
+            period={report.range.period}
+            label={METRIC_LABELS[metric]}
+          />
+
+          {hasCompletionsGap && (
+            <p className="text-sm text-muted-foreground">
+              Completions before {completionsBeginLabel} weren&apos;t reliably dated, so
+              courses and paths finished before then are an undercount — at least this
+              many finished, possibly more.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {overviewReady && (
+        <>
           {overview.stalled > 0 && (
             <Card>
               <CardHeader>

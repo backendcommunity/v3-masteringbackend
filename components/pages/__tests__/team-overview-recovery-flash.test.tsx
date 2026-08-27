@@ -28,19 +28,28 @@ import { TeamOverviewPage } from "../team-overview";
 const mockGetMyTeams = vi.fn();
 const mockGetTeamGroups = vi.fn();
 const mockGetTeamOverview = vi.fn();
+// The Overview screen now fetches the team report on the same page. It is
+// left pending for the whole of this suite: these tests are about the
+// overview half, and a report that never resolves keeps its region a
+// skeleton without adding a second "Try again" to the screen.
+const mockGetTeamReport = vi.fn();
 
 vi.mock("@/lib/store", () => ({
   useAppStore: () => ({
     getMyTeams: mockGetMyTeams,
     getTeamGroups: mockGetTeamGroups,
     getTeamOverview: mockGetTeamOverview,
+    getTeamReport: mockGetTeamReport,
   }),
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ value, onValueChange, children }: any) => (
+  // Two Selects live on this page now — the group filter and the report's
+  // range — so the stub names them apart by the `name` the page passes,
+  // keeping `group-filter-select` pointed at the one these tests drive.
+  Select: ({ name, value, onValueChange, children }: any) => (
     <select
-      data-testid="group-filter-select"
+      data-testid={name === "range" ? "range-select" : "group-filter-select"}
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
     >
@@ -74,6 +83,7 @@ describe("TeamOverviewPage — recovery flash", () => {
     vi.clearAllMocks();
     mockGetMyTeams.mockResolvedValue([TEAM]);
     mockGetTeamGroups.mockResolvedValue(GROUPS);
+    mockGetTeamReport.mockImplementation(() => new Promise(() => {}));
   });
 
   it("never paints the full-page error while recovering via Show all groups", async () => {
