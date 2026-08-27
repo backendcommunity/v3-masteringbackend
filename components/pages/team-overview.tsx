@@ -533,59 +533,25 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        {groups.length > 0 && (
-          <Select name="group-filter" value={groupFilter} onValueChange={setGroupFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All groups" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All groups</SelectItem>
-              {groups.map((g) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          <Select
-            name="range"
-            value={range}
-            onValueChange={(v) => setRange(v as TeamReportRange)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(RANGE_LABELS) as TeamReportRange[]).map((r) => (
-                <SelectItem key={r} value={r}>
-                  {RANGE_LABELS[r]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <button
-            type="button"
-            onClick={() =>
-              teamId &&
-              downloadCsv(teamId, range, groupFilter === "all" ? undefined : groupFilter)
-            }
-            disabled={downloading || !teamId}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
-          >
-            <Download className="h-4 w-4" />
-            Download CSV
-          </button>
-        </div>
-      </div>
-
-      {downloadFailed && (
-        <p role="alert" className="text-sm text-red-600">
-          Couldn&apos;t download the CSV. Please try again.
-        </p>
+      {/* Only the group filter lives at page level, because only the group
+          filter scopes the whole page — it narrows the tiles AND the report.
+          The range picker and the CSV button scope the report alone, so they
+          sit on the report's own heading row below the divider, next to what
+          they change. */}
+      {groups.length > 0 && (
+        <Select name="group-filter" value={groupFilter} onValueChange={setGroupFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All groups" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {overviewLoading ? (
@@ -686,6 +652,70 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
           the report's window. */}
       <Separator />
 
+      {/* The report's own header, OUTSIDE the loading/failed/success branch
+          below. The range picker has to survive both: a cold 12-month window
+          can time out while the 12-week one is warm, and switching back is
+          the recovery — a picker that unmounts with the failure takes that
+          away exactly when it is needed.
+
+          The heading falls back to a neutral "Progress" whenever no report is
+          on screen. It cannot use `report` alone, which still holds the
+          PREVIOUS window's payload during a range switch: rendering that
+          beside the new Select value would put the old window's label under
+          the new range, which is the one thing this screen must never do. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">
+            {report && !reportLoading
+              ? `Over the ${RANGE_LABELS[reportWindow].toLowerCase()}`
+              : "Progress"}
+          </h3>
+          {report && !reportLoading && (
+            <p className="text-sm text-muted-foreground">
+              Since {dataBeginsLabel} through {rangeEndLabel}.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Select
+            name="range"
+            value={range}
+            onValueChange={(v) => setRange(v as TeamReportRange)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(RANGE_LABELS) as TeamReportRange[]).map((r) => (
+                <SelectItem key={r} value={r}>
+                  {RANGE_LABELS[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            onClick={() =>
+              teamId &&
+              downloadCsv(teamId, range, groupFilter === "all" ? undefined : groupFilter)
+            }
+            disabled={downloading || !teamId}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
+          >
+            <Download className="h-4 w-4" />
+            Download CSV
+          </button>
+        </div>
+      </div>
+
+      {/* The download alert belongs with the button that produced it. */}
+      {downloadFailed && (
+        <p role="alert" className="text-sm text-red-600">
+          Couldn&apos;t download the CSV. Please try again.
+        </p>
+      )}
+
       {/* The report region. Its loading and failure states are confined to
           it: a report that failed must never take down the stalled callout
           above, which is the most valuable line on the screen. */}
@@ -703,15 +733,6 @@ export function TeamOverviewPage({ onNavigate }: { onNavigate: (path: string) =>
         />
       ) : report ? (
         <div className="space-y-4">
-          <div>
-            <h3 className="text-base font-semibold">
-              Over the {RANGE_LABELS[reportWindow].toLowerCase()}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Since {dataBeginsLabel} through {rangeEndLabel}.
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {TOTALS_METRICS.map((m) => (
               <StatTile

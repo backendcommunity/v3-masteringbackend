@@ -660,6 +660,39 @@ describe("TeamOverviewPage — the group filter reaches the report", () => {
     expect(screen.getByText("Seats used")).toBeInTheDocument();
     expect(screen.queryByText("Couldn't load your team")).not.toBeInTheDocument();
   });
+
+  it("keeps the range picker and the CSV button usable when the report fails", async () => {
+    // The range picker lives OUTSIDE the report's loading/failed/success
+    // branch for this reason alone. A cold 12-month window can time out on
+    // the backend's RepeatableRead transaction while the 12-week one is warm
+    // in cache, so switching range IS the recovery — and a picker that
+    // unmounts with the failure card takes that recovery away at the one
+    // moment it is needed. The report's own "Try again" retries the SAME
+    // window that just failed.
+    mockGetTeamReport.mockRejectedValue(new Error("503"));
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+
+    await screen.findByText("Couldn't load this report");
+
+    expect(screen.getByTestId("range-select")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /download csv/i })).toBeInTheDocument();
+  });
+
+  it("does not claim a window it has no payload for", async () => {
+    // The heading is derived from the payload, never from the Select. With
+    // no payload on screen it must say nothing about a window at all —
+    // rendering the previous window's label beside a newer Select value is
+    // the "screen says two things at once" failure this page exists to
+    // avoid.
+    mockGetTeamReport.mockRejectedValue(new Error("503"));
+    render(<TeamOverviewPage onNavigate={vi.fn()} />);
+
+    await screen.findByText("Couldn't load this report");
+
+    expect(screen.getByText("Progress")).toBeInTheDocument();
+    expect(screen.queryByText(/^Over the last/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Since /)).not.toBeInTheDocument();
+  });
 });
 
 describe("TeamOverviewPage — a report-only failure has a report-only recovery", () => {
