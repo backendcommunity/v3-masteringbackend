@@ -1100,3 +1100,23 @@ article ul li {
 [data-radix-popper-content-wrapper][style*="-200%"] {
   visibility: hidden;
 }
+
+/*
+ * ...and never animate the positioning step itself.
+ *
+ * The `* { transition: ... transform 0.3s ease }` rule above (added for theme
+ * swapping) applies to the popper wrapper too, because the wrapper is a child
+ * of <body> and `*` does not care about portals. Radix writes `transform`
+ * twice — the parked `translate(0, -200%)` at insert, then the real anchored
+ * offset one frame later — so the browser had been asked to TWEEN between
+ * them: a 300ms interpolated journey from the top-left of the viewport to
+ * under the trigger. That is the "menu slides in from the left" a user
+ * reported, and it is why removing the Tailwind slide/zoom classes from the
+ * panels did not fix it: the movement is on the wrapper, one level up.
+ *
+ * Scoped rather than dropping `transform` from the global rule, which ~15
+ * hover nudges (sidebar items, cards, buttons) rely on for their easing.
+ */
+[data-radix-popper-content-wrapper] {
+  transition: none !important;
+}
