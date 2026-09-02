@@ -12,6 +12,9 @@ export const PUBLIC_PATH_PREFIXES = [
   "/certifications/verify/",
   "/ai/payment",
   "/xpayment",
+  // Scholarship flyer generator: a campaign tool handed to people who have no
+  // account and may never make one.
+  "/scholarship/flyer",
 ];
 
 /** True when `pathname` is a public (no-login) route. */
