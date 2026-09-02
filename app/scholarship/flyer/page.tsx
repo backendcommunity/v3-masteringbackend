@@ -2,31 +2,32 @@
 
 /**
  * Public, no-login flyer generator for the ₦27 Million AI Engineering
- * Scholarship Initiative — and, for everyone who lands here from a shared
- * flyer, an advert for the bootcamp itself. The split-screen scaffold is the
- * one the /auth pages use: brand anchor left, working column right.
+ * Scholarship Initiative — and, for anyone who lands here from a shared flyer,
+ * an advert for the membership. The split-screen scaffold is the one the /auth
+ * pages use: brand anchor left, working column right.
  *
- * Everything runs in the browser: the photo is read with FileReader, the flyer
- * is rasterised with html2canvas, and nothing is uploaded or stored. The route
- * is listed in lib/public-paths.ts so the middleware, the AuthProvider and the
- * api 401 interceptor all leave it alone.
+ * Everything runs in the browser. The photo is read with FileReader, the flyer
+ * is drawn on a canvas, and nothing is uploaded or stored. The route is listed
+ * in lib/public-paths.ts so the middleware, the AuthProvider and the api 401
+ * interceptor all leave it alone.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   FlyerCanvas,
+  type FlyerCanvasHandle,
   type FlyerGround,
   type PhotoShape,
 } from "@/components/pages/scholarship-flyer/flyer-canvas";
 import { FlyerForm } from "@/components/pages/scholarship-flyer/flyer-form";
 import { FlyerResult } from "@/components/pages/scholarship-flyer/flyer-result";
 import { FlyerShell } from "@/components/pages/scholarship-flyer/flyer-shell";
-import { renderFlyer, FLYER_WIDTH, FLYER_HEIGHT } from "@/lib/scholarship-flyer/render";
+import { canvasToPng } from "@/lib/scholarship-flyer/render";
 import { flyerFileName } from "@/lib/scholarship-flyer/share";
 import { analytics } from "@/lib/analytics";
+import * as Sentry from "@sentry/nextjs";
 
-/** The wider working column lets the preview and the controls sit side by side,
- * so the artwork reads large and Generate still lands above the fold. */
+/** The preview sits beside the controls; wide enough to read the artwork. */
 const PREVIEW_WIDTH = 340;
 
 export default function ScholarshipFlyerPage() {
@@ -38,37 +39,37 @@ export default function ScholarshipFlyerPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ blob: Blob; fileName: string } | null>(null);
 
-  const flyerRef = useRef<HTMLDivElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(PREVIEW_WIDTH / FLYER_WIDTH);
-
-  // The preview is the export node under a transform, so one layout serves both.
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const measure = () => setScale(stage.clientWidth / FLYER_WIDTH);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, []);
+  const flyerRef = useRef<FlyerCanvasHandle>(null);
 
   const generate = useCallback(async () => {
-    const node = flyerRef.current;
-    if (!node) return;
+    const canvas = flyerRef.current?.canvas();
+    if (!canvas) return;
 
     setIsGenerating(true);
     setError(null);
     try {
-      const blob = await renderFlyer(node);
+      // The canvas on screen is already the finished 1080×1350 artwork, so
+      // generating is only an encode — nothing is re-rendered or re-captured.
+      const blob = await canvasToPng(canvas);
       setResult({ blob, fileName: flyerFileName(name) });
       analytics.track("scholarship_flyer_generated", { ground, photoShape });
-    } catch {
-      setError("That didn't generate. Try again — your photo and name are still here.");
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error("[scholarship-flyer] encode failed", err);
+      Sentry.captureException(err, {
+        tags: { feature: "scholarship-flyer" },
+        extra: {
+          ground,
+          photoShape,
+          hasPhoto: !!photoSrc,
+          userAgent: navigator.userAgent,
+        },
+      });
+      setError(`That didn't save — your photo and name are still here, so try again. (${reason})`);
     } finally {
       setIsGenerating(false);
     }
-  }, [ground, name, photoShape]);
+  }, [ground, name, photoShape, photoSrc]);
 
   return (
     <FlyerShell>
@@ -88,10 +89,8 @@ export default function ScholarshipFlyerPage() {
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-9">
           <div className="mx-auto w-full sm:mx-0 sm:flex-none" style={{ maxWidth: PREVIEW_WIDTH }}>
             <div
-              ref={stageRef}
-              className="relative w-full overflow-hidden rounded-xl"
+              className="w-full overflow-hidden rounded-xl"
               style={{
-                height: FLYER_HEIGHT * scale,
                 border: "1px solid #E2E8F0",
                 boxShadow: "0 16px 40px -24px rgba(14,31,51,0.5)",
               }}
@@ -102,7 +101,6 @@ export default function ScholarshipFlyerPage() {
                 name={name}
                 photoSrc={photoSrc}
                 photoShape={photoShape}
-                scale={scale}
               />
             </div>
           </div>
