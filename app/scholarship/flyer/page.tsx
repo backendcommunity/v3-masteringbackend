@@ -24,6 +24,7 @@ import { FlyerShell } from "@/components/pages/scholarship-flyer/flyer-shell";
 import { renderFlyer, FLYER_WIDTH, FLYER_HEIGHT } from "@/lib/scholarship-flyer/render";
 import { flyerFileName } from "@/lib/scholarship-flyer/share";
 import { analytics } from "@/lib/analytics";
+import * as Sentry from "@sentry/nextjs";
 
 /** The wider working column lets the preview and the controls sit side by side,
  * so the artwork reads large and Generate still lands above the fold. */
@@ -63,12 +64,31 @@ export default function ScholarshipFlyerPage() {
       const blob = await renderFlyer(node);
       setResult({ blob, fileName: flyerFileName(name) });
       analytics.track("scholarship_flyer_generated", { ground, photoShape });
-    } catch {
-      setError("That didn't generate. Try again — your photo and name are still here.");
+    } catch (err) {
+      // The render fails for device-specific reasons — canvas memory on iOS
+      // above all — that are invisible unless the real error is carried out of
+      // the catch. Report it, and show it, so a failure on someone else's phone
+      // is diagnosable without their devtools.
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error("[scholarship-flyer] render failed", err);
+      Sentry.captureException(err, {
+        tags: { feature: "scholarship-flyer" },
+        extra: {
+          ground,
+          photoShape,
+          hasPhoto: !!photoSrc,
+          photoBytes: photoSrc?.length ?? 0,
+          userAgent: navigator.userAgent,
+          deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? null,
+        },
+      });
+      setError(
+        `That didn't generate — your photo and name are still here, so try again. (${reason})`,
+      );
     } finally {
       setIsGenerating(false);
     }
-  }, [ground, name, photoShape]);
+  }, [ground, name, photoShape, photoSrc]);
 
   return (
     <FlyerShell>

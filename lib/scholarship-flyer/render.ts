@@ -15,36 +15,73 @@
 export const FLYER_WIDTH = 1080;
 export const FLYER_HEIGHT = 1350;
 
+/**
+ * Thrown with the pipeline stage that actually failed. iOS WebKit fails inside
+ * this pipeline for reasons that are invisible from a generic catch — knowing
+ * whether it died decoding images, inside html2canvas, or encoding the PNG is
+ * the difference between a fix and a guess.
+ */
+export class FlyerRenderError extends Error {
+  constructor(
+    readonly stage: "fonts" | "decode" | "rasterise" | "encode",
+    cause: unknown,
+  ) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(`${stage}: ${reason}`);
+    this.name = "FlyerRenderError";
+  }
+}
+
+async function stage<T>(
+  name: "fonts" | "decode" | "rasterise" | "encode",
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    throw new FlyerRenderError(name, err);
+  }
+}
+
 export async function renderFlyer(node: HTMLElement): Promise<Blob> {
   const { default: html2canvas } = await import("html2canvas");
 
-  if (document.fonts?.ready) await document.fonts.ready;
-  await Promise.all(
-    Array.from(node.querySelectorAll("img")).map((img) =>
-      img.decode().catch(() => undefined),
-    ),
-  );
+  await stage("fonts", async () => {
+    if (document.fonts?.ready) await document.fonts.ready;
+  });
+
+  await stage("decode", async () => {
+    await Promise.all(
+      Array.from(node.querySelectorAll("img")).map((img) =>
+        img.decode().catch(() => undefined),
+      ),
+    );
+  });
 
   // The node is displayed through a CSS transform; capture it unscaled so the
   // export is exactly 1080×1350 with no scale arithmetic.
   const displayTransform = node.style.transform;
   node.style.transform = "none";
   try {
-    const canvas = await html2canvas(node, {
-      scale: 1,
-      useCORS: true,
-      backgroundColor: null,
-      width: FLYER_WIDTH,
-      height: FLYER_HEIGHT,
-      windowWidth: FLYER_WIDTH,
-      windowHeight: FLYER_HEIGHT,
-    });
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
+    const canvas = await stage("rasterise", () =>
+      html2canvas(node, {
+        scale: 1,
+        useCORS: true,
+        backgroundColor: null,
+        width: FLYER_WIDTH,
+        height: FLYER_HEIGHT,
+        windowWidth: FLYER_WIDTH,
+        windowHeight: FLYER_HEIGHT,
+      }),
     );
-    if (!blob) throw new Error("The flyer couldn't be saved as an image.");
-    return blob;
+
+    return await stage("encode", async () => {
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png"),
+      );
+      if (blob) return blob;
+      throw new Error("toBlob returned null");
+    });
   } finally {
     node.style.transform = displayTransform;
   }
