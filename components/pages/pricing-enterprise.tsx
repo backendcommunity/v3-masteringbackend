@@ -42,8 +42,12 @@ import {
   formatPrice,
   resolveSeats,
   type PublicPricing,
+  GLOBAL_FALLBACK,
+  toPublicPricing,
 } from "@/lib/pricing";
 import { classifyPremiumTierStatus } from "@/lib/subscription-pricing";
+import { useRegionalPricing } from "@/hooks/use-pricing";
+import { PricingSkeleton } from "@/components/pricing/pricing-skeleton";
 
 interface PricingEnterpriseViewProps {
   pricing: PublicPricing;
@@ -238,7 +242,23 @@ const COMPARE_GROUPS: {
   },
 ];
 
+/**
+ * Resolves the visitor's region in the browser, then renders. The `pricing`
+ * prop is a test override; passing it skips the fetch. See the same wrapper on
+ * components/pages/pricing.tsx for why the server cannot do this.
+ */
 export default function PricingEnterpriseView({
+  pricing,
+}: {
+  pricing?: PublicPricing;
+}) {
+  const regional = useRegionalPricing(!pricing, GLOBAL_FALLBACK);
+  const resolved = pricing ?? (regional ? toPublicPricing(regional) : null);
+  if (!resolved) return <PricingSkeleton label="Loading team pricing" />;
+  return <PricingEnterpriseViewContent pricing={resolved} />;
+}
+
+function PricingEnterpriseViewContent({
   pricing,
 }: PricingEnterpriseViewProps) {
   const enterprise = pricing.enterprise;

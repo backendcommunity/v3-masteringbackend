@@ -9,13 +9,13 @@ import {
   monthlyEquivalent,
   PADDLE_MAX_QUANTITY,
   resolveSeats,
+  GLOBAL_FALLBACK,
 } from "@/lib/pricing";
 import type { EnterprisePricing, RegionalPricing } from "@/lib/pricing";
-// GLOBAL_FALLBACK lives in the server-only module (see lib/pricing.server.ts) —
-// it names "PADDLE" and must never be reachable from a client-component
-// import chain. Importing it here (a plain Node test, not a client bundle) is
-// the legitimate case that module's top-of-file comment carves out.
-import { GLOBAL_FALLBACK } from "@/lib/pricing.server";
+// GLOBAL_FALLBACK moved into this client-safe module when the pricing fetch
+// moved to the browser (hooks/use-pricing.ts) and lib/pricing.server.ts was
+// deleted. It is imported from "@/lib/pricing" above with everything else.
+
 import { isPublicPath } from "@/lib/public-paths";
 
 // The three tiers exactly as the API serves them: ₦15,000 / $15 / $25 per

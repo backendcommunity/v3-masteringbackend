@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toCheckoutPricing } from "@/app/checkout/page";
+import { toCheckoutPricing } from "@/lib/pricing";
 import type { RegionalPricing } from "@/lib/pricing";
 
 // Pins the checkout pricing prop shape in app/checkout/page.tsx. Unlike

@@ -1,11 +1,13 @@
-// Client-safe pricing exports only. Nothing here may name a payment
-// processor, read a processor env var, or make a network call — this module
-// is imported by components/pages/pricing.tsx, a client component, and
-// EVERY export here ships in the browser JS bundle, publicly readable.
+// Client-safe pricing exports only. Nothing here may read a processor env
+// var or make a network call — this module is imported by
+// components/pages/pricing.tsx, a client component, and EVERY export here
+// ships in the browser JS bundle, publicly readable.
 //
-// GLOBAL_FALLBACK and fetchPricing live in lib/pricing.server.ts instead —
-// that module names "PADDLE" — and must only ever be imported from server
-// components (app/pricing/page.tsx).
+// It names "PADDLE" in GLOBAL_FALLBACK, and that is fine: pricing is fetched
+// from the browser now (hooks/use-pricing.ts), so the processor's name is in
+// the network tab of every visitor regardless, and a dozen client modules
+// already branch on it (lib/checkout-readiness.ts, components/XPayment.tsx).
+// There is no longer a server-side pricing module to hide it in.
 
 export interface RegionalPricing {
   tier: "NG" | "PPP" | "GLOBAL";
@@ -92,9 +94,101 @@ export type PublicEnterprisePricing = Omit<
 // Checkout is the one client surface that DOES need the processor identity
 // and price IDs — it has to know which SDK to open and which price to hand
 // it. `tier` is the only field nothing in checkout reads, so that's the only
-// one app/checkout/page.tsx strips (see toCheckoutPricing) before handing
+// one toCheckoutPricing (below) strips before handing
 // pricing to the client component.
 export type CheckoutPricing = Omit<RegionalPricing, "tier">;
+
+/**
+ * Used when the pricing endpoint is unreachable. Deliberately the MOST
+ * expensive tier: a network blip must never hand a global visitor the naira
+ * or PPP price. Mirrors the backend's fail-closed tierForCountry().
+ *
+ * NO PRICE IDs, and that is load-bearing. With none, /pricing still renders
+ * honest GLOBAL amounts while /checkout classifies itself "unavailable"
+ * (lib/checkout-readiness.ts) rather than opening a checkout against an id
+ * nothing has confirmed is current. A checkout that cannot start is
+ * recoverable; one that charges the wrong amount is not.
+ */
+export const GLOBAL_FALLBACK: RegionalPricing = {
+  tier: "GLOBAL",
+  country: "",
+  provider: "PADDLE",
+  currency: "USD",
+  monthly: 19.99,
+  annual: 199.99,
+  monthlyPriceId: "",
+  annualPriceId: "",
+  // Enterprise falls back the same way and for the same reason: the most
+  // expensive per-seat tier. `selfServe: true` matches the GLOBAL tier it is
+  // standing in for — the fallback must not invent a sales-led flow for a
+  // region that has self-serve checkout.
+  enterprise: {
+    tier: "GLOBAL",
+    provider: "PADDLE",
+    currency: "USD",
+    monthlyPerUser: 25,
+    annualPerUser: 250,
+    minSeats: 2,
+    selfServe: true,
+    monthlyPriceId: "",
+    annualPriceId: "",
+  },
+};
+
+/**
+ * A payload from an API that predates Enterprise per-seat pricing — or one
+ * whose `enterprise` object is malformed — must not reach the UI with a
+ * missing or half-built price. Normalised at the boundary so every consumer
+ * can rely on `enterprise` being present and complete rather than each
+ * inventing its own guard (and each getting the fail-closed direction subtly
+ * wrong).
+ *
+ * Deliberately strict: a single missing or non-finite amount discards the
+ * whole object rather than patching the hole, because a half-trusted price
+ * is not a price.
+ */
+function normalizeEnterprise(value: unknown): EnterprisePricing {
+  const e = value as Partial<EnterprisePricing> | null | undefined;
+  const numeric = (n: unknown): n is number =>
+    typeof n === "number" && Number.isFinite(n) && n > 0;
+
+  if (
+    !e ||
+    !numeric(e.monthlyPerUser) ||
+    !numeric(e.annualPerUser) ||
+    !numeric(e.minSeats) ||
+    typeof e.selfServe !== "boolean" ||
+    (e.currency !== "NGN" && e.currency !== "USD")
+  ) {
+    return GLOBAL_FALLBACK.enterprise;
+  }
+  return e as EnterprisePricing;
+}
+
+/**
+ * The single boundary every pricing response crosses, whoever fetched it.
+ * Pro's fields pass through untouched; only the nested Enterprise object is
+ * validated, because only it can be absent from an older API deployment.
+ */
+export function normalizeRegionalPricing(value: unknown): RegionalPricing {
+  const data = value as RegionalPricing | undefined | null;
+  if (!data) return GLOBAL_FALLBACK;
+  return { ...data, enterprise: normalizeEnterprise(data.enterprise) };
+}
+
+/**
+ * Unlike toPublicPricing, checkout genuinely needs the processor identity and
+ * both price IDs to open the right SDK with the right price — so only `tier`
+ * is stripped. `tier` travels to CheckoutPage as its own narrow prop instead
+ * (it is used only for an operator-facing report, never rendered to a buyer).
+ *
+ * Moved here from app/checkout/page.tsx when the pricing fetch moved to the
+ * browser and that route stopped touching pricing at all.
+ */
+export function toCheckoutPricing(pricing: RegionalPricing): CheckoutPricing {
+  const { tier: _tier, ...checkoutPricing } = pricing;
+  return checkoutPricing;
+}
 
 /**
  * Strips the payment processor's identity and price IDs before the pricing

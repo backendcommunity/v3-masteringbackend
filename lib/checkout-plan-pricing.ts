@@ -7,7 +7,7 @@
 // ---------------
 // Regional pricing made /checkout derive its entire price, currency,
 // provider and price ID from ONE region-resolved object. That object is the
-// **Pro** resolver's output (see lib/pricing.server.ts's fetchPricing), so
+// **Pro** resolver's output (see hooks/use-pricing.ts), so
 // any other plan arriving as `?plan=<something-else>` was billed the
 // regional PRO amount — an Enterprise buyer paying $19.99 (or ₦9,999 in
 // Nigeria) for a $99.99 plan. This module restores the pre-regional

@@ -23,12 +23,19 @@ import {
 import { routes } from "@/lib/routes";
 import { dataStore } from "@/lib/data";
 import { useUser } from "@/hooks/use-user";
-import { formatPrice, type PublicPricing } from "@/lib/pricing";
+import {
+  formatPrice,
+  type PublicPricing,
+  GLOBAL_FALLBACK,
+  toPublicPricing,
+} from "@/lib/pricing";
 import {
   classifyFreeCardCta,
   classifyGrandfathered,
   formatGrandfatheredSubLabel,
 } from "@/lib/subscription-pricing";
+import { useRegionalPricing } from "@/hooks/use-pricing";
+import { PricingSkeleton } from "@/components/pricing/pricing-skeleton";
 
 interface SubscriptionPlansPageProps {
   pricing: PublicPricing;
@@ -36,7 +43,25 @@ interface SubscriptionPlansPageProps {
 
 type BillingCycle = "monthly" | "annual";
 
-export function SubscriptionPlansPage({ pricing }: SubscriptionPlansPageProps) {
+/**
+ * Resolves the visitor's region in the browser, then renders. The `pricing`
+ * prop is a test override; passing it skips the fetch. See the same wrapper on
+ * components/pages/pricing.tsx for why the server cannot do this.
+ */
+export function SubscriptionPlansPage({
+  pricing,
+}: {
+  pricing?: PublicPricing;
+}) {
+  const regional = useRegionalPricing(!pricing, GLOBAL_FALLBACK);
+  const resolved = pricing ?? (regional ? toPublicPricing(regional) : null);
+  if (!resolved) return <PricingSkeleton />;
+  return <SubscriptionPlansPageContent pricing={resolved} />;
+}
+
+function SubscriptionPlansPageContent({
+  pricing,
+}: SubscriptionPlansPageProps) {
   const router = useRouter();
   const user = useUser();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
