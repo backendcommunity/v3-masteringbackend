@@ -66,6 +66,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
   const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
   const [transferTarget, setTransferTarget] = useState<TeamMember | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   const [progress, setProgress] = useState<TeamRosterProgress | null>(null);
@@ -189,6 +190,28 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
     }
   };
 
+  /**
+   * Cancel a pending invite. The seat comes back immediately — the API drops
+   * the provider quantity as part of the same call — so the roster is
+   * refetched rather than patched locally, keeping the seat line and the
+   * invite list from disagreeing.
+   */
+  const handleRevokeInvite = async (inviteId: string) => {
+    if (!team) return;
+    setRevokingInviteId(inviteId);
+    try {
+      await store.revokeTeamInvite(team.id, inviteId);
+      toast.success("Invite cancelled. The seat is free again.");
+      refetchRoster();
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ?? "Couldn't cancel that invite.",
+      );
+    } finally {
+      setRevokingInviteId(null);
+    }
+  };
+
   const handleChangeRole = async (
     member: TeamMember,
     role: "ADMIN" | "MEMBER",
@@ -278,7 +301,7 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
           description="Team accounts let you share one subscription with your colleagues. Create one to invite people and give them Pro access."
           primaryCTA={{
             label: "Create Team",
-            onClick: () => onNavigate(routes.pricing(routes.team)),
+            onClick: () => onNavigate(routes.pricingEnterprise),
           }}
         />
       </div>
@@ -476,6 +499,50 @@ export function TeamPage({ onNavigate }: TeamPageProps) {
                     })()}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ── Invited, not yet joined ──
+                A pending invite occupies a seat: it is counted in
+                `usage.used`, which is what the "N of M seats used" line above
+                reports. Until this section existed, an admin read "3 of 5"
+                beside a list of one person, could not see who held the other
+                two, and had no way to cancel a typo — the seat simply stayed
+                gone for the fourteen days until the invite expired.
+
+                Manager-only, because `invites` is only sent to OWNER/ADMIN. */}
+            {canManage && (roster?.invites?.length ?? 0) > 0 && (
+              <div className="mt-6 border-t border-border pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Invited, not yet joined
+                </p>
+                <div className="divide-y divide-border">
+                  {roster!.invites!.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {invite.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Holding a seat until they accept
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={revokingInviteId === invite.id}
+                        onClick={() => handleRevokeInvite(invite.id)}
+                      >
+                        {revokingInviteId === invite.id
+                          ? "Cancelling..."
+                          : "Cancel invite"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

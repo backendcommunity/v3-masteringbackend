@@ -74,7 +74,7 @@ export function TeamHubLayout({ children }: { children: React.ReactNode }) {
         description="Team accounts let you share one subscription with your colleagues. Create one to invite people and give them Pro access."
         primaryCTA={{
           label: "Create Team",
-          onClick: () => router.push(routes.pricing(routes.team)),
+          onClick: () => router.push(routes.pricingEnterprise),
         }}
       />
     );
