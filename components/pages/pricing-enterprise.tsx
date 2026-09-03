@@ -298,7 +298,7 @@ export default function PricingEnterpriseView({
       <section className="bg-[#0e1f33] px-4 pt-16 text-white">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 pb-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
           <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-[#4AC5E8]">
               MasteringBackend for teams
             </p>
             <h1 className="mt-3.5 max-w-2xl text-balance text-[1.75rem] font-black leading-[1.12] tracking-tight sm:text-3xl lg:text-[2.25rem]">
@@ -544,7 +544,7 @@ export default function PricingEnterpriseView({
       <section className="px-4 pt-16 sm:pt-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Why teams buy it
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -588,7 +588,7 @@ Three problems this plan solves.
       <section className="px-4 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Everything in Pro, plus
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -627,7 +627,7 @@ Three problems this plan solves.
       <section className="px-4 pb-16 sm:pb-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Rolling it out
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -660,7 +660,7 @@ Three steps to get your team started.
       <section className="px-4 pb-16 sm:pb-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Pro vs Enterprise
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
