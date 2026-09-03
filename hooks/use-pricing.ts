@@ -1,49 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { GEO_OVERRIDE_PARAM } from "@/lib/geo-override";
-import type { PublicPricing, RegionalPricing } from "@/lib/pricing";
+import {
+  GLOBAL_FALLBACK,
+  normalizeRegionalPricing,
+  type PublicPricing,
+  type RegionalPricing,
+} from "@/lib/pricing";
 
 /**
- * Client-side pricing fetch for surfaces mounted too deep in a "use client"
- * tree to receive pricing as a server-fetched prop the way app/pricing/page.tsx
- * and app/subscription/plans/page.tsx do (both forward geo headers through
- * next/headers() server-side). The path workspace is client-rendered end to
- * end, so this hits the same public endpoint directly from the browser —
- * Cloudflare/Netlify set the geo headers on that request from the visitor's
- * real connection, same as any other client-side API call in this app (see
- * lib/api.ts's `api` instance).
+ * Pricing is fetched FROM THE BROWSER, always. This is not a convenience —
+ * it is the only place the visitor's region can be resolved correctly.
  *
- * Strips the payment processor's identity and price IDs the moment the
- * response arrives, before it's ever stored in state or handed to a
- * component's props — this hook's callers only ever render a currency +
- * amount, never open an SDK directly.
+ * The API decides the region from the geo headers its own edge writes onto
+ * the inbound request, and an edge describes whoever opened the connection.
+ * A server render therefore asks the API "where am I?" and is truthfully
+ * told "Amsterdam", which is where the app server lives. Forwarding the
+ * visitor's country or IP alongside does not help: the API reads
+ * `cf-ipcountry` first, its own Cloudflare zone always sets that header, and
+ * so the forwarded value is never reached. `cf-connecting-ip` is worse than
+ * useless — Cloudflare rejects it inbound with error 1000 and fails the whole
+ * request. All of that was measured against staging, where every Nigerian
+ * visitor was quoted USD.
  *
- * Returns null while loading and if the fetch fails. There is no
- * client-safe fallback constant to reach for here — GLOBAL_FALLBACK lives in
- * lib/pricing.server.ts, which must never be imported from a client
- * component. Callers must render their CTA WITHOUT a price while this is
- * null rather than flash a guessed one.
- *
- * @param enabled - Pass false to skip the fetch entirely (e.g. the payment gate
- * already received pricing as a prop, or its subscription card is disabled)
- * — several callers mount this dialog unconditionally even when it's never
- * opened, so an unguarded fetch would fire on every page that renders one.
- */
-/**
- * Forwards the developer-only `__geo` override onto the pricing request.
- *
- * lib/geo-override.ts copies `__geo` across internal NAVIGATION, which covers
- * /pricing and /checkout because both resolve their region server-side. These
- * hooks fetch from the browser instead, so without this the override stopped
- * at the address bar: localhost sends no geo header, the request carried no
- * override, and every local visitor resolved to GLOBAL no matter what the URL
- * said — making the NG and PPP paywalls untestable locally.
- *
- * Safe by the same gate as the rest: academy's resolveCountryWithOverride
- * returns early WITHOUT reading the param unless its own context is LOCAL or
- * DEVELOP, so this is inert in staging and production.
+ * Fetched from the browser, the connection IS the visitor's, so the edge
+ * writes the right country with nothing to forward, nothing to trust, and
+ * no shared secret to configure. The cost is that a price cannot be in the
+ * server-rendered HTML; callers render without one until this resolves.
  */
 function pricingRequestParams(): Record<string, string> | undefined {
   if (typeof window === "undefined") return undefined;
@@ -53,8 +38,22 @@ function pricingRequestParams(): Record<string, string> | undefined {
   return geo ? { [GEO_OVERRIDE_PARAM]: geo } : undefined;
 }
 
-export function usePricing(enabled = true): PublicPricing | null {
-  const [pricing, setPricing] = useState<PublicPricing | null>(null);
+/**
+ * The raw regional pricing, processor identity and price IDs included.
+ *
+ * @param enabled - false skips the fetch entirely. Several callers mount a
+ * pricing dialog unconditionally even when it never opens, so an unguarded
+ * fetch would fire on every page that renders one.
+ * @param fallback - what to return if the request fails. Pass GLOBAL_FALLBACK
+ * on a surface whose whole job is to show a price (the pricing pages), so an
+ * API outage shows honest global amounts instead of an endless skeleton. Leave
+ * it null anywhere a missing price is better than a possibly-wrong one.
+ */
+export function useRegionalPricing(
+  enabled = true,
+  fallback: RegionalPricing | null = null,
+): RegionalPricing | null {
+  const [pricing, setPricing] = useState<RegionalPricing | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -64,53 +63,64 @@ export function usePricing(enabled = true): PublicPricing | null {
       .get("/public/pricing", { params: pricingRequestParams() })
       .then(({ data }) => {
         if (cancelled) return;
-        const regional = data?.data as RegionalPricing | undefined;
-        if (!regional) return;
-        const {
-          provider: _provider,
-          monthlyPriceId: _monthlyPriceId,
-          annualPriceId: _annualPriceId,
-          ...publicPricing
-        } = regional;
-        setPricing(publicPricing);
+        if (!data?.data) {
+          setPricing(fallback);
+          return;
+        }
+        setPricing(normalizeRegionalPricing(data.data));
       })
       .catch(() => {
-        // Swallow — callers stay in the "no price yet" loading state rather
-        // than flashing a wrong one.
+        if (!cancelled) setPricing(fallback);
       });
 
     return () => {
       cancelled = true;
     };
+    // `fallback` is a module constant or null at every call site; excluded so
+    // an inline object literal could never restart the fetch on each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   return pricing;
 }
 
+/**
+ * The same fetch with the processor identity and price IDs stripped on
+ * arrival, before the object is ever stored in state.
+ *
+ * For surfaces that render a currency and an amount and nothing else. Hygiene
+ * rather than secrecy: GET /public/pricing is unauthenticated and has always
+ * returned these fields, so they are in the network tab either way.
+ */
+export function usePricing(enabled = true): PublicPricing | null {
+  const regional = useRegionalPricing(enabled);
+  // Memoised on the state object, so the returned reference is stable across
+  // renders. The previous version held the stripped object in state and
+  // callers rely on that: several put pricing in an effect's dependency
+  // array, and a fresh object each render would re-run those forever.
+  return useMemo(() => {
+    if (!regional) return null;
+    const {
+      provider: _provider,
+      monthlyPriceId: _monthlyPriceId,
+      annualPriceId: _annualPriceId,
+      ...publicPricing
+    } = regional;
+    return publicPricing as PublicPricing;
+  }, [regional]);
+}
 
 /**
  * The same fetch, KEEPING the processor identity and price IDs.
  *
- * Only for surfaces that open a payment SDK themselves. Everything that
- * merely renders a currency and an amount must keep using `usePricing`
- * above, which discards these three fields.
+ * Only for surfaces that open a payment SDK themselves.
  *
- * Why this is not a new exposure: GET /public/pricing is unauthenticated and
- * has always returned `provider`, `monthlyPriceId` and `annualPriceId` (see
- * academy's src/modules/plans/queries/get-pricing.ts, which spreads the whole
- * resolved object). `usePricing` strips them on arrival as a hygiene measure,
- * and app/pricing/page.tsx strips them for a different and stronger reason —
- * anything passed to a client component is serialized into the RSC payload
- * embedded in the HTML, so a server-fetched prop would put them in the
- * document itself. This hook fetches client-side, so that concern does not
- * apply: the values are already in the browser's network tab either way.
- *
- * What the fields must NOT be used for is picking a price. The processor's
- * price ID and the amount on screen have to come from THE SAME response, or
- * the buyer can be quoted one number and charged another — that is the exact
- * failure an earlier inline-Paddle attempt shipped (a Nigerian buyer quoted
- * ₦9,999 and charged the legacy USD amount). Callers pass `countryCode` from
- * this same object for that reason.
+ * What these fields must NOT be used for is picking a price independently of
+ * the amount on screen. The price ID and the displayed number have to come
+ * from THE SAME response, or the buyer is quoted one figure and charged
+ * another — the exact failure an earlier inline-Paddle attempt shipped (a
+ * Nigerian buyer quoted ₦9,999 and charged the legacy USD amount). Callers
+ * pass `countryCode` from this same object for that reason.
  */
 export type CheckoutCapablePricing = PublicPricing &
   Pick<RegionalPricing, "provider" | "monthlyPriceId" | "annualPriceId">;
@@ -118,29 +128,7 @@ export type CheckoutCapablePricing = PublicPricing &
 export function useCheckoutPricing(
   enabled = true,
 ): CheckoutCapablePricing | null {
-  const [pricing, setPricing] = useState<CheckoutCapablePricing | null>(null);
-
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-
-    api
-      .get("/public/pricing", { params: pricingRequestParams() })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const regional = data?.data as RegionalPricing | undefined;
-        if (!regional) return;
-        setPricing(regional as CheckoutCapablePricing);
-      })
-      .catch(() => {
-        // Swallow, as above: callers fall back to /checkout rather than
-        // rendering a guessed price or a dead button.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-
-  return pricing;
+  return useRegionalPricing(enabled) as CheckoutCapablePricing | null;
 }
+
+export { GLOBAL_FALLBACK };

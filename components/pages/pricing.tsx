@@ -35,8 +35,12 @@ import {
   monthlyEquivalent,
   type PublicEnterprisePricing,
   type PublicPricing,
+  GLOBAL_FALLBACK,
+  toPublicPricing,
 } from "@/lib/pricing";
 import { classifyPremiumTierStatus } from "@/lib/subscription-pricing";
+import { useRegionalPricing } from "@/hooks/use-pricing";
+import { PricingSkeleton } from "@/components/pricing/pricing-skeleton";
 
 interface PricingViewProps {
   pricing: PublicPricing;
@@ -541,7 +545,22 @@ function PlanFeatureList({
   );
 }
 
-export default function PricingView({ pricing }: PricingViewProps) {
+/**
+ * Resolves the visitor's region in the browser, then renders.
+ *
+ * The `pricing` prop is an override, not the normal path — it exists so tests
+ * can pin a region without a network call, and passing it skips the fetch.
+ * Routes render this with no props (see app/pricing/page.tsx); the server
+ * cannot resolve a region, which is the whole reason this fetch moved here.
+ */
+export default function PricingView({ pricing }: { pricing?: PublicPricing }) {
+  const regional = useRegionalPricing(!pricing, GLOBAL_FALLBACK);
+  const resolved = pricing ?? (regional ? toPublicPricing(regional) : null);
+  if (!resolved) return <PricingSkeleton />;
+  return <PricingViewContent pricing={resolved} />;
+}
+
+function PricingViewContent({ pricing }: PricingViewProps) {
   const [cycle, setCycle] = useState<BillingCycle>("annual");
   // Testimonial avatar: try the real headshot first, fall back to the "MO"
   // initials chip if the asset is missing or fails to load (next/image's

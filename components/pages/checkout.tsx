@@ -54,6 +54,8 @@ import {
   ENTERPRISE_SEAT_CONFIRM_THRESHOLD,
   formatPrice,
   resolveSeats,
+  GLOBAL_FALLBACK,
+  toCheckoutPricing,
 } from "@/lib/pricing";
 import type { CheckoutPricing, RegionalPricing } from "@/lib/pricing";
 import {
@@ -65,6 +67,8 @@ import { resolveCheckoutPrice } from "@/lib/checkout-plan-pricing";
 import { nextFrameAction } from "@/lib/checkout-frame";
 import { analytics } from "@/lib/analytics";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
+import { useRegionalPricing } from "@/hooks/use-pricing";
+import { PricingSkeleton } from "@/components/pricing/pricing-skeleton";
 
 // The AsyncPay SDK appends its checkout UI as a single element with this id,
 // as a DIRECT child of <body> — verified in
@@ -282,9 +286,9 @@ export function SeatSelector({
 }
 
 interface CheckoutPageProps {
-  // Resolved server-side (see app/checkout/page.tsx) from the visitor's
-  // region. The buyer never chooses a processor — it's implied by `provider`
-  // and only ever used to pick which SDK call to make, never rendered.
+  // Resolved in the browser (hooks/use-pricing.ts) from the visitor's region.
+  // The buyer never chooses a processor — it's implied by `provider` and only
+  // ever used to pick which SDK call to make, never rendered.
   pricing: CheckoutPricing;
   // Passed as its OWN prop rather than folded into `pricing`: CheckoutPricing
   // (lib/pricing.ts) deliberately strips `tier` before crossing into this
@@ -295,7 +299,38 @@ interface CheckoutPageProps {
   tier: RegionalPricing["tier"];
 }
 
-export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
+/**
+ * Resolves the visitor's region in the browser, then renders.
+ *
+ * `pricing`/`tier` are test overrides; passing them skips the fetch. This is
+ * the surface where a wrong region costs real money — the price ID and the
+ * amount on screen must come from ONE response — and only a browser-side
+ * fetch resolves the region at all (see hooks/use-pricing.ts).
+ *
+ * The split that CheckoutPageProps documents is preserved here: `tier` is
+ * handed over as its own narrow prop for the operator-facing unavailable
+ * report, and toCheckoutPricing strips it from the pricing object.
+ */
+export function CheckoutPage({
+  pricing,
+  tier,
+}: {
+  pricing?: CheckoutPricing;
+  tier?: RegionalPricing["tier"];
+}) {
+  const regional = useRegionalPricing(!pricing, GLOBAL_FALLBACK);
+  const resolvedPricing =
+    pricing ?? (regional ? toCheckoutPricing(regional) : null);
+  const resolvedTier = pricing ? tier : regional?.tier;
+  if (!resolvedPricing || !resolvedTier) {
+    return <PricingSkeleton label="Loading your price" />;
+  }
+  return (
+    <CheckoutPageContent pricing={resolvedPricing} tier={resolvedTier} />
+  );
+}
+
+function CheckoutPageContent({ pricing, tier }: CheckoutPageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
