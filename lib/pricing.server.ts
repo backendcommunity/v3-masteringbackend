@@ -113,20 +113,48 @@ function normalizeEnterprise(value: unknown): EnterprisePricing {
  * gating to do and must not attempt to duplicate that decision.
  */
 /**
- * The visitor's geo headers, ready to hand to fetchPricing.
+ * Everything the API needs to work out WHO is asking, ready to hand to
+ * fetchPricing.
  *
- * Every page that prices a region has to forward these: without them the API
- * resolves the country of the Netlify function that called it, not the
- * person reading the page, and a Lagos visitor is quoted the global price.
- * Three routes need it (/pricing, /pricing/enterprise, /checkout), and the
- * failure mode of a route that forgets one header is silent — the wrong
- * price simply renders — so the list of headers lives here once rather than
- * in three hand-copied loops.
+ * Every page that prices a region has to forward these: this request is made
+ * server-side, so without them the API resolves the country of the server
+ * that called it, not the person reading the page, and a Lagos visitor is
+ * quoted the global price. Three routes need it (/pricing,
+ * /pricing/enterprise, /checkout), and the failure mode of a route that
+ * forgets one is silent — the wrong price simply renders — so the list lives
+ * here once rather than in three hand-copied loops.
+ *
+ * ── Why the IP headers are here too ──────────────────────────────────────
+ *
+ * This shipped forwarding only the three COUNTRY headers, and staging then
+ * served USD to Nigeria for real. Cloudflare knew the visitor was in NG
+ * (/cdn-cgi/trace said so) but was not adding CF-IPCountry to the origin
+ * request, so this function forwarded nothing, and the API's IP fallback
+ * geolocated the frontend server instead of the visitor. Nothing errored:
+ * an unresolved country maps to the GLOBAL tier, which looks like a normal
+ * answer.
+ *
+ * Forwarding the edge-written client IP closes that hole — the API can then
+ * geolocate the actual visitor when no country header exists. It is
+ * deliberately `cf-connecting-ip` / `true-client-ip` and NOT
+ * `x-forwarded-for`: the edge writes those two and overwrites whatever the
+ * client sent, while x-forwarded-for is a list a visitor can prepend to, and
+ * the country picked from it selects a pricing tier.
  */
+const GEO_HEADERS = [
+  // Country, when the edge tells us outright. Cheapest and most reliable.
+  "cf-ipcountry",
+  "x-nf-geo",
+  "x-vercel-ip-country",
+  // Otherwise, who is asking — so the API can resolve the country itself.
+  "cf-connecting-ip",
+  "true-client-ip",
+] as const;
+
 export async function forwardedGeoHeaders(): Promise<Record<string, string>> {
   const incoming = await headers();
   const forwarded: Record<string, string> = {};
-  for (const key of ["cf-ipcountry", "x-nf-geo", "x-vercel-ip-country"]) {
+  for (const key of GEO_HEADERS) {
     const value = incoming.get(key);
     if (value) forwarded[key] = value;
   }
