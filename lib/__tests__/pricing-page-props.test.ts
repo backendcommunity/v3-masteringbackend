@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { toPublicPricing } from "@/app/pricing/page";
+import { toPublicPricing } from "@/lib/pricing";
 import type { RegionalPricing } from "@/lib/pricing";
 
-// Pins the RSC-payload leak fix in app/pricing/page.tsx: Next.js serializes
+// Pins the RSC-payload leak fix both /pricing and /pricing/enterprise rely
+// on: Next.js serializes
 // every prop passed to a client component into the page's RSC payload, which
 // is embedded verbatim in the raw HTML response. A full RegionalPricing prop
 // puts the literal "PADDLE"/"ASYNCPAY" in that response even though the UI
