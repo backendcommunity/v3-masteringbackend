@@ -354,6 +354,545 @@ export enum PaymentChannelType {
   PADDLE,
 }
 
+// ─── Teams ──────────────────────────────────────────────────────────────
+// See academy's src/modules/teams/controller.ts — these mirror its response
+// shapes exactly, not a frontend guess.
+
+export type TeamRole = "OWNER" | "ADMIN" | "MEMBER";
+export type TeamMemberStatus = "ACTIVE" | "REMOVED";
+
+/** One row from `GET /teams/mine` — a team the caller belongs to, with their
+ * own role on it. Deliberately thin (no roster, no payment channel); see
+ * `TeamRoster` for the full membership view.
+ *
+ * `seats`/`paidSeats` are billing figures — the backend omits both keys
+ * entirely (not null) for a caller whose role on THIS team is a plain
+ * MEMBER, matching `TeamRoster.usage`'s same OWNER/ADMIN-only visibility.
+ * `status` is always present regardless of role. */
+export interface TeamSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  role: TeamRole;
+  subscription: {
+    status: string;
+    seats?: number;
+    paidSeats?: number;
+  } | null;
+}
+
+export interface TeamMemberUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+}
+
+export interface TeamMember {
+  id: string;
+  role: TeamRole;
+  status: TeamMemberStatus;
+  joinedAt: string | Date;
+  user: TeamMemberUser;
+  /** The groups this member belongs to. Empty is normal — groups are optional. */
+  groups?: { id: string; name: string }[];
+}
+
+/** Billing figures for a team — `paidSeats` is what the company is billed
+ * for. Only ever present on `TeamRoster.usage` for an OWNER/ADMIN viewer. */
+export interface TeamSeatUsage {
+  /** Whether a subscription exists at all, which `paidSeats` alone cannot
+   * say: `seatUsage()` in academy sends 0 both for a team whose subscription
+   * was removed and for a real subscription that pays for zero seats, and
+   * its own comment records the bug that follows — "a team whose
+   * subscription was removed read '4 of 0', asserting a paid-seat figure no
+   * subscription was making". The backend has always sent this; only this
+   * type had not declared it. Optional because a caller reading an older
+   * cached payload must fall back to the existing rendering, never to
+   * "no active plan" for every team. */
+  subscribed?: boolean;
+  paidSeats: number;
+  activeMembers: number;
+  pendingInvites: number;
+  used: number;
+  available: number;
+}
+
+/** `GET /teams/:id/members` response. `usage` is present ONLY for an
+ * OWNER/ADMIN viewer — a plain MEMBER's response has no `usage` key at all.
+ * Treat its absence as normal, never as a loading/error state. */
+export interface TeamRoster {
+  members: TeamMember[];
+  usage?: TeamSeatUsage;
+}
+
+/** The Team Hub landing figures. OWNER/ADMIN only. */
+export interface TeamOverview {
+  seats: TeamSeatUsage;
+  activeThisWeek: number;
+  /** Includes never-active members — they are the ones worth chasing. */
+  stalled: number;
+  neverActive: number;
+}
+
+/**
+ * One row of the roster-with-progress table.
+ *
+ * `coursesStarted`/`coursesCompleted` are counts, not a percentage. The
+ * backend deliberately does not compute per-course percentage for a whole
+ * team, so the UI must label this "3 of 7 courses" and never render it as a
+ * percent.
+ */
+export interface TeamMemberProgressRow {
+  memberId: string;
+  role: TeamRole;
+  user: TeamMemberUser;
+  coursesStarted: number;
+  coursesCompleted: number;
+  projectsBuilt: number;
+  points: number;
+  currentStreak: number;
+  lastActivityAt: string | null;
+  isStalled: boolean;
+}
+
+export interface TeamRosterProgress {
+  members: TeamMemberProgressRow[];
+}
+
+/**
+ * One member's detail.
+ *
+ * `mockInterviews` is counts only, by design — scores, transcripts and
+ * feedback are never sent to a team owner. Do not add fields here without
+ * reading the privacy boundary in the spec.
+ */
+export interface TeamMemberProgress {
+  user: TeamMemberUser;
+  stats: {
+    points: number;
+    level: number;
+    currentStreak: number;
+    longestStreak: number;
+    lastActivityAt: string | null;
+  };
+  courses: { id: string; title: string; slug: string; isCompleted: boolean; percent: number }[];
+  paths: { id: string; title: string; completedItems: number; totalItems: number }[];
+  projects: {
+    id: string;
+    title: string;
+    isCompleted: boolean;
+    startedAt: string;
+    completedAt: string | null;
+  }[];
+  quizzes: { taken: number; passed: number };
+  mockInterviews: { taken: number; completed: number; lastTakenAt: string | null };
+  activity: { id: string; title: string | null; description: string | null; type: string | null; createdAt: string }[];
+}
+
+export interface TeamLeaderboardEntry {
+  id: string;
+  name: string | null;
+  username: string | null;
+  avatar: string | null;
+  totalPoints: number;
+  totalCompletedCourses: number;
+  /** Re-ranked within the team, starting at 1 — not the global rank. */
+  rank: number;
+}
+
+export interface TeamLeaderboard {
+  entries: TeamLeaderboardEntry[];
+}
+
+/** A department inside a team. Grants nothing — it only organises people. */
+export interface TeamGroup {
+  id: string;
+  name: string;
+  memberCount: number;
+  createdAt: string;
+}
+
+export type AssignmentItemType =
+  | "PATH"
+  | "COURSE"
+  | "PROJECT"
+  | "MOCK_INTERVIEW"
+  | "CHAPTER"
+  | "ARTICLE"
+  | "VIDEO"
+  | "TASK"
+  | "QUIZ"
+  | "EXERCISE"
+  | "CUSTOM";
+/**
+ * What `GET /teams/:id/assignable` will actually search — every
+ * `AssignmentItemType` except CUSTOM (which has no catalogue behind it),
+ * plus `LESSON`, `COHORT`, `BOOTCAMP` and `RESOURCE`, added for the
+ * team-path editor.
+ *
+ * This is still NOT the same set as `PathItemType`: `ROADMAP` has no branch
+ * in `ValidateAssignableSearch` and never will, because nesting a path
+ * inside a path is unsupported. `Extract<PathItemType,
+ * AssignableSearchType>` is the honest intersection, and is what the path
+ * picker offers — every path item kind except that one.
+ */
+export type AssignableSearchType =
+  | AssignmentItemType
+  | "LESSON"
+  | "COHORT"
+  | "BOOTCAMP"
+  | "RESOURCE";
+export type AssignmentItemState = "NOT_STARTED" | "IN_PROGRESS" | "DONE" | "UNAVAILABLE";
+export type AssignmentTargetType = "TEAM" | "GROUP" | "MEMBER";
+
+/**
+ * One catalogue search hit. `parentLabel` is the breadcrumb that tells two
+ * videos called "Introduction" apart — display only, never used for identity.
+ */
+export interface AssignableResult {
+  id: string;
+  title: string;
+  parentLabel: string;
+}
+
+export interface AssignmentItem {
+  id: string;
+  type: AssignmentItemType;
+  /** Null for a CUSTOM item. Points at a course, path, project or interview template. */
+  refId: string | null;
+  /** The free-text item's words. Null for every content type. */
+  text: string | null;
+  /**
+   * Resolved from the catalogue at read time — never stored, so it can't go
+   * stale when a course is renamed. Null for a CUSTOM item (its `text` is its
+   * content, there's nothing to look up) and also null when the catalogue
+   * row `refId` points at is gone, in which case `state` is UNAVAILABLE for
+   * everyone. Those are different reasons for the same null value; only the
+   * state tells you which one you're looking at.
+   */
+  title: string | null;
+  /** The breadcrumb from the catalogue search, e.g. a chapter's course. Display only. */
+  parentLabel?: string;
+  /**
+   * Enough of a course/chapter trail to build a real link — set only for
+   * VIDEO, ARTICLE, QUIZ and EXERCISE, the four fine-grained types that live
+   * inside a course. Null for every other type: CHAPTER and TASK have no
+   * viewable destination of their own (neither is a step the course
+   * workspace can land on). Display-only, like parentLabel — never used for
+   * identity or completion.
+   */
+  courseSlug?: string | null;
+  chapterSlug?: string | null;
+  /**
+   * The item's OWN slug — set only for PATH, COURSE and PROJECT, the
+   * top-level catalogue types that link off `routes.pathDetail`/
+   * `courseDetail`/`projectDetail`, all of which take a slug, not the row's
+   * id. Null when absent — never fall back to `refId` for these three; a
+   * link built from an id 404s. Null for every other type, including
+   * MOCK_INTERVIEW, which links by id through the booking route instead.
+   */
+  slug?: string | null;
+  position: number;
+}
+
+/** One row of the manager's list. */
+export interface TeamAssignment {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  createdAt: string;
+  targetType: AssignmentTargetType;
+  /** Null unless targetType is GROUP. Lets the edit dialog prefill the picker. */
+  targetGroupId: string | null;
+  /** Null unless targetType is MEMBER. Lets the edit dialog prefill the picker. */
+  targetTeamMemberId: string | null;
+  /** Ready to render — "Platform", "Everyone", or a person's name. */
+  targetLabel: string;
+  itemCount: number;
+  audienceSize: number;
+  /** How many PEOPLE have finished every item, not how many items are done. */
+  doneCount: number;
+  isOverdue: boolean;
+}
+
+/** One card as the person it was given to sees it. */
+export interface MyAssignment {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  targetLabel: string;
+  items: Array<AssignmentItem & { state: AssignmentItemState }>;
+  done: number;
+  total: number;
+  isOverdue: boolean;
+}
+
+export interface AssignmentDetail {
+  id: string;
+  name: string;
+  dueAt: string | null;
+  targetType: AssignmentTargetType;
+  items: AssignmentItem[];
+  people: Array<{
+    teamMemberId: string;
+    userId: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+    done: number;
+    total: number;
+    isOverdue: boolean;
+    /** itemId → state */
+    states: Record<string, AssignmentItemState>;
+  }>;
+}
+
+export interface AssignmentInput {
+  name: string;
+  dueAt?: string | null;
+  targetType: AssignmentTargetType;
+  targetGroupId?: string | null;
+  targetTeamMemberId?: string | null;
+}
+
+export interface AssignmentItemInput {
+  id?: string;
+  type: AssignmentItemType;
+  refId?: string | null;
+  text?: string | null;
+  /**
+   * Client-side only, for the builder's own list to render a real name
+   * instead of `"{Type} · {refId}"`. Never sent to `setTeamAssignmentItems`
+   * — the backend's item schema rejects unknown keys, and the title is
+   * re-resolved from the catalogue on every read anyway.
+   */
+  title?: string | null;
+  /**
+   * Client-side only, same rule as `title` above — the breadcrumb that
+   * tells two same-titled hits (e.g. two "Introduction" videos in
+   * different courses) apart on screen. Stripped before the save call.
+   */
+  parentLabel?: string | null;
+}
+
+/**
+ * The twelve content kinds a team's own path can be built from. No `ROADMAP`
+ * and no `PATH` — nesting a path inside a path is not supported (ruling
+ * R18). `PATH` still exists as an `AssignmentItemType`, a different feature:
+ * assigning an existing catalogue path to people, not composing one.
+ */
+export type PathItemType =
+  | "COURSE"
+  | "CHAPTER"
+  | "ARTICLE"
+  | "VIDEO"
+  | "LESSON"
+  | "PROJECT"
+  | "EXERCISE"
+  | "QUIZ"
+  | "BOOTCAMP"
+  | "MOCK_INTERVIEW"
+  | "COHORT"
+  | "RESOURCE";
+
+/** One row of the team paths list — `GET /teams/:id/paths`. */
+export interface TeamPath {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  sectionCount: number;
+  createdAt: string;
+}
+
+/** One item inside a section, as returned by `GET /teams/:id/paths/:pathId`. */
+export interface PathItem {
+  id: string;
+  type: PathItemType;
+  refId: string;
+  /** Resolved from the catalogue at read time, like AssignmentItem.title. */
+  title: string | null;
+  /** Breadcrumb, e.g. a chapter's course. Display only. */
+  parentLabel?: string;
+}
+
+/** One named section, as returned by `GET /teams/:id/paths/:pathId`. */
+export interface PathSection {
+  id: string;
+  title: string;
+  order: number;
+  items: PathItem[];
+}
+
+/**
+ * `GET /teams/:id/paths/:pathId` — the read the editor uses to populate
+ * itself when it first opens. The editor (Task 11) round-trips these ids
+ * back through `setPathSections`/`setSectionItems`; the backend diffs by
+ * identity, and submitting without ids degrades into delete-and-recreate,
+ * destroying every member's progress on that path.
+ */
+export interface TeamPathDetail {
+  id: string;
+  title: string;
+  summary: string | null;
+  sections: PathSection[];
+}
+
+/** `PATCH /teams/:id/paths/:pathId` body. `summary: null` clears it, same as `""`. */
+export interface TeamPathUpdateInput {
+  title?: string;
+  summary?: string | null;
+}
+
+/** One entry in `PUT /teams/:id/paths/:pathId/sections`. Omit `id` for a new section. */
+export interface TeamPathSectionInput {
+  id?: string;
+  title: string;
+}
+
+/**
+ * One entry of `setPathSections`'s response — every section it just wrote,
+ * in SUBMITTED order (not stored order, which is exactly where a reorder
+ * differs). Position i here is position i of the `TeamPathSectionInput[]`
+ * that was sent, so a caller binds a brand-new section's real id by index
+ * alone: no title match, no re-read, no guessing which row in a later
+ * `getTeamPath` call is the one it just created. An existing section's `id`
+ * here is unchanged from what was submitted; a new section's `id` is the row
+ * the backend just created for it.
+ */
+export interface TeamPathSectionResult {
+  id: string;
+  title: string;
+}
+
+/**
+ * One entry in `PUT /teams/:id/paths/:pathId/sections/:sectionId/items`.
+ *
+ * NO `id` field — unlike sections, items are diffed by the composite
+ * `(type, refId)`, not by a stored surrogate id (`ValidateSetSectionItems`
+ * in the backend validator has no `id` key and no `allowUnknown`, so
+ * sending one 422s: `"items[0].id" is not allowed`). `PathItem.id` as
+ * returned by `getTeamPath` is a derived display key (literally
+ * `` `${type}:${refId}` ``), not a row id — it exists for React keys and
+ * UI bookkeeping, and must never be forwarded here. The fetcher
+ * (`setSectionItems` in `lib/store.ts`) reconstructs the wire body from
+ * only `type`/`refId` for this reason, so even a caller that spreads a
+ * `PathItem` in here cannot leak an `id` onto the wire.
+ */
+export interface TeamPathItemInput {
+  type: PathItemType;
+  refId: string;
+  /** Client-side only, same rule as AssignmentItemInput.title — never sent. */
+  title?: string | null;
+  /** Client-side only, same rule as AssignmentItemInput.parentLabel — never sent. */
+  parentLabel?: string | null;
+}
+
+/**
+ * `POST /teams/:id/seats/preview` response. `currency` is NOT always USD —
+ * Paddle's currency localization can preview a USD-priced plan in another
+ * currency (e.g. INR) depending on the buyer's location. Always format with
+ * this field; never assume or hardcode a currency. `immediateChargeMinor: 0`
+ * means a previously-funded seat is vacant — free to fill, not "$0 charged".
+ */
+export interface TeamSeatPreview {
+  immediateChargeMinor: number;
+  currency: string | null;
+  nextBilledAt: string | null;
+}
+
+/** `range` query param for `GET /teams/:id/reports` — mirrors the backend's
+ * `ReportRange` (`report-window.ts`) exactly: two fixed values, never
+ * request-derived text. */
+export type TeamReportRange = "12w" | "12m";
+export type TeamReportPeriod = "week" | "month";
+
+export interface TeamReportTotals {
+  activeMembers: number;
+  coursesFinished: number;
+  pathsFinished: number;
+  membersWhoFinished: number;
+}
+
+export interface TeamReportBucket {
+  bucket: string;
+  activeMembers: number;
+  coursesFinished: number;
+  pathsFinished: number;
+}
+
+/**
+ * `GET /teams/:id/reports?range=12w|12m` — "did this subscription do
+ * anything". Mirrors `TeamReport` in
+ * `academy/src/modules/teams/helpers/team-reports.ts` exactly. OWNER/ADMIN
+ * only.
+ *
+ * - `range.to` is EXCLUSIVE — one full bucket past the last one rendered,
+ *   not the last rendered instant.
+ * - `range.dataBegins` is the later of the team's creation and `range.from`.
+ * - `range.completionsBegin` is the later of `dataBegins` and the instant
+ *   this database gained reliable completion dates (a migration
+ *   `finished_at`, not a hardcoded date). When it is later than
+ *   `dataBegins`, `coursesFinished`/`pathsFinished` UNDERCOUNT before it —
+ *   an unknown number of completions were never dated, not zero of them.
+ *   Callers must caption that span "at least" / "undercounts", never "none".
+ * - `seats.used` includes pending invites — the same definition the invite
+ *   flow enforces (`seatUsage`), so this screen never says "12 of 15" while
+ *   the next invite is refused as full.
+ * - `change` values are `number | null`. `null` means the previous window
+ *   was zero — never render it as `Infinity` or `NaN`.
+ */
+export interface TeamReport {
+  range: {
+    period: TeamReportPeriod;
+    buckets: number;
+    /** Inclusive, `YYYY-MM-DD`. */
+    from: string;
+    /** Exclusive, `YYYY-MM-DD`. */
+    to: string;
+    dataBegins: string;
+    completionsBegin: string;
+  };
+  seats: {
+    /** Paid seats, or `null` when the team has no subscription at all —
+     * rendering "4 of 0" for a team whose subscription was removed asserts a
+     * paid-seat figure no subscription is making. `0` here means a real
+     * subscription that pays for zero seats, and still renders as a
+     * denominator. */
+    total: number | null;
+    used: number;
+  };
+  series: TeamReportBucket[];
+  totals: TeamReportTotals;
+  previous: TeamReportTotals;
+  change: Record<keyof TeamReportTotals, number | null>;
+}
+
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  email: string;
+  token: string;
+  status: string;
+  invitedByUserId: string;
+  expiresAt: string | Date;
+}
+
+/**
+ * `GET /teams/invites/:token` — PUBLIC, unauthenticated. Deliberately thin:
+ * no member list, no billing figures. `hasOwnSubscription` is present ONLY
+ * when the caller is authenticated as the invited person; its absence is
+ * normal (anonymous visitor, or signed in as someone else) and must never
+ * be treated as an error or as "false".
+ */
+export interface TeamInvitePreview {
+  teamName: string | null;
+  invitedBy: string | null;
+  expiresAt: string;
+  hasOwnSubscription?: boolean;
+}
+
 export interface Note {
   id: string;
   content: string;

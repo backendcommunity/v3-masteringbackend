@@ -81,6 +81,13 @@ const ASYNCPAY_WRAPPER_ID = "asyncpay-checkout-sdk-wrapper";
 // dead for an uncomfortable stretch. It used to be 20s and stayed armed
 // while the modal was open, which is the bug this replaces.
 const CHECKOUT_OPEN_TIMEOUT_MS = 8000;
+
+/**
+ * How long the success confetti plays before an Enterprise buyer is moved
+ * on to team setup. Long enough to register that the payment landed, short
+ * enough that it does not feel like a stall.
+ */
+const CELEBRATION_HOLD_MS = 2200;
 /**
  * How long the inline frame may sit blank after a successful open() before we
  * call it stalled. Longer than the click watchdog: Paddle has to fetch and
@@ -351,6 +358,38 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // There is no Free plan record to look up, so it must not be treated as an
   // unresolvable purchase and must not page anyone.
   const isCancellationFlow = Boolean(checkoutId?.includes("free"));
+
+  /**
+   * Enterprise is the only plan that creates a team, so it is the only one
+   * with anything to set up after paying. The team itself is created by the
+   * payment webhook, not here — /team/setup waits for it to appear.
+   *
+   * The confetti is left to play before navigating: someone who just spent
+   * money should see the purchase land, not have the screen replaced under
+   * them.
+   */
+  const isTeamPurchase = checkoutId === "enterprise";
+  const teamSetupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const goToTeamSetupAfterCelebration = useCallback(() => {
+    if (!isTeamPurchase) return;
+    // Held in a ref and cleared on unmount, like both checkout watchdogs
+    // above. router is an app-wide singleton, so an uncleared timer would
+    // still fire after the buyer navigated away and yank them to
+    // /team/setup from wherever they had gone — the same orphaned-timer
+    // shape this file already fixed once for the 20s watchdog.
+    if (teamSetupTimerRef.current) clearTimeout(teamSetupTimerRef.current);
+    teamSetupTimerRef.current = setTimeout(
+      () => router.push(routes.teamSetup),
+      CELEBRATION_HOLD_MS,
+    );
+  }, [isTeamPurchase, router]);
+
+  useEffect(
+    () => () => {
+      if (teamSetupTimerRef.current) clearTimeout(teamSetupTimerRef.current);
+    },
+    [],
+  );
 
   paddleEventCtxRef.current = { country: pricing.country, cycle, checkoutId };
 
@@ -711,6 +750,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
             cycle,
           });
           toast.success("You're on Pro. Welcome in.");
+          goToTeamSetupAfterCelebration();
         },
         onClose: () => {
           clearAsyncpayWatchdog();
@@ -930,6 +970,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
             toast.success(
               "You have successfully subscribe to " + checkoutId + " plan",
             );
+            goToTeamSetupAfterCelebration();
             break;
         }
       },
@@ -954,7 +995,17 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
         /* nothing to close */
       }
     };
-  }, [PADDLE_TOKEN, PADDLE_ENVIRONMENT, isPro, clearPaddleWatchdog]);
+    // goToTeamSetupAfterCelebration is memoized on `isTeamPurchase` (from the
+    // `plan` search param) and `router`, both stable for this page's
+    // lifetime — listing it keeps the closure honest without re-running the
+    // effect and tearing down a live Paddle instance.
+  }, [
+    PADDLE_TOKEN,
+    PADDLE_ENVIRONMENT,
+    isPro,
+    clearPaddleWatchdog,
+    goToTeamSetupAfterCelebration,
+  ]);
 
   const handleCancelSubscription = () => {
     setCancelDialogOpen(false);

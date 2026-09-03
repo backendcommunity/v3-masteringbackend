@@ -17,6 +17,7 @@ import { useAppStore } from "@/lib/store";
 import ConfettiCelebration from "../confetti-celebration";
 import { toast } from "sonner";
 import { routes } from "@/lib/routes";
+import { correctTextOf, isCorrect, scoreAttempt } from "@/lib/quiz-answers";
 
 interface RoadmapCourseQuizProps {
   roadmapId: string;
@@ -68,8 +69,6 @@ export function RoadmapCourseQuiz({
   }, []);
 
   const handleSubmitQuiz = async () => {
-    let totalPoints = 0;
-    let earnedPoints = 0;
     let result: any = [];
 
     if (!quiz) return;
@@ -80,24 +79,17 @@ export function RoadmapCourseQuiz({
       // If user didn't answer, skip
       if (isNaN(userAnswerIndex)) return;
 
-      const userAnswerValue = question?.options![userAnswerIndex];
-      const correctAnswerValue = question.correctAnswer;
-      const questionPoints = question.points || 0;
-
-      totalPoints += questionPoints;
-
-      if (userAnswerValue === correctAnswerValue) {
-        earnedPoints += questionPoints;
-        result.push({
-          ...question,
-          passed: true,
-        });
-      }
+      // Only the passed ones are pushed, so the score has to be computed over
+      // every answered question, not over `result`.
+      result.push({
+        ...question,
+        correctAnswer: correctTextOf(question),
+        userAnswer: question?.options![userAnswerIndex],
+        passed: isCorrect(question, userAnswerIndex),
+      });
     });
 
-    // Avoid division by 0
-    const finalScore =
-      totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+    const finalScore = scoreAttempt(result);
 
     setScore(finalScore);
 

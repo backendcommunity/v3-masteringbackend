@@ -306,19 +306,45 @@ export function enterpriseTotal(
   return Math.round(perUser * 100) * resolvedSeats / 100;
 }
 
-export function formatPrice(amount: number, currency: "NGN" | "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    // WITHOUT narrowSymbol, en-US renders NGN as the ISO code — "NGN 9,999"
-    // instead of "₦9,999". Verified in Node: the default currencyDisplay only
-    // uses a glyph for currencies the locale considers local. Do not remove.
-    currencyDisplay: "narrowSymbol",
-    // Naira prices are whole numbers; showing ₦9,999.00 reads like a
-    // conversion artifact rather than a price.
-    minimumFractionDigits: currency === "NGN" ? 0 : 2,
-    maximumFractionDigits: currency === "NGN" ? 0 : 2,
-  }).format(amount);
+/**
+ * `currency` is a plain ISO 4217 code, not the narrow "NGN" | "USD" union
+ * every other price on this site happens to use. Team seat pricing goes
+ * through Paddle's currency localization, which can preview a USD-priced
+ * plan in a third currency entirely (e.g. INR) depending on the buyer's
+ * location — so the seat-preview call site (components/team/invite-dialog.tsx)
+ * needs to format whatever code the API actually returned. Widening this
+ * signature is strictly additive: every existing caller already passes a
+ * "NGN" | "USD" literal or variable, which is still a valid `string`.
+ *
+ * Because `currency` is now an arbitrary string instead of a two-member
+ * union, it can be malformed or missing in a way the type system no longer
+ * catches — `Intl.NumberFormat` throws a `RangeError` on an invalid ISO
+ * code, and every existing caller of this function is inside render, so an
+ * uncaught throw here would white-screen the page, not just misprint a
+ * price. A bad/missing code degrades to the plain number (no symbol) rather
+ * than taking the page down — a wrong-looking price is recoverable, a
+ * crashed dialog is not.
+ */
+export function formatPrice(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      // WITHOUT narrowSymbol, en-US renders NGN as the ISO code — "NGN 9,999"
+      // instead of "₦9,999". Verified in Node: the default currencyDisplay only
+      // uses a glyph for currencies the locale considers local. Do not remove.
+      currencyDisplay: "narrowSymbol",
+      // Naira prices are whole numbers; showing ₦9,999.00 reads like a
+      // conversion artifact rather than a price.
+      minimumFractionDigits: currency === "NGN" ? 0 : 2,
+      maximumFractionDigits: currency === "NGN" ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
 }
 
 /**

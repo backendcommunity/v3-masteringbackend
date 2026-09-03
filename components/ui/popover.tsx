@@ -19,7 +19,14 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 w-1/3 rounded-md border overflow-y-auto bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        // No motion classes at all: no `slide-in-from-*`, no `zoom-*`, no
+        // `animate-in`/`fade-*`. This opens like a plain select menu — the panel
+        // appears anchored under its trigger, nothing slides, scales or fades.
+        // The slide a user reported came from `* { transition: transform }` in
+        // app/globals.css tweening Radix's positioning step; see the
+        // [data-radix-popper-content-wrapper] rule at the bottom of that file.
+        // If this file is regenerated with the shadcn CLI, strip motion again.
+        "z-50 w-1/3 rounded-md border overflow-y-auto bg-popover p-4 text-popover-foreground shadow-md outline-none",
         className
       )}
       {...props}

@@ -50,6 +50,8 @@ import {
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { formatPrice } from "@/lib/pricing";
+import { entitlingStatus } from "@/lib/subscription-pricing";
+import type { TeamSummary } from "@/lib/data";
 
 interface SubscriptionManagementPageProps {
   onNavigate: (path: string) => void;
@@ -71,22 +73,62 @@ export function SubscriptionManagementPage({
   const [enterprisePlan, setEnterprisePlan] = useState<any>();
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any>(null);
+  const [teamGrant, setTeamGrant] = useState<TeamSummary | null>(null);
+  const [resolvingAccess, setResolvingAccess] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setSubscription(
-        user.isPremium
-          ? user.subscription
-          : {
-              plan: { name: "Free", monthlyPrice: 0 },
-              expiry: "Free forever",
-              status: "active",
-              paymentMethod: "No card added",
-              startDate: user.createdAt,
-            },
-      );
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function resolveAccess(u: NonNullable<typeof user>) {
+      if (!u.isPremium) {
+        setSubscription({
+          plan: { name: "Free", monthlyPrice: 0 },
+          expiry: "Free forever",
+          status: "active",
+          paymentMethod: "No card added",
+          startDate: u.createdAt,
+        });
+        setResolvingAccess(false);
+        return;
+      }
+
+      if (u.subscription) {
+        setSubscription(u.subscription);
+        setResolvingAccess(false);
+        return;
+      }
+
+      // Premium with no personal subscription means a team seat is paying for
+      // this person. Membership grants Pro without ever creating a
+      // Subscription row for them, so there is nothing here to bill, cancel
+      // or change — the owner holds all of that. Resolve which team, so the
+      // page can say so instead of waiting forever for a row that will never
+      // arrive.
+      try {
+        const teams = await store.getMyTeams();
+        if (cancelled) return;
+        setTeamGrant(
+          teams?.find((t) => entitlingStatus(t.subscription?.status)) ?? null,
+        );
+      } catch {
+        // A failed lookup must not strand the page on a skeleton. Falling
+        // through with teamGrant null renders the unattributed premium state,
+        // which is still honest: they have Pro, we could not name the source.
+        if (cancelled) return;
+      } finally {
+        if (!cancelled) setResolvingAccess(false);
+      }
     }
-  }, [user]);
+
+    setResolvingAccess(true);
+    resolveAccess(user);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, store]);
 
   const [stats, setStats] = useState<{
     amount: number;
@@ -311,8 +353,32 @@ export function SubscriptionManagementPage({
 
         {/* Subscription Tab */}
         <TabsContent value="subscription" className="space-y-6">
-          {!subscription ? (
+          {resolvingAccess ? (
             <PageSkeleton rows={3} />
+          ) : !subscription ? (
+            /* Pro, but no subscription of their own — a team seat is paying.
+               Everything billing-related belongs to the team owner, so this
+               state deliberately offers no cancel, pause or plan change. */
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-[#F2C94C]" />
+                  Pro access through your team
+                </CardTitle>
+                <CardDescription>
+                  {teamGrant
+                    ? `${teamGrant.name} is paying for your seat.`
+                    : "Your Pro access comes from a team seat."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  You have full Pro access. There is no personal subscription
+                  to manage here — billing, seats and cancellation are handled
+                  by your team&apos;s owner.
+                </p>
+              </CardContent>
+            </Card>
           ) : <>
           {/* Current Plan */}
           <Card>

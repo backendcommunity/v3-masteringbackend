@@ -53,6 +53,27 @@ describe("formatPrice", () => {
     expect(formatPrice(19.99, "USD")).toBe("$19.99");
     expect(formatPrice(199.99, "USD")).toBe("$199.99");
   });
+
+  it("formats an arbitrary ISO code with the right symbol — team seat previews aren't limited to NGN/USD", () => {
+    // Paddle's currency localization can preview a USD-priced plan in a
+    // third currency entirely (e.g. INR) depending on the buyer's location.
+    expect(formatPrice(18.42, "INR")).toBe("₹18.42");
+  });
+
+  // `currency` is now a plain string, not a two-member union — the type
+  // system no longer rules out a malformed or missing code reaching here.
+  // Intl.NumberFormat throws a RangeError on an invalid ISO code; every
+  // caller of formatPrice is inside render, so an uncaught throw here would
+  // white-screen the page rather than just misprint a price.
+  it("degrades to the plain number instead of throwing on a malformed currency code", () => {
+    expect(() => formatPrice(18.42, "NOT_A_CURRENCY")).not.toThrow();
+    expect(formatPrice(18.42, "NOT_A_CURRENCY")).toBe("18.42");
+  });
+
+  it("degrades to the plain number instead of throwing when currency is empty", () => {
+    expect(() => formatPrice(18.42, "")).not.toThrow();
+    expect(formatPrice(18.42, "")).toBe("18.42");
+  });
 });
 
 describe("monthlyEquivalent", () => {

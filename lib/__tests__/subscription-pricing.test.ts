@@ -4,6 +4,7 @@ import {
   classifyGrandfathered,
   classifyPremiumTierStatus,
   formatGrandfatheredSubLabel,
+  entitlingStatus,
 } from "@/lib/subscription-pricing";
 import type { Subscription } from "@/lib/data";
 import type { PublicPricing } from "@/lib/pricing";
@@ -155,5 +156,36 @@ describe("classifyPremiumTierStatus", () => {
 
   it("defaults an unnamed/legacy premium subscription to 'pro', not a no-CTA state", () => {
     expect(classifyPremiumTierStatus(true, undefined)).toBe("pro");
+  });
+});
+
+describe("entitlingStatus", () => {
+  it("accepts every status the backend treats as entitling", () => {
+    for (const s of ["active", "canceling", "pausing", "resuming", "trialing"]) {
+      expect(entitlingStatus(s)).toBe(true);
+    }
+  });
+
+  it("rejects statuses that have genuinely ended", () => {
+    for (const s of ["canceled", "past_due", "paused", "expired"]) {
+      expect(entitlingStatus(s)).toBe(false);
+    }
+  });
+
+  it("trims the CHAR(36) padding Postgres adds to Subscription.status", () => {
+    // The API really does return this — the column is CHAR(36), so every
+    // status arrives space-padded to 36 characters. Comparing untrimmed
+    // reports every live subscription as lapsed.
+    expect(entitlingStatus("active                              ")).toBe(true);
+  });
+
+  it("compares case-insensitively so admin-granted ACTIVE still entitles", () => {
+    expect(entitlingStatus("ACTIVE")).toBe(true);
+  });
+
+  it("treats missing status as not entitling", () => {
+    expect(entitlingStatus(undefined)).toBe(false);
+    expect(entitlingStatus(null)).toBe(false);
+    expect(entitlingStatus("")).toBe(false);
   });
 });

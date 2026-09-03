@@ -16,6 +16,10 @@ import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { PathCard, PathCardData } from "@/components/pages/paths/path-card";
+import {
+  TeamPathsSection,
+  TeamShelf,
+} from "@/components/pages/paths/team-paths-section";
 import { Pager } from "@/components/ui/pager";
 import { JourneyGlyph } from "@/components/journey-glyph";
 
@@ -28,6 +32,14 @@ type PathTab = "all" | "in_progress" | "completed" | "saved";
 interface PathItem extends PathCardData {
   /** real Roadmap.id (uuid) — used for bookmarking */
   roadmapId: string;
+  /**
+   * Set when this path belongs to one of the viewer's teams. It is the whole
+   * basis for shelving team paths above the catalogue instead of mixing them
+   * in — and it costs no extra request, because the /roadmaps response
+   * already carries it. The backend has scoped that response to the viewer's
+   * active teams, so this field decides layout, never visibility.
+   */
+  ownerTeamId: string | null;
 }
 
 const TABS: { value: PathTab; label: string }[] = [
@@ -51,14 +63,20 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [tab, setTab] = useState<PathTab>("all");
   const [page, setPage] = useState(1);
+  /** teamId → team name, for the shelf headings. Empty when the lookup failed. */
+  const [teamNames, setTeamNames] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const [result, bookmarksRes] = await Promise.all([
+        const [result, bookmarksRes, teams] = await Promise.all([
           store.getRoadmaps({ skip: 0, size: 50 }),
           store.getBookmarks(50, 0).catch(() => ({ bookmarks: [] })),
+          // Names only. If this fails the shelf still renders, headed
+          // generically — losing a label is better than losing a member's own
+          // team curriculum over a decorative lookup.
+          store.getMyTeams().catch(() => []),
         ]);
 
         const roadmaps = result?.roadmaps ?? result ?? [];
@@ -89,10 +107,19 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
               ? 100
               : (r.stepProgress ?? r.progress ?? 0),
             enrolled: r.enrolled ?? false,
+            ownerTeamId: r.ownerTeamId ?? null,
           };
         });
 
         setPaths(merged);
+        setTeamNames(
+          new Map(
+            ((teams ?? []) as { id: string; name: string }[]).map((t) => [
+              t.id,
+              t.name,
+            ]),
+          ),
+        );
         const saved = new Set<string>(
           (bookmarksRes?.bookmarks ?? [])
             .filter((b: any) => b?.roadmap?.slug)
@@ -137,12 +164,18 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
   }, [paths]);
 
   const counts = useMemo(
-    () => ({
-      all: paths.length,
-      in_progress: paths.filter((p) => p.enrolled && p.progress < 100).length,
-      completed: paths.filter((p) => p.progress >= 100).length,
-      saved: paths.filter((p) => savedSlugs.has(p.slug)).length,
-    }),
+    () => {
+      // Counts label the grid below them, and team paths are drawn above it —
+      // so they are counted out, or "All paths 15" contradicts what it sits on.
+      const catalogue = paths.filter((p) => !p.ownerTeamId);
+      return {
+        all: catalogue.length,
+        in_progress: catalogue.filter((p) => p.enrolled && p.progress < 100)
+          .length,
+        completed: catalogue.filter((p) => p.progress >= 100).length,
+        saved: catalogue.filter((p) => savedSlugs.has(p.slug)).length,
+      };
+    },
     [paths, savedSlugs],
   );
 
@@ -166,9 +199,35 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
     });
   }, [paths, search, levelFilter, categoryFilter, tab, savedSlugs]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPaths.length / PAGE_SIZE));
+  /**
+   * Split AFTER filtering, so one search box drives both. A shelf whose team
+   * has nothing matching disappears rather than sitting there headed and empty.
+   */
+  const teamShelves: TeamShelf<PathItem>[] = useMemo(() => {
+    const byTeam = new Map<string, PathItem[]>();
+    for (const p of filteredPaths) {
+      if (!p.ownerTeamId) continue;
+      const bucket = byTeam.get(p.ownerTeamId);
+      if (bucket) bucket.push(p);
+      else byTeam.set(p.ownerTeamId, [p]);
+    }
+    return [...byTeam.entries()]
+      .map(([teamId, teamPaths]) => ({
+        teamId,
+        teamName: teamNames.get(teamId) ?? null,
+        paths: teamPaths,
+      }))
+      .sort((a, b) => (a.teamName ?? "").localeCompare(b.teamName ?? ""));
+  }, [filteredPaths, teamNames]);
+
+  const cataloguePaths = useMemo(
+    () => filteredPaths.filter((p) => !p.ownerTeamId),
+    [filteredPaths],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(cataloguePaths.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const paginatedPaths = filteredPaths.slice(
+  const paginatedPaths = cataloguePaths.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   );
@@ -373,7 +432,29 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
           />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <TeamPathsSection
+              shelves={teamShelves}
+              savedSlugs={savedSlugs}
+              savingSlug={savingSlug}
+              onToggleSave={toggleSave}
+              onSelect={goToPath}
+            />
+
+            {/* Only a real divider — it needs content on both sides. */}
+            {teamShelves.length > 0 && cataloguePaths.length > 0 && (
+              <div className="flex items-center gap-4 mb-6">
+                <div className="h-px flex-1 bg-border" />
+                <span className="eyebrow-mono text-xs text-muted-foreground">
+                  all paths
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
+
+            <div
+              data-testid="all-paths-grid"
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
               {paginatedPaths.map((p) => (
                 <PathCard
                   key={p.slug}
@@ -386,12 +467,14 @@ export function LearningPathsPage({ onNavigate }: LearningPathsPageProps) {
               ))}
             </div>
 
-            <Pager
-              hasPrev={currentPage > 1}
-              hasNext={currentPage < totalPages}
-              onPrev={() => setPage((p) => Math.max(1, p - 1))}
-              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-            />
+            {cataloguePaths.length > 0 && (
+              <Pager
+                hasPrev={currentPage > 1}
+                hasNext={currentPage < totalPages}
+                onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
+            )}
           </>
         )}
       </div>

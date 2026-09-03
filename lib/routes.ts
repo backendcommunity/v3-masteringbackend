@@ -111,6 +111,19 @@ export const routes = {
   // Community
   community: "/community",
 
+  // Team accounts
+  team: "/team",
+  teamOverview: "/team/overview",
+  teamMembers: "/team/members",
+  teamGroups: "/team/groups",
+  teamPaths: "/team/paths",
+  teamAssignments: "/team/assignments",
+  teamLeaderboard: "/team/leaderboard",
+  teamSettings: "/team/settings",
+  teamReports: "/team/reports",
+  teamSetup: "/team/setup",
+  teamJoin: (token: string) => `/team/join/${token}`,
+
   // Subscription & Billing
   subscriptionPlans: "/subscription/plans",
   subscriptionManagement: "/subscription/management",
