@@ -244,15 +244,45 @@ describe("checkout ↔ Paddle", () => {
       );
     });
 
+    /**
+     * Regression: ISSUE-002 — a seat change never reached the URL
+     * Found by /qa on 2026-09-03
+     * Report: .gstack/qa-reports/qa-report-localhost-3002-2026-09-03.md
+     *
+     * The cycle switch wrote `seats`; the stepper wrote nothing. Step 2 -> 6,
+     * refresh, and checkout repriced itself back to 2 seats and a total
+     * $1,000 lower.
+     */
+    it("writes a seat change to the URL on its own, with no cycle switch", async () => {
+      renderCheckout();
+      await waitForFirstOpen();
+      mockReplace.mockClear();
+
+      addSeat(); // 2 -> 3
+      await flushDebounce();
+
+      await waitFor(() => expect(mockReplace).toHaveBeenCalled());
+      const [href, opts] = mockReplace.mock.calls.at(-1)!;
+      expect(String(href)).toContain("seats=3");
+      // The cycle it was already on must survive the rewrite.
+      expect(String(href)).toContain("cycle=monthly");
+      expect(opts).toMatchObject({ scroll: false });
+    });
+
     it("writes the chosen cycle back to the URL without a history entry", async () => {
       renderCheckout();
       await waitForFirstOpen();
 
       fireEvent.click(screen.getByRole("button", { name: "Yearly" }));
 
-      await waitFor(() => expect(mockReplace).toHaveBeenCalled());
-      const [href, opts] = mockReplace.mock.calls[0];
-      expect(String(href)).toContain("cycle=annual");
+      // The LATEST call, not the first: the seat sync also writes the URL, so
+      // the first replace of a mount can be that one rather than this switch.
+      await waitFor(() =>
+        expect(String(mockReplace.mock.calls.at(-1)?.[0])).toContain(
+          "cycle=annual",
+        ),
+      );
+      const [href, opts] = mockReplace.mock.calls.at(-1)!;
       // The seat count and plan must survive the rewrite, or a refresh
       // silently reprices the order.
       expect(String(href)).toContain("plan=enterprise");
