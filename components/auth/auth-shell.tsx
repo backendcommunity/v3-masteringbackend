@@ -160,7 +160,8 @@ function QuoteMark() {
   );
 }
 
-function LineworkWatermark() {
+/** Brand linework wash. Exported so campaign pages can share the same anchor. */
+export function LineworkWatermark() {
   return (
     <svg
       className="absolute inset-0 pointer-events-none"

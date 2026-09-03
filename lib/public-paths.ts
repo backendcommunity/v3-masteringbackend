@@ -17,6 +17,10 @@ export const PUBLIC_PATH_PREFIXES = [
   // and must render its preview (team name, inviter, expiry) before the
   // invitee has ever signed in.
   "/team/join/",
+
+  // Scholarship flyer generator: a campaign tool handed to people who have no
+  // account and may never make one.
+  "/scholarship/flyer",
 ];
 
 /** True when `pathname` is a public (no-login) route. */
