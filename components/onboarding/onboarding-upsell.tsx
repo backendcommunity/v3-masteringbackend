@@ -13,11 +13,23 @@ interface OnboardingUpsellProps {
    */
   pathTitle: string;
   /**
-   * Region-resolved Pro price. Optional: when omitted this component fetches
-   * its own copy, same contract as PaymentGateOverlay. Callers that already hold
-   * pricing (the preview route) pass it so the number is deterministic.
+   * Region-resolved Pro price. Three states, and the difference matters:
+   *
+   *   `undefined` — nobody is supplying one, so this component fetches its
+   *                 own copy (the preview route's "Live fetch" mode).
+   *   `null`      — the CALLER is supplying one and it has not arrived yet.
+   *                 No self-fetch: a second request would race the caller's,
+   *                 and the two could disagree.
+   *   an object   — use it.
+   *
+   * The null state exists because of a real bug. The onboarding wizard holds
+   * the pricing that `subscribe()` charges against; this card used to fetch
+   * its OWN copy in parallel and enable "Go Pro" the moment that landed,
+   * while the wizard's copy was still in flight. Clicking then fell through
+   * to /checkout instead of opening the payment sheet. Whoever takes the
+   * money owns the price.
    */
-  pricing?: PublicPricing;
+  pricing?: PublicPricing | null;
   /** Primary action — hand the learner to checkout. */
   onGoPro: () => void;
   /** The free exit. Must always deliver the lesson they already enrolled in. */
@@ -42,8 +54,10 @@ export function OnboardingUpsell({
   onSkip,
   busy = false,
 }: OnboardingUpsellProps) {
-  // Only fetch when the caller didn't hand us one.
-  const ownPricing = usePricing(!pricing);
+  // Only fetch when NO caller is supplying one. `null` means "mine is
+  // coming" — see the prop's doc above for why a second request there is a
+  // bug rather than a redundancy.
+  const ownPricing = usePricing(pricing === undefined);
   const resolved = pricing ?? ownPricing;
 
   return (
@@ -59,16 +73,31 @@ export function OnboardingUpsell({
 
       {/* aria-live: the price arrives after first paint, so a screen reader
           that has already read this card still hears the number land. */}
-      <p className={styles.upsellPrice} aria-live="polite">
+      <p
+        className={styles.upsellPrice}
+        id="onboarding-upsell-price"
+        aria-live="polite"
+      >
         {formatUpsellPrice(resolved)}
         {resolved && <span className={styles.upsellPer}>per month</span>}
       </p>
 
+      {/* Disabled until the price is known. A card that cannot state a price
+          must not offer to charge one: the click would reach a subscribe()
+          with no pricing, which reports failure, which the wizard reads as
+          "inline cannot work" and navigates to /checkout. The learner asked
+          to pay and got moved to another page instead.
+
+          The skip below stays enabled throughout — the free exit delivers the
+          lesson they are already enrolled in and never depends on a price. */}
       <button
         type="button"
         className={styles.cta}
         onClick={onGoPro}
-        disabled={busy}
+        disabled={busy || !resolved}
+        aria-describedby={
+          !resolved ? "onboarding-upsell-price" : undefined
+        }
       >
         Go Pro
       </button>

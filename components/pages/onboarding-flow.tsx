@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { OnboardingUpsell } from "@/components/onboarding/onboarding-upsell";
 import { useContentPurchase } from "@/hooks/use-content-purchase";
-import { useCheckoutPricing } from "@/hooks/use-pricing";
+import {
+  useRegionalPricing,
+  type CheckoutCapablePricing,
+} from "@/hooks/use-pricing";
+import { toPublicPricing } from "@/lib/pricing";
 import { useUser } from "@/hooks/use-user";
 import { useAuth } from "@/store/auth";
 import { useAppStore } from "@/lib/store";
@@ -334,11 +338,35 @@ export function OnboardingFlow() {
     user?.isPremium,
   ]);
 
-  // Upsell → checkout. withGeoOverride keeps a developer's `?__geo=NG` alive
-  // across the hop, the same way /pricing already does for its own CTAs.
-  // Only fetched once the upsell step is actually showing — this flow runs
-  // for every new learner and most never reach it.
-  const checkoutPricing = useCheckoutPricing(Boolean(upsell));
+  /**
+   * ONE pricing fetch for this step, feeding both the number on screen and
+   * the price handed to the processor.
+   *
+   * It used to be two. This component fetched its own copy for `subscribe()`
+   * while OnboardingUpsell separately fetched another for the price it
+   * displayed, which broke the invariant use-content-purchase is explicit
+   * about: the amount quoted and the price charged must come from the SAME
+   * response, or a buyer can be shown one figure and billed another.
+   *
+   * It also produced the reported bug. The card enabled "Go Pro" as soon as
+   * ITS request landed, while this one could still be in flight — and
+   * `subscribe()` returns false with no pricing, which the fallback below
+   * reads as "inline cannot work" and navigates to /checkout. The learner
+   * clicked Go Pro and got sent away instead of getting the payment sheet.
+   *
+   * Only fetched once the upsell is actually showing: this flow runs for
+   * every new learner and most never reach this step.
+   */
+  const regionalPricing = useRegionalPricing(Boolean(upsell));
+  const checkoutPricing = regionalPricing as CheckoutCapablePricing | null;
+  // The card renders a currency and an amount and nothing else, so it gets
+  // the stripped view — same object, same request.
+  // `null`, never `undefined`, while it loads: that is how the card is told
+  // "mine is coming, do not fetch your own" (see its `pricing` prop).
+  const displayPricing = useMemo(
+    () => (regionalPricing ? toPublicPricing(regionalPricing) : null),
+    [regionalPricing],
+  );
   // The purchase hook holds onto its callbacks, so read the upsell through a
   // ref rather than closing over the render that created it.
   const upsellRef = useRef(upsell);
@@ -360,15 +388,25 @@ export function OnboardingFlow() {
 
   const handleGoPro = useCallback(async () => {
     if (!upsell) return;
+    // Never act on a price we do not have yet. The card disables its own CTA
+    // until this resolves, so reaching here without it means a stray click
+    // (keyboard repeat, double-tap) — and navigating to /checkout on one is
+    // the bug this step was reported for. Doing nothing keeps the learner on
+    // the card, which is about to enable itself.
+    if (!regionalPricing) return;
     analytics.track("onboarding_upsell_go_pro", { pathTitle: upsell.pathTitle });
     // "monthly" matches the rate this step puts on screen. The paywall quotes
     // the annual-equivalent and passes "annual"; getting this wrong charges a
     // price the learner was never shown.
     if (await subscribe("monthly")) return;
+    // Inline genuinely cannot start — the tier carries no provider price ID,
+    // or the SDK refused to open. /checkout is the honest destination: it
+    // reports the same misconfiguration in terms an operator can act on
+    // (lib/checkout-readiness.ts) rather than leaving a dead button here.
     router.push(
       withGeoOverride("/checkout?plan=pro&cycle=monthly", searchParams),
     );
-  }, [upsell, router, searchParams, subscribe]);
+  }, [upsell, regionalPricing, router, searchParams, subscribe]);
 
   // Upsell → the lesson. This is the path they already enrolled in, so it
   // must always resolve to something; the dashboard is the last resort.
@@ -432,6 +470,9 @@ export function OnboardingFlow() {
             <div className={styles.stepEnter} key="upsell">
               <OnboardingUpsell
                 pathTitle={upsell.pathTitle}
+                // Passed, not left to the card's own fetch: the price shown
+                // and the price charged must come from one response.
+                pricing={displayPricing}
                 onGoPro={handleGoPro}
                 onSkip={handleUpsellSkip}
               />
