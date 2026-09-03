@@ -111,17 +111,27 @@ describe("forwardedGeoHeaders", () => {
     });
   });
 
-  // The staging failure: no country header at all. The visitor's IP is the
-  // only thing left that can identify them.
-  it("forwards the edge client IP when no country header is present", async () => {
+  /**
+   * Cloudflare rejects an inbound `cf-connecting-ip` with error 1000, and the
+   * API sits behind Cloudflare too — so the header we RECEIVE cannot be the
+   * header we SEND. Read cf-connecting-ip, send true-client-ip.
+   */
+  it("re-sends the Cloudflare client IP as true-client-ip", async () => {
     incomingHeaders.set("cf-connecting-ip", "102.89.34.71");
 
     await expect(forwardedGeoHeaders()).resolves.toEqual({
-      "cf-connecting-ip": "102.89.34.71",
+      "true-client-ip": "102.89.34.71",
     });
   });
 
-  it("forwards true-client-ip as well", async () => {
+  it("never sends cf-connecting-ip, whatever the name it arrived under", async () => {
+    incomingHeaders.set("cf-connecting-ip", "102.89.34.71");
+
+    const sent = await forwardedGeoHeaders();
+    expect(sent).not.toHaveProperty("cf-connecting-ip");
+  });
+
+  it("passes true-client-ip straight through", async () => {
     incomingHeaders.set("true-client-ip", "102.89.34.71");
 
     await expect(forwardedGeoHeaders()).resolves.toEqual({
