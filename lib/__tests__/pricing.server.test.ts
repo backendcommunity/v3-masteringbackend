@@ -1,5 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchPricing, GLOBAL_FALLBACK } from "@/lib/pricing.server";
+
+// forwardedGeoHeaders reads the inbound request through next/headers, which
+// only exists inside a server render.
+const incomingHeaders = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  headers: async () => ({ get: (k: string) => incomingHeaders.get(k) ?? null }),
+}));
+
+import {
+  fetchPricing,
+  forwardedGeoHeaders,
+  GLOBAL_FALLBACK,
+} from "@/lib/pricing.server";
 
 const ORIGINAL_ENV = process.env.NEXT_PUBLIC_API_URL;
 
@@ -76,5 +88,59 @@ describe("GLOBAL_FALLBACK", () => {
     expect(GLOBAL_FALLBACK.annual).toBe(199.99);
     expect(GLOBAL_FALLBACK.enterprise.monthlyPerUser).toBe(25);
     expect(GLOBAL_FALLBACK.enterprise.annualPerUser).toBe(250);
+  });
+});
+
+/**
+ * What crosses the server-render hop.
+ *
+ * This forwarded only the three COUNTRY headers, and staging served USD to
+ * Nigeria for real: Cloudflare knew the visitor was in NG but was not adding
+ * CF-IPCountry to the origin request, so nothing was forwarded, and the API
+ * geolocated the frontend server instead of the visitor. An unresolved country
+ * maps to the GLOBAL tier, so nothing errored — it just quoted the wrong price.
+ */
+describe("forwardedGeoHeaders", () => {
+  beforeEach(() => incomingHeaders.clear());
+
+  it("forwards the country header when the edge sends one", async () => {
+    incomingHeaders.set("cf-ipcountry", "NG");
+
+    await expect(forwardedGeoHeaders()).resolves.toEqual({
+      "cf-ipcountry": "NG",
+    });
+  });
+
+  // The staging failure: no country header at all. The visitor's IP is the
+  // only thing left that can identify them.
+  it("forwards the edge client IP when no country header is present", async () => {
+    incomingHeaders.set("cf-connecting-ip", "102.89.34.71");
+
+    await expect(forwardedGeoHeaders()).resolves.toEqual({
+      "cf-connecting-ip": "102.89.34.71",
+    });
+  });
+
+  it("forwards true-client-ip as well", async () => {
+    incomingHeaders.set("true-client-ip", "102.89.34.71");
+
+    await expect(forwardedGeoHeaders()).resolves.toEqual({
+      "true-client-ip": "102.89.34.71",
+    });
+  });
+
+  /**
+   * x-forwarded-for is deliberately NOT forwarded. It is a list a visitor can
+   * prepend to, and the country derived from it selects a pricing tier — so
+   * forwarding it would let anyone shop for the cheapest region.
+   */
+  it("never forwards x-forwarded-for", async () => {
+    incomingHeaders.set("x-forwarded-for", "102.89.34.71, 8.8.8.8");
+
+    await expect(forwardedGeoHeaders()).resolves.toEqual({});
+  });
+
+  it("sends nothing when the request carries nothing", async () => {
+    await expect(forwardedGeoHeaders()).resolves.toEqual({});
   });
 });
