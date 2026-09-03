@@ -58,12 +58,23 @@ export function AssignmentFormDialog({
   open,
   onOpenChange,
   onSaved,
+  prefill,
 }: {
   teamId: string;
   assignment: TeamAssignment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  /**
+   * Opens the CREATE flow with the name and item list already filled in, so
+   * "assign this path" can be two clicks — pick who, save — instead of
+   * building the same reference by hand in the item picker.
+   *
+   * Create only. When `assignment` is set the dialog is editing, and its
+   * real items come from getTeamAssignmentDetail; letting a prefill overwrite
+   * those would silently drop everything already on that assignment.
+   */
+  prefill?: { name?: string; items?: AssignmentItemInput[] };
 }) {
   const store = useAppStore();
 
@@ -108,7 +119,7 @@ export function AssignmentFormDialog({
   // on the plain values below.
   useEffect(() => {
     if (!open) return;
-    setName(assignment?.name ?? "");
+    setName(assignment?.name ?? prefill?.name ?? "");
     setDueAt(assignment?.dueAt ? assignment.dueAt.slice(0, 10) : "");
     setTargetType(assignment?.targetType ?? "TEAM");
     setTargetGroupId(assignment?.targetGroupId ?? null);
@@ -120,6 +131,7 @@ export function AssignmentFormDialog({
     setCreatedId(null);
   }, [
     open,
+    prefill?.name,
     assignment?.id,
     assignment?.name,
     assignment?.dueAt,
@@ -160,7 +172,10 @@ export function AssignmentFormDialog({
   useEffect(() => {
     if (!open) return;
     if (!assignment) {
-      setItems([]);
+      // Create flow. A prefill seeds the list (assigning one path is the
+      // whole reason this dialog can be opened from a path row); without one
+      // it starts empty exactly as before.
+      setItems(prefill?.items ?? []);
       setItemsLoadedFor("new");
       return;
     }
