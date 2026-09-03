@@ -520,6 +520,21 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   // too — and it has to also stop the payment SDK initialising, not merely
   // hide the button.
   const isPro = Boolean(user?.isPremium);
+  /**
+   * What this subscriber is ACTUALLY on.
+   *
+   * `isPro` is just `user.isPremium`, which is true for Enterprise too — so
+   * the already-subscribed card below used to greet an Enterprise customer,
+   * who had just paid per seat, with "You're on Pro". Wrong plan named back
+   * at a paying business on a money surface.
+   *
+   * Falls back to "your plan" rather than to "Pro": if the name is missing we
+   * do not know which plan it is, and guessing is what caused this.
+   */
+  const currentPlanName =
+    (subscription as any)?.name ??
+    (subscription as any)?.plan?.name ??
+    null;
 
   // What the buyer is ACTUALLY charged, for the plan they actually asked
   // for. Pro keeps the regional object verbatim (both intervals are valid
@@ -1331,7 +1346,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
       <div className="container max-w-4xl py-12">
         <Card>
           <CardHeader>
-            <CardTitle>You&apos;re on Pro</CardTitle>
+            <CardTitle>
+              {currentPlanName
+                ? `You're on ${currentPlanName}`
+                : "You already have a subscription"}
+            </CardTitle>
             <CardDescription>
               {subscription?.expiry
                 ? `Your subscription is already active and renews on ${fmt(subscription.expiry)}.`
