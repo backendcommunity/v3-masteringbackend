@@ -438,28 +438,60 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
    * — is put back to its Subscribe button rather than left holding a session
    * for the price the buyer just moved away from.
    */
+  /**
+   * Write what is on screen into the URL.
+   *
+   * Both parameters, every time, because the URL is what a refresh, a
+   * back/forward, and a shared link all reprice from. Caught twice in a
+   * browser: the cycle switch left `seats=2` behind after a step to five, and
+   * the stepper on its own never wrote anything at all — so a buyer who
+   * refreshed at six seats came back to two, and to a total $1,000 lower,
+   * with nothing on screen saying it had changed.
+   *
+   * `replace`, not `push`: this is the same purchase being repriced, not a
+   * page the back button should walk through one seat at a time.
+   *
+   * `quantity` is resolved further down the file, so the per-seat test here
+   * is the plan itself — Enterprise is the only one sold per seat.
+   */
+  const syncUrl = useCallback(
+    (nextCycle: string, nextSeats: number) => {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("cycle", nextCycle);
+      if (checkoutId === "enterprise") params.set("seats", String(nextSeats));
+      const next = `${pathname}?${params.toString()}`;
+      // Skip a no-op replace: this runs from an effect on every seat change,
+      // and replacing the URL with itself is a wasted render in React's
+      // router.
+      if (
+        typeof window !== "undefined" &&
+        `${window.location.pathname}${window.location.search}` === next
+      ) {
+        return;
+      }
+      router.replace(next, { scroll: false });
+    },
+    [checkoutId, pathname, router, searchParams],
+  );
+
   const changeCycle = useCallback(
     (next: string) => {
       if (next === cycle) return;
       setCycle(next);
       setIsProcessing(false);
-
-      // Keep the URL honest without adding a history entry: this is the same
-      // purchase, repriced, not a new page the back button should walk
-      // through one cycle at a time.
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("cycle", next);
-      // The LIVE seat count, not whatever `?seats=` was seeded with. Caught in
-      // the browser: switch cycle after stepping 2 -> 5 and the URL still said
-      // seats=2, so a refresh silently repriced the order back down to two
-      // seats while the buyer believed they were buying five.
-      // `quantity` is resolved further down the file, so the per-seat test
-      // here is the plan itself — Enterprise is the only one sold per seat.
-      if (checkoutId === "enterprise") params.set("seats", String(seats));
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      syncUrl(next, seats);
     },
-    [checkoutId, cycle, pathname, router, searchParams, seats],
+    [cycle, seats, syncUrl],
   );
+
+  // The stepper writes its own count through the same door. Without this the
+  // cycle switch was the ONLY thing that ever recorded a seat count, so a
+  // buyer who changed seats and nothing else refreshed back to the seeded
+  // number.
+  useEffect(() => {
+    if (checkoutId !== "enterprise") return;
+    syncUrl(cycle, seats);
+  }, [checkoutId, cycle, seats, syncUrl]);
 
   // `?plan=free` is the cancellation flow, not a purchase: it early-returns
   // to the cancellation card below and never prices or charges anything.
