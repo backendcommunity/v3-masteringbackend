@@ -52,6 +52,12 @@ export const PLAYGROUND_TOUR_EVENTS = TOUR_EVENTS;
 // funnel shares one event-name source of truth.
 export const PRICING_EVENTS = {
   viewed: "pricing_viewed",
+  // /pricing/enterprise, kept SEPARATE from `viewed` rather than folded into
+  // it with a property: the two pages answer different questions ("should I
+  // upgrade?" vs "should I buy this for my team?"), and funnels built on
+  // pricing_viewed would silently start counting team traffic the day the
+  // Enterprise page shipped.
+  enterpriseViewed: "enterprise_pricing_viewed",
   checkoutStarted: "checkout_started",
   subscribed: "subscribed",
 } as const;

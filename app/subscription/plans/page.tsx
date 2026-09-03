@@ -1,6 +1,5 @@
-import { headers } from "next/headers";
-import { fetchPricing } from "@/lib/pricing.server";
-import { toPublicPricing } from "@/app/pricing/page";
+import { fetchPricing, forwardedGeoHeaders } from "@/lib/pricing.server";
+import { toPublicPricing } from "@/lib/pricing";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { SubscriptionPlansPage } from "@/components/pages/subscription-plans";
 
@@ -12,14 +11,7 @@ import { SubscriptionPlansPage } from "@/components/pages/subscription-plans";
 export const dynamic = "force-dynamic";
 
 export default async function SubscriptionPlansPageRoute() {
-  const incoming = await headers();
-  // Forward geo headers so the API resolves the VISITOR's country, not this
-  // server's.
-  const forwarded: Record<string, string> = {};
-  for (const key of ["cf-ipcountry", "x-nf-geo", "x-vercel-ip-country"]) {
-    const value = incoming.get(key);
-    if (value) forwarded[key] = value;
-  }
+  const forwarded = await forwardedGeoHeaders();
 
   const pricing = await fetchPricing(forwarded);
 

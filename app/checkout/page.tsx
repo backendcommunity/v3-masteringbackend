@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { fetchPricing } from "@/lib/pricing.server";
+import { fetchPricing, forwardedGeoHeaders } from "@/lib/pricing.server";
 import type { CheckoutPricing, RegionalPricing } from "@/lib/pricing";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { CheckoutPage } from "@/components/pages/checkout";
@@ -39,14 +38,7 @@ export default async function CheckoutPageRoute({
   params,
   searchParams,
 }: CheckoutPageRouteProps) {
-  const incoming = await headers();
-  // Forward geo headers so the API resolves the VISITOR's country, not the
-  // server's.
-  const forwarded: Record<string, string> = {};
-  for (const key of ["cf-ipcountry", "x-nf-geo", "x-vercel-ip-country"]) {
-    const value = incoming.get(key);
-    if (value) forwarded[key] = value;
-  }
+  const forwarded = await forwardedGeoHeaders();
 
   const { __geo } = await searchParams;
   const geoOverride = typeof __geo === "string" ? __geo : undefined;

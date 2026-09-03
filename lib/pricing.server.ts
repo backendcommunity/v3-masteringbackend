@@ -5,9 +5,10 @@
 // component reaches into the browser JS bundle, so importing this from
 // components/pages/pricing.tsx (or anything it imports) would ship those
 // literals to the browser — publicly readable — even though the UI never
-// renders them. Only app/pricing/page.tsx (a server component) may import
-// from here; lib/pricing.ts holds everything client-safe (types, formatPrice,
-// monthlyEquivalent).
+// renders them. Only route server components may import from here — today
+// app/pricing/page.tsx, app/pricing/enterprise/page.tsx and
+// app/checkout/page.tsx; lib/pricing.ts holds everything client-safe (types,
+// formatPrice, monthlyEquivalent).
 //
 // Not guarded with the `server-only` package: it isn't a dependency of this
 // project (checked node_modules and yarn.lock — absent), and this repo's
@@ -15,6 +16,8 @@
 // `window` — the same signal `server-only` throws on. Adding it would also
 // break the legitimate test that imports GLOBAL_FALLBACK from this file to
 // assert its shape. This comment is the guard; enforce it at review time.
+
+import { headers } from "next/headers";
 
 import type { EnterprisePricing, RegionalPricing } from "@/lib/pricing";
 
@@ -109,6 +112,27 @@ function normalizeEnterprise(value: unknown): EnterprisePricing {
  * in src/extensions/payment/pricing/resolve-country.ts) — this file has no
  * gating to do and must not attempt to duplicate that decision.
  */
+/**
+ * The visitor's geo headers, ready to hand to fetchPricing.
+ *
+ * Every page that prices a region has to forward these: without them the API
+ * resolves the country of the Netlify function that called it, not the
+ * person reading the page, and a Lagos visitor is quoted the global price.
+ * Three routes need it (/pricing, /pricing/enterprise, /checkout), and the
+ * failure mode of a route that forgets one header is silent — the wrong
+ * price simply renders — so the list of headers lives here once rather than
+ * in three hand-copied loops.
+ */
+export async function forwardedGeoHeaders(): Promise<Record<string, string>> {
+  const incoming = await headers();
+  const forwarded: Record<string, string> = {};
+  for (const key of ["cf-ipcountry", "x-nf-geo", "x-vercel-ip-country"]) {
+    const value = incoming.get(key);
+    if (value) forwarded[key] = value;
+  }
+  return forwarded;
+}
+
 export async function fetchPricing(
   headers?: Record<string, string>,
   geoOverride?: string,

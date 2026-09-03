@@ -132,6 +132,10 @@ export const routes = {
     `/checkout?type=${type}&plan=${planId}&cycle=${cycle}`,
   pricing: (redirect?: string) =>
     redirect ? `/pricing?redirect=${encodeURIComponent(redirect)}` : "/pricing",
+  // The team plan's own page. Takes no redirect: nothing bounces a learner
+  // here mid-flow the way the upsell does — a manager arrives deliberately,
+  // from the Enterprise card, an ad, or search.
+  pricingEnterprise: "/pricing/enterprise",
 
   // Levels
   levels: "/levels",
