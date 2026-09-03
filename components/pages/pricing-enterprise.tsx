@@ -833,7 +833,11 @@ The same product, bought for a team.
 
       {/* ── Closing CTA ── same two actions as the hero. A manager who read
           the whole page should not have to scroll back up to act. */}
-      <section className="bg-[#0a1728] px-4 py-16 text-center text-white sm:py-20">
+      {/* #0A1726 is the sanctioned darker navy (DESIGN_SYSTEM.md colour table,
+          the completion-strip tone). This closing band had shipped as
+          #0a1728 — a fourth navy nobody declared, which is the same drift the
+          system doc records reconciling on three other pages. */}
+      <section className="bg-[#0A1726] px-4 py-16 text-center text-white sm:py-20">
         <div className="mx-auto max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Ready to price it for your team?
