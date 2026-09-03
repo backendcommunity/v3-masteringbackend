@@ -1153,14 +1153,18 @@ export function NavigationBar({
                   </>
                 ) : (
                   <>
-                    {/* Routes to /pricing rather than straight to
-                        /checkout?plan=enterprise: Enterprise is self-serve
-                        in some regions and sales-led in others, and the
-                        pricing page is the one place that already makes
-                        that call. Deciding it a second time here is how the
-                        two copies drift apart. */}
+                    {/* Routes to the Enterprise page rather than straight to
+                        /checkout?plan=enterprise: Enterprise is self-serve in
+                        some regions and sales-led in others, and that page is
+                        the one place that already makes the call. Deciding it
+                        a second time here is how the two copies drift apart.
+
+                        It used to point at /pricing, which sells a SEAT. A
+                        person clicking "Create Team" has already decided they
+                        are buying for a team; landing them on the individual
+                        upsell made them find the team plan for themselves. */}
                     <DropdownMenuItem
-                      onClick={() => onNavigate(routes.pricing(routes.team))}
+                      onClick={() => onNavigate(routes.pricingEnterprise)}
                     >
                       <Users className="mr-2 h-4 w-4" />
                       <span>Create Team</span>

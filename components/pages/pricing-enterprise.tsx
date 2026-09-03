@@ -295,10 +295,17 @@ export default function PricingEnterpriseView({
 
       {/* ── Hero ── the decision, above the fold: what it is, and what it
           costs for THIS team. Everything below is evidence for it. */}
-      <section className="bg-[#0e1f33] px-4 pt-16 text-white">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 pb-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
+      <section className="relative overflow-hidden bg-[#0E1F33] px-4 pt-16 text-white">
+        {/* The blueprint grid, same as every other navy hero in the product
+            (team hub, portfolio, leaderboard, announcement banner).
+            DESIGN_SYSTEM.md principle 2: the grid lives inside navy heroes
+            only, "where the brand speaks" — and this is the first navy a
+            company ever sees. It shipped flat, which quietly made the page
+            look like it belonged to a different product. */}
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 pb-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
           <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-[#4AC5E8]">
               MasteringBackend for teams
             </p>
             <h1 className="mt-3.5 max-w-2xl text-balance text-[1.75rem] font-black leading-[1.12] tracking-tight sm:text-3xl lg:text-[2.25rem]">
@@ -393,8 +400,12 @@ export default function PricingEnterpriseView({
                     type="button"
                     aria-pressed={cycle === value}
                     onClick={() => setCycle(value)}
+                    // min-h-[44px]: the touch minimum. This and the stepper
+                    // below are the two controls the page exists for, and both
+                    // shipped at 32-36px — under the thumb on the phone where
+                    // most of this traffic lands.
                     className={cn(
-                      "rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors",
+                      "min-h-[44px] rounded-lg px-4 text-[13px] font-bold transition-colors",
                       cycle === value
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -421,7 +432,7 @@ export default function PricingEnterpriseView({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-11 w-11"
                   disabled={seats <= enterprise.minSeats}
                   onClick={() => setSeats(clampSeats(seats - 1, enterprise))}
                   aria-label="Remove a seat"
@@ -441,13 +452,13 @@ export default function PricingEnterpriseView({
                       ),
                     )
                   }
-                  className="h-9 w-[72px] rounded-md border border-border bg-background text-center font-mono text-[15px] font-bold tabular-nums text-foreground"
+                  className="h-11 w-[72px] rounded-md border border-border bg-background text-center font-mono text-[15px] font-bold tabular-nums text-foreground"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-11 w-11"
                   onClick={() => setSeats(clampSeats(seats + 1, enterprise))}
                   aria-label="Add a seat"
                 >
@@ -531,7 +542,9 @@ export default function PricingEnterpriseView({
           </div>
         </div>
 
-        <TrustedByBand />
+        <div className="relative">
+          <TrustedByBand />
+        </div>
       </section>
 
       {/* ── Why teams buy it ── the missing half of the old page: it opened
@@ -544,7 +557,7 @@ export default function PricingEnterpriseView({
       <section className="px-4 pt-16 sm:pt-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Why teams buy it
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -588,7 +601,7 @@ Three problems this plan solves.
       <section className="px-4 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Everything in Pro, plus
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -627,7 +640,7 @@ Three problems this plan solves.
       <section className="px-4 pb-16 sm:pb-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Rolling it out
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -660,7 +673,7 @@ Three steps to get your team started.
       <section className="px-4 pb-16 sm:pb-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="eyebrow-mono text-primary">
               Pro vs Enterprise
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -824,7 +837,11 @@ The same product, bought for a team.
 
       {/* ── Closing CTA ── same two actions as the hero. A manager who read
           the whole page should not have to scroll back up to act. */}
-      <section className="bg-[#0a1728] px-4 py-16 text-center text-white sm:py-20">
+      {/* #0A1726 is the sanctioned darker navy (DESIGN_SYSTEM.md colour table,
+          the completion-strip tone). This closing band had shipped as
+          #0a1728 — a fourth navy nobody declared, which is the same drift the
+          system doc records reconciling on three other pages. */}
+      <section className="bg-[#0A1726] px-4 py-16 text-center text-white sm:py-20">
         <div className="mx-auto max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Ready to price it for your team?

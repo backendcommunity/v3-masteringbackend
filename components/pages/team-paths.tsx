@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Archive, ListOrdered, Map, Pencil, Plus } from "lucide-react";
+import {
+  Archive,
+  ListOrdered,
+  Map,
+  Pencil,
+  Plus,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -14,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyStateCard } from "@/components/empty-state-card";
 import { PathFormDialog } from "@/components/team/path-form-dialog";
 import { PathSectionEditor } from "@/components/team/path-section-editor";
+import { AssignmentFormDialog } from "@/components/team/assignment-form-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,6 +119,21 @@ export function TeamPathsPage() {
   // value there — it is the CREATE case, not "nothing open".
   const [formOpen, setFormOpen] = useState(false);
   const [formPath, setFormPath] = useState<TeamPath | null>(null);
+  /**
+   * The path being assigned, if any.
+   *
+   * Assigning already worked before this: an assignment can target the whole
+   * team, one group or one member, and PATH is one of the item types it can
+   * hold. What was missing was the way in. A manager who had just built a
+   * path had to leave this page, open Assignments, create one from scratch
+   * and find the same path again in a picker — so the feature Enterprise is
+   * sold on sat two screens away from where it is decided.
+   *
+   * This opens the SAME dialog Assignments uses, prefilled with this path.
+   * No new endpoint, no second way to create an assignment, nothing for the
+   * two screens to disagree about.
+   */
+  const [assigning, setAssigning] = useState<TeamPath | null>(null);
   const [archiving, setArchiving] = useState<TeamPath | null>(null);
   const [archivePending, setArchivePending] = useState(false);
 
@@ -247,6 +270,14 @@ export function TeamPathsPage() {
                       Edit sections
                     </Button>
                     <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAssigning(path)}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Assign
+                    </Button>
+                    <Button
                       size="icon"
                       variant="ghost"
                       aria-label={`Rename ${path.title}`}
@@ -288,6 +319,36 @@ export function TeamPathsPage() {
           path={formPath}
           onSaved={() => loadPaths(team.id)}
           onClose={() => setFormOpen(false)}
+        />
+      )}
+
+      {/* Assigning a path. The dialog is Assignments' own — same fields, same
+          POST /:id/assignments, same target picker (everyone / a group / one
+          person) — opened with this path already in the item list and its
+          title as the default assignment name. The common case is therefore
+          two clicks: choose who, save. */}
+      {team && assigning && (
+        <AssignmentFormDialog
+          teamId={team.id}
+          assignment={null}
+          open
+          onOpenChange={(open) => {
+            if (!open) setAssigning(null);
+          }}
+          onSaved={() => {
+            setAssigning(null);
+            toast.success(`"${assigning.title}" assigned.`);
+          }}
+          prefill={{
+            name: assigning.title,
+            // `title` is client-side only (see AssignmentItemInput): it is
+            // stripped before the save call and exists so the item builder
+            // shows "Backend Engineering" rather than "Path · <uuid>" while
+            // the manager is choosing who to assign it to.
+            items: [
+              { type: "PATH", refId: assigning.id, title: assigning.title },
+            ],
+          }}
         />
       )}
 

@@ -411,6 +411,8 @@ interface AppState {
     payload: { email: string; buySeat?: boolean },
   ) => Promise<TeamInvite>;
   removeTeamMember: (teamId: string, memberId: string) => any;
+  /** Cancels a pending invite and releases the seat it was holding. */
+  revokeTeamInvite: (teamId: string, inviteId: string) => any;
   changeTeamMemberRole: (
     teamId: string,
     memberId: string,
@@ -1715,6 +1717,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   removeTeamMember: async (teamId: string, memberId: string) => {
     const { data } = await api.delete(`/teams/${teamId}/members/${memberId}`);
+    return data;
+  },
+  revokeTeamInvite: async (teamId: string, inviteId: string) => {
+    const { data } = await api.delete(`/teams/${teamId}/invites/${inviteId}`);
     return data;
   },
   changeTeamMemberRole: async (

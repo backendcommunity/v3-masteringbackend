@@ -424,6 +424,22 @@ export interface TeamSeatUsage {
 export interface TeamRoster {
   members: TeamMember[];
   usage?: TeamSeatUsage;
+  /**
+   * Invites sent and not yet accepted. OWNER/ADMIN only, same visibility rule
+   * as `usage` — and for the same reason they belong together: a pending
+   * invite is counted in `usage.used`, so a roster showing the seat figure
+   * without the invites holding those seats cannot be reconciled by the
+   * person reading it.
+   */
+  invites?: TeamPendingInvite[];
+}
+
+/** One unaccepted invite, as the roster reports it. */
+export interface TeamPendingInvite {
+  id: string;
+  email: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 /** The Team Hub landing figures. OWNER/ADMIN only. */

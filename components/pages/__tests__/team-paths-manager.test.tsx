@@ -23,6 +23,10 @@ const mockSearchAssignable = vi.fn();
 const mockCreateTeamPath = vi.fn();
 const mockUpdateTeamPath = vi.fn();
 const mockArchiveTeamPath = vi.fn();
+const mockGetTeamGroups = vi.fn();
+const mockGetTeamMembers = vi.fn();
+const mockCreateTeamAssignment = vi.fn();
+const mockSetTeamAssignmentItems = vi.fn();
 
 vi.mock("@/lib/store", () => ({
   useAppStore: () => ({
@@ -35,6 +39,10 @@ vi.mock("@/lib/store", () => ({
     createTeamPath: mockCreateTeamPath,
     updateTeamPath: mockUpdateTeamPath,
     archiveTeamPath: mockArchiveTeamPath,
+    getTeamGroups: mockGetTeamGroups,
+    getTeamMembers: mockGetTeamMembers,
+    createTeamAssignment: mockCreateTeamAssignment,
+    setTeamAssignmentItems: mockSetTeamAssignmentItems,
   }),
 }));
 
@@ -75,6 +83,12 @@ beforeEach(() => {
   mockCreateTeamPath.mockResolvedValue({ id: "p9", title: "New", slug: "new" });
   mockUpdateTeamPath.mockResolvedValue({ id: "p1", title: "Renamed" });
   mockArchiveTeamPath.mockResolvedValue(undefined);
+  mockGetTeamGroups.mockResolvedValue([{ id: "g1", name: "Backend squad" }]);
+  mockGetTeamMembers.mockResolvedValue({
+    members: [{ id: "m1", userId: "u1", name: "Ada", role: "MEMBER" }],
+  });
+  mockCreateTeamAssignment.mockResolvedValue({ id: "a1" });
+  mockSetTeamAssignmentItems.mockResolvedValue(undefined);
 });
 
 describe("the manager's half of the team-paths screen", () => {
@@ -205,5 +219,72 @@ describe("the manager's half of the team-paths screen", () => {
     // that worked.
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(mockGetTeamPaths).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * ── Assigning a path ────────────────────────────────────────────────────
+   *
+   * Everything underneath this already existed: assignments target the whole
+   * team, a group or one member, and PATH is one of the item types they can
+   * hold. What did not exist was the way in — a manager who had just built a
+   * path had to go to Assignments and rebuild the reference by hand.
+   */
+  describe("assigning a path", () => {
+    it("gives a manager an Assign action on every path", async () => {
+      mockGetMyTeams.mockResolvedValue([team("ADMIN")]);
+      render(<TeamPathsPage />);
+      // A manager sees the title twice — once on the member card, once on the
+      // manage row — so this waits on the manager-only heading.
+      await screen.findByText("Manage paths");
+
+      expect(
+        screen.getByRole("button", { name: /^assign$/i }),
+      ).toBeInTheDocument();
+    });
+
+    // Same rule the rest of this file holds: a plain member gets no
+    // authoring affordance at all.
+    it("offers it to nobody who cannot manage the team", async () => {
+      mockGetMyTeams.mockResolvedValue([team("MEMBER")]);
+      render(<TeamPathsPage />);
+      await screen.findByText("Backend Fundamentals");
+
+      expect(
+        screen.queryByRole("button", { name: /^assign$/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("opens the assignment dialog prefilled with the path", async () => {
+      mockGetMyTeams.mockResolvedValue([team("OWNER")]);
+      render(<TeamPathsPage />);
+      await screen.findByText("Manage paths");
+
+      fireEvent.click(screen.getByRole("button", { name: /^assign$/i }));
+
+      const dialog = await screen.findByRole("dialog");
+      // The path's own title is the default assignment name, so the common
+      // case is: choose who, save.
+      expect(within(dialog).getByLabelText(/name/i)).toHaveValue(
+        "Backend Fundamentals",
+      );
+      // And it is already in the item list rather than needing to be found
+      // again in a picker.
+      expect(
+        within(dialog).getAllByText(/backend fundamentals/i).length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("offers everyone, a group, or one person as the audience", async () => {
+      mockGetMyTeams.mockResolvedValue([team("OWNER")]);
+      render(<TeamPathsPage />);
+      await screen.findByText("Manage paths");
+
+      fireEvent.click(screen.getByRole("button", { name: /^assign$/i }));
+      const dialog = await screen.findByRole("dialog");
+
+      await waitFor(() =>
+        expect(within(dialog).getAllByRole("radio")).toHaveLength(3),
+      );
+    });
   });
 });
