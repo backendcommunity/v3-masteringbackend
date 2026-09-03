@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Check, Crown, X } from "lucide-react";
+import { Check, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -18,7 +18,15 @@ import { routes } from "@/lib/routes";
 import { DowngradeButton } from "@/components/pricing/downgrade-button";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
-import { sanitizeRedirect } from "@/lib/safe-redirect";
+import { MarketingHeader } from "@/components/pricing/marketing-header";
+import { TrustedByBand } from "@/components/pricing/trusted-by-band";
+import {
+  CompareMark,
+  FeatureBadge,
+  type CompareCell,
+} from "@/components/pricing/compare";
+import { COMING_SOON } from "@/lib/plan-features";
+import { SALES_CONTACT_HREF } from "@/lib/sales-contact";
 import { withGeoOverride } from "@/lib/geo-override";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 import {
@@ -171,64 +179,10 @@ const ENTERPRISE_FEATURES: string[] = [
  */
 
 /**
- * Announced, sold, and NOT YET BUILT. Nothing in this set exists in the
- * codebase — no route, no model, no module — so every surface that names one
- * must say so rather than let a buyer assume it ships today.
- *
- * Remove a label from this set the moment the feature lands; leaving it here
- * understates a real capability, which is its own kind of wrong.
+ * The COMING_SOON set this page reads lives in lib/plan-features.ts, not
+ * here: /pricing/enterprise names the same features, and a second copy is
+ * how a feature ends up chipped on one page and sold as shipped on the next.
  */
-const COMING_SOON = new Set<string>([
-  "Hiring services",
-  "Ship live backend products",
-  "Co-branded landing page",
-]);
-
-/**
- * Status chip shown beside a feature label.
- *
- * Deliberately quiet — muted and outlined. This is a caveat, not a selling
- * point, and a loud chip on three rows would pull the eye away from what the
- * tier actually delivers today.
- *
- * Inline text rather than an icon, so it survives a screen reader and a
- * monochrome print with no extra markup.
- *
- * There was briefly a second "New" variant here, chipping the two features
- * that moved from Enterprise into Pro. It is gone by request along with the
- * banner that announced them — the tier change itself stands, and the table
- * simply shows bootcamps and certification exams marked for Pro like any
- * other included feature, with nothing calling attention to when that
- * started.
- */
-function FeatureBadge() {
-  return (
-    <span className="ml-2 inline-block whitespace-nowrap rounded border border-border px-1.5 py-0.5 align-middle font-mono text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-      Coming soon
-    </span>
-  );
-}
-
-// Learners work at these companies — see the trusted-by band below the
-// "Compare features" anchor. Same list as the marketing site's
-// ALUMNI_COMPANIES (app/page.tsx in the landing-page repo); kept as a plain
-// name list here since this page renders them as text wordmarks, not logos.
-const TRUSTED_BY_COMPANIES: string[] = [
-  "Kuda",
-  "Paystack",
-  "Cowrywise",
-  "Flutterwave",
-  "Andela",
-  "Amazon",
-  "Google",
-  "Meta",
-  "Netflix",
-  "Shopify",
-  "Stripe",
-  "Uber",
-];
-
-type CompareCell = "yes" | "no" | string;
 
 const COMPARE_GROUPS: {
   name: string;
@@ -513,23 +467,6 @@ function tablePriceLine(
 }
 
 /**
- * Where a team goes when they cannot buy per-seat online.
- *
- * There is no contact/support route in lib/routes.ts (checked — the routes
- * table has dashboard, courses, billing, subscription, XP store and auth, and
- * nothing sales- or contact-shaped), and no /contact page exists under app/.
- * So this is a mailto to the address the site already publishes as its own
- * (lib/seo.ts's organization email) rather than an invented route that would
- * 404. Replace with a real route the moment one exists.
- *
- * The subject line is pre-filled so the reply lands with context instead of
- * an empty "Enterprise" thread.
- */
-const SALES_CONTACT_HREF = `mailto:hi@masteringbackend.com?subject=${encodeURIComponent(
-  "Enterprise plan — team pricing",
-)}`;
-
-/**
  * Enterprise's line in the comparison-table header. Must read the same as the
  * card's price block, because a buyer who scrolls from one to the other and
  * sees two different numbers stops trusting both — hence the shared
@@ -542,37 +479,6 @@ function enterpriseTablePriceLine(
   return `${enterprisePerUserMonthlyDisplay(enterprise, cycle)} per user /month${
     cycle === "annual" ? " billed annually" : ""
   }`;
-}
-
-// role="img" alongside the aria-label is load-bearing, not belt-and-braces:
-// a bare aria-label on an <svg> is not reliably announced, because an SVG's
-// default role is generic in several engines and a generic element's label is
-// ignored. Without it, an assistive-technology user scanning this table hears
-// the row label and then silence in all three plan columns — the entire
-// comparison, conveyed by colour and glyph shape alone.
-function CompareMark({ value }: { value: CompareCell }) {
-  if (value === "yes") {
-    return (
-      <Check
-        className="mx-auto h-5 w-5 text-primary"
-        strokeWidth={3}
-        role="img"
-        aria-label="Included"
-      />
-    );
-  }
-  if (value === "no") {
-    return (
-      <X
-        className="mx-auto h-5 w-5 text-muted-foreground/40"
-        role="img"
-        aria-label="Not included"
-      />
-    );
-  }
-  return (
-    <span className="text-sm font-medium text-muted-foreground">{value}</span>
-  );
 }
 
 /**
@@ -645,17 +551,6 @@ export default function PricingView({ pricing }: PricingViewProps) {
   const [avatarPhotoFailed, setAvatarPhotoFailed] = useState(false);
   const user = useUser();
   const searchParams = useSearchParams();
-  const fromOnboarding = searchParams?.get("from") === "onboarding";
-  // Onboarding forwards its own `redirect` (the learner's just-enrolled
-  // lesson, or an OAuth existing-user / deep-link destination — see
-  // onboarding-flow.tsx and dashboard-layout.tsx) through the upsell so
-  // skipping doesn't erase it.
-  //
-  // MUST stay sanitised: this value is rendered as an <a href>, not passed to
-  // router.push, so `?redirect=javascript:alert(1)` would be a
-  // script-executing link. sanitizeRedirect accepts same-origin relative
-  // paths only and falls back to the dashboard for everything else.
-  const freePlanHref = sanitizeRedirect(searchParams?.get("redirect"));
 
   useEffect(() => {
     analytics.track(PRICING_EVENTS.viewed, {
@@ -752,50 +647,7 @@ export default function PricingView({ pricing }: PricingViewProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal standalone header — this page must work for logged-out visitors */}
-      <header className="sticky top-0 z-30 h-14 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link href={routes.dashboard} className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0E1F33]">
-              <Image
-                src="/main-logo.png"
-                alt="Mastering Backend"
-                width={36}
-                height={36}
-                className="h-full w-full object-cover"
-              />
-            </span>
-            <span className="hidden text-sm font-bold tracking-tight sm:inline">
-              MasteringBackend
-            </span>
-          </Link>
-          {user ? (
-            fromOnboarding ? (
-              // Sticky header keeps this reachable without scrolling on any
-              // viewport, including a 667px-tall mobile screen — the free
-              // tier is one tap away, this is a nudge, not a wall. Outline
-              // (not ghost) so it reads as a deliberate choice, not ambient
-              // chrome, at a glance.
-              <Button size="sm" variant="outline" asChild>
-                <Link href={freePlanHref}>Continue with the free plan</Link>
-              </Button>
-            ) : (
-              <Button size="sm" asChild>
-                <Link href={routes.dashboard}>Go to dashboard</Link>
-              </Button>
-            )
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/auth/login">Log in</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/auth/register">Get started</Link>
-              </Button>
-            </div>
-          )}
-        </div>
-      </header>
+      <MarketingHeader />
 
       {/* ── Hero ── */}
       <section className="bg-[#0e1f33] px-4 pb-0 pt-20 text-center text-white">
@@ -1148,6 +1000,17 @@ export default function PricingView({ pricing }: PricingViewProps) {
               heading="Everything in Pro, plus:"
               features={ENTERPRISE_FEATURES}
             />
+
+            {/* The card is a summary by design (five lines, capped). A buyer
+                deciding for a TEAM needs the seat maths, the rollout, and the
+                rest of the inventory — that is a page, not a card, so this
+                points at it rather than growing the card a seventh time. */}
+            <Link
+              href={routes.pricingEnterprise}
+              className="mt-4 block text-sm font-semibold text-primary hover:underline"
+            >
+              See everything teams get&nbsp;→
+            </Link>
           </div>
         </div>
 
@@ -1159,33 +1022,10 @@ export default function PricingView({ pricing }: PricingViewProps) {
         </a>
 
         {/* ── Trusted-by band ── closing part of the dark hero/cards block,
-            same as the reference — not a light-ground element.
-            "Our learners work at" — not "trusted by", which would claim a
-            customer relationship with these companies. What's true is
-            narrower: this is where people who learned here are employed,
-            same framing the marketing site uses for this exact company
-            list (see app/page.tsx's ALUMNI_COMPANIES in the landing-page
-            repo). Two-column layout after the DataCamp reference: heading
-            large and bold on the left, a 4-per-row grid of large white
-            wordmarks on the right (no logo assets exist for these
-            companies, so type size/weight carries the presence a real
-            logo would). White (not white/opacity) because this band sits
-            on the hero's fixed dark navy regardless of site theme. */}
-        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-6 px-4 pb-16 sm:grid-cols-[minmax(0,280px)_1fr] sm:items-center sm:gap-10">
-          <h2 className="text-2xl font-bold leading-[1.2] text-white sm:text-3xl">
-            Our learners work at
-          </h2>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-            {TRUSTED_BY_COMPANIES.map((name) => (
-              <span
-                key={name}
-                className="text-xl font-semibold tracking-tight text-white"
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
+            shared verbatim with /pricing/enterprise (see
+            components/pricing/trusted-by-band.tsx for the wording and the
+            fixed-navy colour reasoning). */}
+        <TrustedByBand />
 
         {/* ── Testimonial ── real quote pulled verbatim from the login
             screen (components/auth/auth-shell.tsx). Redesigned side-by-side

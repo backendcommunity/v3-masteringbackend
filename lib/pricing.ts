@@ -69,8 +69,8 @@ export interface EnterprisePricing {
 // Next.js serializes every prop passed to a client component into the RSC
 // payload embedded in the raw HTML response, so a full RegionalPricing prop
 // would put "PADDLE"/"ASYNCPAY" in the response even though nothing renders
-// it. app/pricing/page.tsx strips those fields (see toPublicPricing) before
-// PricingView ever sees them.
+// it. toPublicPricing below strips those fields before PricingView — or the
+// Enterprise page's view — ever sees them.
 export type PublicPricing = Omit<
   RegionalPricing,
   "provider" | "monthlyPriceId" | "annualPriceId" | "enterprise"
@@ -81,8 +81,8 @@ export type PublicPricing = Omit<
  * Omit — `Omit<RegionalPricing, "provider">` does not reach inside
  * `enterprise`, so without this the processor name and Enterprise's price IDs
  * would have gone straight into the RSC payload the moment Enterprise pricing
- * started arriving from the API. app/pricing/page.tsx's toPublicPricing does
- * the actual stripping; lib/__tests__/pricing-page-props.test.ts pins it.
+ * started arriving from the API. toPublicPricing below does the actual
+ * stripping; lib/__tests__/pricing-page-props.test.ts pins it.
  */
 export type PublicEnterprisePricing = Omit<
   EnterprisePricing,
@@ -95,6 +95,46 @@ export type PublicEnterprisePricing = Omit<
 // one app/checkout/page.tsx strips (see toCheckoutPricing) before handing
 // pricing to the client component.
 export type CheckoutPricing = Omit<RegionalPricing, "tier">;
+
+/**
+ * Strips the payment processor's identity and price IDs before the pricing
+ * object crosses into the client component — Next.js embeds every
+ * client-component prop into the page's RSC payload, so passing the full
+ * RegionalPricing would put "PADDLE"/"ASYNCPAY" in the raw HTML response
+ * even though the UI never renders it.
+ *
+ * Lives here, not in app/pricing/page.tsx where it started: /pricing and
+ * /pricing/enterprise both render one region's Enterprise pricing, and a
+ * second page importing a route module to reuse this would have dragged
+ * PricingView's whole client boundary along with it.
+ *
+ * Exported (not inlined) so a test can pin this: feed it a full
+ * RegionalPricing and assert the processor fields are gone. If someone later
+ * widens PricingView's prop back to RegionalPricing and starts passing the
+ * raw object through, this function — and its test — are what would need to
+ * change first, making the leak a deliberate edit instead of a silent one.
+ */
+export function toPublicPricing(pricing: RegionalPricing): PublicPricing {
+  const {
+    provider: _provider,
+    monthlyPriceId: _m,
+    annualPriceId: _a,
+    enterprise,
+    ...publicPricing
+  } = pricing;
+  // Enterprise carries its OWN processor identity and price IDs, and a
+  // top-level destructure does not reach inside a nested object — so without
+  // this second strip, "PADDLE" and the Enterprise price IDs would ride into
+  // the RSC payload untouched while the top-level strip looked like it was
+  // doing its job. Same three fields, same reason.
+  const {
+    provider: _eProvider,
+    monthlyPriceId: _em,
+    annualPriceId: _ea,
+    ...publicEnterprise
+  } = enterprise;
+  return { ...publicPricing, enterprise: publicEnterprise };
+}
 
 /**
  * ── Enterprise seat maths ──────────────────────────────────────────────
