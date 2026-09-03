@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import {
   ArrowLeft,
@@ -47,7 +47,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import {
   clampSeats,
@@ -62,6 +62,7 @@ import {
   CHECKOUT_UNAVAILABLE_MESSAGE,
 } from "@/lib/checkout-readiness";
 import { resolveCheckoutPrice } from "@/lib/checkout-plan-pricing";
+import { nextFrameAction } from "@/lib/checkout-frame";
 import { analytics } from "@/lib/analytics";
 import { PRICING_EVENTS } from "@/lib/analytics-events";
 
@@ -95,6 +96,16 @@ const CELEBRATION_HOLD_MS = 2200;
  * worse than a couple of extra seconds of skeleton.
  */
 const CHECKOUT_FRAME_STALL_MS = 12000;
+/**
+ * How long the seat stepper must be still before the new quantity is pushed
+ * to the open Paddle frame.
+ *
+ * Every push re-renders the frame, so syncing on each click of a held-down
+ * stepper would make the payment form flicker its way from 2 seats to 20.
+ * Short enough that nobody can reach the card fields before the total they
+ * are about to pay matches the total on the page.
+ */
+const QUANTITY_SYNC_DEBOUNCE_MS = 300;
 
 /**
  * Where a buyer goes when checkout itself is unavailable and they want a
@@ -131,10 +142,18 @@ export function SeatSelector({
   seats,
   setSeats,
   minSeats,
+  /**
+   * Frozen while Paddle is taking payment. Paddle refuses item changes on a
+   * transaction in flight and refuses them silently, so a stepper that still
+   * moved during that window would put the summary and the amount actually
+   * charged back out of step — the exact defect the live sync exists to fix.
+   */
+  disabled = false,
 }: {
   seats: number;
   setSeats: (n: number) => void;
   minSeats: number;
+  disabled?: boolean;
 }) {
   // A typed/pasted value >= ENTERPRISE_SEAT_CONFIRM_THRESHOLD sits here,
   // unapplied, until the buyer confirms it. Null the rest of the time.
@@ -187,7 +206,7 @@ export function SeatSelector({
           size="icon"
           className="h-9 w-9 flex-none"
           onClick={() => step(-1)}
-          disabled={seats <= minSeats}
+          disabled={disabled || seats <= minSeats}
           aria-label="Remove a seat"
         >
           <Minus className="h-4 w-4" />
@@ -202,6 +221,7 @@ export function SeatSelector({
           // Re-commit on blur so a half-typed value ("" or "1") cannot be
           // left sitting in the field looking like an accepted team size.
           onBlur={(e) => commitTyped(e.target.value)}
+          disabled={disabled}
           className="h-9 w-20 rounded-md border border-input bg-background px-3 text-center font-mono text-sm font-semibold text-foreground [appearance:textfield] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-describedby="enterprise-seats-hint"
         />
@@ -211,6 +231,7 @@ export function SeatSelector({
           size="icon"
           className="h-9 w-9 flex-none"
           onClick={() => step(1)}
+          disabled={disabled}
           aria-label="Add a seat"
         >
           <Plus className="h-4 w-4" />
@@ -219,7 +240,9 @@ export function SeatSelector({
           id="enterprise-seats-hint"
           className="text-xs text-muted-foreground"
         >
-          users (min {minSeats})
+          {disabled
+            ? "locked while your payment goes through"
+            : `users (min ${minSeats})`}
         </span>
       </div>
       {pendingSeats !== null && (
@@ -275,6 +298,7 @@ interface CheckoutPageProps {
 export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const store = useAppStore();
   const user = useUser();
   const fmt = (date?: string | Date | null): string =>
@@ -298,7 +322,46 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   const [frameStalled, setFrameStalled] = useState(false);
   // Which priceId we have already handed to Paddle, so a re-render cannot
   // open a second frame over the first.
-  const openedForRef = useRef<string | null>(null);
+  /**
+   * What the Paddle frame is currently showing: which price, and how many
+   * seats of it.
+   *
+   * This used to be the price id alone, and that was a mischarge waiting to
+   * happen. `priceId` does not change when the buyer changes the seat count —
+   * only `quantity` does — so once the frame was open, the stepper updated
+   * our order summary and never told Paddle. The page could read "8 users x
+   * $25.00 = $200.00" while the frame the buyer was about to pay in was still
+   * priced for 2 seats.
+   *
+   * Holding both is what lets the effect below tell the three cases apart:
+   * nothing open (open it), a different price (reopen), same price and a new
+   * quantity (update it in place, no reopen, no lost card entry).
+   */
+  const openedForRef = useRef<{ priceId: string; quantity: number } | null>(
+    null,
+  );
+  const quantitySyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  /**
+   * The seat count a pending debounce is already going to push.
+   *
+   * Without this the effect cleared and re-armed the timer on EVERY run, and
+   * this effect runs on more than a seat change — a re-render that changes
+   * `paddle`, `frameEl` or `paymentInFlight` re-enters it too. A component
+   * that re-renders faster than the debounce window would therefore reset the
+   * timer forever and never push anything, which is the original bug wearing
+   * a different hat. Re-arm only when the TARGET moves.
+   */
+  const pendingQuantityRef = useRef<number | null>(null);
+  /**
+   * True from the moment Paddle starts taking payment until it succeeds,
+   * fails, or the buyer closes the frame. Paddle rejects item changes on a
+   * transaction that is already being processed, and a rejected change is
+   * silent — so the seat control is frozen for that window rather than
+   * allowed to desync the two totals again.
+   */
+  const [paymentInFlight, setPaymentInFlight] = useState(false);
   const frameStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameLoadedRef = useRef(false);
   const [celebration, setCelebration] = useState(false);
@@ -336,7 +399,22 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
 
   // Extract checkout type and ID from the URL
   const checkoutId = searchParams?.get("plan") ?? "pro";
-  const cycle = searchParams?.get("cycle") ?? "monthly";
+
+  /**
+   * ── Billing cycle: state, not just a URL parameter ────────────────────
+   *
+   * It used to be read straight off the URL, which meant the only way to
+   * change it was to go back to pricing and start again. A team buyer
+   * weighing a monthly cost against an annual commitment had to leave the
+   * page they were about to pay on, and some of them did not come back.
+   *
+   * Seeded from `?cycle=` so a link, a refresh and a back-nav all land on
+   * the cycle they named, and written back on every switch (below) so the
+   * URL keeps telling the truth about what is being bought.
+   */
+  const [cycle, setCycle] = useState<string>(
+    () => searchParams?.get("cycle") ?? "monthly",
+  );
   // Per-seat plans only. Used ONLY to seed the initial seat count below —
   // resolveCheckoutPrice validates the LIVE `seats` state on every render
   // (via resolveSeats), so there is still exactly one gate deciding whether
@@ -353,6 +431,36 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
       resolveSeats(seatsParam, pricing.enterprise) ??
       pricing.enterprise.minSeats,
   );
+  /**
+   * Switching cycle swaps the PRICE, which is a different product: the open
+   * Paddle frame is reopened rather than amended (see nextFrameAction), and
+   * AsyncPay — whose price id is a plan UUID with no live-update call at all
+   * — is put back to its Subscribe button rather than left holding a session
+   * for the price the buyer just moved away from.
+   */
+  const changeCycle = useCallback(
+    (next: string) => {
+      if (next === cycle) return;
+      setCycle(next);
+      setIsProcessing(false);
+
+      // Keep the URL honest without adding a history entry: this is the same
+      // purchase, repriced, not a new page the back button should walk
+      // through one cycle at a time.
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("cycle", next);
+      // The LIVE seat count, not whatever `?seats=` was seeded with. Caught in
+      // the browser: switch cycle after stepping 2 -> 5 and the URL still said
+      // seats=2, so a refresh silently repriced the order back down to two
+      // seats while the buyer believed they were buying five.
+      // `quantity` is resolved further down the file, so the per-seat test
+      // here is the plan itself — Enterprise is the only one sold per seat.
+      if (checkoutId === "enterprise") params.set("seats", String(seats));
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [checkoutId, cycle, pathname, router, searchParams, seats],
+  );
+
   // `?plan=free` is the cancellation flow, not a purchase: it early-returns
   // to the cancellation card below and never prices or charges anything.
   // There is no Free plan record to look up, so it must not be treated as an
@@ -679,7 +787,20 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
    * disabled on "Processing..." with no frame and no error.
    */
   const openPaddleCheckout = useCallback((): boolean => {
-    if (!priceId || !frameEl || !paddle?.Checkout?.open) return false;
+    // The buyer's email is REQUIRED by Paddle, not optional: open() with an
+    // undefined customer email throws "[PADDLE BILLING] customer ID or email
+    // is required" synchronously, and the throw escapes into the error
+    // boundary — so an Enterprise buyer whose user record has not finished
+    // loading gets "Something went wrong" instead of a checkout. Reproduced
+    // on this branch before any of the seat-sync work landed.
+    //
+    // Returning false is the right shape, not a bug worth reporting: this
+    // function already reports "not opened" for the same reason about
+    // priceId and frameEl, and the effect below re-runs when the user
+    // resolves (openPaddleCheckout is memoized on `user`), so the frame
+    // opens a beat later with the email Paddle demands.
+    if (!priceId || !frameEl || !paddle?.Checkout?.open || !user?.email)
+      return false;
     paddle.Checkout.open({
       settings: { displayMode: "inline" },
       // `quantity` is how a per-seat plan is actually charged: the processor
@@ -865,17 +986,104 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
   useEffect(() => {
     if (provider === "ASYNCPAY") return;
     if (isPro) return;
-    if (openedForRef.current === priceId) return;
+
+    const open = openedForRef.current;
+    const nextQuantity = quantity ?? 1;
+    // Three cases, stated once, in lib/checkout-frame.ts: nothing to do,
+    // reopen (a different price), or update the open frame in place (a new
+    // seat count). That decision used to live here as a single comparison
+    // against priceId, which is precisely how a seat change stopped reaching
+    // Paddle.
+    const action = nextFrameAction(
+      open,
+      priceId,
+      nextQuantity,
+      paymentInFlight,
+    );
+
+    if (action === "none") return;
+
+    if (action === "update") {
+      // Already queued to push exactly this number: leave the running timer
+      // alone rather than restarting the countdown.
+      if (
+        quantitySyncTimerRef.current &&
+        pendingQuantityRef.current === nextQuantity
+      ) {
+        return;
+      }
+      if (quantitySyncTimerRef.current) {
+        clearTimeout(quantitySyncTimerRef.current);
+      }
+      pendingQuantityRef.current = nextQuantity;
+      // Debounced: a held-down stepper would otherwise fire one request per
+      // click, and Paddle answers each of them by re-rendering the frame.
+      quantitySyncTimerRef.current = setTimeout(() => {
+        quantitySyncTimerRef.current = null;
+        pendingQuantityRef.current = null;
+        try {
+          paddle?.Checkout?.updateItems?.([
+            { priceId, quantity: nextQuantity },
+          ]);
+          openedForRef.current = { priceId, quantity: nextQuantity };
+        } catch (e) {
+          // An update that cannot be applied must not leave the two totals
+          // disagreeing in silence. Reopening is the honest fallback: it
+          // costs the buyer their typed card details, and it charges the
+          // number they are looking at.
+          console.error("[checkout] seat update failed, reopening", e);
+          openedForRef.current = null;
+          if (openPaddleCheckout()) {
+            openedForRef.current = { priceId, quantity: nextQuantity };
+          }
+        }
+      }, QUANTITY_SYNC_DEBOUNCE_MS);
+      return;
+    }
+
+    // action === "open": nothing open, or a genuinely different price.
+    //
+    // A price change means a frame is already sitting in this node showing
+    // the OLD price. Paddle has no "close and reopen inline" call, so the
+    // node is emptied first — otherwise the new checkout mounts underneath
+    // the old one and the buyer scrolls past a stale total to reach a live
+    // one. Same teardown the stall retry does, for the same reason.
+    if (open && open.priceId !== priceId && frameEl) {
+      frameEl.innerHTML = "";
+      frameLoadedRef.current = false;
+      setFrameLoaded(false);
+    }
+
     if (!openPaddleCheckout()) return;
 
-    openedForRef.current = priceId;
+    openedForRef.current = { priceId, quantity: nextQuantity };
     setFrameStalled(false);
     if (frameStallTimerRef.current) clearTimeout(frameStallTimerRef.current);
     frameStallTimerRef.current = setTimeout(() => {
       frameStallTimerRef.current = null;
       setFrameStalled((stalled) => stalled || !frameLoadedRef.current);
     }, CHECKOUT_FRAME_STALL_MS);
-  }, [openPaddleCheckout, provider, isPro, priceId]);
+  }, [
+    openPaddleCheckout,
+    provider,
+    isPro,
+    priceId,
+    quantity,
+    paddle,
+    paymentInFlight,
+    frameEl,
+  ]);
+
+  // Same discipline as every other timer on this page: a pending seat sync
+  // must not fire into a checkout the buyer has already navigated away from.
+  useEffect(
+    () => () => {
+      if (quantitySyncTimerRef.current) {
+        clearTimeout(quantitySyncTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(
     () => () => {
@@ -941,6 +1149,15 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
         clearPaddleWatchdog();
         const { country, cycle, checkoutId } = paddleEventCtxRef.current;
         switch (data.name) {
+          // Paddle is taking the money. From here until it settles, the item
+          // list is frozen — Paddle rejects changes on a transaction in
+          // flight, and it rejects them silently.
+          case "checkout.payment.initiated":
+            setPaymentInFlight(true);
+            break;
+          case "checkout.payment.failed":
+            setPaymentInFlight(false);
+            break;
           case "checkout.loaded":
             // The only honest proof a payment form is on screen; open()
             // returning true says nothing about what the buyer can see.
@@ -954,9 +1171,11 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
             analytics.track(PRICING_EVENTS.checkoutStarted, { country, cycle });
             break;
           case "checkout.closed":
+            setPaymentInFlight(false);
             setIsProcessing(false);
             break;
           case "checkout.error":
+            setPaymentInFlight(false);
             setIsProcessing(false);
             toast.error(
               "Something went wrong with checkout. Please try again.",
@@ -964,6 +1183,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
             break;
           case "checkout.completed":
             // Track payment (GA or Google)
+            setPaymentInFlight(false);
             setIsProcessing(false);
             setCelebration(true);
             analytics.track(PRICING_EVENTS.subscribed, { country, cycle });
@@ -1168,6 +1388,56 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                 </p>
               </div>
 
+              {/* ── Billing cycle ──
+                  Here, not back on /pricing. This is the last screen before
+                  money moves and it is where a buyer actually weighs monthly
+                  against annual; sending them back to change their mind cost
+                  us the ones who did not return.
+
+                  Hidden during the cancellation flow (?plan=free), which
+                  prices nothing, and frozen while a payment is in flight for
+                  the same reason the seat stepper is: the price cannot change
+                  under a transaction Paddle is already processing. */}
+              {!isCancellationFlow && (
+                <div>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Billing
+                  </span>
+                  <div
+                    role="group"
+                    aria-label="Billing cycle"
+                    className="inline-flex rounded-xl border border-border bg-background p-1"
+                  >
+                    {["monthly", "annual"].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={cycle === value}
+                        disabled={paymentInFlight}
+                        onClick={() => changeCycle(value)}
+                        className={cn(
+                          "rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                          cycle === value
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {value === "monthly" ? "Monthly" : "Yearly"}
+                      </button>
+                    ))}
+                  </div>
+                  {/* The saving is the reason to switch, so it is stated
+                      rather than left for the buyer to work out from two
+                      prices. Same wording as the pricing page: pay for ten
+                      months, get twelve. */}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {cycle === "annual"
+                      ? "You pay for 10 months and get 12."
+                      : "Pay yearly and you pay for 10 months but get 12."}
+                  </p>
+                </div>
+              )}
+
               {/* Seat selector — Enterprise only, and only once a real
                   per-seat price actually resolved. That's the same
                   condition the breakdown line below uses (quantity is
@@ -1184,6 +1454,7 @@ export function CheckoutPage({ pricing, tier }: CheckoutPageProps) {
                     seats={seats}
                     setSeats={setSeats}
                     minSeats={pricing.enterprise.minSeats}
+                    disabled={paymentInFlight}
                   />
                 </>
               )}

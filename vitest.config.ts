@@ -57,6 +57,7 @@ export default defineConfig({
       "components/pages/__tests__/pricing-enterprise-card.test.tsx",
       "components/pages/__tests__/pricing-plan-features.test.tsx",
       "components/pages/__tests__/checkout-seat-selector.test.tsx",
+      "components/pages/__tests__/checkout-paddle-sync.test.tsx",
       "components/team/__tests__/invite-dialog.test.tsx",
       "components/team/__tests__/assignment-card.test.tsx",
       "components/team/__tests__/assignment-form-dialog.test.tsx",

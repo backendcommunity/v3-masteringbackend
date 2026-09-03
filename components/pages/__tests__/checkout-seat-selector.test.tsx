@@ -30,11 +30,21 @@ import { ENTERPRISE_SEAT_CONFIRM_THRESHOLD } from "@/lib/pricing";
 function renderSeatSelector({
   initialSeats = 2,
   minSeats = 2,
-}: { initialSeats?: number; minSeats?: number } = {}) {
+  disabled = false,
+}: {
+  initialSeats?: number;
+  minSeats?: number;
+  disabled?: boolean;
+} = {}) {
   function Harness() {
     const [seats, setSeats] = useState(initialSeats);
     return (
-      <SeatSelector seats={seats} setSeats={setSeats} minSeats={minSeats} />
+      <SeatSelector
+        seats={seats}
+        setSeats={setSeats}
+        minSeats={minSeats}
+        disabled={disabled}
+      />
     );
   }
   return render(<Harness />);
@@ -170,6 +180,37 @@ describe("SeatSelector", () => {
 
       expect(input).toHaveValue(ENTERPRISE_SEAT_CONFIRM_THRESHOLD - 1);
       expect(screen.queryByRole("alert")).toBeNull();
+    });
+  });
+
+  /**
+   * ── Frozen while Paddle takes the money ────────────────────────────────
+   *
+   * Paddle rejects item changes on a transaction it is already processing,
+   * and rejects them silently. A stepper that still moved during that window
+   * would put the summary and the amount actually charged back out of step —
+   * the exact defect the live quantity sync exists to close.
+   */
+  describe("while a payment is in flight", () => {
+    it("freezes both steppers and the field", () => {
+      renderSeatSelector({ initialSeats: 5, disabled: true });
+
+      expect(screen.getByLabelText(/add a seat/i)).toBeDisabled();
+      expect(screen.getByLabelText(/remove a seat/i)).toBeDisabled();
+      expect(screen.getByLabelText(/team size/i)).toBeDisabled();
+    });
+
+    it("says why, rather than looking broken", () => {
+      renderSeatSelector({ initialSeats: 5, disabled: true });
+      expect(
+        screen.getByText(/locked while your payment goes through/i),
+      ).toBeInTheDocument();
+    });
+
+    it("cannot be stepped", () => {
+      renderSeatSelector({ initialSeats: 5, disabled: true });
+      fireEvent.click(screen.getByLabelText(/add a seat/i));
+      expect(screen.getByLabelText(/team size/i)).toHaveValue(5);
     });
   });
 });
