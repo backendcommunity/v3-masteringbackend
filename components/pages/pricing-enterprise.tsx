@@ -400,8 +400,12 @@ export default function PricingEnterpriseView({
                     type="button"
                     aria-pressed={cycle === value}
                     onClick={() => setCycle(value)}
+                    // min-h-[44px]: the touch minimum. This and the stepper
+                    // below are the two controls the page exists for, and both
+                    // shipped at 32-36px — under the thumb on the phone where
+                    // most of this traffic lands.
                     className={cn(
-                      "rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors",
+                      "min-h-[44px] rounded-lg px-4 text-[13px] font-bold transition-colors",
                       cycle === value
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -428,7 +432,7 @@ export default function PricingEnterpriseView({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-11 w-11"
                   disabled={seats <= enterprise.minSeats}
                   onClick={() => setSeats(clampSeats(seats - 1, enterprise))}
                   aria-label="Remove a seat"
@@ -448,13 +452,13 @@ export default function PricingEnterpriseView({
                       ),
                     )
                   }
-                  className="h-9 w-[72px] rounded-md border border-border bg-background text-center font-mono text-[15px] font-bold tabular-nums text-foreground"
+                  className="h-11 w-[72px] rounded-md border border-border bg-background text-center font-mono text-[15px] font-bold tabular-nums text-foreground"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-11 w-11"
                   onClick={() => setSeats(clampSeats(seats + 1, enterprise))}
                   aria-label="Add a seat"
                 >
