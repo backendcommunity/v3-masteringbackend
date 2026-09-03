@@ -295,8 +295,15 @@ export default function PricingEnterpriseView({
 
       {/* ── Hero ── the decision, above the fold: what it is, and what it
           costs for THIS team. Everything below is evidence for it. */}
-      <section className="bg-[#0e1f33] px-4 pt-16 text-white">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 pb-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
+      <section className="relative overflow-hidden bg-[#0E1F33] px-4 pt-16 text-white">
+        {/* The blueprint grid, same as every other navy hero in the product
+            (team hub, portfolio, leaderboard, announcement banner).
+            DESIGN_SYSTEM.md principle 2: the grid lives inside navy heroes
+            only, "where the brand speaks" — and this is the first navy a
+            company ever sees. It shipped flat, which quietly made the page
+            look like it belonged to a different product. */}
+        <div className="hero-grid absolute inset-0" aria-hidden="true" />
+        <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 pb-14 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
           <div>
             <p className="eyebrow-mono text-[#4AC5E8]">
               MasteringBackend for teams
@@ -531,7 +538,9 @@ export default function PricingEnterpriseView({
           </div>
         </div>
 
-        <TrustedByBand />
+        <div className="relative">
+          <TrustedByBand />
+        </div>
       </section>
 
       {/* ── Why teams buy it ── the missing half of the old page: it opened
