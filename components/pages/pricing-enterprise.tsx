@@ -329,9 +329,8 @@ function PricingEnterpriseViewContent({
               MasteringBackend for teams
             </p>
             <h1 className="mt-3.5 max-w-2xl text-balance text-[1.75rem] font-black leading-[1.12] tracking-tight sm:text-3xl lg:text-[2.25rem]">
-              Put your whole engineering team on{" "}
-              <span className="text-primary">one plan</span>, and see who is
-              actually levelling up.
+              Upskill your engineering team with{" "}
+              <span className="text-primary">Backend and AI</span> skills.
             </h1>
             <p className="mt-4 max-w-xl text-[1.0625rem] leading-relaxed text-white/75">
               Your team gets every course, learning path, and hands-on project
