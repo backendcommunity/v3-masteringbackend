@@ -107,7 +107,9 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
   return (
     <>
-      {user?.mustResetPassword && <ForcePasswordChangeModal />}
+      {(user?.mustResetPassword || user?.nameIsProvisional) && (
+        <ForcePasswordChangeModal nameIsProvisional={!!user?.nameIsProvisional} />
+      )}
       <NavigationBar
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}

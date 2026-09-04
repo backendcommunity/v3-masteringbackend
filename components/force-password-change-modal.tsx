@@ -14,12 +14,31 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-export function ForcePasswordChangeModal() {
+interface ForcePasswordChangeModalProps {
+  /**
+   * True when the account's name was guessed from its email at import time
+   * (e.g. "grace@example.com" -> "Grace"). This modal is the only chance to
+   * fix that guess — the temporary password was emailed once and cannot be
+   * looked up again, so there is no second prompt if the person bounces off
+   * this screen.
+   */
+  nameIsProvisional?: boolean;
+}
+
+export function ForcePasswordChangeModal({
+  nameIsProvisional = false,
+}: ForcePasswordChangeModalProps) {
+  const user = useAuth((s) => s.user);
   const changePassword = useAuth((s) => s.changePassword);
+  const derivedName = user?.name ?? "";
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [name, setName] = useState(derivedName);
   const [loading, setLoading] = useState(false);
+  // Always open: this modal only renders while a flag forces it (see
+  // dashboard-layout.tsx). `open` is not driven by dismiss affordances —
+  // there are none — only by the successful submit below.
   const [open, setOpen] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,9 +51,30 @@ export function ForcePasswordChangeModal() {
       toast.error("Passwords do not match");
       return;
     }
+
+    let trimmedName: string | undefined;
+    if (nameIsProvisional) {
+      trimmedName = name.trim();
+      if (!trimmedName) {
+        toast.error("Please enter your name");
+        return;
+      }
+      // "Grace" is precisely the value being replaced — accepting it back
+      // would silently defeat the whole feature.
+      if (trimmedName === derivedName.trim()) {
+        toast.error(
+          `"${trimmedName}" was guessed from your email — please enter your real name to continue.`
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      await changePassword(oldPassword, newPassword);
+      // Passwords and the corrected name in ONE call — never split into two
+      // requests, or a failure between them could leave a new password paired
+      // with a still-provisional name that nothing would come back to fix.
+      await changePassword(oldPassword, newPassword, trimmedName);
       toast.success("Password updated successfully!");
       setOpen(false);
     } catch (err: any) {
@@ -48,6 +88,7 @@ export function ForcePasswordChangeModal() {
     <Dialog open={open} modal>
       <DialogContent
         className="sm:max-w-md"
+        hideCloseButton
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -58,6 +99,20 @@ export function ForcePasswordChangeModal() {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {nameIsProvisional && (
+            <div className="space-y-2">
+              <Label htmlFor="user-name">Your name</Label>
+              <Input
+                id="user-name"
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="name"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="old-password">Temporary password</Label>
             <Input
