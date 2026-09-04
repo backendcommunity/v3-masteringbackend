@@ -134,3 +134,100 @@ describe("OnboardingUpsell", () => {
     ).toBeDisabled();
   });
 });
+
+/**
+ * Regression: clicking "Go Pro" on the onboarding payment step navigated to
+ * /checkout instead of opening the payment sheet.
+ *
+ * Two fetches were in play. The wizard held the pricing that `subscribe()`
+ * charges against; this card fetched its OWN copy in parallel and enabled the
+ * CTA the moment THAT one landed. A click in the gap reached `subscribe()`
+ * with no pricing, which reports failure, which the wizard reads as "inline
+ * cannot work" and routes to /checkout.
+ *
+ * The fix makes the ownership explicit through the `pricing` prop:
+ * `undefined` means "fetch your own", `null` means "mine is coming".
+ */
+describe("OnboardingUpsell — who owns the price", () => {
+  it("fetches its own only when nobody is supplying one", () => {
+    usePricing.mockClear();
+    render(
+      <OnboardingUpsell pathTitle="Backend" onGoPro={noop} onSkip={noop} />,
+    );
+    expect(usePricing).toHaveBeenCalledWith(true);
+  });
+
+  it("does NOT fetch while the caller's request is still in flight", () => {
+    usePricing.mockClear();
+    render(
+      <OnboardingUpsell
+        pathTitle="Backend"
+        pricing={null}
+        onGoPro={noop}
+        onSkip={noop}
+      />,
+    );
+    // null = "the caller owns this and it hasn't arrived". A second request
+    // here is the race that produced the bug, not a redundancy.
+    expect(usePricing).toHaveBeenCalledWith(false);
+  });
+
+  it("refuses to offer a purchase it cannot price", () => {
+    render(
+      <OnboardingUpsell
+        pathTitle="Backend"
+        pricing={null}
+        onGoPro={noop}
+        onSkip={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /go pro/i })).toBeDisabled();
+  });
+
+  it("does not fire onGoPro while the price is unknown", () => {
+    const onGoPro = vi.fn();
+    render(
+      <OnboardingUpsell
+        pathTitle="Backend"
+        pricing={null}
+        onGoPro={onGoPro}
+        onSkip={noop}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /go pro/i }));
+    expect(onGoPro).not.toHaveBeenCalled();
+  });
+
+  it("enables Go Pro once the price lands", () => {
+    render(
+      <OnboardingUpsell
+        pathTitle="Backend"
+        pricing={ngPricing}
+        onGoPro={noop}
+        onSkip={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /go pro/i })).toBeEnabled();
+  });
+
+  /**
+   * The free exit delivers the lesson they are ALREADY enrolled in. It never
+   * depends on a price, so a pricing outage must not strip a learner of the
+   * thing this whole flow exists to hand them.
+   */
+  it("keeps the free exit available with no price at all", () => {
+    const onSkip = vi.fn();
+    render(
+      <OnboardingUpsell
+        pathTitle="Backend"
+        pricing={null}
+        onGoPro={noop}
+        onSkip={onSkip}
+      />,
+    );
+    const skip = screen.getByRole("button", { name: /free plan/i });
+    expect(skip).toBeEnabled();
+    fireEvent.click(skip);
+    expect(onSkip).toHaveBeenCalled();
+  });
+});

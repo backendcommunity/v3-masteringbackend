@@ -78,7 +78,19 @@ export const getOnboardingRecommendation = async () => {
   return response.data;
 };
 
-export const changePassword = async (oldPassword: string, newPassword: string) => {
-  const res = await api.post("/auth/password/change", { oldPassword, newPassword });
+export const changePassword = async (
+  oldPassword: string,
+  newPassword: string,
+  name?: string
+) => {
+  // A single request: passwords and the corrected name land in the same
+  // write. Never split this into a follow-up call — a partial application
+  // would leave someone with a new password and a still-provisional name.
+  const payload: { oldPassword: string; newPassword: string; name?: string } = {
+    oldPassword,
+    newPassword,
+  };
+  if (name !== undefined) payload.name = name;
+  const res = await api.post("/auth/password/change", payload);
   return res.data;
 };

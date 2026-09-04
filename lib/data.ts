@@ -73,6 +73,7 @@ export interface User {
   // Access control
   role?: "USER" | "ADMIN" | "INSTRUCTOR";
   mustResetPassword?: boolean;
+  nameIsProvisional?: boolean;
 }
 
 export interface Reward {

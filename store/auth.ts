@@ -34,7 +34,11 @@ interface AuthState {
   ) => Promise<boolean>;
   verifyCode: (email: string, code: string, type?: string) => Promise<boolean>;
   completeOnboarding: (input: OnboardingInput) => Promise<any>;
-  changePassword: (oldPassword: string, newPassword: string) => Promise<User>;
+  changePassword: (
+    oldPassword: string,
+    newPassword: string,
+    name?: string
+  ) => Promise<User>;
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -88,8 +92,8 @@ export const useAuth = create<AuthState>((set) => ({
     return res;
   },
 
-  changePassword: async (oldPassword: string, newPassword: string) => {
-    const res = await changePasswordApi(oldPassword, newPassword);
+  changePassword: async (oldPassword: string, newPassword: string, name?: string) => {
+    const res = await changePasswordApi(oldPassword, newPassword, name);
     if (res?.success && res?.data) {
       set({ user: res.data });
       updateUser(res.data);

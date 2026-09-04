@@ -43,6 +43,7 @@ export default defineConfig({
       "components/__tests__/interview-completion-dialog-cta.test.tsx",
       "components/__tests__/simple-editor-run.test.tsx",
       "components/__tests__/github-connect-disconnect.test.tsx",
+      "components/__tests__/force-password-change-modal.test.tsx",
       "components/__tests__/page-skeleton.test.tsx",
       "components/__tests__/onboarding-upsell.test.tsx",
       "components/__tests__/payment-gate-overlay.test.tsx",
