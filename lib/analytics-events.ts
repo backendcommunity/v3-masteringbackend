@@ -45,6 +45,23 @@ export const tourEvents = (prefix: string) =>
 export const TOUR_EVENTS = tourEvents("playground");
 export const PLAYGROUND_TOUR_EVENTS = TOUR_EVENTS;
 
+// Regional-pricing funnel: fired with { tier, country, cycle } so
+// conversion can be read per tier in PostHog. `viewed` fires from the
+// pricing page itself; `checkoutStarted`/`subscribed` belong to whichever
+// surface owns checkout — defined here together so every stage of the
+// funnel shares one event-name source of truth.
+export const PRICING_EVENTS = {
+  viewed: "pricing_viewed",
+  // /pricing/enterprise, kept SEPARATE from `viewed` rather than folded into
+  // it with a property: the two pages answer different questions ("should I
+  // upgrade?" vs "should I buy this for my team?"), and funnels built on
+  // pricing_viewed would silently start counting team traffic the day the
+  // Enterprise page shipped.
+  enterpriseViewed: "enterprise_pricing_viewed",
+  checkoutStarted: "checkout_started",
+  subscribed: "subscribed",
+} as const;
+
 export const MOCK_INTERVIEW_EVENTS = {
   templateViewed: "mock_interview_template_viewed",
   bookingOpened: "mock_interview_booking_opened",

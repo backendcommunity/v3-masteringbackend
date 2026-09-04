@@ -45,7 +45,7 @@ import { ContentComingSoon } from "@/components/content-coming-soon";
 import { stripHtmlTags } from "@/lib/html-utils";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isCredibleLearnerCount } from "@/lib/social-proof";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { Project } from "@/lib/data";
 import { toast } from "sonner";
 import ConfettiCelebration from "@/components/confetti-celebration";
@@ -70,7 +70,7 @@ export function ProjectDetailPage({
   const [loading, setLoading] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
   const [celebration, setCelebration] = useState(false);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export function ProjectDetailPage({
     if (!project || !success) return;
     switch (method) {
       case "subscription":
-        onNavigate(routes.subscriptionPlans);
+        onNavigate(routes.pricing(routes.projectDetail(slug)));
         break;
       case "individual":
         break;
@@ -132,7 +132,7 @@ export function ProjectDetailPage({
       });
       // Free user on a premium project → payment dialog (the gate).
       if (!user?.isPremium && project?.isPremium) {
-        setShowPaymentDialog(!showPaymentDialog);
+        setShowPaymentGate(!showPaymentGate);
         return;
       }
       // add from here inside dialog
@@ -246,7 +246,12 @@ export function ProjectDetailPage({
                   >
                     <Play className="w-4 h-4" /> Continue Building
                   </button>
-                  <TryPlaygroundButton source="detail" slug={slug} />
+                  <TryPlaygroundButton
+                    source="detail"
+                    slug={slug}
+                    premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                    onPremiumRequired={() => setShowPaymentGate(true)}
+                  />
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -262,19 +267,18 @@ export function ProjectDetailPage({
                     )}
                     {enrolling ? "Starting…" : "Start Building"}
                   </button>
-                  <TryPlaygroundButton source="detail" slug={slug} />
-                  <span className="text-sm text-white/[.65]">
-                    {!project?.isPremium || user?.isPremium ? (
-                      <>
-                        Free with{" "}
-                        <span className="font-semibold text-white">Pro</span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-white">
-                        Premium membership required
-                      </span>
-                    )}
-                  </span>
+                  <TryPlaygroundButton
+                    source="detail"
+                    slug={slug}
+                    premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                    onPremiumRequired={() => setShowPaymentGate(true)}
+                  />
+                  {(!project?.isPremium || user?.isPremium) && (
+                    <span className="text-sm text-white/[.65]">
+                      Free with{" "}
+                      <span className="font-semibold text-white">Pro</span>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -582,16 +586,17 @@ export function ProjectDetailPage({
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-6 self-start">
-          {showPaymentDialog && (
-            <PaymentDialog
-              disableMB={false}
-              disableOnetime={true}
-              onClose={() => setShowPaymentDialog(false)}
-              open={showPaymentDialog}
-              data={{ ...project, type: "project" }}
-              onHandlePreview={() => {}}
-              onHandlePurchase={(id: string, type: any, success: boolean) =>
-                handlePurchase(id, type, success)
+          {showPaymentGate && (
+            <PaymentGateOverlay
+              open={showPaymentGate}
+              onClose={() => setShowPaymentGate(false)}
+              itemTitle={project?.title ?? "this project"}
+              stage="build"
+              variant="centered"
+              purchasable={{ ...project, type: "project" }}
+              allowOneTime={false}
+              onPurchased={(id: string, method: string, success: boolean) =>
+                handlePurchase(id, method as any, success)
               }
             />
           )}
@@ -625,6 +630,8 @@ export function ProjectDetailPage({
                   source="detail-sidebar"
                   slug={slug}
                   className="mt-2 w-full"
+                  premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                  onPremiumRequired={() => setShowPaymentGate(true)}
                 />
 
                 {(project?.PRDLink || project?.frontendURL) && (
@@ -709,12 +716,14 @@ export function ProjectDetailPage({
                 source="detail-sidebar"
                 slug={slug}
                 className="mt-2 w-full"
+                premiumLocked={Boolean(!user?.isPremium && project?.isPremium)}
+                onPremiumRequired={() => setShowPaymentGate(true)}
               />
 
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 {!project?.isPremium || user?.isPremium
                   ? "Build at your own pace · Earn a verified certificate"
-                  : "Cancel anytime · Earn a verified certificate"}
+                  : "Earn a verified certificate"}
               </p>
 
               {(project?.PRDLink || project?.frontendURL) && (

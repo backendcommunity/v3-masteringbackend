@@ -42,6 +42,31 @@ import {
   UserLesson,
   Playground,
   CourseFiltersData,
+  TeamSummary,
+  TeamRoster,
+  TeamOverview,
+  TeamRosterProgress,
+  TeamMemberProgress,
+  TeamLeaderboard,
+  TeamGroup,
+  MyAssignment,
+  TeamAssignment,
+  AssignableSearchType,
+  AssignableResult,
+  AssignmentDetail,
+  AssignmentInput,
+  AssignmentItemInput,
+  TeamPath,
+  TeamPathDetail,
+  TeamPathUpdateInput,
+  TeamPathSectionInput,
+  TeamPathSectionResult,
+  TeamPathItemInput,
+  TeamSeatPreview,
+  TeamInvite,
+  TeamInvitePreview,
+  TeamReport,
+  TeamReportRange,
 } from "./data";
 import { fetchUser } from "./auth";
 import {
@@ -56,8 +81,10 @@ import {
 } from "./courses";
 import { api, socketAPI } from "./api";
 
-// Single source for the REST base URL used by the raw-fetch (streaming) actions.
-const API_BASE =
+// Single source for the REST base URL used by the raw-fetch (streaming) actions
+// below. Exported so any consumer that needs to build a URL outside the axios
+// `api` client (rather than duplicating this literal) can import it directly.
+export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v3";
 import { analytics } from "./analytics";
 import { getStoredUser, patchStoredUser } from "./user-store";
@@ -315,6 +342,86 @@ interface AppState {
     newPassword: string;
   }) => void;
   cancelSubscription: (id: string) => any;
+  downgradeSubscription: (id: string, target: "pro" | "free") => any;
+
+  // Teams
+  getMyTeams: () => Promise<TeamSummary[]>;
+  renameTeam: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
+  getTeamMembers: (teamId: string, groupId?: string) => Promise<TeamRoster>;
+  getTeamOverview: (teamId: string, groupId?: string) => Promise<TeamOverview>;
+  getTeamProgress: (teamId: string, groupId?: string) => Promise<TeamRosterProgress>;
+  getTeamMemberProgress: (teamId: string, memberId: string) => Promise<TeamMemberProgress>;
+  getTeamLeaderboard: (teamId: string, groupId?: string) => Promise<TeamLeaderboard>;
+  getTeamReport: (teamId: string, range: TeamReportRange, groupId?: string) => Promise<TeamReport>;
+  getMyTeamProgress: (teamId: string) => Promise<TeamMemberProgress>;
+  getTeamGroups: (teamId: string) => Promise<TeamGroup[]>;
+  getMyAssignments: (teamId: string) => Promise<MyAssignment[]>;
+  getTeamAssignments: (teamId: string) => Promise<TeamAssignment[]>;
+  searchAssignable: (teamId: string, type: AssignableSearchType, q: string) => Promise<AssignableResult[]>;
+  getTeamAssignmentDetail: (teamId: string, assignmentId: string) => Promise<AssignmentDetail>;
+  createTeamAssignment: (teamId: string, input: AssignmentInput) => Promise<{ id: string; name: string }>;
+  updateTeamAssignment: (
+    teamId: string,
+    assignmentId: string,
+    input: Partial<AssignmentInput>,
+  ) => Promise<{ id: string; name: string }>;
+  deleteTeamAssignment: (teamId: string, assignmentId: string) => Promise<void>;
+  setTeamAssignmentItems: (
+    teamId: string,
+    assignmentId: string,
+    items: AssignmentItemInput[],
+  ) => Promise<{ id: string; itemCount: number }>;
+  setAssignmentItemDone: (
+    teamId: string,
+    assignmentId: string,
+    itemId: string,
+    done: boolean,
+  ) => Promise<void>;
+  getTeamPaths: (teamId: string) => Promise<TeamPath[]>;
+  getTeamPath: (teamId: string, pathId: string) => Promise<TeamPathDetail>;
+  createTeamPath: (
+    teamId: string,
+    title: string,
+    summary?: string | null,
+  ) => Promise<{ id: string; title: string; slug: string }>;
+  updateTeamPath: (
+    teamId: string,
+    pathId: string,
+    input: TeamPathUpdateInput,
+  ) => Promise<{ id: string; title: string }>;
+  archiveTeamPath: (teamId: string, pathId: string) => Promise<void>;
+  setPathSections: (
+    teamId: string,
+    pathId: string,
+    sections: TeamPathSectionInput[],
+  ) => Promise<{ id: string; sectionCount: number; sections: TeamPathSectionResult[] }>;
+  setSectionItems: (
+    teamId: string,
+    pathId: string,
+    sectionId: string,
+    items: TeamPathItemInput[],
+  ) => Promise<{ id: string; itemCount: number }>;
+  createTeamGroup: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
+  renameTeamGroup: (teamId: string, groupId: string, name: string) => Promise<{ id: string; name: string }>;
+  deleteTeamGroup: (teamId: string, groupId: string) => Promise<void>;
+  setTeamGroupMembers: (teamId: string, groupId: string, teamMemberIds: string[]) => Promise<{ id: string; memberCount: number }>;
+  previewSeat: (teamId: string) => Promise<TeamSeatPreview>;
+  inviteMember: (
+    teamId: string,
+    payload: { email: string; buySeat?: boolean },
+  ) => Promise<TeamInvite>;
+  removeTeamMember: (teamId: string, memberId: string) => any;
+  /** Cancels a pending invite and releases the seat it was holding. */
+  revokeTeamInvite: (teamId: string, inviteId: string) => any;
+  changeTeamMemberRole: (
+    teamId: string,
+    memberId: string,
+    role: "ADMIN" | "MEMBER",
+  ) => any;
+  transferTeamOwnership: (teamId: string, toUserId: string) => any;
+  /** PUBLIC endpoint — no session required. Reachable by an anonymous invitee. */
+  previewTeamInvite: (token: string) => Promise<TeamInvitePreview>;
+  acceptTeamInvite: (token: string) => any;
   markDayComplete: (slug: string, videoId: string, payload: any) => any;
   resumeSubscription: (id: string) => any;
   deletCard: (id: string) => any;
@@ -473,7 +580,15 @@ interface AppState {
   sendRecapFeedback: (eventId: string, useful: boolean) => Promise<void>;
   submitFeedback: (input: {
     message: string;
-    source: "playground" | "tasks-page" | "path-lesson" | "error-boundary";
+    // Mirrors the server whitelist in academy's
+    // src/modules/feedback/validator.ts — anything not listed there 422s, so
+    // the two must be edited together.
+    source:
+      | "playground"
+      | "tasks-page"
+      | "path-lesson"
+      | "error-boundary"
+      | "payment-gate";
     context?: { projectSlug?: string; lessonSlug?: string; url?: string };
   }) => Promise<void>;
 
@@ -1411,6 +1526,238 @@ export const useAppStore = create<AppState>((set, get) => ({
   cancelSubscription: async (id: string) => {
     const { data } = await api.post(`/payments/subscriptions/${id}/cancel`);
     return data?.data;
+  },
+
+  // ─── Teams ────────────────────────────────────────────────────────────
+  getMyTeams: async () => {
+    const { data } = await api.get("/teams/mine");
+    return data?.data as TeamSummary[];
+  },
+  renameTeam: async (teamId: string, name: string) => {
+    const { data } = await api.patch(`/teams/${teamId}`, { name });
+    return data?.data as { id: string; name: string };
+  },
+  getTeamMembers: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/members${qs}`);
+    return data?.data as TeamRoster;
+  },
+  getTeamOverview: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/overview${qs}`);
+    return data?.data as TeamOverview;
+  },
+  getTeamProgress: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/progress${qs}`);
+    return data?.data as TeamRosterProgress;
+  },
+  getTeamMemberProgress: async (teamId: string, memberId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/members/${memberId}/progress`);
+    return data?.data as TeamMemberProgress;
+  },
+  getTeamLeaderboard: async (teamId: string, groupId?: string) => {
+    const qs = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const { data } = await api.get(`/teams/${teamId}/leaderboard${qs}`);
+    return data?.data as TeamLeaderboard;
+  },
+  getMyTeamProgress: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/me`);
+    return data?.data as TeamMemberProgress;
+  },
+  getTeamReport: async (teamId: string, range: TeamReportRange, groupId?: string) => {
+    const { data } = await api.get(`/teams/${teamId}/reports`, {
+      params: groupId ? { range, groupId } : { range },
+    });
+    return data?.data as TeamReport;
+  },
+  getTeamGroups: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/groups`);
+    return data?.data as TeamGroup[];
+  },
+  getMyAssignments: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/my-assignments`);
+    return data?.data as MyAssignment[];
+  },
+  getTeamAssignments: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/assignments`);
+    return data?.data as TeamAssignment[];
+  },
+  searchAssignable: async (teamId: string, type: AssignableSearchType, q: string) => {
+    // An empty `q` is meaningless — it means "no filter", not "filter on
+    // the empty string" — so it is omitted from the wire entirely rather
+    // than sent as `q=`. The backend validator now accepts `q=` too (see
+    // ValidateAssignableSearch), but a client should never put a parameter
+    // on the wire that carries no information.
+    const params: Record<string, string> = { type };
+    if (q) params.q = q;
+    const { data } = await api.get(`/teams/${teamId}/assignable`, { params });
+    return data?.data as AssignableResult[];
+  },
+  getTeamAssignmentDetail: async (teamId: string, assignmentId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/assignments/${assignmentId}`);
+    return data?.data as AssignmentDetail;
+  },
+  createTeamAssignment: async (teamId: string, input: AssignmentInput) => {
+    const { data } = await api.post(`/teams/${teamId}/assignments`, input);
+    return data?.data as { id: string; name: string };
+  },
+  updateTeamAssignment: async (
+    teamId: string,
+    assignmentId: string,
+    input: Partial<AssignmentInput>,
+  ) => {
+    const { data } = await api.patch(`/teams/${teamId}/assignments/${assignmentId}`, input);
+    return data?.data as { id: string; name: string };
+  },
+  deleteTeamAssignment: async (teamId: string, assignmentId: string) => {
+    await api.delete(`/teams/${teamId}/assignments/${assignmentId}`);
+  },
+  setTeamAssignmentItems: async (
+    teamId: string,
+    assignmentId: string,
+    items: AssignmentItemInput[],
+  ) => {
+    const { data } = await api.put(`/teams/${teamId}/assignments/${assignmentId}/items`, { items });
+    return data?.data as { id: string; itemCount: number };
+  },
+  setAssignmentItemDone: async (
+    teamId: string,
+    assignmentId: string,
+    itemId: string,
+    done: boolean,
+  ) => {
+    const url = `/teams/${teamId}/assignments/${assignmentId}/items/${itemId}/done`;
+    if (done) await api.put(url);
+    else await api.delete(url);
+  },
+  getTeamPaths: async (teamId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/paths`);
+    return data?.data as TeamPath[];
+  },
+  // The only endpoint that returns section/item ids — required by the
+  // editor (Task 11) so a reorder or edit round-trips identity instead of
+  // degrading into delete-and-recreate on save.
+  getTeamPath: async (teamId: string, pathId: string) => {
+    const { data } = await api.get(`/teams/${teamId}/paths/${pathId}`);
+    return data?.data as TeamPathDetail;
+  },
+  createTeamPath: async (teamId: string, title: string, summary?: string | null) => {
+    // `summary` is optional on the wire (ValidateCreateTeamPath) — omitted
+    // entirely rather than sent as `undefined` when the caller doesn't pass
+    // one, same "don't put a meaningless value on the wire" rule as
+    // searchAssignable's `q`.
+    const body = summary !== undefined ? { title, summary } : { title };
+    const { data } = await api.post(`/teams/${teamId}/paths`, body);
+    // NOT a full TeamPath — the backend returns exactly these three fields.
+    return data?.data as { id: string; title: string; slug: string };
+  },
+  updateTeamPath: async (teamId: string, pathId: string, input: TeamPathUpdateInput) => {
+    const { data } = await api.patch(`/teams/${teamId}/paths/${pathId}`, input);
+    return data?.data as { id: string; title: string };
+  },
+  archiveTeamPath: async (teamId: string, pathId: string) => {
+    await api.delete(`/teams/${teamId}/paths/${pathId}`);
+  },
+  setPathSections: async (teamId: string, pathId: string, sections: TeamPathSectionInput[]) => {
+    const { data } = await api.put(`/teams/${teamId}/paths/${pathId}/sections`, { sections });
+    // `sections` on the response is every submitted section's real id, in
+    // submitted order — that's what lets the editor bind a brand-new
+    // section's id by position, with no re-read and no guessing.
+    return data?.data as { id: string; sectionCount: number; sections: TeamPathSectionResult[] };
+  },
+  setSectionItems: async (
+    teamId: string,
+    pathId: string,
+    sectionId: string,
+    items: TeamPathItemInput[],
+  ) => {
+    // Rebuilt to exactly {type, refId} rather than forwarded as-is: items
+    // diff by that composite, NOT by an id (unlike sections). A caller that
+    // spreads a `PathItem` (which carries a derived `id` of `type:refId`,
+    // for React keys only) into an item would otherwise leak that field
+    // onto the wire and 422 — "items[0].id" is not allowed — on every save
+    // after the section's first, per ValidateSetSectionItems having no `id`
+    // key and no allowUnknown. Stripping here means the type not allowing
+    // `id` isn't the only thing standing between a caller and that bug.
+    const body = { items: items.map(({ type, refId }) => ({ type, refId })) };
+    const { data } = await api.put(
+      `/teams/${teamId}/paths/${pathId}/sections/${sectionId}/items`,
+      body,
+    );
+    return data?.data as { id: string; itemCount: number };
+  },
+  createTeamGroup: async (teamId: string, name: string) => {
+    const { data } = await api.post(`/teams/${teamId}/groups`, { name });
+    return data?.data as { id: string; name: string };
+  },
+  renameTeamGroup: async (teamId: string, groupId: string, name: string) => {
+    const { data } = await api.patch(`/teams/${teamId}/groups/${groupId}`, { name });
+    return data?.data as { id: string; name: string };
+  },
+  deleteTeamGroup: async (teamId: string, groupId: string) => {
+    await api.delete(`/teams/${teamId}/groups/${groupId}`);
+  },
+  setTeamGroupMembers: async (teamId: string, groupId: string, teamMemberIds: string[]) => {
+    const { data } = await api.put(`/teams/${teamId}/groups/${groupId}/members`, {
+      teamMemberIds,
+    });
+    return data?.data as { id: string; memberCount: number };
+  },
+  previewSeat: async (teamId: string) => {
+    const { data } = await api.post(`/teams/${teamId}/seats/preview`);
+    return data?.data as TeamSeatPreview;
+  },
+  inviteMember: async (
+    teamId: string,
+    payload: { email: string; buySeat?: boolean },
+  ) => {
+    const { data } = await api.post(`/teams/${teamId}/invites`, payload);
+    return data?.data as TeamInvite;
+  },
+  removeTeamMember: async (teamId: string, memberId: string) => {
+    const { data } = await api.delete(`/teams/${teamId}/members/${memberId}`);
+    return data;
+  },
+  revokeTeamInvite: async (teamId: string, inviteId: string) => {
+    const { data } = await api.delete(`/teams/${teamId}/invites/${inviteId}`);
+    return data;
+  },
+  changeTeamMemberRole: async (
+    teamId: string,
+    memberId: string,
+    role: "ADMIN" | "MEMBER",
+  ) => {
+    const { data } = await api.patch(`/teams/${teamId}/members/${memberId}`, {
+      role,
+    });
+    return data;
+  },
+  transferTeamOwnership: async (teamId: string, toUserId: string) => {
+    const { data } = await api.post(`/teams/${teamId}/transfer`, {
+      toUserId,
+    });
+    return data;
+  },
+  // PUBLIC — no session required. Reachable by an anonymous invitee, so this
+  // must not be caught-and-swallowed the way verifyCertificate is: the
+  // 404-vs-410 status distinction the backend deliberately makes (gone vs
+  // expired) is meaningless if it never reaches the caller.
+  previewTeamInvite: async (token: string) => {
+    const { data } = await api.get(`/teams/invites/${token}`);
+    return data?.data as TeamInvitePreview;
+  },
+  acceptTeamInvite: async (token: string) => {
+    const { data } = await api.post(`/teams/invites/${token}/accept`);
+    return data;
+  },
+
+  downgradeSubscription: async (id: string, target: "pro" | "free") => {
+    const { data } = await api.post(
+      `/payments/subscriptions/${id}/downgrade`,
+      { target },
+    );
+    return data;
   },
   puaseSubscription: async (id: string, payload: { months: number }) => {
     const url = `/payments/subscriptions/${id}/pause`;

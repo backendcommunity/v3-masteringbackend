@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { analytics } from "@/lib/analytics";
+import { PaymentGateOverlay } from "@/components/payment-gate-overlay";
 
 type Template = MockInterviewTemplateCardData;
 
@@ -65,6 +66,11 @@ export function InterviewCompletionDialog({
   const [savingId, setSavingId] = useState<string | null>(null);
   // Track which template is being started (id → true)
   const [startingId, setStartingId] = useState<string | null>(null);
+  // The paywall, raised over this dialog rather than replacing it. Both ways
+  // in — "Unlock Full Access" and a 402 on the next template — previously
+  // pushed to /pricing, which threw away the score and debrief the learner
+  // had just earned and is the whole reason they are considering paying.
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
 
   const PAGE_SIZE = 3;
 
@@ -126,8 +132,10 @@ export function InterviewCompletionDialog({
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 402 || status === 403) {
-          onClose();
-          router.push("/subscription/plans");
+          // Deliberately does NOT call onClose() first. This dialog owns the
+          // gate, so closing it here unmounts the paywall in the same tick and
+          // the learner sees the refusal flash and vanish.
+          setShowPaymentGate(true);
         } else {
           toast.error(
             err?.response?.data?.message ?? "Failed to start interview.",
@@ -428,7 +436,7 @@ export function InterviewCompletionDialog({
                   router.push("/mock-interviews");
                 } else {
                   analytics.track("chat_interview_unlock_full_access_clicked", { from_score: overallScore });
-                  router.push("/subscription/plans");
+                  setShowPaymentGate(true);
                 }
               }}
             >
@@ -437,6 +445,35 @@ export function InterviewCompletionDialog({
           </div>
         </div>
       </div>
+
+      {/* Sits above this dialog's own z-50 (the gate's shells are z-[99]/z-[100]),
+          so the score stays visible behind it. */}
+      {showPaymentGate && (
+        <PaymentGateOverlay
+          open={showPaymentGate}
+          onClose={() => setShowPaymentGate(false)}
+          itemTitle="unlimited mock interviews"
+          stage="grow"
+          variant="centered"
+          planName="Pro"
+          allowOneTime={false}
+          subheading="Keep going while it is fresh — practice as often as you need, scored every time."
+          benefits={[
+            "Unlimited AI mock interviews, 15 or 30 minutes each",
+            "A scored report and personalized debrief after every session",
+            "Every learning path, premium course and project",
+          ]}
+          onPurchased={(_id, _method, success) => {
+            if (!success) return;
+            // This dialog cannot re-check access on its own — it never fetched
+            // it. Hand the newly-paid learner to the listing, which loads a
+            // fresh access payload as it mounts.
+            setShowPaymentGate(false);
+            onClose();
+            router.push("/mock-interviews");
+          }}
+        />
+      )}
     </>
   );
 }

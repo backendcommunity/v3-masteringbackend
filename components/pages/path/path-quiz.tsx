@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { Quiz, QuizQuestion } from "@/lib/data";
 import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
+import { correctIndexOf, correctTextOf, scoreAttempt } from "@/lib/quiz-answers";
 import { PathSessionStep } from "@/lib/path-types";
 import StableTimer from "@/components/atoms/Timer";
 import ConfettiCelebration from "@/components/confetti-celebration";
@@ -36,23 +37,6 @@ interface AnsweredResult {
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-// Quiz data comes in two shapes: seeded path quizzes use `answer` (an index into
-// options); older quizzes use `correctAnswer` (the option's text). Normalise both.
-function correctIndexOf(q: QuizQuestion): number {
-  const a = (q as unknown as { answer?: number }).answer;
-  if (typeof a === "number") return a;
-  const ca = q.correctAnswer;
-  if (ca != null && q.options) {
-    const byText = q.options.indexOf(ca);
-    if (byText >= 0) return byText;
-    const n = Number(ca);
-    if (!Number.isNaN(n)) return n;
-  }
-  return -1;
-}
-function correctTextOf(q: QuizQuestion): string {
-  return q.options?.[correctIndexOf(q)] ?? q.correctAnswer ?? "";
-}
 
 export function PathQuiz({
   step,
@@ -144,17 +128,6 @@ export function PathQuiz({
 
   const current = questions[index];
 
-  const computeScore = (final: AnsweredResult[]) => {
-    const totalPts = final.reduce((s, r) => s + (r.points || 0), 0);
-    if (totalPts > 0) {
-      const earned = final.reduce((s, r) => s + (r.passed ? r.points : 0), 0);
-      return Math.round((earned / totalPts) * 100);
-    }
-    // No per-question points defined → score by the share of correct answers.
-    const correct = final.filter((r) => r.passed).length;
-    return final.length ? Math.round((correct / final.length) * 100) : 0;
-  };
-
   const submitAttempt = async (final: AnsweredResult[], finalScore: number) => {
     try {
       await store.submitQuiz(quiz!.id, {
@@ -188,14 +161,14 @@ export function PathQuiz({
     // Single-question quizzes record the attempt the moment it's checked; the
     // learner then taps Continue (pass) or Try Again (fail).
     if (single) {
-      const fs = computeScore(updated);
+      const fs = scoreAttempt(updated);
       setScore(fs);
       submitAttempt(updated, fs);
     }
   };
 
   const finalize = (final: AnsweredResult[]) => {
-    const fs = computeScore(final);
+    const fs = scoreAttempt(final);
     setResults(final); // drives the results-page review list
     setScore(fs);
     setCelebrate(fs >= passingScore);

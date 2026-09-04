@@ -95,7 +95,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
 
     switch (method) {
       case "subscription":
-        onNavigate(routes.subscriptionPlans);
+        onNavigate(routes.pricing(routes.courseDetail(slug)));
         break;
       case "individual": {
         try {
@@ -716,7 +716,7 @@ export function CourseDetailPage({ slug, onNavigate }: CourseDetailPageProps) {
               </button>
 
               <p className="mt-3 text-xs text-center text-muted-foreground">
-                Cancel anytime · Earn a verified certificate
+                Earn a verified certificate
               </p>
             </div>
           )}

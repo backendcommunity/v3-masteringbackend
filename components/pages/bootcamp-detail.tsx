@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import Countdown from "../ui/count-down";
 import DisqusCommentBlock from "../ui/comment";
 import { routes } from "@/lib/routes";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { useUser } from "@/hooks/use-user";
 import { Accordion } from "../ui/accordion";
 
@@ -53,7 +53,7 @@ export function BootcampDetailPage({
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState("overview");
   const [bootcamp, setBootcamp] = useState<Bootcamp | any>();
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
   const [bonusCourses, setBonusCourses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export function BootcampDetailPage({
     } catch (error: any) {
       // Check if payment is required (402 status)
       if (error?.response?.status === 402) {
-        setShowPaymentDialog(true);
+        setShowPaymentGate(true);
         return;
       }
       toast.error(
@@ -165,7 +165,7 @@ export function BootcampDetailPage({
       // Paddle payment — webhook will handle enrollment
       // Show processing message and poll for enrollment status
       toast.info("Payment received! Your enrollment is being processed...");
-      setShowPaymentDialog(false);
+      setShowPaymentGate(false);
 
       // Poll after 5s to refresh bootcamp data
       setTimeout(async () => {
@@ -1018,25 +1018,39 @@ export function BootcampDetailPage({
         </div>
       </div>
 
-      <PaymentDialog
-        onClose={() => setShowPaymentDialog(false)}
-        open={showPaymentDialog}
-        data={{
-          ...bootcamp,
-          type: "bootcamp",
-          plan: "Enterprise",
-          amount: bootcamp?.cohort?.amount,
-          id: bootcamp?.cohort?.id,
-          bootcampId: bootcampId,
-          paddle_price_id: bootcamp?.cohort?.paddle_price_id,
-          asyncpay_plan_id: bootcamp?.cohort?.asyncpay_plan_id,
-        }}
-        disableSubscription={bootcamp?.cohort?.allowsSubscription === false}
-        onHandlePreview={() => {}}
-        onHandlePurchase={(id: string, type: any, success: boolean) =>
-          handlePurchase(id, type, success)
-        }
-      />
+      {showPaymentGate && (
+        <PaymentGateOverlay
+          open={showPaymentGate}
+          onClose={() => setShowPaymentGate(false)}
+          itemTitle={bootcamp?.title ?? "this bootcamp"}
+          stage="learn"
+          variant="centered"
+          // A bootcamp seat is a product, not a content paywall — the default
+          // "you're out of free content" copy would misdescribe the offer.
+          headline={`Join the ${bootcamp?.title ?? "bootcamp"} cohort`}
+          subheading="Live cohort teaching, weekly projects, and a mentor reviewing your work."
+          planName="Enterprise"
+          allowSubscription={bootcamp?.cohort?.allowsSubscription !== false}
+          benefits={[
+            "Live cohort sessions with a working engineer",
+            "Weekly projects reviewed by a mentor",
+            "A cohort channel for questions and code review",
+            "Certificate on completion",
+          ]}
+          purchasable={{
+            ...bootcamp,
+            type: "bootcamp",
+            amount: bootcamp?.cohort?.amount,
+            id: bootcamp?.cohort?.id,
+            bootcampId: bootcampId,
+            paddle_price_id: bootcamp?.cohort?.paddle_price_id,
+            asyncpay_plan_id: bootcamp?.cohort?.asyncpay_plan_id,
+          }}
+          onPurchased={(id: string, method: string, success: boolean) =>
+            handlePurchase(id, method as any, success)
+          }
+        />
+      )}
     </div>
   );
 }

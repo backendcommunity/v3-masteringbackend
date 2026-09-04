@@ -1,32 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { PaymentDialog } from "@/components/payment-dialog";
+import { PaymentGateOverlay } from "@/components/payment-gate-overlay";
 import { PathSession } from "@/lib/path-types";
-import { Lock, Crown, Check } from "lucide-react";
+import { useCheckoutPricing } from "@/hooks/use-pricing";
+import { routes } from "@/lib/routes";
 
 interface StepPaywallProps {
   payment: PathSession["path"]["payment"];
   pathTitle: string;
-  premiumStepCount: number;
-  freeDoneCount: number;
+  /** Where the sheet's single exit sends the learner. */
+  pathSlug?: string;
+  /**
+   * The workspace is shared between paths and courses, so the exit cannot be
+   * hardcoded: a learner inside a course was being offered "Back to path" and
+   * sent to /paths/<slug>, which is the wrong noun AND the wrong page.
+   */
+  entityKind?: "path" | "course";
   onUnlock: () => void;
 }
 
+/**
+ * The path step paywall IS the bottom sheet.
+ *
+ * This component renders <PaymentGateOverlay variant="sheet"> as its entire
+ * output, open from the first frame. There is deliberately NO card, scrim or
+ * button in front of it: it only ever mounts on a step the learner cannot
+ * open, so the gate is unavoidable by definition, and anything whose only job
+ * is to reveal the real gate is a second paywall stacked on the first. It had
+ * one — a frosted scrim plus a glass "Unlock the full {path}" card — and both
+ * are gone. Do not reintroduce them.
+ *
+ * What this component still owns, and why it is not a pass-through: the
+ * path-specific wiring. The pricing fetch, the `purchasable` shape built from
+ * the path's payment row, MB-rail eligibility, the exit destination derived
+ * from `pathSlug`, and the purchase → `onUnlock` handoff all live here.
+ *
+ * What it must NOT own is the sheet's markup. That stays in
+ * components/payment-gate-overlay.tsx as the single implementation shared by
+ * every in-lesson surface — four hand-copied paywalls would diverge inside a
+ * week.
+ *
+ * What shows above the sheet is the workspace exactly as the learner left it —
+ * the lesson they were already on, still mounted and still real. PathWorkspace
+ * never routes into a gated step; it holds position and raises this instead. So
+ * nothing premium is rendered behind the wall, and the scrim has to block
+ * interaction precisely because that page is live rather than a placeholder.
+ */
 export function StepPaywall({
   payment,
   pathTitle,
-  premiumStepCount,
-  freeDoneCount,
+  pathSlug,
+  entityKind = "path",
   onUnlock,
 }: StepPaywallProps) {
-  const [open, setOpen] = useState(false);
+  // Open from the first render. The state exists only so a completed purchase
+  // can take the sheet down before onUnlock() refetches the session.
+  const [open, setOpen] = useState(true);
+  // This is the highest-intent surface in the product — a learner who is
+  // already invested hits this wall. `pricing` is null while the client-side
+  // fetch is in flight (see hooks/use-pricing.ts); the sheet renders WITHOUT
+  // a price in that state rather than flash a wrong one.
+  const pricing = useCheckoutPricing();
 
-  const canRedeemMB = !!payment.amount && payment.amount > 0;
 
-  const dialogData = {
+  const purchasable = {
     id: payment.id,
     type: payment.kind === "course" ? "course" : "roadmap",
     title: pathTitle,
@@ -36,121 +74,30 @@ export function StepPaywall({
   };
 
   return (
-    <>
-      {/* Full-area frosted scrim — frosts the whole stage so the gated step
-          stays faintly visible behind glass (not a hard wall). The teaser body
-          underneath supplies the shapes; this unifies it into one glass panel. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 z-20 bg-background/40 backdrop-blur-[2px]"
-      />
-      {/* Glass card — sits above the frosted body */}
-      <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm border border-primary/20 bg-card/80 shadow-2xl backdrop-blur-xl">
-          <CardContent className="flex flex-col items-center gap-5 p-6 text-center">
-            {/* Icon glyph: Lock + Crown stacked */}
-            <div className="relative">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                <Lock className="h-7 w-7 text-primary" aria-hidden="true" />
-              </span>
-              {/* Crown badge inset bottom-right */}
-              <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-background shadow-md">
-                <Crown
-                  className="h-3.5 w-3.5"
-                  style={{ color: "#F2C94C" }}
-                  aria-hidden="true"
-                />
-              </span>
-            </div>
-
-            {/* Headline */}
-            <div className="space-y-1.5">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                Unlock the full{" "}
-                <span className="text-primary">{pathTitle}</span>
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                You&rsquo;ve reached a Pro-only step. Keep your momentum going.
-              </p>
-            </div>
-
-            {/* Value bullets */}
-            <ul className="w-full space-y-2 text-left" role="list">
-              <li className="flex items-center gap-2.5 text-sm text-foreground">
-                <Check
-                  className="h-4 w-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-                <span>
-                  {premiumStepCount} premium step
-                  {premiumStepCount !== 1 ? "s" : ""} unlocked instantly
-                </span>
-              </li>
-              <li className="flex items-center gap-2.5 text-sm text-foreground">
-                <Check
-                  className="h-4 w-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-                <span>Verified certificate on completion</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-sm text-foreground">
-                <Check
-                  className="h-4 w-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-                <span>Hands-on projects &amp; exercises included</span>
-              </li>
-            </ul>
-
-            {/* CTA buttons */}
-            <div className="flex w-full flex-col gap-2">
-              <Button
-                className="w-full font-semibold"
-                onClick={() => setOpen(true)}
-                aria-label={`Go Pro to unlock ${pathTitle}`}
-              >
-                <Crown
-                  className="mr-2 h-4 w-4"
-                  style={{ color: "#F2C94C" }}
-                  aria-hidden="true"
-                />
-                Go Pro
-              </Button>
-              {canRedeemMB && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setOpen(true)}
-                  aria-label={`Redeem MB to unlock ${pathTitle}`}
-                >
-                  Redeem with MB
-                </Button>
-              )}
-            </div>
-
-            {/* Reassurance micro-copy — only when there's real progress */}
-            {freeDoneCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                You&rsquo;ve completed {freeDoneCount} free step
-                {freeDoneCount !== 1 ? "s" : ""} — don&rsquo;t stop now.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <PaymentDialog
-        data={dialogData}
-        open={open}
-        disableOnetime={true}
-        disableMB={!canRedeemMB}
-        onHandlePreview={() => {}}
-        onClose={() => setOpen(false)}
-        onHandlePurchase={(_id, _type, success) => {
-          setOpen(false);
-          if (success) onUnlock();
-        }}
-      />
-    </>
+    <PaymentGateOverlay
+      open={open}
+      onClose={() => setOpen(false)}
+      itemTitle={pathTitle}
+      stage="learn"
+      variant="sheet"
+      exitLabel={entityKind === "course" ? "Back to course" : "Back to path"}
+      exitHref={
+        pathSlug
+          ? entityKind === "course"
+            ? routes.courseDetail(pathSlug)
+            : routes.pathDetail(pathSlug)
+          : routes.dashboard
+      }
+      pricing={pricing ?? undefined}
+      purchasable={purchasable}
+      allowOneTime={false}
+      onPurchased={(_id, _method, success) => {
+        // Only a SUCCESSFUL purchase takes the wall down. Closing on failure
+        // would strand the learner on a locked step with nothing to act on.
+        if (!success) return;
+        setOpen(false);
+        onUnlock();
+      }}
+    />
   );
 }

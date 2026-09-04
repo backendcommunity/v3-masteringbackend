@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +108,7 @@ function EmptyState({
 
 export function CoursesPage({ onNavigate }: CoursesPageProps) {
   const user = useUser();
+  const pathname = usePathname();
 
   // Search input value (live) vs debounced value (used in API calls)
   const [searchInput, setSearchInput] = useState("");
@@ -453,7 +455,7 @@ export function CoursesPage({ onNavigate }: CoursesPageProps) {
                   </div>
                 </div>
                 <Button
-                  onClick={() => onNavigate(routes.subscriptionPlans)}
+                  onClick={() => onNavigate(routes.pricing(pathname))}
                   className="w-full md:w-auto"
                 >
                   Upgrade Now

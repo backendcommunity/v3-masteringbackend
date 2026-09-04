@@ -43,7 +43,12 @@ import { useAuth } from "@/store/auth";
 import { useUser } from "@/hooks/use-user";
 import { useAppStore } from "@/lib/store";
 import { format } from "timeago.js";
-import { updateUser, type Activity, type SearchResults } from "@/lib/data";
+import {
+  updateUser,
+  type Activity,
+  type SearchResults,
+  type TeamSummary,
+} from "@/lib/data";
 import { Loader } from "./ui/loader";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
@@ -73,11 +78,44 @@ export function NavigationBar({
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
   const [notifications, setNotifications] = useState<Activity[]>([]);
   const [seenNotificationIds] = useState(() => new Set<string>());
+  const [teams, setTeams] = useState<TeamSummary[]>([]);
   const user = useUser();
 
   const subscriptionName = user?.isPremium
     ? user?.subscription?.plan?.name ?? "Pro"
     : "Free";
+
+  // Team entries are gated on actually belonging to a team. /team has an
+  // upsell empty state for everyone else, but this is a personal account
+  // menu — pointing every solo learner at an Enterprise pitch from here is
+  // noise, and the pricing page already sells it.
+  //
+  // Deliberately not gated on isPremium: a member whose team subscription
+  // lapsed is no longer premium but is still a member, and they are exactly
+  // the person who needs to reach the team page to find out why.
+  useEffect(() => {
+    if (!user) {
+      setTeams([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    store
+      .getMyTeams()
+      .then((mine) => {
+        if (!cancelled) setTeams(mine ?? []);
+      })
+      .catch(() => {
+        // A failed lookup hides the entries rather than showing a link that
+        // may 404. The nav bar must never fail the page it frames.
+        if (!cancelled) setTeams([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, store]);
   async function load() {
     try {
       setIsActivitiesLoading(true);
@@ -851,7 +889,7 @@ export function NavigationBar({
               <Button
                 size="sm"
                 className="shrink-0 bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-semibold hover:from-yellow-500 hover:to-orange-500"
-                onClick={() => onNavigate(routes.subscriptionManagement)}
+                onClick={() => onNavigate(routes.pricing())}
               >
                 <Crown className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Upgrade</span>
@@ -1094,6 +1132,42 @@ export function NavigationBar({
                     >
                       <CheckSquare className="mr-2 h-4 w-4" />
                       <span>Assignments</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {teams.length > 0 ? (
+                  <>
+                    <DropdownMenuItem onClick={() => onNavigate(routes.team)}>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span className="truncate">
+                        {teams.length === 1 ? teams[0].name : "My Teams"}
+                      </span>
+                      {teams.length === 1 && teams[0].role !== "MEMBER" && (
+                        <Badge variant="secondary" className="ml-auto">
+                          {teams[0].role === "OWNER" ? "Owner" : "Admin"}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                ) : (
+                  <>
+                    {/* Routes to the Enterprise page rather than straight to
+                        /checkout?plan=enterprise: Enterprise is self-serve in
+                        some regions and sales-led in others, and that page is
+                        the one place that already makes the call. Deciding it
+                        a second time here is how the two copies drift apart.
+
+                        It used to point at /pricing, which sells a SEAT. A
+                        person clicking "Create Team" has already decided they
+                        are buying for a team; landing them on the individual
+                        upsell made them find the team plan for themselves. */}
+                    <DropdownMenuItem
+                      onClick={() => onNavigate(routes.pricingEnterprise)}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>Create Team</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>

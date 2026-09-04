@@ -16,6 +16,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/certifications/verify/abc123")).toBe(true);
   });
 
+  it("treats /team/join/:token as public — the invitee has no session yet", () => {
+    expect(isPublicPath("/team/join/abc123token")).toBe(true);
+    // The bare /team management page (owner UI) stays protected.
+    expect(isPublicPath("/team")).toBe(false);
+  });
+
   it("does not mark unrelated protected routes as public", () => {
     expect(isPublicPath("/dashboard")).toBe(false);
     expect(isPublicPath("/ai")).toBe(false);

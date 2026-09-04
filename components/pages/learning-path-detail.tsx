@@ -319,6 +319,25 @@ export function LearningPathDetailPage({
       badgeCls: "bg-muted-foreground/20",
       dotCls: "bg-muted-foreground/20",
     },
+    // Content a team attached straight to a section, with no course wrapping
+    // it — the shape a team-authored path is mostly made of ("watch these two
+    // videos, read that article"). Without an entry here each one fell through
+    // to `typeConfig.course` and was labelled "Course".
+    video: {
+      label: "Video",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    article: {
+      label: "Article",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
+    cohort: {
+      label: "Cohort",
+      badgeCls: "bg-muted-foreground/20",
+      dotCls: "bg-muted-foreground/20",
+    },
   };
 
   const loadData = async () => {
@@ -674,6 +693,16 @@ export function LearningPathDetailPage({
     0,
   );
 
+  // Every content item across every section, courses included. A team path is
+  // typically built out of loose videos and articles rather than courses, so
+  // the header's course count is genuinely 0 for one — and "0 courses" next to
+  // a full six-week curriculum reads as broken. Courses stay the headline
+  // wherever there are any, so a catalogue path is unchanged.
+  const totalItems = topics.reduce(
+    (s: number, t: any) => s + (t.sortedContents?.length || 0),
+    0,
+  );
+
   // ── Flat header block ──
   const pageHeader = (
     <div>
@@ -733,7 +762,9 @@ export function LearningPathDetailPage({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Layers className="w-4 h-4 opacity-70" />
-                {totalCourses} courses
+                {totalCourses > 0
+                  ? `${totalCourses} courses`
+                  : `${totalItems} items`}
               </span>
             </div>
           </div>

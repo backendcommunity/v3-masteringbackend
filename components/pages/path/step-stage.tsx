@@ -1,7 +1,6 @@
 "use client";
 import { Compass } from "lucide-react";
 import { PathSession, PathSessionStep } from "@/lib/path-types";
-import { StepPaywall } from "./step-paywall";
 import { LockedStepSkeleton } from "./locked-step-skeleton";
 import { VideoStep } from "./steps/video-step";
 import { ArticleStep } from "./steps/article-step";
@@ -21,7 +20,6 @@ export function StepStage({
   updateProgress,
   onPassed,
   onContinue,
-  paywall,
 }: {
   pathId: string;
   step?: PathSessionStep;
@@ -41,15 +39,6 @@ export function StepStage({
   // explicit Continue click (Task 4). Non-exercise steps keep onComplete.
   onPassed?: (stepId: string, payload?: Record<string, unknown>) => void;
   onContinue?: () => void;
-  // Paywall context — when provided and the step's access.allowed is false,
-  // the step body is blurred and the upgrade card is overlaid.
-  paywall?: {
-    payment: PathSession["path"]["payment"];
-    pathTitle: string;
-    premiumStepCount: number;
-    freeDoneCount: number;
-    onUnlock: () => void;
-  };
 }) {
   if (!step)
     return (
@@ -106,21 +95,16 @@ export function StepStage({
     }
   };
 
-  const locked = step.access?.allowed === false && !!paywall;
-
-  if (locked && paywall) {
+  // Normally every step reaching here is one the learner can open — the
+  // workspace holds their position rather than routing into a gated step (see
+  // PathWorkspace.selectStep). The exception is a path with nothing entitled to
+  // hold onto: there we still show WHERE they are, as frozen chrome built from
+  // metadata alone. Mounting the live renderer instead would resolve payloadRef
+  // and pull paid content down to an unentitled client.
+  if (step.access?.allowed === false) {
     return (
-      <div className="interview-panel-enter relative min-h-full w-full min-w-0 flex-1">
-        {/* Static, non-interactive teaser — NO live step component mounts here.
-            Shape hints at the gated step type (code editor, quiz, chat, …). */}
-        <LockedStepSkeleton type={step.type} />
-        <StepPaywall
-          payment={paywall.payment}
-          pathTitle={paywall.pathTitle}
-          premiumStepCount={paywall.premiumStepCount}
-          freeDoneCount={paywall.freeDoneCount}
-          onUnlock={paywall.onUnlock}
-        />
+      <div className="interview-panel-enter min-h-full w-full min-w-0 flex-1">
+        <LockedStepSkeleton step={step} />
       </div>
     );
   }

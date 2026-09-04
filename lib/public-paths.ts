@@ -12,6 +12,12 @@ export const PUBLIC_PATH_PREFIXES = [
   "/certifications/verify/",
   "/ai/payment",
   "/xpayment",
+  "/pricing",
+  // Team invite acceptance: reads a PUBLIC endpoint (GET /teams/invites/:token)
+  // and must render its preview (team name, inviter, expiry) before the
+  // invitee has ever signed in.
+  "/team/join/",
+
   // Scholarship flyer generator: a campaign tool handed to people who have no
   // account and may never make one.
   "/scholarship/flyer",

@@ -72,7 +72,8 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
+import { routes } from "@/lib/routes";
 import { Terminal, type TerminalRunHandle } from "../atoms/Terminal";
 import { KapTutorPanel } from "@/components/pages/kap/kap-tutor-panel";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -572,7 +573,7 @@ export function ProjectPlaygroundPage({
     ready: tourReady,
     theme: tourTheme,
     track,
-    autoStart: true,
+    autoStart: false,
     actions: tourActions,
     reveals: tourReveals,
     alwaysOffer: isDemo,
@@ -1273,10 +1274,10 @@ export function ProjectPlaygroundPage({
       fileTree.find((f) => f.type === "file");
     if (firstFile) openFile(firstFile);
     setRailTab("explorer");
-    // // Kick off the guided highlight tour. On a real project this is the entry
-    // // point (no mutations — actions are sample-only); on the sample it simply
-    // // re-runs the walkthrough.
-    // relaunch();
+    // Kick off the guided highlight tour. On a real project this is the entry
+    // point (no mutations — actions are sample-only); on the sample it simply
+    // re-runs the walkthrough.
+    relaunch();
   };
   // group-based numbering keyed by task id → "1.1", "2.3" …
   const taskNumber: Record<string, string> = {};
@@ -4419,23 +4420,28 @@ app.listen(port, () => console.log("Server listening on port " + port));
         </DialogContent>
       </Dialog>
 
-      <PaymentDialog
-        disableMB={false}
-        disableOnetime={true}
-        onClose={() => setShowPayment(false)}
-        open={showPayment}
-        data={{ ...project, type: "project" }}
-        onHandlePreview={() => {}}
-        onHandlePurchase={async (_id: string, _type: any, success: boolean) => {
-          setShowPayment(false);
-          if (!success) return;
-          // Entitlement was granted server-side (MB redeem / subscription) —
-          // re-fetch so the playground reflects unlocked access without a reload.
-          const fresh = await store.getProject(slug);
-          if (fresh) setProject(fresh);
-          toast.success("Unlocked — enjoy the full project.");
-        }}
-      />
+      {showPayment && (
+        <PaymentGateOverlay
+          open={showPayment}
+          onClose={() => setShowPayment(false)}
+          itemTitle={project?.title ?? "this project"}
+          stage="build"
+          variant="sheet"
+          exitLabel="Back to project"
+          exitHref={routes.projectDetail(slug)}
+          purchasable={{ ...project, type: "project" }}
+          allowOneTime={false}
+          onPurchased={async (_id: string, _method: string, success: boolean) => {
+            setShowPayment(false);
+            if (!success) return;
+            // Entitlement was granted server-side (MB redeem / subscription) —
+            // re-fetch so the playground reflects unlocked access without a reload.
+            const fresh = await store.getProject(slug);
+            if (fresh) setProject(fresh);
+            toast.success("Unlocked — enjoy the full project.");
+          }}
+        />
+      )}
 
       <Dialog
         open={showGithubRequiredModal}

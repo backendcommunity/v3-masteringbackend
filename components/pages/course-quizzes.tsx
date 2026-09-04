@@ -16,7 +16,7 @@ import {
 import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { Course, Quiz } from "@/lib/data";
-import { PaymentDialog } from "../payment-dialog";
+import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 interface CourseQuizzesPageProps {
@@ -33,7 +33,7 @@ export function CourseQuizzesPage({
   const [quizzes, setQuizzes] = useState<Quiz[] | any>();
   const [course, setCourse] = useState<Course | any>();
   const [filteredQuizzes, setFilteredQuizzes] = useState<any[]>([]);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showPaymentGate, setShowPaymentGate] = useState(false);
 
   async function loadQuizzes() {
     const quizzes = await store.getCourseQuizzes(slug);
@@ -280,7 +280,7 @@ export function CourseQuizzesPage({
               {!enrolled && !course?.enrolled ? (
                 <Button
                   className="w-full"
-                  onClick={() => setShowPaymentDialog(true)}
+                  onClick={() => setShowPaymentGate(true)}
                   variant={"default"}
                 >
                   Start Quiz
@@ -323,13 +323,16 @@ export function CourseQuizzesPage({
         </Card>
       )}
 
-      {showPaymentDialog && (
-        <PaymentDialog
-          onClose={() => setShowPaymentDialog(false)}
-          open={showPaymentDialog}
-          data={course}
-          onHandlePreview={() => {}}
-          onHandlePurchase={() => {}}
+      {showPaymentGate && (
+        <PaymentGateOverlay
+          open={showPaymentGate}
+          onClose={() => setShowPaymentGate(false)}
+          itemTitle={course?.title ?? "this course"}
+          stage="learn"
+          variant="sheet"
+          exitLabel="Back to course"
+          exitHref={routes.courseDetail(slug)}
+          purchasable={{ ...course, type: "course" }}
         />
       )}
     </div>

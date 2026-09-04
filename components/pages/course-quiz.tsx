@@ -16,6 +16,7 @@ import { routes } from "@/lib/routes";
 import { useAppStore } from "@/lib/store";
 import { Quiz } from "@/lib/data";
 import { DEFAULT_QUIZ_PASSING_SCORE } from "@/lib/constants";
+import { correctTextOf, isCorrect, scoreAttempt } from "@/lib/quiz-answers";
 import { toast } from "sonner";
 import ConfettiCelebration from "../confetti-celebration";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -99,8 +100,6 @@ export function CourseQuizPage({
   const handleSubmitQuiz = async () => {
     if (!quiz) return;
 
-    let totalPoints = 0;
-    let earnedPoints = 0;
     const results: any[] = [];
 
     quiz.questions.forEach((question, index) => {
@@ -108,18 +107,23 @@ export function CourseQuizPage({
       if (isNaN(userAnswerIndex)) return;
 
       const userAnswerValue = question.options![userAnswerIndex];
-      const correctAnswerValue = question.correctAnswer;
-      const questionPoints = question.points || 0;
+      // Most stored questions carry `answer` (an index) and no `correctAnswer`,
+      // so comparing against the text field alone marked every answer wrong.
+      const passed = isCorrect(question, userAnswerIndex);
 
-      totalPoints += questionPoints;
-      const passed = userAnswerValue === correctAnswerValue;
-      if (passed) earnedPoints += questionPoints;
-
-      results.push({ ...question, userAnswer: userAnswerValue, passed });
+      results.push({
+        ...question,
+        userAnswer: userAnswerValue,
+        // Submitted to the API, and what the review list reads back.
+        correctAnswer: correctTextOf(question),
+        passed,
+      });
     });
 
-    const finalScore =
-      totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+    // Weighted by points when the questions have them, by share of correct
+    // answers when they do not — most of them do not, and dividing by zero
+    // points returned 0% even for a perfect attempt.
+    const finalScore = scoreAttempt(results);
     const passed = finalScore >= (quiz?.passingScore ?? DEFAULT_QUIZ_PASSING_SCORE);
 
     setScore(finalScore);

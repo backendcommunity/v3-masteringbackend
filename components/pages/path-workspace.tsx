@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   PanelRightClose,
@@ -19,6 +19,7 @@ import {
 import { triggerItemRecap } from "@/lib/use-journey-recap-trigger";
 import { StepSkeleton } from "@/components/pages/path/step-skeleton";
 import { StepStage } from "@/components/pages/path/step-stage";
+import { StepPaywall } from "@/components/pages/path/step-paywall";
 import { PathTopBar } from "@/components/pages/path/path-top-bar";
 import { PathContextPanel } from "@/components/pages/path/path-context-panel";
 import { PathStage } from "@/components/pages/path/path-stage";
@@ -100,6 +101,25 @@ export function PathWorkspace({
   const [currentStepId, setCurrentStepId] = useState<string | undefined>(
     initialStepId,
   );
+  // Mirrors currentStepId so load() can read the latest value without taking it
+  // as a dependency (load is intentionally keyed on pathId alone).
+  const currentStepIdRef = useRef<string | undefined>(initialStepId);
+  useEffect(() => {
+    currentStepIdRef.current = currentStepId;
+  }, [currentStepId]);
+  // The paywall is raised OVER the workspace; it never replaces it. When a
+  // learner reaches for a gated step we deliberately do NOT move `currentStepId`
+  // — the lesson they were already on stays mounted, live and real, and the
+  // sheet covers it. Two things follow from that:
+  //
+  //   1. Nothing premium is ever rendered. What sits behind the wall is content
+  //      the learner is entitled to, so there is no locked-step stand-in to
+  //      build and no payload to withhold.
+  //   2. The scrim MUST block interaction, because the page behind is genuinely
+  //      interactive — unlike a static placeholder, it would otherwise keep
+  //      taking clicks straight through the wall.
+  const [gatedStepId, setGatedStepId] = useState<string | null>(null);
+
   const [outlineOpen, setOutlineOpen] = useState(false);
   // Overview/Transcript pane is collapsible — hidden lets the player go full.
   const [panelOpen, setPanelOpen] = useState(true);
@@ -121,9 +141,35 @@ export function PathWorkspace({
       setLoading(true);
       const data = await loadSessionFn(pathId);
       setSession(data);
-      setCurrentStepId(
-        (prev) => prev ?? data?.cursor?.resumeStepId ?? data?.steps?.[0]?.id,
-      );
+
+      // Resolved OUTSIDE a setState updater: updaters must be pure, and this
+      // one needs to set a second piece of state. React invokes updaters twice
+      // under StrictMode, so a setGatedStepId() nested in one fires twice and
+      // is not guaranteed to be applied. Hygiene rather than an observed bug —
+      // it survived a StrictMode test either way — but not a shape to leave in
+      // the code path that decides whether a paywall appears.
+      const requested =
+        currentStepIdRef.current ??
+        data?.cursor?.resumeStepId ??
+        data?.steps?.[0]?.id;
+      const target = data?.steps?.find((s) => s.id === requested);
+
+      if (target && target.access?.allowed === false) {
+        // Nothing is mounted yet, so there is no lesson to raise the wall over.
+        // Fall back to the learner's most recent completed work and gate from
+        // there; an empty stage would lose the "your progress is right there"
+        // framing the paywall leans on.
+        const done = [...(data?.steps ?? [])]
+          .filter((s) => s.status === "DONE" && s.access?.allowed !== false)
+          .sort((a, b) => b.order - a.order)[0];
+        const firstOpen = [...(data?.steps ?? [])]
+          .sort((a, b) => a.order - b.order)
+          .find((s) => s.access?.allowed !== false);
+        setCurrentStepId(done?.id ?? firstOpen?.id ?? requested);
+        setGatedStepId(requested);
+      } else {
+        setCurrentStepId(requested);
+      }
       setLoading(false);
       // Return-recap: defer to next tick so the workspace paints first.
       setTimeout(() => {
@@ -146,42 +192,66 @@ export function PathWorkspace({
     [session, currentStepId],
   );
 
-  const premiumStepCount = useMemo(
-    () => session?.steps.filter((s) => s.access?.allowed === false).length ?? 0,
-    [session],
-  );
-  const freeDoneCount = useMemo(
-    () =>
-      session?.steps.filter(
-        (s) => s.access?.allowed !== false && s.status === "DONE",
-      ).length ?? 0,
-    [session],
-  );
   const paywallCtx = useMemo(
     () =>
       session
         ? {
             payment: session.path.payment,
             pathTitle: session.path.title,
-            premiumStepCount,
-            freeDoneCount,
-            onUnlock: load,
+            pathSlug: session.path.slug,
+            entityKind,
+            onUnlock: () => {
+              setGatedStepId(null);
+              return load();
+            },
           }
         : undefined,
-    [session, premiumStepCount, freeDoneCount, load],
+    [session, load, entityKind],
   );
-  // Current step gated behind the paywall → the only action is "Go Pro" (in the
-  // overlay), so suppress the bottom-bar Next entirely.
-  const currentLocked = currentStep?.access?.allowed === false && !!paywallCtx;
+
+  const gatedStep = useMemo(
+    () => session?.steps.find((s) => s.id === gatedStepId),
+    [session, gatedStepId],
+  );
+  // Two ways the wall goes up, and the second one matters:
+  //
+  //   1. The learner reached for a gated step (normal case).
+  //   2. The step on screen is itself gated. That should be impossible — the
+  //      guards above hold position — but "should be impossible" is how a
+  //      paywall goes missing in production. It is genuinely reachable when a
+  //      path has NO entitled step at all, since the deep-link fallback then
+  //      has nothing to fall back to.
+  //
+  // Before this refactor the wall keyed purely off the displayed step's access,
+  // so keeping that as a floor means no reachable state loses the paywall.
+  const currentStepGated = currentStep?.access?.allowed === false;
+  const paywallOpen = (!!gatedStepId || currentStepGated) && !!paywallCtx;
+
+  // The gated step IS still handed to the stage, on purpose: StepStage renders
+  // frozen chrome for it rather than the live component, so the learner sees
+  // where they are instead of "Select a step to begin".
+
+  const isGated = useCallback(
+    (stepId: string) =>
+      session?.steps.find((s) => s.id === stepId)?.access?.allowed === false,
+    [session],
+  );
 
   const selectStep = useCallback(
     (stepId: string) => {
+      // Reaching for a gated step raises the wall and changes nothing else:
+      // no cursor move, no route change. The learner keeps the page they had.
+      if (isGated(stepId)) {
+        setGatedStepId(stepId);
+        return;
+      }
       // Selecting any normal step always exits the certificate landing.
       setShowCertificate(false);
+      setGatedStepId(null);
       setCurrentStepId(stepId);
       onNavigate(stepRouteFn(pathId, stepId));
     },
-    [pathId, onNavigate, stepRouteFn],
+    [pathId, onNavigate, stepRouteFn, isGated],
   );
 
   const applyDelta = useCallback((delta: PathSessionDelta) => {
@@ -295,6 +365,11 @@ export function PathWorkspace({
     const nextId = pendingNextStepId ?? session?.cursor?.nextStepId ?? null;
     if (hasCertificate && (pendingCertUnlocked || !nextId)) {
       setShowCertificate(true);
+    } else if (nextId && isGated(nextId)) {
+      // Finishing a free step and landing on a premium one: hold position and
+      // raise the wall over the step they just completed, rather than moving
+      // them onto a page they cannot use.
+      setGatedStepId(nextId);
     } else if (nextId) {
       setCurrentStepId(nextId);
     } else {
@@ -302,7 +377,7 @@ export function PathWorkspace({
     }
     setPendingNextStepId(null);
     setPendingCertUnlocked(false);
-  }, [pendingNextStepId, pendingCertUnlocked, hasCertificate, session?.cursor?.nextStepId]);
+  }, [pendingNextStepId, pendingCertUnlocked, hasCertificate, session?.cursor?.nextStepId, isGated]);
 
   const ordered = useMemo(
     () => (session ? [...session.steps].sort((a, b) => a.order - b.order) : []),
@@ -338,8 +413,10 @@ export function PathWorkspace({
   const listHref = entityKind === "course" ? "/courses" : "/paths";
   const detailHref =
     entityKind === "course" ? `/courses/${pathId}` : `/paths/${pathId}`;
-  // Locked steps show only the paywall — no Kap context panel / transcript.
-  const hasContext = !!currentStep && !fullBleed && !currentLocked;
+  // The displayed step is always one the learner can open, so the workspace
+  // keeps its full furniture — context panel, transcript, progress — while the
+  // paywall sits over the top of it.
+  const hasContext = !!currentStep && !fullBleed;
 
   const milestoneSteps = ordered.filter(
     (s) => s.topicId === currentStep?.topicId,
@@ -380,6 +457,20 @@ export function PathWorkspace({
       kind={entityKind}
     />
   );
+
+  // Page-level, not stage-level: the wall covers the whole workspace — top bar,
+  // outline, context panel and all — rather than sitting inside the step slot.
+  // It portals to <body>, so this is about ownership, not DOM position.
+  const paywall =
+    paywallOpen && paywallCtx ? (
+      <StepPaywall
+        payment={paywallCtx.payment}
+        pathTitle={paywallCtx.pathTitle}
+        pathSlug={paywallCtx.pathSlug}
+        entityKind={paywallCtx.entityKind}
+        onUnlock={paywallCtx.onUnlock}
+      />
+    ) : null;
 
   const outlineDrawer = (
     <PathOutlineDrawer
@@ -445,6 +536,7 @@ export function PathWorkspace({
         </div>
         {outlineDrawer}
         {celebrations}
+        {paywall}
       </div>
     );
   }
@@ -490,11 +582,11 @@ export function PathWorkspace({
             updateProgress={updateProgressFn}
             onPassed={recordStepComplete}
             onContinue={advance}
-            paywall={paywallCtx}
           />
         </div>
         {outlineDrawer}
         {celebrations}
+        {paywall}
       </div>
     );
   }
@@ -570,7 +662,6 @@ export function PathWorkspace({
               updateProgress={updateProgressFn}
               onPassed={recordStepComplete}
               onContinue={advance}
-              paywall={paywallCtx}
             />
           </PathStage>
 
@@ -605,13 +696,14 @@ export function PathWorkspace({
             onPrev={() => prev && selectStep(prev.id)}
             onNext={() => next && selectStep(next.id)}
             onComplete={() => currentStep && completeStep(currentStep.id)}
-            hideNext={fullBleed || currentLocked}
+            hideNext={fullBleed}
           />
         </div>
       </div>
 
       {outlineDrawer}
       {celebrations}
+      {paywall}
     </div>
   );
 }
