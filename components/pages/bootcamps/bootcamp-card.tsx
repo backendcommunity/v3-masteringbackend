@@ -44,7 +44,11 @@ export function BootcampCard({ bootcamp, onNavigate }: BootcampCardProps) {
   const enrolled = !!bootcamp.enrolled;
   const progress = bootcamp.userCohort?.progress ?? 0;
   const start = formatStart(bootcamp.startDate ?? bootcamp.cohort?.startsAt);
-  const spotsLeft = bootcamp.spotsLeft;
+  // Seats are per cohort: the API sets `cohort.spotsLeft`, never a
+  // `spotsLeft` on the bootcamp itself (that field is only in the mock data).
+  // `null` means the cohort is uncapped — the badge below already hides
+  // anything that is not a number.
+  const spotsLeft = bootcamp.cohort?.spotsLeft;
 
   return (
     <div

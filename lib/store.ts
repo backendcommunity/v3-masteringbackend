@@ -273,7 +273,7 @@ interface AppState {
       level?: string;
     };
   }) => Bootcamp[] | any;
-  getBootcamp: (id: string) => Bootcamp | any;
+  getBootcamp: (id: string, cohortId?: string | null) => Promise<any>;
   getBootcampBonuses: (id: string, cohort: string) => any;
   getAdminAssignments: (filters?: any) => Promise<any>;
   approveAssignment: (userLessonId: string) => Promise<any>;
@@ -1287,8 +1287,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     return data?.data;
   },
 
-  getBootcamp: async (id: string) => {
-    const { data } = await api.get(`/bootcamps/${id}`);
+  getBootcamp: async (id: string, cohortId?: string | null) => {
+    const { data } = await api.get(`/bootcamps/${id}`, {
+      params: cohortId ? { cohort: cohortId } : undefined,
+    });
     return data?.data;
   },
   getLesson: async (id: string, week: string, lesson: string) => {

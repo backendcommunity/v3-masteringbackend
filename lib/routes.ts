@@ -53,7 +53,7 @@ export const routes = {
   bootcampDashboard: (bootcampId: string) =>
     `/bootcamps/${bootcampId}/dashboard`,
   bootcampLeaderboard: (bootcampId: string, cohortId: string) =>
-    `/bootcamps/${bootcampId}/leaderboard?cohortId=${cohortId}`,
+    `/bootcamps/${bootcampId}/leaderboard?cohort=${cohortId}`,
   bootcampWeek: (bootcampId: string, cohort: string, weekId: string) =>
     `/bootcamps/${bootcampId}/${cohort}/weeks/${weekId}`,
   bootcampWatch: (

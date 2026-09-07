@@ -1,7 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { BootcampDashboardPage } from "@/components/pages/bootcamp-dashboard";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useParams, useRouter } from "next/navigation";
 
 type BootcampDashboardPageRouteProps = {
@@ -18,10 +20,12 @@ export default function BootcampDashboardPageRoute() {
 
   return (
     <DashboardLayout>
-      <BootcampDashboardPage
-        bootcampId={bootcampId}
-        onNavigate={handleNavigate}
-      />
+      <Suspense fallback={<PageSkeleton />}>
+        <BootcampDashboardPage
+          bootcampId={bootcampId}
+          onNavigate={handleNavigate}
+        />
+      </Suspense>
     </DashboardLayout>
   );
 }

@@ -38,6 +38,7 @@ import { routes } from "@/lib/routes";
 import { PaymentGateOverlay } from "../payment-gate-overlay";
 import { useUser } from "@/hooks/use-user";
 import { Accordion } from "../ui/accordion";
+import { CohortSwitcher, useCohortParam } from "@/components/bootcamps/cohort-switcher";
 
 interface BootcampDetailPageProps {
   bootcampId: string;
@@ -50,6 +51,7 @@ export function BootcampDetailPage({
 }: BootcampDetailPageProps) {
   const store = useAppStore();
   const user = useUser();
+  const { cohortId, setCohortId, withCohort } = useCohortParam();
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState("overview");
   const [bootcamp, setBootcamp] = useState<Bootcamp | any>();
@@ -60,7 +62,7 @@ export function BootcampDetailPage({
     const load = async () => {
       try {
         setLoading(true);
-        const bootcamp = await store.getBootcamp(bootcampId);
+        const bootcamp = await store.getBootcamp(bootcampId, cohortId);
         setBootcamp({
           ...bootcamp,
         });
@@ -79,7 +81,7 @@ export function BootcampDetailPage({
 
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bootcampId]);
+  }, [bootcampId, cohortId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +146,7 @@ export function BootcampDetailPage({
 
       // Enrollment succeeded → take the learner straight to the cohort
       // dashboard (the bootcamp's first content surface).
-      onNavigate?.(`/bootcamps/${id}/dashboard`);
+      onNavigate?.(withCohort(`/bootcamps/${id}/dashboard`));
       return;
     } catch (error: any) {
       // Check if payment is required (402 status)
@@ -170,7 +172,7 @@ export function BootcampDetailPage({
       // Poll after 5s to refresh bootcamp data
       setTimeout(async () => {
         try {
-          const updated = await store.getBootcamp(bootcampId);
+          const updated = await store.getBootcamp(bootcampId, cohortId);
           if (updated?.enrolled) {
             setBootcamp(updated);
             toast.success("You have successfully enrolled");
@@ -189,7 +191,7 @@ export function BootcampDetailPage({
     if (type === "mb") {
       // MB payment — backend handles enrollment atomically
       try {
-        const updated = await store.getBootcamp(bootcampId);
+        const updated = await store.getBootcamp(bootcampId, cohortId);
         if (updated?.enrolled) {
           setBootcamp(updated);
           toast.success("You have successfully enrolled with MB");
@@ -224,10 +226,19 @@ export function BootcampDetailPage({
             <div className="eyebrow-mono text-white/[.55]">bootcamp</div>
             <div className="flex flex-wrap items-center gap-3 mt-1.5">
               <h1 className="text-3xl md:text-4xl font-black tracking-tight">{bootcamp?.title}</h1>
-              {bootcamp?.cohort?.name && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
-                  {bootcamp.cohort.name}
-                </span>
+              {bootcamp?.myCohorts?.length > 1 ? (
+                <CohortSwitcher
+                  cohorts={bootcamp.myCohorts}
+                  value={bootcamp?.cohort?.id}
+                  onChange={setCohortId}
+                  className="h-7 w-auto min-w-[9rem] text-[11px] bg-primary/20 text-[#4AC5E8] border-primary/30"
+                />
+              ) : (
+                bootcamp?.cohort?.name && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/20 text-[#4AC5E8] border border-primary/30">
+                    {bootcamp.cohort.name}
+                  </span>
+                )
               )}
             </div>
 
@@ -235,7 +246,7 @@ export function BootcampDetailPage({
               {bootcamp?.enrolled ? (
                 <button
                   onClick={() =>
-                    onNavigate?.(`/bootcamps/${bootcampId}/dashboard`)
+                    onNavigate?.(withCohort(`/bootcamps/${bootcampId}/dashboard`))
                   }
                   className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold px-5 py-2.5 text-sm hover:bg-primary/90 transition"
                 >
@@ -503,7 +514,7 @@ export function BootcampDetailPage({
                                     className="h-8 w-8 p-0"
                                     onClick={() =>
                                       onNavigate?.(
-                                        `/bootcamps/${bootcampId}/${bootcamp?.userCohort?.cohortId}/weeks/${module.id}`,
+                                        `/bootcamps/${bootcampId}/${bootcamp?.cohort?.id}/weeks/${module.id}`,
                                       )
                                     }
                                   >
@@ -851,15 +862,20 @@ export function BootcampDetailPage({
                     {bootcamp?.cohort?.duration} weeks
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4 opacity-70" />
-                    Spots left
-                  </span>
-                  <span className="font-semibold">
-                    {bootcamp?.cohort?.spotsLeft}
-                  </span>
-                </div>
+                {/* An uncapped cohort (maxStudent 0) has no seat count —
+                    the API sends spotsLeft: null, and "0 spots left" would
+                    read as "full". Drop the row entirely instead. */}
+                {bootcamp?.cohort?.spotsLeft != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-4 w-4 opacity-70" />
+                      Spots left
+                    </span>
+                    <span className="font-semibold">
+                      {bootcamp?.cohort?.spotsLeft}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {bootcamp?.enrolled && (
@@ -890,7 +906,7 @@ export function BootcampDetailPage({
                     <Button
                       className="w-full"
                       onClick={() =>
-                        onNavigate?.(`/bootcamps/${bootcampId}/dashboard`)
+                        onNavigate?.(withCohort(`/bootcamps/${bootcampId}/dashboard`))
                       }
                     >
                       <Play className="mr-2 h-4 w-4" /> Access Bootcamp
@@ -990,7 +1006,9 @@ export function BootcampDetailPage({
                 <Button
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() =>
-                    onNavigate?.(routes.bootcampCertificate(bootcampId))
+                    onNavigate?.(
+                      withCohort(routes.bootcampCertificate(bootcampId)),
+                    )
                   }
                 >
                   <Award className="mr-2 h-4 w-4" />

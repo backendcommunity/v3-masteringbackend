@@ -20,19 +20,23 @@ import { useEffect, useState } from "react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Bootcamp, Lesson, UserCohort, Week } from "@/lib/data";
 import { formatRelativeDate } from "@/lib/utils";
+import { useCohortParam } from "@/components/bootcamps/cohort-switcher";
 
 interface BootcampWeekPageProps {
   bootcampId: string;
   weekId: string;
+  cohort?: string;
   onNavigate?: (route: string) => void;
 }
 
 export function BootcampWeekPage({
   bootcampId,
   weekId,
+  cohort,
   onNavigate,
 }: BootcampWeekPageProps) {
   const store = useAppStore();
+  const { cohortId } = useCohortParam();
   const [bootcamp, setBootcamp] = useState<Bootcamp>();
   const [userCohort, setUserCohort] = useState<UserCohort>();
   const [loading, setLoading] = useState(false);
@@ -46,7 +50,10 @@ export function BootcampWeekPage({
     const load = async () => {
       try {
         setLoading(true);
-        const bootcamp = await store.getBootcamp(bootcampId);
+        // Route segment first: /bootcamps/:id/:cohort/... names the cohort
+        // explicitly, so a stale `?cohort=` carried over from another page
+        // must not win over the cohort the URL path is already about.
+        const bootcamp = await store.getBootcamp(bootcampId, cohort ?? cohortId);
 
         const weeks = bootcamp?.cohort?.weeks;
         if (!cancelled) setWeeks(weeks);
@@ -74,7 +81,7 @@ export function BootcampWeekPage({
     return () => {
       cancelled = true;
     };
-  }, [bootcampId, weekId]);
+  }, [bootcampId, weekId, cohortId, cohort]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +131,7 @@ export function BootcampWeekPage({
       return onNavigate?.(`/projects/${lesson?.project?.slug}`);
 
     return onNavigate?.(
-      `/bootcamps/${bootcampId}/${userCohort?.cohortId}/weeks/${currentWeek?.id}/${lesson?.id}`,
+      `/bootcamps/${bootcampId}/${bootcamp?.cohort?.id}/weeks/${currentWeek?.id}/${lesson?.id}`,
     );
   };
 

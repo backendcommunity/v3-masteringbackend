@@ -603,7 +603,9 @@ export function BootcampVideoWatchPage({
                       onClick={async () => {
                         await handleMarkComplete();
                         setTimeout(() => {
-                          onNavigate?.(routes.bootcampCertificate(id));
+                          onNavigate?.(
+                            `${routes.bootcampCertificate(id)}?cohort=${cohort}`,
+                          );
                         }, 500);
                       }}
                     >
