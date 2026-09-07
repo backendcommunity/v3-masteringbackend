@@ -1438,6 +1438,16 @@ export interface Badge {
   rarity: "Common" | "Rare" | "Epic" | "Legendary";
 }
 
+export interface MyCohort {
+  id: string;
+  name: string;
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  completed: boolean;
+  enrolledAt: string;
+}
+
 export interface Bootcamp {
   id: string;
   title: string;
@@ -1455,6 +1465,9 @@ export interface Bootcamp {
   userCohort: any;
   cohort: Cohort;
   cohorts: Cohort[];
+  myCohorts: MyCohort[];
+  topics?: Array<{ title: string; summary: string }>;
+  banner?: string;
 }
 
 export interface Cohort {
@@ -1472,6 +1485,13 @@ export interface Cohort {
   updatedAt: Date;
   studyGroupLink?: string;
   userCohorts: UserCohort[];
+  // `null` when the cohort is uncapped (maxStudent 0) — the API distinguishes
+  // "no limit" from "no seats left", and the UI must not render 0 for it.
+  spotsLeft?: number | null;
+  weeks?: Week[];
+  paddle_price_id?: string | null;
+  asyncpay_plan_id?: string | null;
+  allowsSubscription?: boolean;
 }
 
 export interface UserCohort {
@@ -1490,6 +1510,11 @@ export interface UserCohort {
   createdAt: Date;
   updatedAt: Date;
   userLessons: UserLesson[];
+  progress?: number;
+  peerRanking?: number;
+  attendanceRate?: number;
+  assigmentScore?: number;
+  activeStudents?: number;
 }
 
 export interface Week {

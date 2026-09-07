@@ -22,6 +22,7 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Countdown from "../ui/count-down";
 import { formatRelativeDate } from "@/lib/utils";
 import { routes } from "@/lib/routes";
+import { CohortSwitcher, useCohortParam } from "@/components/bootcamps/cohort-switcher";
 
 interface BootcampDashboardPageProps {
   bootcampId: string;
@@ -33,6 +34,7 @@ export function BootcampDashboardPage({
   onNavigate,
 }: BootcampDashboardPageProps) {
   const store = useAppStore();
+  const { cohortId, setCohortId } = useCohortParam();
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<Array<any>>();
   const [bootcamp, setBootcamp] = useState<Bootcamp | any>();
@@ -46,7 +48,7 @@ export function BootcampDashboardPage({
     const load = async () => {
       try {
         setLoading(true);
-        const bootcamp = await store.getBootcamp(bootcampId);
+        const bootcamp = await store.getBootcamp(bootcampId, cohortId);
 
         // Handle case where userCohort might not exist (user not enrolled)
         const currentWeekId = bootcamp?.userCohort?.currentWeekId || null;
@@ -94,7 +96,7 @@ export function BootcampDashboardPage({
     return () => {
       cancelled = true;
     };
-  }, [bootcampId, store]);
+  }, [bootcampId, store, cohortId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,7 +162,7 @@ export function BootcampDashboardPage({
     if (lesson.type?.toLowerCase() === "project")
       return onNavigate?.(`/projects/${lesson?.project?.slug}`);
     return onNavigate?.(
-      `/bootcamps/${bootcampId}/${userCohort?.cohortId}/weeks/${lesson.weekId}/${lesson?.id}`,
+      `/bootcamps/${bootcampId}/${bootcamp?.cohort?.id}/weeks/${lesson.weekId}/${lesson?.id}`,
     );
   };
 
@@ -202,36 +204,26 @@ export function BootcampDashboardPage({
               {bootcamp.title} Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Week {currentWeek?.index || 1} of{" "}
-              {bootcamp?.cohort?.duration ||
-                bootcamp?.cohorts?.[0]?.duration ||
-                "N/A"}{" "}
+              Week {currentWeek?.index || 1} of {bootcamp?.cohort?.duration || "N/A"}{" "}
               • {bootcamp?.userCohort?.progress ?? 0}% Complete
             </p>
           </div>
-          <div className="flex gap-2">
-            <Badge variant={"secondary"}>
-              {userCohort?.cohort?.name ||
-                bootcamp?.cohort?.name ||
-                bootcamp?.cohorts?.[0]?.name ||
-                "Cohort 1"}
-            </Badge>
+          <div className="flex gap-2 items-center">
+            {bootcamp?.myCohorts?.length > 1 ? (
+              <CohortSwitcher
+                cohorts={bootcamp.myCohorts}
+                value={bootcamp?.cohort?.id}
+                onChange={setCohortId}
+              />
+            ) : (
+              <Badge variant={"secondary"}>{bootcamp?.cohort?.name ?? "Cohort"}</Badge>
+            )}
             <Badge
-              variant={
-                userCohort?.cohort?.status === "Open"
-                  ? "default"
-                  : "destructive"
-              }
+              variant={bootcamp?.cohort?.status === "OPEN" ? "default" : "destructive"}
             >
-              {new Date(
-                userCohort?.cohort?.startsAt ||
-                  bootcamp?.cohort?.startsAt ||
-                  bootcamp?.cohorts?.[0]?.startsAt,
-              ) < new Date()
+              {bootcamp?.cohort?.startsAt && new Date(bootcamp.cohort.startsAt) < new Date()
                 ? "In Progress"
-                : userCohort?.cohort?.status ||
-                  bootcamp?.cohort?.status ||
-                  bootcamp?.cohorts?.[0]?.status}
+                : bootcamp?.cohort?.status}
             </Badge>
           </div>
         </div>
@@ -447,9 +439,8 @@ export function BootcampDashboardPage({
                   <span className="text-sm">Peer Ranking</span>
                   <span className="font-medium">
                     #{bootcamp?.userCohort?.peerRanking ?? "N/A"} of{" "}
-                    {bootcamp?.totalEnrolled ??
-                      bootcamp?.cohort?.maxStudent ??
-                      bootcamp?.cohorts?.[0]?.maxStudent ??
+                    {bootcamp?.totalEnrolled ||
+                      bootcamp?.cohort?.maxStudent ||
                       "N/A"}
                   </span>
                 </div>
@@ -458,9 +449,7 @@ export function BootcampDashboardPage({
                   <span className="font-medium">
                     {Math.max(
                       0,
-                      (bootcamp?.cohort?.duration ||
-                        bootcamp?.cohorts?.[0]?.duration ||
-                        0) - (currentWeek?.index || 1),
+                      (bootcamp?.cohort?.duration || 0) - (currentWeek?.index || 1),
                     )}{" "}
                     weeks
                   </span>
@@ -485,11 +474,7 @@ export function BootcampDashboardPage({
                     }`}
                     onClick={() =>
                       onNavigate?.(
-                        `/bootcamps/${bootcampId}/${
-                          userCohort?.cohortId ||
-                          bootcamp?.cohort?.id ||
-                          bootcamp?.cohorts?.[0]?.id
-                        }/weeks/${week.id}`,
+                        `/bootcamps/${bootcampId}/${bootcamp?.cohort?.id}/weeks/${week.id}`,
                       )
                     }
                   >
@@ -543,10 +528,7 @@ export function BootcampDashboardPage({
               <Button variant="outline" className="w-full">
                 <a
                   className="flex justify-between"
-                  href={
-                    bootcamp?.cohort?.studyGroupLink ||
-                    userCohort?.cohort?.studyGroupLink
-                  }
+                  href={bootcamp?.cohort?.studyGroupLink}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -561,7 +543,7 @@ export function BootcampDashboardPage({
                   onNavigate?.(
                     routes.bootcampLeaderboard(
                       bootcampId,
-                      userCohort?.cohortId + "",
+                      bootcamp?.cohort?.id + "",
                     ),
                   )
                 }
