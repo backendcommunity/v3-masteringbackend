@@ -1,7 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { BootcampCertificatePage } from "@/components/pages/bootcamp-certificate";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useParams, useRouter } from "next/navigation";
 import React from "react";
 
@@ -19,7 +21,9 @@ export default function BootcampCertificatePageRoute() {
 
   return (
     <DashboardLayout>
-      <BootcampCertificatePage id={bootcampId} onNavigate={handleNavigate} />
+      <Suspense fallback={<PageSkeleton />}>
+        <BootcampCertificatePage id={bootcampId} onNavigate={handleNavigate} />
+      </Suspense>
     </DashboardLayout>
   );
 }

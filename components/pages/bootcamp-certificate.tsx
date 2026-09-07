@@ -9,6 +9,7 @@ import { useUser } from "@/hooks/use-user";
 import { Certificate } from "../certificate";
 import { formatDate } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { useCohortParam } from "@/components/bootcamps/cohort-switcher";
 
 interface BootcampCertificatePageProps {
   id: string;
@@ -20,6 +21,7 @@ export function BootcampCertificatePage({
   onNavigate,
 }: BootcampCertificatePageProps) {
   const store = useAppStore();
+  const { cohortId } = useCohortParam();
   const [bootcamp, setBootcamp] = useState<Bootcamp>();
   const [loading, setLoading] = useState(false);
   const user = useUser();
@@ -27,12 +29,12 @@ export function BootcampCertificatePage({
   useEffect(() => {
     setLoading(true);
     async function load(id: string) {
-      const bootcamp = await store.getBootcamp(id);
+      const bootcamp = await store.getBootcamp(id, cohortId);
       setBootcamp(bootcamp);
       setLoading(false);
     }
     load(id);
-  }, [id]);
+  }, [id, cohortId]);
   const handleBack = () => {
     onNavigate(`/bootcamps/${id}`);
   };
