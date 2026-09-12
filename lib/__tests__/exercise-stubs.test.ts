@@ -55,11 +55,77 @@ describe("stubFor", () => {
       ...baseExercise,
       graderConfig: {
         entry: "solve",
-        signature: { params: [{ name: "n", type: "i32" }], returns: "i32" },
+        signature: { params: ["int"], returns: "int" },
       },
     });
     expect(result).toContain("solve");
     expect(result).toMatch(/fn solve|i32/i);
+  });
+
+  test("FUNCTION_CALL static (java) WITH signature generates a Java-typed stub from DSL types", () => {
+    const result = stubFor("FUNCTION_CALL", "java", {
+      ...baseExercise,
+      graderConfig: {
+        entry: "solve",
+        signature: { params: ["int", "string[]"], returns: "bool" },
+      },
+    });
+    expect(result).toContain("public static boolean");
+    expect(result).toContain("int a");
+    expect(result).toContain("String[] b");
+  });
+
+  test("FUNCTION_CALL static (kotlin) WITH signature generates a Kotlin-typed stub from DSL types", () => {
+    const result = stubFor("FUNCTION_CALL", "kotlin", {
+      ...baseExercise,
+      graderConfig: {
+        entry: "solve",
+        signature: { params: ["int", "string[]"], returns: "bool" },
+      },
+    });
+    expect(result).toContain("fun solve");
+    expect(result).toContain("a: Int");
+    // string[] mirrors mb-executor's kotlinNat literally: "StringArray", not Array<String>.
+    expect(result).toContain("b: StringArray");
+    expect(result).toContain(": Boolean");
+  });
+
+  test("FUNCTION_CALL static (kotlin) uses Kotlin's primitive array types for 1-D int arrays", () => {
+    const result = stubFor("FUNCTION_CALL", "kotlin", {
+      ...baseExercise,
+      graderConfig: {
+        entry: "solve",
+        signature: { params: ["int[]"], returns: "int[]" },
+      },
+    });
+    expect(result).toContain("a: IntArray");
+    expect(result).toContain(": IntArray");
+    // Must NOT emit the non-interchangeable Array<Int> form.
+    expect(result).not.toContain("Array<Int>");
+  });
+
+  test("FUNCTION_CALL static (kotlin) wraps 2-D int arrays as Array<IntArray>", () => {
+    const result = stubFor("FUNCTION_CALL", "kotlin", {
+      ...baseExercise,
+      graderConfig: {
+        entry: "solve",
+        signature: { params: ["int[][]"], returns: "int" },
+      },
+    });
+    expect(result).toContain("a: Array<IntArray>");
+  });
+
+  test("FUNCTION_CALL static (kotlin) uses Kotlin's primitive array types for bool/long/double arrays", () => {
+    const result = stubFor("FUNCTION_CALL", "kotlin", {
+      ...baseExercise,
+      graderConfig: {
+        entry: "solve",
+        signature: { params: ["bool[]", "long[]", "double[]"], returns: "int" },
+      },
+    });
+    expect(result).toContain("a: BooleanArray");
+    expect(result).toContain("b: LongArray");
+    expect(result).toContain("c: DoubleArray");
   });
 
   test("FUNCTION_CALL static (rust) WITHOUT signature returns comment stub", () => {
@@ -126,5 +192,14 @@ describe("languageOptions", () => {
     const opts = languageOptions("TEST_CASES", exerciseWithSig);
     expect(opts).toHaveLength(1);
     expect(opts[0].value).toBe("node");
+  });
+
+  test("OUTPUT_MATCH with a driver is locked to the authored language", () => {
+    const opts = languageOptions("OUTPUT_MATCH", { languages: ["java"], graderConfig: { driver: "public class Main {}" } } as any);
+    expect(opts.map((o) => o.value)).toEqual(["java"]);
+  });
+
+  test("OUTPUT_MATCH without a driver offers every language", () => {
+    expect(languageOptions("OUTPUT_MATCH", { languages: ["java"] } as any)).toHaveLength(13);
   });
 });

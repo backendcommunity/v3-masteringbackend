@@ -24,10 +24,87 @@ interface ExerciseForStub {
   graderConfig?: {
     entry?: string;
     signature?: {
-      params?: Array<{ name: string; type: string }>;
+      // Each entry is a DSL type string — "int|long|double|bool|string" with
+      // an optional "[]" suffix per array dimension — per the academy Joi
+      // schema, the admin signature editor, and mb-executor's `parseDslType`.
+      // The contract carries no parameter names.
+      params?: string[];
       returns?: string;
     };
+    driver?: string;
   };
+}
+
+// ── DSL type parsing + per-language native-type mapping ──────────────────────
+// Mirrors mb-executor's src/judge/grader/function-call-static.ts so the stub's
+// declared parameter/return types match what the generated driver actually
+// calls (parseDslType, javaNat, goType, rustNat, cppNat, csharpNat, kotlinNat,
+// scalaNat).
+type DslBase = "int" | "long" | "double" | "bool" | "string";
+interface DslType {
+  base: DslBase;
+  dims: number;
+}
+
+function parseDslType(t: string | undefined): DslType {
+  const m = /^(int|long|double|bool|string)((?:\[\])*)$/.exec((t ?? "").trim());
+  if (!m) return { base: "int", dims: 0 }; // malformed types are rejected by the Joi validator before this ever runs
+  return { base: m[1] as DslBase, dims: (m[2].match(/\[\]/g) ?? []).length };
+}
+
+/** Positional parameter names — the DSL carries no names: a, b, c, ... z, then p26, p27, ... */
+function paramName(i: number): string {
+  return i < 26 ? String.fromCharCode(97 + i) : `p${i}`;
+}
+
+function javaNative(t: DslType): string {
+  const base = { int: "int", long: "long", double: "double", bool: "boolean", string: "String" }[t.base];
+  return base + "[]".repeat(t.dims);
+}
+
+function goNative(t: DslType): string {
+  const base = { int: "int", long: "int64", double: "float64", bool: "bool", string: "string" }[t.base];
+  return "[]".repeat(t.dims) + base;
+}
+
+function rustNative(t: DslType): string {
+  const base = { int: "i32", long: "i64", double: "f64", bool: "bool", string: "String" }[t.base];
+  let s = base;
+  for (let d = 0; d < t.dims; d++) s = `Vec<${s}>`;
+  return s;
+}
+
+function cppNative(t: DslType): string {
+  const base = { int: "int", long: "long long", double: "double", bool: "bool", string: "std::string" }[t.base];
+  let s = base;
+  for (let d = 0; d < t.dims; d++) s = `std::vector<${s}>`;
+  return s;
+}
+
+function csharpNative(t: DslType): string {
+  const base = { int: "int", long: "long", double: "double", bool: "bool", string: "string" }[t.base];
+  return base + "[]".repeat(t.dims);
+}
+
+function kotlinNative(t: DslType): string {
+  // Mirrors mb-executor's kotlinNat exactly: primitive array types for 1-D arrays of
+  // primitives (IntArray/LongArray/DoubleArray/BooleanArray — Kotlin's own array flavors
+  // for these element types), then Array<...> wrapping for every deeper dimension.
+  // Kotlin treats IntArray and Array<Int> as distinct, non-interchangeable types, so a
+  // stub declaring the wrong one produces a real compile error against the generated driver.
+  const base = { int: "Int", long: "Long", double: "Double", bool: "Boolean", string: "String" }[t.base];
+  if (t.dims === 0) return base;
+  if (t.dims === 1) return `${base}Array`;
+  let s = `${base}Array`;
+  for (let d = 1; d < t.dims; d++) s = `Array<${s}>`;
+  return s;
+}
+
+function scalaNative(t: DslType): string {
+  const base = { int: "Int", long: "Long", double: "Double", bool: "Boolean", string: "String" }[t.base];
+  let s = base;
+  for (let d = 0; d < t.dims; d++) s = `Array[${s}]`;
+  return s;
 }
 
 /** Returns the language options available for a given grader type + exercise. */
@@ -40,6 +117,10 @@ export function languageOptions(
     return ALL_LANGUAGES.filter((l) => l.value === native);
   }
   if (graderType === "OUTPUT_MATCH") {
+    if (exercise.graderConfig?.driver) {
+      const native = String(exercise.languages?.[0] ?? "java").toLowerCase();
+      return ALL_LANGUAGES.filter((l) => l.value === native);
+    }
     return ALL_LANGUAGES;
   }
   if (graderType === "FUNCTION_CALL") {
@@ -175,43 +256,49 @@ function dynamicFcStub(lang: string, entry: string): string {
 function staticFcStub(
   lang: string,
   entry: string,
-  signature: { params?: Array<{ name: string; type: string }>; returns?: string }
+  signature: { params?: string[]; returns?: string }
 ): string {
-  const params = signature.params ?? [];
-  const returns = signature.returns ?? "void";
+  const paramTypes = (signature.params ?? []).map(parseDslType);
+  const ret = parseDslType(signature.returns ?? "int");
+  const names = paramTypes.map((_, i) => paramName(i));
 
   switch (lang) {
     case "java": {
-      const jParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
-      return `public class Solution {\n    public static ${returns} ${entry}(${jParams}) {\n        // implement\n    }\n}`;
+      const jParams = paramTypes.map((t, i) => `${javaNative(t)} ${names[i]}`).join(", ");
+      return `public class Solution {\n    public static ${javaNative(ret)} ${entry}(${jParams}) {\n        // implement\n    }\n}`;
     }
     case "go": {
-      const gParams = params.map((p) => `${p.name} ${p.type}`).join(", ");
-      return `package main\n\nfunc ${entry}(${gParams}) ${returns} {\n    // implement\n}`;
+      const gParams = paramTypes.map((t, i) => `${names[i]} ${goNative(t)}`).join(", ");
+      return `package main\n\nfunc ${entry}(${gParams}) ${goNative(ret)} {\n    // implement\n}`;
     }
     case "rust": {
-      const rParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
-      return `fn ${entry}(${rParams}) -> ${returns} {\n    // implement\n}`;
+      const rParams = paramTypes.map((t, i) => `${names[i]}: ${rustNative(t)}`).join(", ");
+      return `fn ${entry}(${rParams}) -> ${rustNative(ret)} {\n    // implement\n}`;
     }
     case "cpp": {
-      const cParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
-      return `${returns} ${entry}(${cParams}) {\n    // implement\n}`;
+      const cParams = paramTypes.map((t, i) => `${cppNative(t)} ${names[i]}`).join(", ");
+      return `${cppNative(ret)} ${entry}(${cParams}) {\n    // implement\n}`;
     }
     case "csharp": {
-      const csParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
-      return `public static ${returns} ${entry}(${csParams}) {\n    // implement\n}`;
+      const csParams = paramTypes.map((t, i) => `${csharpNative(t)} ${names[i]}`).join(", ");
+      return `public static ${csharpNative(ret)} ${entry}(${csParams}) {\n    // implement\n}`;
     }
     case "c": {
-      const cParams = params.map((p) => `${p.type} ${p.name}`).join(", ");
-      return `${returns} ${entry}(${cParams}) {\n    /* implement */\n}`;
+      // Not part of this pass's DSL→native mapping table: mb-executor's C driver uses a
+      // LeetCode-style pointer+size calling convention (T*, int nSize) rather than a plain
+      // native type, so it doesn't fit the "type name" shape used by the languages above.
+      // Fall back to the raw DSL type string so the stub still compiles against the new
+      // string[] contract instead of crashing on the removed {name,type} shape.
+      const cParams = (signature.params ?? []).map((t, i) => `${t} ${names[i]}`).join(", ");
+      return `${signature.returns ?? "int"} ${entry}(${cParams}) {\n    /* implement */\n}`;
     }
     case "kotlin": {
-      const ktParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
-      return `fun ${entry}(${ktParams}): ${returns} {\n    // implement\n}`;
+      const ktParams = paramTypes.map((t, i) => `${names[i]}: ${kotlinNative(t)}`).join(", ");
+      return `fun ${entry}(${ktParams}): ${kotlinNative(ret)} {\n    // implement\n}`;
     }
     case "scala": {
-      const scParams = params.map((p) => `${p.name}: ${p.type}`).join(", ");
-      return `def ${entry}(${scParams}): ${returns} = {\n  // implement\n}`;
+      const scParams = paramTypes.map((t, i) => `${names[i]}: ${scalaNative(t)}`).join(", ");
+      return `def ${entry}(${scParams}): ${scalaNative(ret)} = {\n  // implement\n}`;
     }
     default:
       return dynamicFcStub(lang, entry);
