@@ -910,6 +910,23 @@ export interface TeamInvitePreview {
   hasOwnSubscription?: boolean;
 }
 
+/**
+ * `GET /teams/removal-notice` — "you lost Pro when a team dropped you, and
+ * nothing else is covering you". The API applies the suppression rules (own
+ * subscription, another Pro team, the 30-day window), so the client's whole
+ * job is to trust `show`. When `show` is false the other two fields are null.
+ *
+ * Deliberately NOT part of the user object: `/auth/me` is a hot path served
+ * from a TTL-0 cache on every authenticated request, and a three-join policy
+ * query has no business there.
+ */
+export interface TeamRemovalNotice {
+  show: boolean;
+  teamName: string | null;
+  /** ISO 8601 timestamp, or null when `show` is false. */
+  removedAt: string | null;
+}
+
 export interface Note {
   id: string;
   content: string;

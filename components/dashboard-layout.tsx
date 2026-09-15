@@ -8,6 +8,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useMobile } from "@/hooks/use-mobile";
 import { useUserStore } from "@/lib/user-store";
 import { ForcePasswordChangeModal } from "@/components/force-password-change-modal";
+import { TeamRemovalBanner } from "@/components/team-removal-banner";
 import { completeOnboarding } from "@/lib/auth";
 
 interface DashboardLayoutProps {
@@ -110,6 +111,10 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
       {(user?.mustResetPassword || user?.nameIsProvisional) && (
         <ForcePasswordChangeModal nameIsProvisional={!!user?.nameIsProvisional} />
       )}
+      {/* Full-bleed: outside the max-w-7xl container and the sidebar row, so the
+          offer spans the viewport. Renders nothing unless the API says this
+          user lost Pro with a team seat. */}
+      <TeamRemovalBanner />
       <NavigationBar
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}
