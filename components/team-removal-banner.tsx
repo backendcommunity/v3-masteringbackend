@@ -11,13 +11,19 @@ import { formatPrice } from "@/lib/pricing";
 import type { TeamRemovalNotice } from "@/lib/data";
 
 /**
- * Session-scoped on purpose: the × "hides it until the next visit", per the
- * approved design. sessionStorage also means a dismissal cannot outlive the
- * tab onto the next person on a shared browser — logout's localStorage sweep
- * (`store/auth.ts`) never sees sessionStorage, so the shorter lifetime is
- * doing that work here.
+ * The dismissal key, per user.
+ *
+ * sessionStorage because the × "hides it until the next visit", per the
+ * approved design. Per-user because sessionStorage belongs to the TAB, not to
+ * the sign-in: logout's key sweep (`store/auth.ts`) iterates `localStorage`
+ * only and never sees this key, so on a shared browser A could dismiss, log
+ * out, and leave B — who is separately entitled to the offer — silently
+ * suppressed in the same tab. Keying on the user id is what actually prevents
+ * that; the `mb_` prefix alone does not.
  */
-const DISMISS_KEY = "mb_team_removal_banner_dismissed";
+function dismissKey(userId: string): string {
+  return `mb_team_removal_banner_dismissed_${userId}`;
+}
 
 /**
  * A Paddle coupon the product owner created. It applies to BOTH billing
@@ -30,12 +36,52 @@ const DISMISS_KEY = "mb_team_removal_banner_dismissed";
  */
 const GLOBAL_COUPON_CODE = "50POFF";
 
-function isDismissed(): boolean {
+function isDismissed(userId: string): boolean {
   try {
-    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+    return window.sessionStorage.getItem(dismissKey(userId)) === "1";
   } catch {
     return false;
   }
+}
+
+/**
+ * The notice, fetched once per signed-in user per page load.
+ *
+ * `DashboardLayout` is not a shared Next.js layout — it is rendered inside each
+ * of ~67 separate `page.tsx` trees, so this banner unmounts and remounts on
+ * every in-app navigation. Fetching in the effect alone would therefore run a
+ * three-join policy query on every page view, which is the very load the notice
+ * was split off `/auth/me` to avoid.
+ *
+ * Keyed by user id, not bare: a same-tab logout/login must not hand the
+ * previous user's notice to the next one. The promise itself is cached, so
+ * concurrent mounts share one request rather than racing.
+ *
+ * A failure caches `null` for the session — the banner is an offer, and no
+ * offer is a fine outcome; retrying a policy query on every navigation is not.
+ */
+let noticeCache: {
+  userId: string;
+  promise: Promise<TeamRemovalNotice | null>;
+} | null = null;
+
+function loadNoticeOnce(
+  userId: string,
+  fetcher: () => Promise<TeamRemovalNotice>,
+): Promise<TeamRemovalNotice | null> {
+  if (noticeCache?.userId === userId) return noticeCache.promise;
+  const promise = fetcher()
+    .then((result) => result ?? null)
+    .catch(() => null);
+  noticeCache = { userId, promise };
+  return promise;
+}
+
+/**
+ * Test-only. The cache is module state and would otherwise leak between cases.
+ */
+export function __resetTeamRemovalNoticeCache(): void {
+  noticeCache = null;
 }
 
 /**
@@ -70,27 +116,24 @@ export function TeamRemovalBanner() {
   // already closed it.
   const [dismissed, setDismissed] = useState(true);
 
+  const userId = user?.id ?? null;
+
   useEffect(() => {
-    if (!user) return;
-    if (isDismissed()) return;
+    if (!userId) return;
+    if (isDismissed(userId)) return;
     setDismissed(false);
 
     let cancelled = false;
-    store
-      .getTeamRemovalNotice()
-      .then((result) => {
-        if (!cancelled) setNotice(result ?? null);
-      })
-      .catch(() => {
-        // A failed policy check is not worth an error state — the banner is
-        // an offer, and no offer is a fine outcome.
-        if (!cancelled) setNotice(null);
-      });
+    // Resolved from the session cache after the first navigation, so this is
+    // at most one request per signed-in user per page load.
+    loadNoticeOnce(userId, store.getTeamRemovalNotice).then((result) => {
+      if (!cancelled) setNotice(result);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [user, store]);
+  }, [userId, store]);
 
   const show = !dismissed && notice?.show === true;
 
@@ -101,7 +144,7 @@ export function TeamRemovalBanner() {
 
   const dismiss = () => {
     try {
-      window.sessionStorage.setItem(DISMISS_KEY, "1");
+      if (userId) window.sessionStorage.setItem(dismissKey(userId), "1");
     } catch {
       /* private mode — hiding for this view is enough */
     }

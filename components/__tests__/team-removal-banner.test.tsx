@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { TeamRemovalBanner } from "@/components/team-removal-banner";
+import {
+  TeamRemovalBanner,
+  __resetTeamRemovalNoticeCache,
+} from "@/components/team-removal-banner";
 import type { PublicPricing } from "@/lib/pricing";
 import type { TeamRemovalNotice } from "@/lib/data";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
-vi.mock("@/hooks/use-user", () => ({ useUser: () => ({ id: "u1" }) }));
+// Mutable: the same tab can hand over from one signed-in user to the next
+// (shared browser), and both the notice cache and the dismissal must notice.
+let currentUser: { id: string } | null = { id: "u1" };
+vi.mock("@/hooks/use-user", () => ({ useUser: () => currentUser }));
 
 // The banner must ask for pricing ONLY when it is actually going to show one.
 // The spy records the `enabled` argument so the gate itself is under test —
@@ -78,6 +84,9 @@ describe("TeamRemovalBanner", () => {
     window.sessionStorage.clear();
     notice = { show: false, teamName: null, removedAt: null };
     pricingValue = null;
+    currentUser = { id: "u1" };
+    // Module state: without this, one case's cached notice answers the next.
+    __resetTeamRemovalNoticeCache();
   });
 
   it("renders nothing, and never requests pricing, when show is false", async () => {
@@ -157,7 +166,7 @@ describe("TeamRemovalBanner", () => {
     fireEvent.click(screen.getByLabelText(/dismiss/i));
     expect(first.container.textContent).toBe("");
     expect(
-      window.sessionStorage.getItem("mb_team_removal_banner_dismissed"),
+      window.sessionStorage.getItem("mb_team_removal_banner_dismissed_u1"),
     ).toBe("1");
 
     // A fresh mount in the same session stays hidden — and does not even ask
@@ -167,6 +176,67 @@ describe("TeamRemovalBanner", () => {
     const second = render(<TeamRemovalBanner />);
     await waitFor(() => expect(second.container.textContent).toBe(""));
     expect(getTeamRemovalNotice).not.toHaveBeenCalled();
+  });
+
+  // DashboardLayout is NOT a shared Next.js layout — it is rendered inside each
+  // of ~67 separate page.tsx trees, so this banner unmounts and remounts on
+  // every in-app navigation. Without a session cache that is one policy query
+  // per page view, which is the exact load the brief kept off /auth/me.
+  it("requests the notice once per logged-in session, not once per navigation", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+
+    const first = render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+    first.unmount();
+
+    // A second mount is a navigation, not a new session.
+    const second = render(<TeamRemovalBanner />);
+    // Still shown — the cache carries the answer, it does not merely suppress.
+    await screen.findByText(/Your Pro access through/i);
+    expect(second.container.textContent).toContain("Acme Engineering");
+
+    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1);
+  });
+
+  // Guards the cache's keying: a bare module-level cache would hand user A's
+  // notice to user B after a same-tab logout/login.
+  it("asks again when a different user is signed in", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+
+    const first = render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+    first.unmount();
+
+    currentUser = { id: "u2" };
+    render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+
+    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let one user's dismissal suppress the next user's banner in the same tab", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+
+    const a = render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+    fireEvent.click(screen.getByLabelText(/dismiss/i));
+    expect(a.container.textContent).toBe("");
+    a.unmount();
+
+    // B signs in in the same tab: sessionStorage survives, but B is separately
+    // entitled to their own offer.
+    currentUser = { id: "u2" };
+    const b = render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+    b.unmount();
+
+    // ...and A's dismissal still holds for A.
+    currentUser = { id: "u1" };
+    const againAsA = render(<TeamRemovalBanner />);
+    await waitFor(() => expect(againAsA.container.textContent).toBe(""));
   });
 
   it("sends the CTA to checkout", async () => {
