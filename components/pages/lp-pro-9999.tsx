@@ -225,7 +225,7 @@ export function LpPro9999Page() {
       </header>
 
       {/* PROBLEM */}
-      <section className="mx-auto max-w-[1200px] px-12 py-26">
+      <section className="mx-auto max-w-[1200px] px-12 py-24">
         <SectionHeading
           eyebrow="The problem"
           heading="You want to break into tech. Here's what's stopping you."
@@ -262,7 +262,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* OFFER */}
-      <section className="bg-[#0E1F33] py-26 text-white">
+      <section className="bg-[#0E1F33] py-24 text-white">
         <div className="mx-auto max-w-[1200px] px-12">
           <SectionHeading
             eyebrow="What's included"
@@ -327,7 +327,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* TESTIMONIAL (single, featured) */}
-      <section className="mx-auto max-w-[1200px] px-12 py-26">
+      <section className="mx-auto max-w-[1200px] px-12 py-24">
         <SectionHeading
           eyebrow="Testimonials"
           heading="What our students are saying."
@@ -345,7 +345,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* WHY ₦9,999 */}
-      <section className="mx-auto max-w-[1200px] px-12 py-26">
+      <section className="mx-auto max-w-[1200px] px-12 py-24">
         <SectionHeading
           eyebrow="Why ₦9,999"
           heading="Because we know the real barriers."
@@ -372,7 +372,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* MORE TESTIMONIALS */}
-      <section className="bg-muted/40 py-26">
+      <section className="bg-muted/40 py-24">
         <div className="mx-auto max-w-[1200px] px-12">
           <SectionHeading
             eyebrow="More students"
@@ -409,7 +409,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* WHO THIS IS FOR */}
-      <section className="mx-auto max-w-[1200px] px-12 py-26">
+      <section className="mx-auto max-w-[1200px] px-12 py-24">
         <SectionHeading
           eyebrow="Who this is for"
           heading="If this sounds like you, it's for you."
@@ -425,7 +425,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="bg-muted/40 py-26">
+      <section className="bg-muted/40 py-24">
         <div className="mx-auto max-w-[1200px] px-12">
           <SectionHeading
             eyebrow="How it works"
@@ -503,7 +503,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* FAQ */}
-      <section className="mx-auto max-w-[1200px] px-12 py-26">
+      <section className="mx-auto max-w-[1200px] px-12 py-24">
         <SectionHeading eyebrow="Questions" heading="Before you subscribe." />
         <div className="mx-auto mt-10 max-w-2xl">
           {FAQ.map(({ q, a, needsAnswer }) => (
