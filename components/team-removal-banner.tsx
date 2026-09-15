@@ -78,9 +78,20 @@ function loadNoticeOnce(
 }
 
 /**
- * Test-only. The cache is module state and would otherwise leak between cases.
+ * Invalidates the session-cached notice so the next mount re-fetches instead
+ * of serving the stale answer.
+ *
+ * The cache exists to keep this component cheap across ~67 page trees, but
+ * nothing about a page load tells it the policy changed underneath it. Call
+ * this the moment a successful Pro purchase completes (see checkout.tsx's
+ * Paddle `checkout.completed` and AsyncPay `onSuccess` handlers) — otherwise
+ * a buyer who just paid keeps seeing "your Pro access ended" for the rest of
+ * the page load, since checkout does no reload and the removal notice fetch
+ * is not tied to the user object. Also usable any time a policy change needs
+ * to be reflected without a full reload (e.g. tests resetting module state
+ * between cases).
  */
-export function __resetTeamRemovalNoticeCache(): void {
+export function resetTeamRemovalNoticeCache(): void {
   noticeCache = null;
 }
 
@@ -135,7 +146,13 @@ export function TeamRemovalBanner() {
     };
   }, [userId, store]);
 
-  const show = !dismissed && notice?.show === true;
+  // The user object's own `isPremium` is the cheap, robust guard: it costs no
+  // request (unlike the notice fetch) and is correct whenever the user object
+  // is fresh — which covers any purchase path that refreshes it. It cannot be
+  // the ONLY guard, because it does nothing for a page load whose user object
+  // is stale (a purchase that doesn't refetch the user) — that gap is closed
+  // by resetTeamRemovalNoticeCache() at the purchase-success call sites.
+  const show = !dismissed && notice?.show === true && user?.isPremium !== true;
 
   // Gated: /public/pricing is requested only for the few users who see this.
   const pricing = usePricing(show);

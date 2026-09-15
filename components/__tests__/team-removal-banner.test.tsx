@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   TeamRemovalBanner,
-  __resetTeamRemovalNoticeCache,
+  resetTeamRemovalNoticeCache,
 } from "@/components/team-removal-banner";
 import type { PublicPricing } from "@/lib/pricing";
 import type { TeamRemovalNotice } from "@/lib/data";
@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 // Mutable: the same tab can hand over from one signed-in user to the next
 // (shared browser), and both the notice cache and the dismissal must notice.
-let currentUser: { id: string } | null = { id: "u1" };
+let currentUser: { id: string; isPremium?: boolean } | null = { id: "u1" };
 vi.mock("@/hooks/use-user", () => ({ useUser: () => currentUser }));
 
 // The banner must ask for pricing ONLY when it is actually going to show one.
@@ -86,7 +86,7 @@ describe("TeamRemovalBanner", () => {
     pricingValue = null;
     currentUser = { id: "u1" };
     // Module state: without this, one case's cached notice answers the next.
-    __resetTeamRemovalNoticeCache();
+    resetTeamRemovalNoticeCache();
   });
 
   it("renders nothing, and never requests pricing, when show is false", async () => {
@@ -258,6 +258,38 @@ describe("TeamRemovalBanner", () => {
   // Mutation-checked: deleting the `.catch(() => null)` in loadNoticeOnce
   // fails the run as an Unhandled Rejection (vitest exits 1), not as an
   // assertion — worth knowing if this ever needs debugging.
+  // Cheap, robust guard: costs no request and is correct whenever the user
+  // object is fresh. Must win even when the notice itself says show: true —
+  // e.g. right after a purchase, before anything has invalidated the cache.
+  it("renders nothing for a user whose user object already says they have Pro, even when the notice says show: true", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+    currentUser = { id: "u1", isPremium: true };
+
+    const { container } = render(<TeamRemovalBanner />);
+    await waitFor(() => expect(getTeamRemovalNotice).toHaveBeenCalled());
+    expect(container.textContent).toBe("");
+  });
+
+  // The purchase-invalidation path: a successful Pro purchase must be able to
+  // force the next mount to re-check rather than serve the stale "ended"
+  // answer for the rest of the page load.
+  it("issues a new request on the next mount after resetTeamRemovalNoticeCache is called", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+
+    const first = render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+    first.unmount();
+
+    resetTeamRemovalNoticeCache();
+
+    render(<TeamRemovalBanner />);
+    await screen.findByText(/Your Pro access through/i);
+
+    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(2);
+  });
+
   it("shows nothing and does not retry when the notice request fails", async () => {
     notice = removed;
     pricingValue = basePricing;
