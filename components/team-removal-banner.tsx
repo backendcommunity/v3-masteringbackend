@@ -164,8 +164,9 @@ export function TeamRemovalBanner() {
     setDismissed(false);
 
     let cancelled = false;
-    // Resolved from the session cache after the first navigation, so this is
-    // at most one request per signed-in user per page load.
+    // Answered from the session cache for a negative result, so the common
+    // case is one request per signed-in user per page load. A POSITIVE
+    // result is deliberately re-checked on every mount — see loadNoticeOnce.
     loadNoticeOnce(userId, store.getTeamRemovalNotice).then((result) => {
       if (!cancelled) setNotice(result);
     });
