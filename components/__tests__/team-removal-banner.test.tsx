@@ -280,15 +280,6 @@ describe("TeamRemovalBanner", () => {
     expect(push).toHaveBeenCalledWith("/checkout?plan=pro&cycle=monthly");
   });
 
-  // The cache stores a PROMISE, and a rejection is folded to `null` inside it.
-  // That is deliberate, but it means one failed request decides the rest of the
-  // session — so it has to be the SAFE outcome (no banner, no crash) and it has
-  // to be pinned. The banner is mounted in the shell of ~67 pages; a throw here
-  // takes down every one of them, not just this strip.
-  //
-  // Mutation-checked: deleting the `.catch(() => null)` in loadNoticeOnce
-  // fails the run as an Unhandled Rejection (vitest exits 1), not as an
-  // assertion — worth knowing if this ever needs debugging.
   // Cheap, robust guard: costs no request and is correct whenever the user
   // object is fresh. Must win even when the notice itself says show: true —
   // e.g. right after a purchase, before anything has invalidated the cache.
@@ -302,25 +293,35 @@ describe("TeamRemovalBanner", () => {
     expect(container.textContent).toBe("");
   });
 
-  // The purchase-invalidation path: a successful Pro purchase must be able to
-  // force the next mount to re-check rather than serve the stale "ended"
-  // answer for the rest of the page load.
+  // The purchase-invalidation path. Deliberately uses a NEGATIVE notice: a
+  // positive one is re-checked on every mount anyway, so it would pass with
+  // the reset removed and prove nothing. Clearing a cached NEGATIVE entry is
+  // the reset's one remaining job — a session that cached "no notice" before
+  // the purchase must still re-check after it.
   it("issues a new request on the next mount after resetTeamRemovalNoticeCache is called", async () => {
-    notice = removed;
+    notice = { show: false, teamName: null, removedAt: null };
     pricingValue = basePricing;
 
     const first = render(<TeamRemovalBanner />);
-    await screen.findByText(/Your Pro access through/i);
+    await waitFor(() => expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1));
     first.unmount();
 
+    // Without the reset this second mount is answered from the cache.
     resetTeamRemovalNoticeCache();
 
     render(<TeamRemovalBanner />);
-    await screen.findByText(/Your Pro access through/i);
-
-    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(getTeamRemovalNotice).toHaveBeenCalledTimes(2));
   });
 
+  // The cache stores a PROMISE, and a rejection is folded to `null` inside it.
+  // That is deliberate, but it means one failed request decides the rest of the
+  // session — so it has to be the SAFE outcome (no banner, no crash) and it has
+  // to be pinned. The banner is mounted in the shell of ~67 pages; a throw here
+  // takes down every one of them, not just this strip.
+  //
+  // Mutation-checked: deleting the `.catch(() => null)` in loadNoticeOnce
+  // fails the run as an Unhandled Rejection (vitest exits 1), not as an
+  // assertion — worth knowing if this ever needs debugging.
   it("shows nothing and does not retry when the notice request fails", async () => {
     notice = removed;
     pricingValue = basePricing;
