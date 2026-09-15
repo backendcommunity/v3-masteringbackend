@@ -43,6 +43,7 @@ import {
   Playground,
   CourseFiltersData,
   TeamSummary,
+  TeamRemovalNotice,
   TeamRoster,
   TeamOverview,
   TeamRosterProgress,
@@ -346,6 +347,7 @@ interface AppState {
 
   // Teams
   getMyTeams: () => Promise<TeamSummary[]>;
+  getTeamRemovalNotice: () => Promise<TeamRemovalNotice>;
   renameTeam: (teamId: string, name: string) => Promise<{ id: string; name: string }>;
   getTeamMembers: (teamId: string, groupId?: string) => Promise<TeamRoster>;
   getTeamOverview: (teamId: string, groupId?: string) => Promise<TeamOverview>;
@@ -1534,6 +1536,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   getMyTeams: async () => {
     const { data } = await api.get("/teams/mine");
     return data?.data as TeamSummary[];
+  },
+  getTeamRemovalNotice: async () => {
+    const { data } = await api.get("/teams/removal-notice");
+    return data?.data as TeamRemovalNotice;
   },
   renameTeam: async (teamId: string, name: string) => {
     const { data } = await api.patch(`/teams/${teamId}`, { name });
