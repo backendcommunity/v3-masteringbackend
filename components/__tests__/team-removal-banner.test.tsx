@@ -248,4 +248,30 @@ describe("TeamRemovalBanner", () => {
     fireEvent.click(screen.getByRole("button", { name: /get pro/i }));
     expect(push).toHaveBeenCalledWith("/checkout?plan=pro&cycle=monthly");
   });
+
+  // The cache stores a PROMISE, and a rejection is folded to `null` inside it.
+  // That is deliberate, but it means one failed request decides the rest of the
+  // session — so it has to be the SAFE outcome (no banner, no crash) and it has
+  // to be pinned. The banner is mounted in the shell of ~67 pages; a throw here
+  // takes down every one of them, not just this strip.
+  //
+  // Mutation-checked: deleting the `.catch(() => null)` in loadNoticeOnce
+  // fails the run as an Unhandled Rejection (vitest exits 1), not as an
+  // assertion — worth knowing if this ever needs debugging.
+  it("shows nothing and does not retry when the notice request fails", async () => {
+    notice = removed;
+    pricingValue = basePricing;
+    getTeamRemovalNotice.mockRejectedValueOnce(new Error("Network down"));
+
+    const first = render(<TeamRemovalBanner />);
+    await waitFor(() => expect(first.container.textContent).toBe(""));
+    first.unmount();
+
+    // A navigation after the failure. The cached `null` answers it — the
+    // failure is not retried on every page view, which is the whole reason
+    // the promise rather than the value is cached.
+    const second = render(<TeamRemovalBanner />);
+    await waitFor(() => expect(second.container.textContent).toBe(""));
+    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1);
+  });
 });
