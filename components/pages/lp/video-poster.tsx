@@ -40,7 +40,9 @@ export function VideoPoster({ label, vimeoId, aspect = "wide" }: VideoPosterProp
     <button
       type="button"
       onClick={() => setOpened(true)}
-      aria-label={`Play ${label}`}
+      aria-label={
+        opened && !vimeoId ? "Video not available yet" : `Play ${label}`
+      }
       className={`relative w-full overflow-hidden rounded ${
         aspect === "wide" ? "aspect-video" : "aspect-[4/3]"
       } bg-gradient-to-br from-[#223642] to-[#101A22]`}

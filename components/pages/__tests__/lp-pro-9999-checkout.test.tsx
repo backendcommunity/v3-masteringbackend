@@ -35,6 +35,17 @@ vi.mock("@/lib/api", () => ({
   api: { get: () => Promise.resolve({ data: { data: null } }) },
 }));
 
+// next/font/google only works through Next's own compiler (the SWC font
+// plugin swaps it for a real loader at build time); under plain Vitest the
+// real export throws. Stub it the way Next's own testing docs recommend —
+// a function returning the shape callers actually read (`className`).
+vi.mock("next/font/google", () => ({
+  Instrument_Serif: () => ({
+    className: "font-instrument-serif-mock",
+    variable: "--font-instrument-serif",
+  }),
+}));
+
 import { LpPro9999Page } from "@/components/pages/lp-pro-9999";
 
 beforeEach(() => {

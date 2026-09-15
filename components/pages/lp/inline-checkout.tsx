@@ -12,17 +12,27 @@
  * at "the SDK reported success"; it does not and cannot know whether
  * provisioning succeeded, because that happens async via webhook.
  */
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { useLpCheckout } from "@/hooks/use-lp-checkout";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
 
 export function InlineCheckout() {
-  const { status, priceLabel, error, pay } = useLpCheckout();
+  const { status, priceLabel, error, pay, reset } = useLpCheckout();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const nameId = useId();
   const emailId = useId();
+
+  // Fires the one actual conversion event for this funnel once the SDK has
+  // reported success — kept here (not in the click handler) so it only
+  // ever fires for a real "succeeded" transition, never for an optimistic
+  // click.
+  useEffect(() => {
+    if (status === "succeeded") {
+      analytics.track(LP_9999_EVENTS.subscribed, {});
+    }
+  }, [status]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -98,15 +108,24 @@ export function InlineCheckout() {
           disabled={status === "loading" || status === "processing"}
           className="mt-1 flex items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-base font-bold text-[#05262F] shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)] transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {status === "processing"
-            ? "Opening secure checkout…"
-            : `Pay ${priceLabel || "₦9,999"} and start learning`}
+          {status === "loading"
+            ? "Loading…"
+            : status === "processing"
+              ? "Opening secure checkout…"
+              : `Pay ${priceLabel} and start learning`}
         </button>
       </form>
 
       {error ? (
         <p role="alert" className="mt-3 text-sm text-destructive">
-          {error}
+          {error}{" "}
+          <button
+            type="button"
+            onClick={reset}
+            className="font-bold underline underline-offset-2"
+          >
+            Try again
+          </button>
         </p>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">

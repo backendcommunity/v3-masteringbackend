@@ -19,14 +19,33 @@
  */
 import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { Instrument_Serif } from "next/font/google";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
 import { VideoPoster } from "@/components/pages/lp/video-poster";
 import { TestimonialCard } from "@/components/pages/lp/testimonial-card";
 import { InlineCheckout } from "@/components/pages/lp/inline-checkout";
 
+// The hero headline's accent typeface — deliberately requested and
+// reaffirmed twice in this project's design-review history. Imported
+// directly here (rather than in the pass-through app/lp/pro-9999/layout.tsx)
+// because next/font/google works in any component, and this avoids giving
+// the layout a wrapping element it doesn't otherwise need. The font file is
+// itself italic-only, so no Tailwind `italic`/`not-italic` utility is
+// needed on the element that uses it.
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  variable: "--font-instrument-serif",
+  display: "swap",
+});
+
 // DECISION 5: real invite link needed — see plan Task 6 note below.
 const WHATSAPP_URL = "https://chat.whatsapp.com/REPLACE_WITH_INVITE_LINK";
+// The button only renders once this is a real invite link — otherwise a
+// visitor who clicks it lands on WhatsApp's invalid-link error page.
+const hasWhatsappLink = !WHATSAPP_URL.includes("REPLACE_WITH");
 
 const COURSES = [
   {
@@ -148,8 +167,11 @@ export function LpPro9999Page() {
   const onWhatsappClick = () => {
     analytics.track(LP_9999_EVENTS.whatsappClicked, {});
   };
-  const onHeroCtaClick = () => {
-    analytics.track(LP_9999_EVENTS.ctaClicked, { section: "hero" });
+  // Shared by all three CTA anchors below (nav, hero, footer) — each call
+  // site passes its own section name so lp9999_cta_clicked can actually
+  // distinguish which one converted, instead of every click reading "hero".
+  const onCtaClick = (section: string) => {
+    analytics.track(LP_9999_EVENTS.ctaClicked, { section });
   };
 
   return (
@@ -158,14 +180,14 @@ export function LpPro9999Page() {
           token, sticky) but drops search/notifications/avatar: there is no
           session on this route to show them for. */}
       <nav className="sticky top-0 z-30 bg-card shadow-[0_1px_2px_rgba(14,31,51,.06),0_4px_16px_rgba(14,31,51,.06)]">
-        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-5 px-12">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-5 px-4 sm:px-8 lg:px-12">
           <span className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
             <span className="h-[26px] w-[26px] rounded-md bg-[#0E1F33]" />
             masteringbackend.
           </span>
           <a
             href="#start"
-            onClick={onHeroCtaClick}
+            onClick={() => onCtaClick("nav")}
             className="rounded-full border border-input px-4 py-1.5 text-sm font-bold"
           >
             Secure your spot
@@ -176,13 +198,13 @@ export function LpPro9999Page() {
       {/* HERO */}
       <header className="relative overflow-hidden bg-[#0E1F33] text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto max-w-[1200px] px-12 py-20 text-center">
+        <div className="relative mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-20 text-center">
           <span className="rounded-full border border-white/25 px-3.5 py-1.5 text-xs">
             Monthly subscription
           </span>
           <h1 className="mx-auto mt-3.5 max-w-[16ch] text-[clamp(35px,5.4vw,68px)] font-semibold leading-[1.06] tracking-tight">
             Become a backend or AI engineer{" "}
-            <em className="font-serif italic text-primary not-italic">
+            <em className={`${instrumentSerif.className} text-primary`}>
               for the price of a data bundle.
             </em>
           </h1>
@@ -195,29 +217,33 @@ export function LpPro9999Page() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a
               href="#start"
-              onClick={onHeroCtaClick}
+              onClick={() => onCtaClick("hero")}
               className="rounded-full bg-primary px-7 py-3.5 text-base font-bold text-[#05262F] shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]"
             >
               Secure your spot — ₦9,999
             </a>
             {/* DECISION 5: WHATSAPP_URL is a placeholder — real invite
-                link needed before launch. */}
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener"
-              onClick={onWhatsappClick}
-              className="rounded-full border border-white/30 px-7 py-3.5 text-base font-bold"
-            >
-              Join the WhatsApp group
-            </a>
+                link needed before launch. Hidden (not just broken) until
+                hasWhatsappLink is true, so a real visitor never lands on
+                WhatsApp's invalid-invite error page. */}
+            {hasWhatsappLink ? (
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onWhatsappClick}
+                className="rounded-full border border-white/30 px-7 py-3.5 text-base font-bold"
+              >
+                Join the WhatsApp group
+              </a>
+            ) : null}
           </div>
           <p className="mt-3 text-xs text-white/46">
             Pay on this page. No signup first. Cancel anytime.
           </p>
 
           <div className="mx-auto mt-10 max-w-3xl">
-            <VideoPoster label="3:00 · overview" aspect="wide" />
+            <VideoPoster label="overview" aspect="wide" />
             {/* DECISION: hero overview Vimeo ID not yet supplied — see
                 video-poster.tsx, which renders an honest note until then. */}
           </div>
@@ -225,7 +251,7 @@ export function LpPro9999Page() {
       </header>
 
       {/* PROBLEM */}
-      <section className="mx-auto max-w-[1200px] px-12 py-24">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-24">
         <SectionHeading
           eyebrow="The problem"
           heading="You want to break into tech. Here's what's stopping you."
@@ -263,7 +289,7 @@ export function LpPro9999Page() {
 
       {/* OFFER */}
       <section className="bg-[#0E1F33] py-24 text-white">
-        <div className="mx-auto max-w-[1200px] px-12">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
             eyebrow="What's included"
             eyebrowVariant="outline"
@@ -327,7 +353,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* TESTIMONIAL (single, featured) */}
-      <section className="mx-auto max-w-[1200px] px-12 py-24">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-24">
         <SectionHeading
           eyebrow="Testimonials"
           heading="What our students are saying."
@@ -345,7 +371,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* WHY ₦9,999 */}
-      <section className="mx-auto max-w-[1200px] px-12 py-24">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-24">
         <SectionHeading
           eyebrow="Why ₦9,999"
           heading="Because we know the real barriers."
@@ -373,7 +399,7 @@ export function LpPro9999Page() {
 
       {/* MORE TESTIMONIALS */}
       <section className="bg-muted/40 py-24">
-        <div className="mx-auto max-w-[1200px] px-12">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
             eyebrow="More students"
             eyebrowVariant="background"
@@ -409,7 +435,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* WHO THIS IS FOR */}
-      <section className="mx-auto max-w-[1200px] px-12 py-24">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-24">
         <SectionHeading
           eyebrow="Who this is for"
           heading="If this sounds like you, it's for you."
@@ -426,7 +452,7 @@ export function LpPro9999Page() {
 
       {/* HOW IT WORKS */}
       <section className="bg-muted/40 py-24">
-        <div className="mx-auto max-w-[1200px] px-12">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
             eyebrow="How it works"
             eyebrowVariant="background"
@@ -461,7 +487,7 @@ export function LpPro9999Page() {
 
       {/* CHECKOUT */}
       <section id="start" className="bg-[#0A1726] py-24 text-white">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-14 px-12 lg:grid-cols-2 lg:items-center">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-14 px-4 sm:px-8 lg:px-12 lg:grid-cols-2 lg:items-center">
           <div>
             <span className="rounded-full border border-white/25 px-3.5 py-1.5 text-xs">
               Start today
@@ -483,7 +509,7 @@ export function LpPro9999Page() {
 
         {/* DECISION: backend provisioning gap — see plan Task 6 note
             below the component. */}
-        <div className="mx-auto mt-10 max-w-[1200px] px-12">
+        <div className="mx-auto mt-10 max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <div className="rounded border border-amber-700/40 bg-amber-950/40 p-5 text-[13.5px] text-amber-200">
             <b>
               One backend change is required before this can take money:
@@ -503,7 +529,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* FAQ */}
-      <section className="mx-auto max-w-[1200px] px-12 py-24">
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-24">
         <SectionHeading eyebrow="Questions" heading="Before you subscribe." />
         <div className="mx-auto mt-10 max-w-2xl">
           {FAQ.map(({ q, a, needsAnswer }) => (
@@ -528,7 +554,7 @@ export function LpPro9999Page() {
 
       {/* FOOTER */}
       <footer className="bg-[#0E1F33] py-16 text-white">
-        <div className="mx-auto max-w-[1200px] px-12">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <span className="flex items-center gap-2 text-[17px] font-bold">
               <span className="h-[26px] w-[26px] rounded-md bg-white/10" />
@@ -537,7 +563,7 @@ export function LpPro9999Page() {
             <p className="text-sm text-white/46">Learn. Build. Grow.</p>
             <a
               href="#start"
-              onClick={onHeroCtaClick}
+              onClick={() => onCtaClick("footer")}
               className="rounded-full border border-white/30 px-5 py-2 text-sm font-bold"
             >
               Start learning today
