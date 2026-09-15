@@ -12,14 +12,16 @@
  * guards against (a Nigerian buyer quoted ₦9,999 and charged the legacy
  * USD amount because the two were read from different places).
  */
-import { useCallback, useState } from "react";
-import { AsyncpayCheckout } from "@asyncpay/checkout";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCheckoutPricing } from "@/hooks/use-pricing";
 import {
   asyncpayBaseOptions,
   PADDLE_ENVIRONMENT,
 } from "@/lib/payment-environment";
 import { formatPrice } from "@/lib/pricing";
+
+/** The one export @asyncpay/checkout's chunk actually has. */
+type AsyncpayModule = { AsyncpayCheckout: (...args: any[]) => unknown };
 
 export interface LpBuyer {
   name: string;
@@ -52,19 +54,36 @@ export function useLpCheckout(): UseLpCheckoutResult {
   const priceLabel = pricing ? formatPrice(pricing.monthly, pricing.currency) : "";
   const provider = pricing?.provider ?? null;
 
-  const openAsyncpay = useCallback(
-    (buyer: LpBuyer) => {
+  // Eagerly prefetches the @asyncpay/checkout chunk once we know THIS
+  // visitor needs it, so the click handler below can call it synchronously
+  // instead of waiting on the import — mirrors the identical
+  // `asyncpayModuleRef` prefetch effect in components/pages/checkout.tsx
+  // (see its own comment: "a latency optimization only ... this SDK never
+  // calls window.open, so there is no popup/gesture-chain risk"). Keyed on
+  // `provider` so a GLOBAL/Paddle visitor never fetches this chunk at all.
+  const asyncpayModuleRef = useRef<AsyncpayModule | null>(null);
+  useEffect(() => {
+    if (provider !== "ASYNCPAY") return;
+    let cancelled = false;
+    import("@asyncpay/checkout").then((mod) => {
+      if (!cancelled) asyncpayModuleRef.current = mod;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
+
+  const runAsyncpayCheckout = useCallback(
+    (mod: AsyncpayModule, buyer: LpBuyer) => {
       if (!pricing?.monthlyPriceId) return;
-      setStatus("processing");
-      // Called synchronously (no dynamic import) — AsyncpayCheckout runs its
-      // own validation checks before its first `await`, so onError can fire
-      // during this very call, and every SDK error path rejects the
-      // returned promise AFTER invoking onError (see
+      // AsyncpayCheckout runs its own validation checks before its first
+      // `await`, so onError can fire during this very call, and every SDK
+      // error path rejects the returned promise AFTER invoking onError (see
       // components/pages/checkout.tsx's identical comment). The
       // Promise.resolve(...).catch() below exists only to swallow that
       // already-handled rejection so it doesn't surface as unhandled; it
       // must not set error state again.
-      const started = AsyncpayCheckout({
+      const started = mod.AsyncpayCheckout({
         ...asyncpayBaseOptions({ name: buyer.name, email: buyer.email }),
         subscriptionPlanUUID: pricing.monthlyPriceId,
         onSuccess: () => setStatus("succeeded"),
@@ -81,6 +100,27 @@ export function useLpCheckout(): UseLpCheckoutResult {
       void Promise.resolve(started).catch(() => {});
     },
     [pricing],
+  );
+
+  const openAsyncpay = useCallback(
+    (buyer: LpBuyer) => {
+      if (!pricing?.monthlyPriceId) return;
+      setStatus("processing");
+      const mod = asyncpayModuleRef.current;
+      if (mod) {
+        runAsyncpayCheckout(mod, buyer);
+        return;
+      }
+      // Fallback for a click that somehow beats the prefetch effect above
+      // (e.g. a very fast click right as pricing resolves) — the same
+      // dynamic import the effect uses, just requested on demand instead of
+      // ahead of time.
+      import("@asyncpay/checkout").then((loadedMod) => {
+        asyncpayModuleRef.current = loadedMod;
+        runAsyncpayCheckout(loadedMod, buyer);
+      });
+    },
+    [pricing, runAsyncpayCheckout],
   );
 
   const openPaddle = useCallback(
