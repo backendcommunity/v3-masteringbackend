@@ -27,6 +27,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/ai")).toBe(false);
   });
 
+  it("treats /lp/pro-9999 as public — the ₦9,999 ads landing page has no login wall", () => {
+    expect(isPublicPath("/lp/pro-9999")).toBe(true);
+    expect(isPublicPath("/lp/pro-9999?utm_source=meta")).toBe(true);
+  });
+
   it("every AUTH_PATHS entry middleware exempts from login-redirect is also registered here", () => {
     // middleware.ts hardcodes /ai/payment and /xpayment as auth-bypass routes;
     // the client-side gates (AuthProvider, api.ts interceptor) only consult
