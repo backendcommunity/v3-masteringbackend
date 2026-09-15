@@ -61,6 +61,7 @@ export default defineConfig({
       "components/pages/__tests__/checkout-seat-selector.test.tsx",
       "components/pages/__tests__/checkout-paddle-sync.test.tsx",
       "components/pages/__tests__/checkout-already-subscribed.test.tsx",
+      "components/pages/__tests__/checkout-removal-notice-reset.test.tsx",
       "components/team/__tests__/invite-dialog.test.tsx",
       "components/team/__tests__/assignment-card.test.tsx",
       "components/team/__tests__/assignment-form-dialog.test.tsx",
@@ -87,6 +88,7 @@ export default defineConfig({
       "components/team/__tests__/group-members-dialog.test.tsx",
       "components/team/__tests__/report-chart.test.tsx",
       "components/pages/__tests__/team-overview-report.test.tsx",
+      "components/__tests__/team-removal-banner.test.tsx",
     ],
   },
   resolve: {

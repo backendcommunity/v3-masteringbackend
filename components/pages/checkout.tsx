@@ -35,6 +35,7 @@ import {
   PADDLE_ENVIRONMENT,
 } from "@/lib/payment-environment";
 import { useUser } from "@/hooks/use-user";
+import { resetTeamRemovalNoticeCache } from "@/components/team-removal-banner";
 import ConfettiCelebration from "../confetti-celebration";
 import { toast } from "sonner";
 import {
@@ -953,6 +954,10 @@ function CheckoutPageContent({ pricing, tier }: CheckoutPageProps) {
             cycle,
           });
           toast.success("You're on Pro. Welcome in.");
+          // Same reasoning as the Paddle checkout.completed handler: the
+          // user object isn't refetched here, so the removal banner's own
+          // entitlement guard can't see this purchase without this reset.
+          resetTeamRemovalNoticeCache();
           goToTeamSetupAfterCelebration();
         },
         onClose: () => {
@@ -1272,6 +1277,11 @@ function CheckoutPageContent({ pricing, tier }: CheckoutPageProps) {
             toast.success(
               "You have successfully subscribe to " + checkoutId + " plan",
             );
+            // The user object is not refetched here, so the team-removal
+            // banner's own entitlement guard can't see this purchase yet —
+            // without this, a buyer who was removed from a team keeps being
+            // told their Pro access ended for the rest of the page load.
+            resetTeamRemovalNoticeCache();
             goToTeamSetupAfterCelebration();
             break;
         }
