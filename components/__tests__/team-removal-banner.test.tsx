@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import {
   TeamRemovalBanner,
   resetTeamRemovalNoticeCache,
@@ -182,7 +182,40 @@ describe("TeamRemovalBanner", () => {
   // of ~67 separate page.tsx trees, so this banner unmounts and remounts on
   // every in-app navigation. Without a session cache that is one policy query
   // per page view, which is the exact load the brief kept off /auth/me.
-  it("requests the notice once per logged-in session, not once per navigation", async () => {
+  // Only a NEGATIVE answer is cached for the session — that population is
+  // almost everybody, and it's the load this cache exists to keep off every
+  // page view. A POSITIVE answer is deliberately NOT cached across mounts
+  // (see the next test): caching it would let a stale "you lost access"
+  // survive a purchase or a mid-session re-add, with nothing left to
+  // invalidate it once dismissal already skips the request.
+  it("requests the notice once per logged-in session, not once per navigation, for a negative answer", async () => {
+    notice = { show: false, teamName: null, removedAt: null };
+    pricingValue = null;
+
+    const first = render(<TeamRemovalBanner />);
+    await waitFor(() => expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    // A second mount is a navigation, not a new session — the cached
+    // negative answer must carry over rather than firing a second query.
+    render(<TeamRemovalBanner />);
+    // Nothing renders for a negative answer either time, so there is no DOM
+    // change to await — flush the effect's microtasks under act() instead.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1);
+  });
+
+  // The self-healing half of the fix: a POSITIVE answer is never persisted
+  // across mounts, so the very next navigation re-checks live instead of
+  // trusting a cache nothing invalidates. This is what closes the purchase
+  // race (the webhook may not have landed yet when the celebration redirects
+  // to /team/setup) and the re-added-mid-session case, with no reset to wire
+  // or forget for either.
+  it("re-checks a positive answer on the next mount, since only negative answers are cached for the session", async () => {
     notice = removed;
     pricingValue = basePricing;
 
@@ -190,13 +223,11 @@ describe("TeamRemovalBanner", () => {
     await screen.findByText(/Your Pro access through/i);
     first.unmount();
 
-    // A second mount is a navigation, not a new session.
-    const second = render(<TeamRemovalBanner />);
-    // Still shown — the cache carries the answer, it does not merely suppress.
-    await screen.findByText(/Your Pro access through/i);
-    expect(second.container.textContent).toContain("Acme Engineering");
-
-    expect(getTeamRemovalNotice).toHaveBeenCalledTimes(1);
+    // No explicit reset call — the recheck must happen on its own.
+    render(<TeamRemovalBanner />);
+    await waitFor(() =>
+      expect(getTeamRemovalNotice).toHaveBeenCalledTimes(2),
+    );
   });
 
   // Guards the cache's keying: a bare module-level cache would hand user A's

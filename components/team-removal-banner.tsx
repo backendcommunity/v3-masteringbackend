@@ -45,20 +45,33 @@ function isDismissed(userId: string): boolean {
 }
 
 /**
- * The notice, fetched once per signed-in user per page load.
+ * The notice, fetched once per signed-in user per page load — but ONLY when
+ * the answer is negative.
  *
  * `DashboardLayout` is not a shared Next.js layout — it is rendered inside each
  * of ~67 separate `page.tsx` trees, so this banner unmounts and remounts on
  * every in-app navigation. Fetching in the effect alone would therefore run a
  * three-join policy query on every page view, which is the very load the notice
- * was split off `/auth/me` to avoid.
+ * was split off `/auth/me` to avoid. That cost is worth paying off for a
+ * negative answer — almost every signed-in user, for the whole session — but
+ * NOT for a positive one.
+ *
+ * A positive answer (`show: true`) means "removed from a team within the
+ * last 30 days" — a small population, and one where a stale positive is a
+ * real user-visible defect: it is what kept telling a buyer their access had
+ * ended for the rest of the page load after they bought Pro (checkout does
+ * no reload, and neither purchase path refetches the user object), and what
+ * kept a member who was re-added mid-session looking removed. Re-checking on
+ * every mount for just that population is cheap and makes both cases
+ * self-healing with nothing to invalidate: the dismiss button already skips
+ * the request entirely once dismissed (see the effect below), so this never
+ * runs forever for someone who closed the banner.
  *
  * Keyed by user id, not bare: a same-tab logout/login must not hand the
- * previous user's notice to the next one. The promise itself is cached, so
- * concurrent mounts share one request rather than racing.
- *
- * A failure caches `null` for the session — the banner is an offer, and no
- * offer is a fine outcome; retrying a policy query on every navigation is not.
+ * previous user's notice to the next one. The promise itself is cached
+ * (briefly, even for a positive answer) so concurrent mounts in the same
+ * tick share one request rather than racing — it is only PERSISTED past
+ * that request's own resolution when the answer is negative.
  */
 let noticeCache: {
   userId: string;
@@ -72,22 +85,38 @@ function loadNoticeOnce(
   if (noticeCache?.userId === userId) return noticeCache.promise;
   const promise = fetcher()
     .then((result) => result ?? null)
+    // A failure is folded into the negative population on purpose: the
+    // banner is an offer, no offer is a fine outcome, and retrying a policy
+    // query on every navigation after a failure is not.
     .catch(() => null);
-  noticeCache = { userId, promise };
+  const entry = { userId, promise };
+  noticeCache = entry;
+  promise.then((result) => {
+    // A positive answer must be re-checked on the next mount, so its slot is
+    // cleared the moment it resolves rather than left to answer a future,
+    // unrelated mount. Guarded on `noticeCache === entry` so a newer entry
+    // (a different user, or a reset) is never clobbered by an older
+    // in-flight promise resolving late.
+    if (result?.show === true && noticeCache === entry) {
+      noticeCache = null;
+    }
+  });
   return promise;
 }
 
 /**
  * Invalidates the session-cached notice so the next mount re-fetches instead
- * of serving the stale answer.
+ * of serving a stale cached answer.
  *
- * The cache exists to keep this component cheap across ~67 page trees, but
- * nothing about a page load tells it the policy changed underneath it. Call
- * this the moment a successful Pro purchase completes (see checkout.tsx's
- * Paddle `checkout.completed` and AsyncPay `onSuccess` handlers) — otherwise
- * a buyer who just paid keeps seeing "your Pro access ended" for the rest of
- * the page load, since checkout does no reload and the removal notice fetch
- * is not tied to the user object. Also usable any time a policy change needs
+ * With the negative-only cache above, a stale POSITIVE answer can no longer
+ * survive to a later mount by itself — every mount re-checks one live, which
+ * is what actually closes the purchase race and the re-added-mid-session
+ * case now. This call is kept anyway, wired into checkout.tsx's Paddle
+ * `checkout.completed` and AsyncPay `onSuccess` handlers (and pinned there
+ * by checkout-removal-notice-reset.test.tsx), as defense-in-depth: it clears
+ * any NEGATIVE entry this session had cached before the purchase, so the
+ * very next mount is guaranteed a fresh check rather than depending on the
+ * negative/positive split alone. Also usable any time a policy change needs
  * to be reflected without a full reload (e.g. tests resetting module state
  * between cases).
  */
