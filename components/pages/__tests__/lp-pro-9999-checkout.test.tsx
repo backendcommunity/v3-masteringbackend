@@ -133,6 +133,16 @@ describe("LpPro9999Page", () => {
     ).not.toBeInTheDocument();
   });
 
+  // The hero borrows the bootcamp's credibility, and must say HOW the
+  // training is the same rather than merely assert that it is.
+  it("ties the hero to the bootcamp's method, not just its name", () => {
+    render(<LpPro9999Page />);
+    expect(
+      screen.getByText(/built the way we train the AI Engineering Bootcamp cohorts: in order, by building, with your code reviewed/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/as low as/i)).not.toBeInTheDocument();
+  });
+
   // A monthly subscription has no spots and no deadline. Borrowed scarcity
   // is the first thing a sceptical buyer catches, so no CTA may imply it.
   it("uses no scarcity language on its calls to action", () => {

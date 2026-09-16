@@ -144,6 +144,15 @@ const COURSE_NAMES = [
   "Intro to Data Structures & Algorithms",
 ];
 
+// The three promises in the hero, in the campaign's own words. Each one
+// is a stage of the platform (Learn, Build, Grow) and each is backed by
+// a Pro inclusion named further down the page.
+const HERO_POINTS = [
+  "Structured learning paths from fundamentals to production",
+  "Real-world projects and coding exercises, not just videos",
+  "Mock interviews and a portfolio that make you job-ready",
+];
+
 // What the subscription changes about the reader's week. Each lead is an
 // outcome in their life, and each body names the platform feature that
 // delivers it, in that order: nobody wants "code review", everybody wants
@@ -384,23 +393,28 @@ export function LpPro9999Page() {
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
           <div>
-            <span className="eyebrow-mono text-[#4AC5E8]">
-              masteringbackend pro · {price} a month
-            </span>
+            <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend pro</span>
             <h1 className="mt-3 max-w-[16ch] text-balance text-[clamp(34px,4.4vw,52px)] font-semibold leading-[0.98] tracking-tight">
-              Stop watching tutorials.
+              Learn backend and AI skills
               <br />
               <em className={`${instrumentSerif.className} text-primary`}>
-                Start building your career.
+                for {price} a month.
               </em>
             </h1>
             <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-white/72">
-              Masteringbackend Pro is the whole route to a backend or AI
-              engineering job: learning paths in order, real projects
-              someone reviews, mock interviews before the real one, and
-              people on the same road with you. For about what you spend
-              on data.
+              One subscription, the whole platform, built the way we train
+              the AI Engineering Bootcamp cohorts: in order, by building,
+              with your code reviewed. Whether you are starting your tech
+              career or growing the one you have.
             </p>
+            <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
+              {HERO_POINTS.map((point) => (
+                <li key={point} className="flex gap-2.5">
+                  <span className="mt-0.5 text-primary">✓</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <button

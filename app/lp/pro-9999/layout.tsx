@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Every course, project and mock interview for ₦9,999",
+  title: "Learn backend and AI skills for ₦9,999 a month",
   description:
     "One Masteringbackend Pro subscription opens the whole platform: every backend and AI course and learning path, real projects with code review, practice exercises, unlimited AI mock interviews, bootcamps and the community.",
   openGraph: {
