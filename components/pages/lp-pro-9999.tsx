@@ -144,23 +144,42 @@ const COURSE_NAMES = [
   "Intro to Data Structures & Algorithms",
 ];
 
-const WHO_THIS_IS_FOR = [
-  {
-    title: "Complete beginners",
-    body: "You have not written code before. The paths start from foundations and the beginner tracks are built for you.",
-  },
-  {
-    title: "Career switchers",
-    body: "You are moving from another field, or another corner of tech, and you need the whole route mapped out.",
-  },
-  {
-    title: "Working engineers",
-    body: "You ship already and want AI engineering, or a stronger backend, inside your range.",
-  },
-  {
-    title: "Students and graduates",
-    body: "No employment history needed. Build the portfolio while you study.",
-  },
+// What the subscription changes about the reader's week. Each lead is an
+// outcome in their life, and each body names the platform feature that
+// delivers it, in that order: nobody wants "code review", everybody wants
+// someone to read their code.
+const CHANGES: [string, string][] = [
+  [
+    "You always know what's next.",
+    "A learning path is the whole journey in order: foundations, then systems, then production, then AI. No guessing, no forty answers.",
+  ],
+  [
+    "Someone reads your code.",
+    "Every project you submit gets a code review. Free tutorials can never give you that, and it is the part that makes you hireable.",
+  ],
+  [
+    "You practise the interview before it counts.",
+    "Unlimited AI mock interviews, up to 30 minutes each, with a report after. Walk into the real one having already done it.",
+  ],
+  [
+    "You are not doing this alone.",
+    "A community forum on the platform, and a WhatsApp group full of Nigerians on the same route.",
+  ],
+];
+
+// Scholarship-page pattern: saying who should NOT buy is what makes the
+// rest of the page believable.
+const FOR_YOU = [
+  "You have watched tutorials for months and still cannot build something on your own.",
+  "You want a remote role, a dollar income, or a switch into tech, and you need the route, not more videos.",
+  "You are starting from zero, or from another field. Every path begins at foundations.",
+  "You can give it a few hours a week, on a modest laptop and average data.",
+];
+
+const NOT_FOR_YOU = [
+  "You want a certificate without building anything. Every path here ends in projects someone reviews.",
+  "You are looking for a quick win. This is a route to a career, and routes take months.",
+  "You want someone to do it for you. We give you the route, the review and the room. You do the work.",
 ];
 
 // Six Learner Spotlight films from the Masteringbackend YouTube channel.
@@ -290,6 +309,20 @@ function SectionHeading({
 const CTA_CLASS =
   "inline-flex items-center justify-center rounded-full bg-primary font-bold text-[#05262F] transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0";
 
+/**
+ * "₦9,999" -> "₦333 a day". Derived from the regional price label so a
+ * visitor outside Nigeria sees their own tier divided the same way, never
+ * a naira figure that does not apply to them. Returns null when the label
+ * carries no number (the loading placeholder never does).
+ */
+function perDayLabel(priceLabel: string): string | null {
+  const numeric = Number(priceLabel.replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  const symbol = priceLabel.match(/^[^\d]+/)?.[0]?.trim() ?? "";
+  const perDay = Math.round(numeric / 30);
+  return `about ${symbol}${perDay.toLocaleString("en-NG")} a day`;
+}
+
 export function LpPro9999Page() {
   useEffect(() => {
     analytics.track(LP_9999_EVENTS.viewed, {});
@@ -300,6 +333,7 @@ export function LpPro9999Page() {
   // Loading placeholder for decorative copy only. The Pay button and the
   // SDK call never read this literal; they wait for the real price.
   const price = checkout.priceLabel || "₦9,999";
+  const perDay = perDayLabel(price);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
@@ -312,6 +346,10 @@ export function LpPro9999Page() {
   const onWhatsappClick = () => {
     analytics.track(LP_9999_EVENTS.whatsappClicked, {});
   };
+
+  // The strongest sentence on the page goes in the hero, not in card one
+  // of six, section six. Belief has to arrive before the inventory does.
+  const heroProof = TESTIMONIALS[0];
 
   return (
     <div className="min-h-screen bg-background">
@@ -339,96 +377,145 @@ export function LpPro9999Page() {
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* HERO: the promise, in their words, next to a real face saying it
+          worked. Left-aligned on purpose; the rest of the page is centered
+          and the hero should not look like one more section. */}
       <header className="relative overflow-hidden bg-[#0E1F33] text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto max-w-[1200px] px-4 py-14 text-center sm:px-8 lg:px-12">
-          <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend pro</span>
-          <h1 className="mx-auto mt-3 max-w-5xl text-balance text-[clamp(32px,5vw,56px)] font-semibold leading-[0.98] tracking-tight">
-            Become a backend or AI engineer
-            <br />
-            <em className={`${instrumentSerif.className} text-primary`}>
-              for the price of data.
-            </em>
-          </h1>
-          <p className="mx-auto mt-4 max-w-[52ch] text-[16.5px] leading-relaxed text-white/72">
-            Masteringbackend has trained backend engineers since 2021. One
-            subscription, {price} a month, opens the whole platform: every
-            course and learning path, real projects with code review,
-            practice exercises, AI mock interviews, bootcamps and the
-            community. Nothing is held back for a higher tier.
-          </p>
+        <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
+          <div>
+            <span className="eyebrow-mono text-[#4AC5E8]">
+              masteringbackend pro · {price} a month
+            </span>
+            <h1 className="mt-3 max-w-[16ch] text-balance text-[clamp(34px,4.4vw,52px)] font-semibold leading-[0.98] tracking-tight">
+              Stop watching tutorials.
+              <br />
+              <em className={`${instrumentSerif.className} text-primary`}>
+                Start building your career.
+              </em>
+            </h1>
+            <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-white/72">
+              Masteringbackend Pro is the whole route to a backend or AI
+              engineering job: learning paths in order, real projects
+              someone reviews, mock interviews before the real one, and
+              people on the same road with you. For about what you spend
+              on data.
+            </p>
 
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => openCheckout("hero")}
-              className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
-            >
-              Start learning for {price}
-            </button>
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onWhatsappClick}
-              className="inline-flex items-center rounded-full border border-white/30 px-7 py-3.5 text-base font-bold transition-colors duration-200 hover:bg-white/10"
-            >
-              Join the WhatsApp group
-            </a>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => openCheckout("hero")}
+                className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
+              >
+                Start learning for {price}
+              </button>
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onWhatsappClick}
+                className="inline-flex items-center rounded-full border border-white/30 px-7 py-3.5 text-base font-bold transition-colors duration-200 hover:bg-white/10"
+              >
+                Join the WhatsApp group
+              </a>
+            </div>
+            <p className="mt-3 text-xs text-white/46">
+              Pay in naira on this page. No account first. Cancel any time
+              and keep your progress.
+            </p>
           </div>
-          <p className="mt-3 text-xs text-white/46">
-            Pay in naira on this page. No signup first. Cancel any time, and
-            your progress and certificates stay on your profile.
-          </p>
+
+          <div className="w-full max-w-md lg:justify-self-end">
+            <TestimonialCard {...heroProof} />
+            <p className="mt-3 text-xs text-white/46">
+              Five more learner films further down. Tap any one to watch.
+            </p>
+          </div>
         </div>
       </header>
 
-      {/* PROBLEM */}
+      {/* THE LOOP: their week, rendered. One column, left-aligned, no
+          cards. This is the one section that has to feel like a person
+          talking, not a layout. */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <SectionHeading
-          eyebrow="The problem"
-          heading="You want to break into tech. Here's what's stopping you."
-        />
-        <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-          <p className="rounded border border-border bg-card p-5 text-[15.5px] text-muted-foreground transition-colors duration-200 hover:border-primary/30">
-            You want to learn backend or AI engineering, but{" "}
-            <b className="text-foreground">
-              individual courses cost more than your monthly budget
-            </b>
-            .
-          </p>
-          <p className="rounded border border-border bg-card p-5 text-[15.5px] text-muted-foreground transition-colors duration-200 hover:border-primary/30">
-            You&apos;ve bought a course before and abandoned it because it
-            didn&apos;t fit how you learn, or life got in the way.
-          </p>
-          <p className="rounded border border-border bg-card p-5 text-[15.5px] text-muted-foreground transition-colors duration-200 hover:border-primary/30">
-            You&apos;re not sure which skill will actually get you hired.
-            Python? Java? AI? All of them?
-          </p>
-          <p className="rounded border border-border bg-card p-5 text-[15.5px] text-muted-foreground transition-colors duration-200 hover:border-primary/30">
-            You want a skill that gets you a remote job or international
-            clients,{" "}
-            <b className="text-foreground">
-              not a certificate that sits in your downloads folder
-            </b>
-            .
+        <div className="mx-auto max-w-2xl">
+          <span className="rounded-full bg-muted px-3.5 py-1.5 text-xs">
+            Sound familiar?
+          </span>
+          <h2 className="mt-3 text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+            You know the loop.
+          </h2>
+          <div className="mt-6 flex flex-col gap-5 border-l-2 border-primary/40 pl-5 text-[17px] leading-relaxed text-muted-foreground">
+            <p>
+              A four-hour YouTube video. You follow along, it works, you
+              close the laptop. A week later you open a blank file and
+              nothing comes.
+            </p>
+            <p>
+              You ask which language to learn and get forty answers. You
+              start Python. Someone says Java pays more, so you start Java.
+            </p>
+            <p>
+              The bootcamp that would fix all of this costs more than your
+              rent. So you buy another course, and it joins the others in
+              your downloads folder.
+            </p>
+            <p>
+              Meanwhile someone from your set posts{" "}
+              <b className="text-foreground">&ldquo;I got the remote role.&rdquo;</b>
+            </p>
+          </div>
+          <p className="mt-7 text-balance text-xl font-semibold tracking-tight">
+            The problem was never your effort. Nobody gave you the route.
           </p>
         </div>
-        <p className="mx-auto mt-6 max-w-xl text-balance text-center text-xl font-semibold tracking-tight">
-          You don&apos;t need more motivation. You need one affordable
-          subscription that removes every excuse.
-        </p>
       </section>
 
-      {/* WHAT YOU GET */}
+      {/* WHAT CHANGES: outcomes first, features second. */}
+      <section className="bg-muted/40 py-16">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
+          <SectionHeading
+            eyebrow="What changes"
+            eyebrowVariant="background"
+            heading="A route, a reviewer, and a room full of people on the same road."
+          />
+          <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+            {CHANGES.map(([lead, body]) => (
+              <div key={lead} className="border-t-2 border-primary pt-4">
+                <h3 className="text-[19px] font-bold tracking-tight">{lead}</h3>
+                <p className="mt-2 text-[15.5px] leading-relaxed text-muted-foreground">
+                  {body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PROOF, before the inventory. */}
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
+        <SectionHeading
+          eyebrow="People who learned here"
+          heading="It worked for them. In their own words."
+          description="Six Masteringbackend learners on what changed, named where they agreed to be, so you can look them up before you pay. Tap any one to watch."
+          descriptionClassName="mt-3 text-muted-foreground"
+        />
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TESTIMONIALS.map((t) => (
+            <TestimonialCard key={t.youtubeId} {...t} />
+          ))}
+        </div>
+      </section>
+
+      {/* WHAT YOU GET: the inventory, now that they believe it. */}
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrow="What you get"
+            eyebrow="Everything in Pro"
             eyebrowVariant="outline"
-            heading="Everything. One price. No stress."
-            description={`${price} a month, less than a weekend of data and transport, opens the whole platform. Learn it, build it, then get hired for it.`}
+            heading="One subscription. Nothing held back."
+            description={`${price} a month opens all of it. There is no higher tier for individuals; Enterprise exists for companies buying seats.`}
             descriptionClassName="mt-4 text-white/72"
           />
 
@@ -469,19 +556,15 @@ export function LpPro9999Page() {
                 </li>
               ))}
             </ul>
-            <p className="mt-6 text-center text-[15.5px] text-white/72">
-              One login, one price, every stage. Follow a path end to end,
-              or take any course on its own.
-            </p>
           </div>
         </div>
       </section>
 
-      {/* LEARNING PATHS. Numbered markers are used here on purpose: a
-          path IS a sequence, and the order is the product. */}
+      {/* THE ROUTE. Numbered markers are used here on purpose: a path IS a
+          sequence, and the order is the product. */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
-          eyebrow="Learning paths"
+          eyebrow="The route"
           heading="The exact route, milestone by milestone."
           description="A path is the whole journey in order, so you never have to guess what to learn next. Two paths run end to end today, and this is every milestone in each one."
           descriptionClassName="mt-4 text-muted-foreground"
@@ -541,72 +624,76 @@ export function LpPro9999Page() {
         </p>
       </section>
 
-      {/* WHY */}
-      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <SectionHeading
-          eyebrow={`Why ${price}`}
-          heading="Because we know the real barriers."
-        />
-        <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-5 text-[17px] leading-relaxed text-muted-foreground">
-          <p>
-            We built this for the Nigerian tech learner: someone juggling
-            data costs, unstable power and a tight budget, but who refuses
-            to give up on a tech career.
-          </p>
-          <p>
-            One course used to mean one payment for one skill. Now{" "}
-            <b className="text-foreground">
-              one small monthly payment unlocks the entire platform
-            </b>
-            : the courses, the projects you build, the code review on each
-            one, and the mock interviews you sit before the real thing.
-          </p>
-          <p>
-            No laptop wahala. No wondering which course to buy. No
-            half-finished bootcamps. And nothing held back for a tier you
-            cannot afford.
-          </p>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
+      {/* THE PRICE, made concrete. The one place the number is allowed to
+          be the biggest thing on screen. */}
       <section className="bg-muted/40 py-16">
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
-          <SectionHeading
-            eyebrow="Student stories"
-            eyebrowVariant="background"
-            heading="Hear it from people who did it."
-            description="Six learners on what changed for them, named where they agreed to be, so you can look them up before you decide. Tap any one to watch."
-            descriptionClassName="mt-3 text-muted-foreground"
-          />
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <TestimonialCard key={t.youtubeId} {...t} />
-            ))}
+        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-10 px-4 sm:px-8 lg:grid-cols-[auto_1fr] lg:gap-16">
+          <div>
+            <span className="rounded-full bg-background px-3.5 py-1.5 text-xs">
+              The price
+            </span>
+            <div className="mt-4 text-[clamp(56px,8vw,96px)] font-bold leading-none tracking-tight">
+              {price}
+            </div>
+            <div className="mt-2 text-lg text-muted-foreground">
+              a month{perDay ? `, ${perDay}` : ""}
+            </div>
           </div>
+          <ul className="flex flex-col gap-4 text-[16.5px] leading-relaxed text-muted-foreground">
+            <li className="flex gap-3">
+              <span className="mt-0.5 text-primary">✓</span>
+              <span>
+                <b className="text-foreground">About the price of a plate of food a day.</b>{" "}
+                One payment a month, in naira, on this page.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-0.5 text-primary">✓</span>
+              <span>
+                <b className="text-foreground">Nothing else, ever.</b> No exam fee, no
+                upgrade, no premium tier you find out about later.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-0.5 text-primary">✓</span>
+              <span>
+                <b className="text-foreground">Cancel any time and keep your progress.</b>{" "}
+                Come back next month and continue from the same lesson.
+              </span>
+            </li>
+          </ul>
         </div>
       </section>
 
-      {/* WHO THIS IS FOR */}
+      {/* FOR YOU / NOT FOR YOU */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
-          eyebrow="Who this is for"
-          heading="Beginners and working engineers, both."
-          description="There is no experience requirement. The learning paths start from foundations and run to production systems, so they hold people arriving from different places."
-          descriptionClassName="mt-4 text-muted-foreground"
+          eyebrow="Is this for you?"
+          heading="For you if. Not for you if."
         />
-        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
-          {WHO_THIS_IS_FOR.map((who) => (
-            <div
-              key={who.title}
-              className="rounded border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/30"
-            >
-              <h3 className="text-[17px] font-bold">{who.title}</h3>
-              <p className="mt-2 text-[15.5px] leading-relaxed text-muted-foreground">
-                {who.body}
-              </p>
-            </div>
-          ))}
+        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-8 sm:grid-cols-2">
+          <div>
+            <h3 className="text-[17px] font-bold">This is for you if</h3>
+            <ul className="mt-4 flex flex-col gap-3.5">
+              {FOR_YOU.map((line) => (
+                <li key={line} className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 text-primary">✓</span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-[17px] font-bold">This is not for you if</h3>
+            <ul className="mt-4 flex flex-col gap-3.5">
+              {NOT_FOR_YOU.map((line) => (
+                <li key={line} className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground">
+                  <span className="mt-0.5 text-muted-foreground/60">✕</span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -641,8 +728,8 @@ export function LpPro9999Page() {
         <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:items-center lg:px-12">
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
-            <h2 className="mt-3 max-w-[15ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-              Start learning in the next minute.
+            <h2 className="mt-3 max-w-[16ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+              Your first lesson is one payment away.
             </h2>
             <p className="mt-4 max-w-[42ch] text-white/72">
               No account to create first, no verification email to go hunting
@@ -650,7 +737,7 @@ export function LpPro9999Page() {
               details land in your inbox the moment the payment clears.
             </p>
             <p className="mt-5 text-xs text-white/46">
-              Cancel anytime. No hidden fees. Full access from day one.
+              Cancel any time. No hidden fees. Full access from day one.
             </p>
           </div>
           <InlineCheckout checkout={checkout} />
@@ -675,12 +762,28 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* MISSION */}
-      <section className="border-t border-border bg-muted/40 py-12">
-        <p className="mx-auto max-w-[46ch] px-4 text-balance text-center text-[17px] leading-relaxed text-muted-foreground">
-          Our mission is to make backend and AI engineering skills
-          affordable for young Africans.
-        </p>
+      {/* LAST PUSH + MISSION */}
+      <section className="border-t border-border bg-muted/40 py-16">
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <h2 className="text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+            Every learner in those films started where you are now.
+          </h2>
+          <p className="mx-auto mt-4 max-w-[48ch] text-[17px] leading-relaxed text-muted-foreground">
+            Same route. Same price as a data bundle. The only thing between
+            you and your first lesson is one payment.
+          </p>
+          <button
+            type="button"
+            onClick={() => openCheckout("final")}
+            className={`${CTA_CLASS} mt-7 px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
+          >
+            Start learning for {price}
+          </button>
+          <p className="mx-auto mt-10 max-w-[46ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
+            Our mission is to make backend and AI engineering skills
+            affordable for young Africans.
+          </p>
+        </div>
       </section>
 
       {/* FOOTER */}
