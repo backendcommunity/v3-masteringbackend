@@ -243,7 +243,7 @@ export function LpPro9999Page() {
           <a
             href="#start"
             onClick={() => onCtaClick("nav")}
-            className="rounded-full border border-input px-4 py-3 text-sm font-bold transition-colors duration-200 hover:bg-muted"
+            className="rounded-full bg-primary px-4 py-3 text-sm font-bold text-[#05262F] transition-colors duration-200 hover:bg-primary/90"
           >
             Secure your spot
           </a>
