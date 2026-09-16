@@ -496,7 +496,7 @@ export function LpPro9999Page() {
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           eyebrow="People who learned here"
-          heading="It worked for them. In their own words."
+          heading="What some of our learners have to say."
           description="Six Masteringbackend learners on what changed, named where they agreed to be, so you can look them up before you pay. Tap any one to watch."
           descriptionClassName="mt-3 text-muted-foreground"
         />
