@@ -46,7 +46,7 @@ export function InlineCheckout() {
       <div className="rounded bg-primary/10 p-6" role="status">
         <p className="mb-1.5 text-base font-bold">You&apos;re in.</p>
         <p className="text-sm text-muted-foreground">
-          Check {email || "your email"} for your login details — they land
+          Check {email || "your email"} for your login details. They land
           the moment the payment clears.
         </p>
       </div>
@@ -83,7 +83,7 @@ export function InlineCheckout() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded border border-input bg-background px-3.5 py-3.5 text-base outline-none focus:ring-2 focus:ring-primary"
+            className="rounded border border-input bg-background px-3.5 py-3.5 text-base outline-none transition-shadow duration-150 focus:ring-2 focus:ring-primary"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -99,14 +99,14 @@ export function InlineCheckout() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-input bg-background px-3.5 py-3.5 text-base outline-none focus:ring-2 focus:ring-primary"
+            className="rounded border border-input bg-background px-3.5 py-3.5 text-base outline-none transition-shadow duration-150 focus:ring-2 focus:ring-primary"
           />
         </div>
 
         <button
           type="submit"
           disabled={status === "loading" || status === "processing"}
-          className="mt-1 flex items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-base font-bold text-[#05262F] shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)] transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-base font-bold text-[#05262F] shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)] transition duration-200 hover:bg-primary/90 hover:shadow-[0_4px_10px_rgba(19,174,206,.36),0_20px_38px_-10px_rgba(19,174,206,.55)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
         >
           {status === "loading"
             ? "Loading…"
@@ -122,7 +122,7 @@ export function InlineCheckout() {
           <button
             type="button"
             onClick={reset}
-            className="font-bold underline underline-offset-2"
+            className="font-bold underline underline-offset-2 transition-opacity duration-150 hover:opacity-70"
           >
             Try again
           </button>

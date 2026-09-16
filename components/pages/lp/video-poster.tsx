@@ -43,12 +43,12 @@ export function VideoPoster({ label, vimeoId, aspect = "wide" }: VideoPosterProp
       aria-label={
         opened && !vimeoId ? "Video not available yet" : `Play ${label}`
       }
-      className={`relative w-full overflow-hidden rounded ${
+      className={`group relative w-full overflow-hidden rounded transition-transform duration-200 hover:scale-[1.01] ${
         aspect === "wide" ? "aspect-video" : "aspect-[4/3]"
       } bg-gradient-to-br from-[#223642] to-[#101A22]`}
     >
       <span className="absolute inset-0 grid place-items-center">
-        <span className="grid h-16 w-16 place-items-center rounded-full bg-primary shadow-lg">
+        <span className="grid h-16 w-16 place-items-center rounded-full bg-primary shadow-lg transition-transform duration-200 group-hover:scale-110">
           <span className="ml-1 h-0 w-0 border-y-[11px] border-l-[18px] border-y-transparent border-l-[#05262F]" />
         </span>
       </span>
@@ -58,7 +58,7 @@ export function VideoPoster({ label, vimeoId, aspect = "wide" }: VideoPosterProp
       {opened && !vimeoId ? (
         <span className="absolute inset-0 grid place-items-center bg-[#0E1F33] p-6 text-center">
           <span className="max-w-[38ch] text-sm text-white/75">
-            This video isn&apos;t wired up yet — it needs a Vimeo ID.
+            This video isn&apos;t wired up yet. It needs a Vimeo ID.
           </span>
         </span>
       ) : null}

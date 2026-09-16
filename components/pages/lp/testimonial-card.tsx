@@ -18,7 +18,7 @@ export function TestimonialCard({
   vimeoId,
 }: TestimonialCardProps) {
   return (
-    <div className="overflow-hidden rounded border border-border bg-card">
+    <div className="overflow-hidden rounded border border-border bg-card transition-colors duration-200 hover:border-primary/30">
       <VideoPoster label="learner spotlight" vimeoId={vimeoId} aspect="tall" />
       <div className="flex flex-col gap-3.5 p-5">
         <p
@@ -26,7 +26,7 @@ export function TestimonialCard({
             isPlaceholderQuote ? "italic text-muted-foreground" : "text-foreground"
           }`}
         >
-          {isPlaceholderQuote ? `Placeholder — ${quote}` : `"${quote}"`}
+          {isPlaceholderQuote ? `Placeholder: ${quote}` : `"${quote}"`}
         </p>
         <div>
           <div className="text-sm font-bold">{name}</div>
