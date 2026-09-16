@@ -482,7 +482,7 @@ export function LpPro9999Page() {
           for anything. */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
-          eyebrow="After you subscribe"
+          eyebrow="Before you subscribe"
           heading="What happens after you subscribe."
           description="The full sequence, in order, and how to reach a person along the way."
           descriptionClassName="mt-4 text-muted-foreground"
@@ -763,7 +763,7 @@ export function LpPro9999Page() {
 
       {/* FAQ */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <SectionHeading eyebrow="Questions" heading="Before you subscribe." />
+        <SectionHeading eyebrow="Questions" heading="Frequently asked." />
         <div className="mx-auto mt-8 max-w-2xl">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="group border-b border-border py-1 first:border-t">
