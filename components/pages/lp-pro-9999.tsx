@@ -158,10 +158,18 @@ const HERO_POINTS = [
 ];
 
 // The campaign's deadline. This is a real commitment: on this date the
-// price must actually change to PRICE_AFTER, or the notice becomes a
-// false scarcity claim to everyone who saw the ad. Update both together.
-const PRICE_RISES_ON = "1 October 2026";
-const PRICE_AFTER = "₦12,999";
+// naira price must actually become STANDARD_PRICE_NGN, and everyone who
+// subscribed before it must keep their rate, because the page promises
+// both. If either changes, change it here.
+const DISCOUNT_ENDS_ON = "1 October 2026";
+const STANDARD_PRICE_NGN = "₦12,999";
+
+// The struck-through standard price is a naira figure, so it is only
+// shown to visitors the pricing API actually quotes in naira. Everyone
+// else sees the deadline without a price that does not apply to them.
+function isNairaPrice(priceLabel: string): boolean {
+  return priceLabel.trim().startsWith("₦");
+}
 
 // What the platform actually holds, counted from GET /public/courses and
 // GET /public/roadmaps on prod.masteringbackend.com, 2026-09-16: nineteen
@@ -390,6 +398,11 @@ export function LpPro9999Page() {
   // Loading placeholder for decorative copy only. The Pay button and the
   // SDK call never read this literal; they wait for the real price.
   const price = checkout.priceLabel || "₦9,999";
+  // The struck-through ₦12,999 may only be shown to a visitor the pricing
+  // API actually quoted in naira. `price` falls back to a naira literal
+  // while the request is in flight, so testing it would flash a naira
+  // figure at everyone, including visitors billed in dollars.
+  const showNairaDiscount = isNairaPrice(checkout.priceLabel);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
@@ -449,10 +462,10 @@ export function LpPro9999Page() {
               </em>
             </h1>
             <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-white/72">
-              One subscription, the whole platform, built the way we train
-              the AI Engineering Bootcamp cohorts: in order, by building,
-              with your code reviewed. Whether you are starting your tech
-              career or growing the one you have.
+              Whether you are starting your tech career or growing the one
+              you have, {price} opens the whole platform, taught the way we
+              train our AI Engineering Bootcamp cohorts: in order, by
+              building, with your code reviewed.
             </p>
             <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
@@ -487,10 +500,19 @@ export function LpPro9999Page() {
                 first 3 days of learning.
               </span>
             </p>
-            <p className="mt-2 text-xs text-white/60">
-              Price rises to {PRICE_AFTER} a month on {PRICE_RISES_ON}.
-              Subscribe before then and you keep {price} for as long as you
-              stay subscribed.
+            <p className="mt-2.5 text-[13px] text-white/60">
+              {showNairaDiscount ? (
+                <>
+                  <s className="text-white/40">{STANDARD_PRICE_NGN}</s>{" "}
+                  <b className="text-white/85">{price}</b> a month until{" "}
+                  {DISCOUNT_ENDS_ON}
+                </>
+              ) : (
+                <>Discounted until {DISCOUNT_ENDS_ON}</>
+              )}
+              , part of our mission to train one million Africans in backend
+              and AI engineering. Subscribe before then and you keep this
+              rate for as long as you stay subscribed.
             </p>
           </div>
 
@@ -719,7 +741,14 @@ export function LpPro9999Page() {
             Start learning for {price}
           </button>
           <p className="mt-3 text-xs text-muted-foreground">
-            {PRICE_AFTER} from {PRICE_RISES_ON}.
+            {showNairaDiscount ? (
+              <>
+                <s>{STANDARD_PRICE_NGN}</s> <b className="text-foreground">{price}</b>{" "}
+                until {DISCOUNT_ENDS_ON}.
+              </>
+            ) : (
+              <>Discounted until {DISCOUNT_ENDS_ON}.</>
+            )}
           </p>
         </div>
       </section>
@@ -780,7 +809,15 @@ export function LpPro9999Page() {
               </span>
             </p>
             <p className="mt-2 text-xs text-white/46">
-              Price rises to {PRICE_AFTER} a month on {PRICE_RISES_ON}.
+              {showNairaDiscount ? (
+                <>
+                  <s>{STANDARD_PRICE_NGN}</s> <b className="text-white/80">{price}</b>{" "}
+                  a month until {DISCOUNT_ENDS_ON}.
+                </>
+              ) : (
+                <>Discounted until {DISCOUNT_ENDS_ON}.</>
+              )}{" "}
+              Your rate stays the same for as long as you stay subscribed.
             </p>
           </div>
           <InlineCheckout checkout={checkout} />

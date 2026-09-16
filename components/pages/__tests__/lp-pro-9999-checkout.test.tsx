@@ -27,9 +27,37 @@ import { render, screen, fireEvent } from "@testing-library/react";
 const { mockTrack } = vi.hoisted(() => ({ mockTrack: vi.fn() }));
 vi.mock("@/lib/analytics", () => ({ analytics: { track: mockTrack } }));
 
-vi.mock("@/lib/api", () => ({
-  api: { get: () => Promise.resolve({ data: { data: null } }) },
+// Mutable so a test can put the page in the Nigerian branch. Default is
+// null, which makes useCheckoutPricing fall back to the global tier: that
+// is what every other test in this file renders against.
+const { pricingState } = vi.hoisted(() => ({
+  pricingState: { value: null as unknown },
 }));
+vi.mock("@/lib/api", () => ({
+  api: { get: () => Promise.resolve({ data: { data: pricingState.value } }) },
+}));
+
+const NG_PRICING = {
+  tier: "NG",
+  country: "NG",
+  provider: "ASYNCPAY",
+  currency: "NGN",
+  monthly: 9999,
+  annual: 99990,
+  monthlyPriceId: "async-monthly-id",
+  annualPriceId: "async-annual-id",
+  enterprise: {
+    tier: "NG",
+    provider: "ASYNCPAY",
+    currency: "NGN",
+    monthlyPerUser: 15000,
+    annualPerUser: 150000,
+    minSeats: 2,
+    selfServe: true,
+    monthlyPriceId: "",
+    annualPriceId: "",
+  },
+};
 
 // next/font/google only works through Next's own compiler (the SWC font
 // plugin swaps it for a real loader at build time); under plain Vitest the
@@ -46,6 +74,7 @@ import { LpPro9999Page } from "@/components/pages/lp-pro-9999";
 
 beforeEach(() => {
   mockTrack.mockReset();
+  pricingState.value = null;
 });
 
 describe("LpPro9999Page", () => {
@@ -138,19 +167,37 @@ describe("LpPro9999Page", () => {
   it("ties the hero to the bootcamp's method, not just its name", () => {
     render(<LpPro9999Page />);
     expect(
-      screen.getByText(/built the way we train the AI Engineering Bootcamp cohorts: in order, by building, with your code reviewed/i),
+      screen.getByText(/taught the way we train our AI Engineering Bootcamp cohorts: in order, by building, with your code reviewed/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/as low as/i)).not.toBeInTheDocument();
   });
 
-  // The price-rise notice is a real commitment to every visitor who sees
-  // it. It must name a date and the new price, and it must appear both in
-  // the hero and at the checkout, where the decision is actually made.
-  it("states the price rise with its date, at the top and at the checkout", () => {
+  // The deadline is a real commitment to every visitor who sees it, so it
+  // must appear in the hero and again at the checkout where the decision
+  // is made. The struck-through ₦12,999 is deliberately NOT asserted here:
+  // it renders only for visitors the pricing API quotes in naira, and this
+  // suite runs on the global fallback. The next test pins that boundary.
+  it("states the deadline at the top and at the checkout", () => {
     render(<LpPro9999Page />);
-    const notices = screen.getAllByText(/₦12,999/);
-    expect(notices.length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/1 October 2026/).length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(/mission to train one million Africans/i),
+    ).toBeInTheDocument();
+  });
+
+  // Regional pricing invariant. The struck-through ₦12,999 is a COMPARISON
+  // price: showing it to someone billed in dollars would claim a discount
+  // against a figure they will never be charged. It renders only once the
+  // API has quoted this visitor in naira, so on the global fallback (what
+  // this suite runs on) it must be absent entirely.
+  //
+  // The decorative "₦9,999" that fills the headline and buttons while the
+  // request is in flight is a separate, deliberate thing: it is never read
+  // by the charge path, and is documented at the top of the page file.
+  it("never shows the naira comparison price to a visitor quoted elsewhere", () => {
+    render(<LpPro9999Page />);
+    expect(screen.queryByText(/₦12,999/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Discounted until 1 October 2026/).length).toBeGreaterThanOrEqual(2);
   });
 
   // The strongest quote anchors the hero; repeating the same card in the
@@ -193,5 +240,23 @@ describe("LpPro9999Page", () => {
     // The dialog carries its own form; the bottom-of-page form is still there.
     expect(screen.getAllByLabelText(/full name/i).length).toBe(2);
     expect(mockTrack).toHaveBeenCalledWith("lp9999_cta_clicked", { section: "hero" });
+  });
+  // What 10,000 Nigerians actually see, which a dev machine cannot render:
+  // the pricing API's CORS list does not admit localhost:3001, so the page
+  // always falls back to the global tier there. This is the only place the
+  // naira branch is exercised.
+  it("shows the naira discount against ₦12,999 for a Nigerian visitor", async () => {
+    pricingState.value = NG_PRICING;
+    render(<LpPro9999Page />);
+
+    const struck = await screen.findAllByText("₦12,999");
+    expect(struck.length).toBeGreaterThanOrEqual(2);
+    struck.forEach((el) => expect(el.tagName).toBe("S"));
+
+    expect(screen.getAllByText(/1 October 2026/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/Discounted until/)).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /Start learning for ₦9,999/ }).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });
