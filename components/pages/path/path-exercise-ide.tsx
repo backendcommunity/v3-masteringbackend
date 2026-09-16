@@ -168,7 +168,13 @@ export function PathExerciseIde({
   const [tests, setTests] = useState<TestResult[]>([]);
   // stdin piped to the program on a plain "Run" (exercise:run). One value per
   // line; persisted across runs but reset when the exercise changes.
-  const [stdin, setStdin] = useState<string>("");
+  //
+  // Seeded from the exercise's first VISIBLE test case (`sampleStdin`, computed
+  // server-side). Without it the box starts empty, so the first press of Run on
+  // any exercise that reads input hands the program nothing — a driver exercise
+  // would die with a raw Scanner NoSuchElementException and no hint about the
+  // expected format. The learner can still edit or clear it.
+  const [stdin, setStdin] = useState<string>(() => exercise?.sampleStdin ?? "");
   // F4 — streaming phase status and per-check stdout blocks.
   // `phaseStatus` is null when no run is in flight; a human-readable string otherwise.
   // `streamChecks` accumulates visible per-check stdout chunks while running.
