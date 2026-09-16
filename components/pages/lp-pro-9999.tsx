@@ -563,7 +563,7 @@ export function LpPro9999Page() {
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           eyebrow="The route"
-          heading="The exact route, milestone by milestone."
+          heading="Unlimited access to our structured learning paths."
           description="A path is the whole journey in order, so you never have to guess what to learn next. Two paths run end to end today, and this is every milestone in each one."
           descriptionClassName="mt-4 text-muted-foreground"
         />
