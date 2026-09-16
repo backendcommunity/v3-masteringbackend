@@ -76,22 +76,72 @@ const PILLARS = [
   },
 ];
 
-// The catalog, from GET /public/courses on 2026-09-16
-// (courses.masteringbackend.com), plus the four tracks the campaign leads
-// with. Shown as chips under Learn: proof of depth, not the whole offer.
+// The two learning paths that run end to end in production, with every
+// milestone in order, from GET /public/roadmaps and GET /roadmap/:slug on
+// prod.masteringbackend.com, 2026-09-16.
+//
+// The Node.js and Rust paths are deliberately NOT listed: each carries a
+// single Essentials milestone today, and a buyer who picks one expecting a
+// route to a job would find one course. Their Essentials courses are in the
+// course list below, which is what they honestly are.
+//
+// There is no standalone AI Engineering path in production. AI Engineering
+// is a milestone inside the Python path and a course of its own, so that is
+// how the page shows it. Nothing here promises a path that does not exist.
+const LEARNING_PATHS = [
+  {
+    title: "Become a Python Backend Engineer",
+    summary:
+      "The full route, from your first line of Python to shipping and defending a production system with AI in it.",
+    milestones: [
+      "Python Foundations",
+      "Backend Engineering Core",
+      "Building Backend Systems",
+      "Production Infrastructure",
+      "AI Engineering with Python",
+      "Ship and defend",
+    ],
+    /** Milestones worth calling out by name in the campaign. */
+    highlight: ["AI Engineering with Python"],
+  },
+  {
+    title: "Become a Java and Spring Backend Engineer",
+    summary:
+      "For the enterprise track: Java from the ground up, then the Spring systems and APIs companies actually run.",
+    milestones: [
+      "Java Essentials",
+      "Advanced Java",
+      "Building Backend Systems",
+      "Building RESTful APIs",
+    ],
+    highlight: [],
+  },
+];
+
+// Every course on the platform, from GET /public/courses on
+// prod.masteringbackend.com, 2026-09-16. All nineteen are included in the
+// subscription, so all nineteen are named: the offer is the catalogue, not
+// a shortlist.
 const COURSE_NAMES = [
   "AI Engineering",
-  "Python Programming",
-  "AntiGravity",
-  "Advanced Java",
+  "Building Reliable AI Workflows Beyond Chatbots",
+  "AntiGravity for Backend Engineers",
   "Python Essentials",
   "Advanced Python",
   "Ship 30 Python Projects in 30 Days",
   "Mastering Django: From Basics to Advanced",
+  "Dockerizing Python Apps",
+  "Logging and Caching in Python",
   "Java Essentials",
+  "Advanced Java",
+  "Spring Framework & Spring Boot",
   "Design Patterns in Java",
+  "Unit Testing in Java",
   "Node.js Essentials",
   "Rust Essentials",
+  "Introduction to GraphQL",
+  "Introduction to Software Testing",
+  "Intro to Data Structures & Algorithms",
 ];
 
 const WHO_THIS_IS_FOR = [
@@ -407,7 +457,7 @@ export function LpPro9999Page() {
 
           <div className="mx-auto mt-8 max-w-3xl">
             <p className="text-center text-sm text-white/55">
-              The courses and tracks you can start today
+              All nineteen courses, included
             </p>
             <ul className="mt-3 flex flex-wrap justify-center gap-2">
               {COURSE_NAMES.map((title) => (
@@ -420,11 +470,75 @@ export function LpPro9999Page() {
               ))}
             </ul>
             <p className="mt-6 text-center text-[15.5px] text-white/72">
-              One login, one price, every stage. Switch tracks whenever you
-              want.
+              One login, one price, every stage. Follow a path end to end,
+              or take any course on its own.
             </p>
           </div>
         </div>
+      </section>
+
+      {/* LEARNING PATHS. Numbered markers are used here on purpose: a
+          path IS a sequence, and the order is the product. */}
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
+        <SectionHeading
+          eyebrow="Learning paths"
+          heading="The exact route, milestone by milestone."
+          description="A path is the whole journey in order, so you never have to guess what to learn next. Two paths run end to end today, and this is every milestone in each one."
+          descriptionClassName="mt-4 text-muted-foreground"
+        />
+
+        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 lg:grid-cols-2">
+          {LEARNING_PATHS.map((path) => (
+            <div
+              key={path.title}
+              className="flex flex-col rounded border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/30"
+            >
+              <h3 className="text-[19px] font-bold tracking-tight">
+                {path.title}
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                {path.summary}
+              </p>
+              <ol className="mt-5 flex flex-col gap-0 border-t border-border pt-2">
+                {path.milestones.map((milestone, i) => {
+                  const isHighlight = path.highlight.includes(milestone);
+                  return (
+                    <li
+                      key={milestone}
+                      className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0"
+                    >
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted font-mono text-[11px] text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <span
+                        className={
+                          isHighlight
+                            ? "text-[15px] font-bold text-primary"
+                            : "text-[15px] text-foreground"
+                        }
+                      >
+                        {milestone}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="mt-4 text-xs text-muted-foreground">
+                {path.milestones.length} milestones · included in your
+                subscription
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-6 max-w-[62ch] text-center text-[15.5px] leading-relaxed text-muted-foreground">
+          AI Engineering is a milestone on the Python path, and a full course
+          of its own alongside{" "}
+          <b className="text-foreground">
+            Building Reliable AI Workflows Beyond Chatbots
+          </b>
+          . You do not pay extra for any of it.
+        </p>
       </section>
 
       {/* WHY */}

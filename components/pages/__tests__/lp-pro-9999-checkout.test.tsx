@@ -100,6 +100,39 @@ describe("LpPro9999Page", () => {
     expect(inclusions).toContain("Community forum access");
   });
 
+  // "Show them exactly what they get." The paths section names every
+  // milestone of the two paths that actually run end to end in production,
+  // and AI Engineering appears as what it is: a milestone on the Python
+  // path, not a path of its own. If a path is ever listed that a buyer
+  // cannot walk on the day they pay, this is the test that should fail.
+  it("lists the Python path milestones, AI Engineering among them", () => {
+    render(<LpPro9999Page />);
+    expect(
+      screen.getByText(/Become a Python Backend Engineer/i, { selector: "h3" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Become a Java and Spring Backend Engineer/i, {
+        selector: "h3",
+      }),
+    ).toBeInTheDocument();
+    const milestones = screen
+      .getAllByText(/.+/, { selector: "ol > li > span:last-child" })
+      .map((el) => el.textContent ?? "");
+    expect(milestones).toContain("Python Foundations");
+    expect(milestones).toContain("AI Engineering with Python");
+    expect(milestones).toContain("Ship and defend");
+    expect(milestones).toContain("Building RESTful APIs");
+  });
+
+  // The Node.js and Rust paths carry one milestone each in production. They
+  // are named as courses, never offered as a route to a job.
+  it("does not advertise the single-milestone paths as paths", () => {
+    render(<LpPro9999Page />);
+    expect(
+      screen.queryByText(/Become a (Node\.js|Rust) Backend Engineer/i),
+    ).not.toBeInTheDocument();
+  });
+
   // A monthly subscription has no spots and no deadline. Borrowed scarcity
   // is the first thing a sceptical buyer catches, so no CTA may imply it.
   it("uses no scarcity language on its calls to action", () => {
