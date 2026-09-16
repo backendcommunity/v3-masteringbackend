@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Every Backend and AI course for ₦9,999",
+  title: "Every course, project and mock interview for ₦9,999",
   description:
-    "Full access to every Backend Engineering and AI Engineering course on Masteringbackend: Python, Advanced Java, AntiGravity and AI Engineering, beginner to advanced, for one flat monthly price.",
+    "One Masteringbackend Pro subscription opens the whole platform: every backend and AI course and learning path, real projects with code review, practice exercises, unlimited AI mock interviews, bootcamps and the community.",
   openGraph: {
     title: "Become a backend or AI engineer for the price of a data bundle.",
     description:
-      "₦9,999 unlocks every Backend and AI Engineering course on Masteringbackend, billed monthly. Pay on the page, no account needed first.",
+      "₦9,999 a month opens every course, every project with code review, unlimited AI mock interviews and the community. Pay on the page, no account needed first.",
     type: "website",
   },
 };

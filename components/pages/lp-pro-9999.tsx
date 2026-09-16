@@ -39,42 +39,51 @@ const instrumentSerif = Instrument_Serif({
 
 const WHATSAPP_URL = "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t";
 
-// The four tracks the campaign leads with, in the brief's words.
-const FEATURED_COURSES = [
+// What one subscription opens, in the platform's own three stages.
+// Every claim here is copied from the Pro column of /pricing
+// (components/pages/pricing.tsx), so the two pages can never disagree
+// about what a subscriber gets.
+const PILLARS = [
   {
-    eyebrow: "Artificial intelligence",
-    title: "AI Engineering",
-    sub: "Beginner to advanced",
-    body: "Go from zero to building real AI-powered applications.",
-    level: "Beginner",
+    stage: "Learn",
+    heading: "Every course and learning path",
+    body: "All paid courses on the platform, and structured learning paths that take you from fundamentals to production. Beginner entry points on every track.",
+    items: [
+      "All paid courses and learning paths",
+      "Bootcamps and certification exams",
+      "Beginner to advanced, at your own pace",
+    ],
   },
   {
-    eyebrow: "Languages",
-    title: "Python Programming",
-    sub: "The hiring language",
-    body: "The most in-demand language for backend, AI and automation roles.",
-    level: "Beginner",
+    stage: "Build",
+    heading: "Real projects, not long videos",
+    body: "You practise by building. Every project you submit gets a code review, and bite-size exercises in the playground keep you writing code between projects.",
+    items: [
+      "All projects, with code review on each submission",
+      "Bite-size practice exercises in the playground",
+      "A portfolio you can share with employers",
+    ],
   },
   {
-    eyebrow: "Backend skills",
-    title: "AntiGravity",
-    sub: "For backend engineers",
-    body: "The modern backend engineering skills employers actually hire for.",
-    level: "Intermediate",
-  },
-  {
-    eyebrow: "Enterprise",
-    title: "Advanced Java",
-    sub: "Systems that scale",
-    body: "Build the enterprise-grade backend systems big companies run on.",
-    level: "Advanced",
+    stage: "Grow",
+    heading: "Get ready for the job",
+    body: "Practise the interview before you sit it, build a profile employers can check, and ask questions in a community of people doing the same thing.",
+    items: [
+      "Unlimited AI mock interviews, up to 30 minutes each",
+      "A professional profile and shareable portfolio",
+      "Community forum access",
+    ],
   },
 ];
 
-// The rest of the catalog, from GET /public/courses on 2026-09-16
-// (courses.masteringbackend.com). Advanced Java is above, so it is not
-// repeated here.
-const MORE_COURSES = [
+// The catalog, from GET /public/courses on 2026-09-16
+// (courses.masteringbackend.com), plus the four tracks the campaign leads
+// with. Shown as chips under Learn: proof of depth, not the whole offer.
+const COURSE_NAMES = [
+  "AI Engineering",
+  "Python Programming",
+  "AntiGravity",
+  "Advanced Java",
   "Python Essentials",
   "Advanced Python",
   "Ship 30 Python Projects in 30 Days",
@@ -86,19 +95,37 @@ const MORE_COURSES = [
 ];
 
 const WHO_THIS_IS_FOR = [
-  "Beginners starting a tech career from zero",
-  "Developers levelling up into AI Engineering",
-  "Backend engineers modernising with AntiGravity or Advanced Java",
-  "Anyone chasing a remote job, a dollar-income role, or a career switch into tech",
-  "Students and professionals who need flexible, self-paced, mobile-friendly learning",
+  {
+    title: "Complete beginners",
+    body: "You have not written code before. The paths start from foundations and the beginner tracks are built for you.",
+  },
+  {
+    title: "Career switchers",
+    body: "You are moving from another field, or another corner of tech, and you need the whole route mapped out.",
+  },
+  {
+    title: "Working engineers",
+    body: "You ship already and want AI engineering, or a stronger backend, inside your range.",
+  },
+  {
+    title: "Students and graduates",
+    body: "No employment history needed. Build the portfolio while you study.",
+  },
 ];
 
 // Six Learner Spotlight films from the Masteringbackend YouTube channel.
-// Titles are the videos' own, trimmed of the "Learner Spotlight:" prefix.
+// Names, roles and quotes for four of them come from the graduate data on
+// the MasteringAI scholarship page (lib/scholarship.ts), so a visitor can
+// look these people up before paying. The remaining two carry the video's
+// own title until we have the learner's name.
 const TESTIMONIALS = [
   {
     youtubeId: "FwNvNAMpuF8",
     title: "Max landed a job right after our bootcamp training",
+    name: "Maximilian Ogbuabor",
+    role: "Backend engineer",
+    quote:
+      "Literally immediately after the bootcamp I got a gig to build a full-stack application for an NGO. This is my first big gig.",
   },
   {
     youtubeId: "HX7vyFqATlk",
@@ -107,6 +134,10 @@ const TESTIMONIALS = [
   {
     youtubeId: "YP1hx2Wlaqs",
     title: "Scaling an AI system to 1 million users",
+    name: "Ifechukwu Ogidi",
+    role: "Backend engineer, 4+ years building systems",
+    quote:
+      "We went from core backend principles to RAG systems, embeddings, vector databases and agentic systems. It gave me the tools to build AI systems from the ground up.",
   },
   {
     youtubeId: "C5V2e4sjDvo",
@@ -115,14 +146,30 @@ const TESTIMONIALS = [
   {
     youtubeId: "85AdK_S7bxY",
     title: "AI Engineering became less of a mystery to me",
+    name: "Maximilian Ogbuabor",
+    role: "On the curriculum",
+    quote:
+      "We didn't just jump into AI. We spent a decent amount of time learning to build a production-ready backend system, and that is knowledge I apply today.",
   },
   {
     youtubeId: "kseZZTywxpc",
     title: "I learned how to communicate and build AI systems effectively",
+    name: "Stephen Oba",
+    role: "Backend engineer",
+    quote:
+      "There were a lot of concepts in AI engineering I had struggled with, especially in the RAG space. These weeks gave me an understanding of how to build secure, robust systems that solve real problems.",
   },
 ];
 
 const FAQ: { q: string; a: string }[] = [
+  {
+    q: "What exactly do I get for the subscription?",
+    a: "The whole platform. Every paid course and learning path, all projects with a code review on each submission, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional profile and portfolio, and the community forum.",
+  },
+  {
+    q: "Is there a higher tier I am missing?",
+    a: "No. This is Pro, and Pro is everything an individual learner can get. The only other plan is Enterprise, which exists so companies can buy seats for a team and manage them together. Nothing is held back from you for a higher tier.",
+  },
   {
     q: "How do I pay?",
     a: "Right here on this page. Enter your name and email, and a secure payment window opens. Pay in naira with your debit card (Verve, Mastercard or Visa) or by bank transfer. You never leave the page, and you don't create an account first.",
@@ -237,7 +284,7 @@ export function LpPro9999Page() {
             onClick={() => openCheckout("nav")}
             className={`${CTA_CLASS} px-4 py-3 text-sm`}
           >
-            Secure your spot
+            Start learning
           </button>
         </div>
       </nav>
@@ -246,7 +293,7 @@ export function LpPro9999Page() {
       <header className="relative overflow-hidden bg-[#0E1F33] text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto max-w-[1200px] px-4 py-14 text-center sm:px-8 lg:px-12">
-          <span className="eyebrow-mono text-[#4AC5E8]">monthly subscription</span>
+          <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend pro</span>
           <h1 className="mx-auto mt-3 max-w-5xl text-balance text-[clamp(32px,5vw,56px)] font-semibold leading-[0.98] tracking-tight">
             Become a backend or AI engineer
             <br />
@@ -254,10 +301,12 @@ export function LpPro9999Page() {
               for the price of data.
             </em>
           </h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-[16.5px] leading-relaxed text-white/72">
-            Python, Advanced Java, AntiGravity and AI Engineering, from
-            beginner to advanced. Every course on Masteringbackend, one
-            subscription.
+          <p className="mx-auto mt-4 max-w-[52ch] text-[16.5px] leading-relaxed text-white/72">
+            Masteringbackend has trained backend engineers since 2021. One
+            subscription, {price} a month, opens the whole platform: every
+            course and learning path, real projects with code review,
+            practice exercises, AI mock interviews, bootcamps and the
+            community. Nothing is held back for a higher tier.
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -266,7 +315,7 @@ export function LpPro9999Page() {
               onClick={() => openCheckout("hero")}
               className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
             >
-              Secure your spot for {price}
+              Start learning for {price}
             </button>
             <a
               href={WHATSAPP_URL}
@@ -279,7 +328,8 @@ export function LpPro9999Page() {
             </a>
           </div>
           <p className="mt-3 text-xs text-white/46">
-            Pay in naira on this page. No signup first. Cancel anytime.
+            Pay in naira on this page. No signup first. Cancel any time, and
+            your progress and certificates stay on your profile.
           </p>
         </div>
       </header>
@@ -321,40 +371,46 @@ export function LpPro9999Page() {
         </p>
       </section>
 
-      {/* OFFER */}
+      {/* WHAT YOU GET */}
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrow="What's included"
+            eyebrow="What you get"
             eyebrowVariant="outline"
             heading="Everything. One price. No stress."
-            description={`For ${price} a month, less than a weekend of data and transport, you get every track.`}
+            description={`${price} a month, less than a weekend of data and transport, opens the whole platform. Learn it, build it, then get hired for it.`}
             descriptionClassName="mt-4 text-white/72"
           />
 
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURED_COURSES.map((c) => (
+          <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {PILLARS.map((pillar) => (
               <div
-                key={c.title}
+                key={pillar.stage}
                 className="rounded border border-white/12 bg-white/[0.04] p-6 transition-colors duration-200 hover:border-primary/40 hover:bg-white/[0.06]"
               >
-                <div className="text-[11px] text-primary">{c.eyebrow}</div>
-                <h3 className="mt-2.5 text-lg font-bold">{c.title}</h3>
-                <p className="mt-2 text-[13px] text-white/55">{c.sub}</p>
-                <p className="mt-2.5 text-sm text-white/72">{c.body}</p>
-                <div className="mt-4 border-t border-white/12 pt-3 text-xs text-white/55">
-                  {c.level} · Full track
-                </div>
+                <div className="text-[11px] text-primary">{pillar.stage}</div>
+                <h3 className="mt-2.5 text-xl font-bold">{pillar.heading}</h3>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-white/72">
+                  {pillar.body}
+                </p>
+                <ul className="mt-5 flex flex-col gap-2.5 border-t border-white/12 pt-4">
+                  {pillar.items.map((item) => (
+                    <li key={item} className="flex gap-2.5 text-[14px] text-white/85">
+                      <span className="mt-0.5 text-primary">✓</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
 
           <div className="mx-auto mt-8 max-w-3xl">
             <p className="text-center text-sm text-white/55">
-              Also in your subscription
+              The courses and tracks you can start today
             </p>
             <ul className="mt-3 flex flex-wrap justify-center gap-2">
-              {MORE_COURSES.map((title) => (
+              {COURSE_NAMES.map((title) => (
                 <li
                   key={title}
                   className="rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/85"
@@ -363,23 +419,11 @@ export function LpPro9999Page() {
                 </li>
               ))}
             </ul>
+            <p className="mt-6 text-center text-[15.5px] text-white/72">
+              One login, one price, every stage. Switch tracks whenever you
+              want.
+            </p>
           </div>
-
-          <ul className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-            {[
-              ["Structured learning paths", "so you never guess what to learn next"],
-              ["Project-based training", "built for real jobs, not just certificates"],
-              ["Beginner-friendly entry points", "so “no coding experience” is never an excuse"],
-              ["One login, one price", "switch tracks whenever you want"],
-            ].map(([bold, rest]) => (
-              <li key={bold} className="flex gap-3 text-[15.5px] text-white/85">
-                <span className="mt-0.5 text-primary">✓</span>
-                <span>
-                  <b>{bold}</b> {rest}
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 
@@ -398,14 +442,15 @@ export function LpPro9999Page() {
           <p>
             One course used to mean one payment for one skill. Now{" "}
             <b className="text-foreground">
-              one small monthly payment unlocks the entire academy
+              one small monthly payment unlocks the entire platform
             </b>
-            , so you can explore, switch tracks and build the exact skill
-            set that gets you hired.
+            : the courses, the projects you build, the code review on each
+            one, and the mock interviews you sit before the real thing.
           </p>
           <p>
             No laptop wahala. No wondering which course to buy. No
-            half-finished bootcamps.
+            half-finished bootcamps. And nothing held back for a tier you
+            cannot afford.
           </p>
         </div>
       </section>
@@ -417,7 +462,7 @@ export function LpPro9999Page() {
             eyebrow="Student stories"
             eyebrowVariant="background"
             heading="Hear it from people who did it."
-            description="Six learners, in their own words. Tap any one to watch."
+            description="Six learners on what changed for them, named where they agreed to be, so you can look them up before you decide. Tap any one to watch."
             descriptionClassName="mt-3 text-muted-foreground"
           />
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -432,19 +477,23 @@ export function LpPro9999Page() {
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           eyebrow="Who this is for"
-          heading="If this sounds like you, it's for you."
+          heading="Beginners and working engineers, both."
+          description="There is no experience requirement. The learning paths start from foundations and run to production systems, so they hold people arriving from different places."
+          descriptionClassName="mt-4 text-muted-foreground"
         />
-        <ul className="mx-auto mt-8 max-w-2xl divide-y divide-border border-y border-border">
-          {WHO_THIS_IS_FOR.map((line) => (
-            <li
-              key={line}
-              className="flex gap-3 py-4 text-[16.5px] text-muted-foreground transition-colors duration-200 hover:text-foreground"
+        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
+          {WHO_THIS_IS_FOR.map((who) => (
+            <div
+              key={who.title}
+              className="rounded border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/30"
             >
-              <span className="mt-0.5 text-primary">✓</span>
-              <span>{line}</span>
-            </li>
+              <h3 className="text-[17px] font-bold">{who.title}</h3>
+              <p className="mt-2 text-[15.5px] leading-relaxed text-muted-foreground">
+                {who.body}
+              </p>
+            </div>
           ))}
-        </ul>
+        </div>
       </section>
 
       {/* HOW IT WORKS */}
@@ -453,14 +502,13 @@ export function LpPro9999Page() {
           <SectionHeading
             eyebrow="How it works"
             eyebrowVariant="background"
-            heading="Four steps. That's the whole thing."
+            heading="Three steps to your first lesson."
           />
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
             {[
-              ["1", "Pay on this page", "Name, email, pay in naira. No account to create first."],
-              ["2", "Pick your path", "Backend, AI Engineering, or both."],
-              ["3", "Learn at your pace", "Structured lessons, real projects, practical skills."],
-              ["4", "Get job-ready", "Build a portfolio that proves what you can do."],
+              ["1", "Pay on this page", "Your name, your email, and a secure naira payment window. About two minutes, and no account to create first."],
+              ["2", "Check your inbox", "Your login details land the moment the payment clears."],
+              ["3", "Pick a path and start", "Choose backend, AI engineering, or both, and begin the first lesson today."],
             ].map(([n, title, body]) => (
               <div key={n} className="text-center transition-transform duration-200 hover:-translate-y-1">
                 <div className="mx-auto grid h-[62px] w-[62px] place-items-center rounded-full border border-border bg-background font-mono text-base text-primary">
@@ -480,7 +528,7 @@ export function LpPro9999Page() {
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
             <h2 className="mt-3 max-w-[15ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-              Pay here. Start in the next minute.
+              Start learning in the next minute.
             </h2>
             <p className="mt-4 max-w-[42ch] text-white/72">
               No account to create first, no verification email to go hunting
@@ -513,6 +561,14 @@ export function LpPro9999Page() {
         </div>
       </section>
 
+      {/* MISSION */}
+      <section className="border-t border-border bg-muted/40 py-12">
+        <p className="mx-auto max-w-[46ch] px-4 text-balance text-center text-[17px] leading-relaxed text-muted-foreground">
+          Our mission is to make backend and AI engineering skills
+          affordable for young Africans.
+        </p>
+      </section>
+
       {/* FOOTER */}
       <footer className="bg-[#0E1F33] py-12 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
@@ -527,7 +583,7 @@ export function LpPro9999Page() {
               onClick={() => openCheckout("footer")}
               className="inline-flex items-center rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition-colors duration-200 hover:bg-white/10"
             >
-              Start learning today
+              Start learning for {price}
             </button>
           </div>
           <div

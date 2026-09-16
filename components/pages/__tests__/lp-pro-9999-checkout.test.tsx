@@ -16,14 +16,10 @@
  * pattern works). `vi.hoisted()` is Vitest's own documented fix for
  * exactly this TDZ class of bug and changes no test semantics.
  *
- * The fourth test's four `getByText` queries are scoped with
- * `{ selector: "h3" }`. Without it, each query throws "multiple elements
- * found": the hero paragraph is one literal text node ("...Python,
- * Advanced Java, AntiGravity, and AI Engineering...") that itself
- * substring-matches three of the four regexes, colliding with the OFFER
- * section's own `<h3>` course-card titles. Scoping to `h3` — where course
- * titles actually live — resolves the ambiguity without touching the
- * hero copy or weakening the assertion.
+ * The platform test scopes its queries with `{ selector: "h3" }`: the
+ * pillar headings are the only `<h3>`s in the "What you get" section, and
+ * scoping keeps the assertion off the course chips and the hero copy,
+ * which repeat some of the same words.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -65,12 +61,57 @@ describe("LpPro9999Page", () => {
     expect(screen.queryByText(/log in/i)).not.toBeInTheDocument();
   });
 
-  it("names all four course tracks from the offer", () => {
+  // The campaign sells the platform, not a bundle of four courses. These
+  // three pillars and their inclusions are the offer; if a pillar stops
+  // rendering, the page is back to selling a course list.
+  it("names the three stages of the platform in the offer", () => {
     render(<LpPro9999Page />);
-    expect(screen.getByText(/AI Engineering/i, { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText(/Python Programming/i, { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText(/AntiGravity/i, { selector: "h3" })).toBeInTheDocument();
-    expect(screen.getByText(/Advanced Java/i, { selector: "h3" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Every course and learning path/i, { selector: "h3" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Real projects, not long videos/i, { selector: "h3" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Get ready for the job/i, { selector: "h3" }),
+    ).toBeInTheDocument();
+  });
+
+  // Each of these is a paid inclusion copied from the Pro column of
+  // /pricing. A visitor who pays for "the whole platform" and cannot find
+  // one of them has been mis-sold, so the page must keep naming them.
+  it("names the platform inclusions beyond courses", () => {
+    render(<LpPro9999Page />);
+    // Scoped to the pillar list items: the new "What exactly do I get"
+    // FAQ answer names the same inclusions in prose, so an unscoped query
+    // matches twice.
+    const inclusions = screen
+      .getAllByText(/.+/, { selector: "li > span" })
+      .map((el) => el.textContent ?? "");
+    expect(inclusions).toContain(
+      "All projects, with code review on each submission",
+    );
+    expect(inclusions).toContain(
+      "Bite-size practice exercises in the playground",
+    );
+    expect(inclusions).toContain(
+      "Unlimited AI mock interviews, up to 30 minutes each",
+    );
+    expect(inclusions).toContain("Community forum access");
+  });
+
+  // A monthly subscription has no spots and no deadline. Borrowed scarcity
+  // is the first thing a sceptical buyer catches, so no CTA may imply it.
+  it("uses no scarcity language on its calls to action", () => {
+    render(<LpPro9999Page />);
+    const ctas = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "")
+      .join(" | ");
+    expect(ctas).not.toMatch(/secure your spot/i);
+    expect(ctas).not.toMatch(/spots? left|limited|hurry|last chance/i);
+    expect(screen.getAllByRole("button", { name: /start learning/i }).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   // This is a production page for paid traffic: no placeholder, memo or
@@ -86,7 +127,7 @@ describe("LpPro9999Page", () => {
   it("the hero CTA opens the checkout dialog with name and email fields", async () => {
     render(<LpPro9999Page />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /secure your spot for/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /start learning for/i })[0]);
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toBeInTheDocument();
     // The dialog carries its own form; the bottom-of-page form is still there.
