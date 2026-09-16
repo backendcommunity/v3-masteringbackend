@@ -324,20 +324,6 @@ function SectionHeading({
 const CTA_CLASS =
   "inline-flex items-center justify-center rounded-full bg-primary font-bold text-[#05262F] transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0";
 
-/**
- * "₦9,999" -> "₦333 a day". Derived from the regional price label so a
- * visitor outside Nigeria sees their own tier divided the same way, never
- * a naira figure that does not apply to them. Returns null when the label
- * carries no number (the loading placeholder never does).
- */
-function perDayLabel(priceLabel: string): string | null {
-  const numeric = Number(priceLabel.replace(/[^\d.]/g, ""));
-  if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  const symbol = priceLabel.match(/^[^\d]+/)?.[0]?.trim() ?? "";
-  const perDay = Math.round(numeric / 30);
-  return `about ${symbol}${perDay.toLocaleString("en-NG")} a day`;
-}
-
 export function LpPro9999Page() {
   useEffect(() => {
     analytics.track(LP_9999_EVENTS.viewed, {});
@@ -348,7 +334,6 @@ export function LpPro9999Page() {
   // Loading placeholder for decorative copy only. The Pay button and the
   // SDK call never read this literal; they wait for the real price.
   const price = checkout.priceLabel || "₦9,999";
-  const perDay = perDayLabel(price);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
@@ -620,47 +605,6 @@ export function LpPro9999Page() {
           </b>
           . You do not pay extra for any of it.
         </p>
-      </section>
-
-      {/* THE PRICE, made concrete. The one place the number is allowed to
-          be the biggest thing on screen. */}
-      <section className="bg-muted/40 py-16">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-10 px-4 sm:px-8 lg:grid-cols-[auto_1fr] lg:gap-16">
-          <div>
-            <span className="rounded-full bg-background px-3.5 py-1.5 text-xs">
-              The price
-            </span>
-            <div className="mt-4 text-[clamp(56px,8vw,96px)] font-bold leading-none tracking-tight">
-              {price}
-            </div>
-            <div className="mt-2 text-lg text-muted-foreground">
-              a month{perDay ? `, ${perDay}` : ""}
-            </div>
-          </div>
-          <ul className="flex flex-col gap-4 text-[16.5px] leading-relaxed text-muted-foreground">
-            <li className="flex gap-3">
-              <span className="mt-0.5 text-primary">✓</span>
-              <span>
-                <b className="text-foreground">About the price of a plate of food a day.</b>{" "}
-                One payment a month, in naira, on this page.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-0.5 text-primary">✓</span>
-              <span>
-                <b className="text-foreground">Nothing else, ever.</b> No exam fee, no
-                upgrade, no premium tier you find out about later.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-0.5 text-primary">✓</span>
-              <span>
-                <b className="text-foreground">Cancel any time and keep your progress.</b>{" "}
-                Come back next month and continue from the same lesson.
-              </span>
-            </li>
-          </ul>
-        </div>
       </section>
 
       {/* FOR YOU / NOT FOR YOU */}
