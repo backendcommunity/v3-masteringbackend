@@ -454,18 +454,23 @@ export function LpPro9999Page() {
         <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend membership</span>
-            <h1 className="mt-3 max-w-[16ch] text-balance text-[clamp(34px,4.4vw,52px)] font-semibold leading-[0.98] tracking-tight">
-              Learn backend and AI skills
-              <br />
-              <em className={`${instrumentSerif.className} text-primary`}>
-                for {price} a month.
-              </em>
+            <h1 className="mt-3 max-w-[15ch] text-balance text-[clamp(34px,4.6vw,54px)] font-bold leading-[1.02] tracking-tight">
+              Learn backend and AI skills for{" "}
+              <span className="whitespace-nowrap text-primary">
+                {price} a month
+              </span>
+              .
             </h1>
-            <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-white/72">
-              Whether you are starting your tech career or growing the one
-              you have, {price} opens the whole platform, taught the way we
-              train our AI Engineering Bootcamp cohorts: in order, by
-              building, with your code reviewed.
+            <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
+              We are on a mission to train{" "}
+              <em
+                className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
+              >
+                one million Africans
+              </em>{" "}
+              in backend and AI engineering, and you can start today.
+              Whether you are beginning your tech career or growing the one
+              you already have, this opens the whole platform to you.
             </p>
             <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
@@ -500,19 +505,22 @@ export function LpPro9999Page() {
                 first 3 days of learning.
               </span>
             </p>
-            <p className="mt-2.5 text-[13px] text-white/60">
+            <p className="mt-3.5 max-w-[52ch] text-[15.5px] leading-relaxed text-white/80">
               {showNairaDiscount ? (
                 <>
-                  <s className="text-white/40">{STANDARD_PRICE_NGN}</s>{" "}
-                  <b className="text-white/85">{price}</b> a month until{" "}
-                  {DISCOUNT_ENDS_ON}
+                  <s className="text-white/45">{STANDARD_PRICE_NGN}</s>{" "}
+                  <b className="text-[1.12em] text-white">{price} a month</b>{" "}
+                  until {DISCOUNT_ENDS_ON}
                 </>
               ) : (
-                <>Discounted until {DISCOUNT_ENDS_ON}</>
+                <>
+                  <b className="text-white">Discounted</b> until{" "}
+                  {DISCOUNT_ENDS_ON}
+                </>
               )}
-              , part of our mission to train one million Africans in backend
-              and AI engineering. Subscribe before then and you keep this
-              rate for as long as you stay subscribed.
+              , because we are reaching for one million of you. Subscribe
+              before that date and you keep this rate for as long as you
+              stay subscribed.
             </p>
           </div>
 

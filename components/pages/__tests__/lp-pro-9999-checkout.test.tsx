@@ -162,13 +162,23 @@ describe("LpPro9999Page", () => {
     ).not.toBeInTheDocument();
   });
 
-  // The hero borrows the bootcamp's credibility, and must say HOW the
-  // training is the same rather than merely assert that it is.
-  it("ties the hero to the bootcamp's method, not just its name", () => {
+  // The mission is what makes the price make sense: cheap invites
+  // suspicion, "we are reaching for a million people" turns cheap into
+  // purposeful. It opens the hero and closes it, and both halves address
+  // the reader directly rather than describing them in the third person.
+  it("opens and closes the hero with the mission, in second person", () => {
     render(<LpPro9999Page />);
+    expect(screen.getByText(/We are on a mission to train/i)).toBeInTheDocument();
+    expect(screen.getByText(/one million Africans/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/taught the way we train our AI Engineering Bootcamp cohorts: in order, by building, with your code reviewed/i),
+      screen.getByText(/because we are reaching for one million of you/i),
     ).toBeInTheDocument();
+
+    // Third-person framing sorts the reader into a demographic; it must not
+    // come back. Nor may the price ever be sold as a floor.
+    expect(
+      screen.queryByText(/opens (its|it) learning platform to young Africans/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/as low as/i)).not.toBeInTheDocument();
   });
 
@@ -180,9 +190,6 @@ describe("LpPro9999Page", () => {
   it("states the deadline at the top and at the checkout", () => {
     render(<LpPro9999Page />);
     expect(screen.getAllByText(/1 October 2026/).length).toBeGreaterThanOrEqual(2);
-    expect(
-      screen.getByText(/mission to train one million Africans/i),
-    ).toBeInTheDocument();
   });
 
   // Regional pricing invariant. The struck-through ₦12,999 is a COMPARISON
