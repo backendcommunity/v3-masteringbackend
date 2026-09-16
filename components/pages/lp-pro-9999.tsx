@@ -91,6 +91,8 @@ const PILLARS = [
 const LEARNING_PATHS = [
   {
     title: "Become a Python Backend Engineer",
+    banner:
+      "https://pub-63da695b9ece47c5b3b49bd78b86d884.r2.dev/Become%20a%20python%20engineer.png",
     summary:
       "The full route, from your first line of Python to shipping and defending a production system with AI in it.",
     milestones: [
@@ -106,6 +108,8 @@ const LEARNING_PATHS = [
   },
   {
     title: "Become a Java and Spring Backend Engineer",
+    banner:
+      "https://pub-63da695b9ece47c5b3b49bd78b86d884.r2.dev/become%20a%20java%20engineer.png",
     summary:
       "For the enterprise track: Java from the ground up, then the Spring systems and APIs companies actually run.",
     milestones: [
@@ -151,6 +155,57 @@ const HERO_POINTS = [
   "Structured learning paths from fundamentals to production",
   "Real-world projects and coding exercises, not just videos",
   "Mock interviews and a portfolio that make you job-ready",
+];
+
+// The campaign's deadline. This is a real commitment: on this date the
+// price must actually change to PRICE_AFTER, or the notice becomes a
+// false scarcity claim to everyone who saw the ad. Update both together.
+const PRICE_RISES_ON = "1 October 2026";
+const PRICE_AFTER = "₦12,999";
+
+// What the platform actually holds, counted from GET /public/courses and
+// GET /public/roadmaps on prod.masteringbackend.com, 2026-09-16: nineteen
+// courses, 152 chapters across them, 57 hours of video, and the two
+// learning paths that run end to end. Recount before changing these.
+const PLATFORM_STATS: [string, string][] = [
+  ["19", "courses"],
+  ["152", "chapters"],
+  ["57", "hours of video"],
+  ["2", "full learning paths"],
+];
+
+// Four courses shown with the artwork and figures the catalogue itself
+// carries, so the page shows the product rather than only describing it.
+// Banner URLs, chapter counts, hours and levels are the API's own.
+const FEATURED_COURSES = [
+  {
+    title: "AI Engineering",
+    banner: "https://images.masteringbackend.com/AI%20Engineering%20%20Bootcamp.png",
+    level: "Beginner",
+    hours: 5,
+    chapters: 9,
+  },
+  {
+    title: "Advanced Python",
+    banner: "https://images.masteringbackend.com/advanced-python.png",
+    level: "Intermediate",
+    hours: 5,
+    chapters: 12,
+  },
+  {
+    title: "Advanced Java",
+    banner: "https://images.masteringbackend.com/advanced-java.png",
+    level: "Intermediate",
+    hours: 5,
+    chapters: 23,
+  },
+  {
+    title: "Ship 30 Python Projects in 30 Days",
+    banner: "https://images.masteringbackend.com/Ship%2030%20Python%20Projects%20in%2030%20Days.png",
+    level: "Intermediate",
+    hours: 15,
+    chapters: 4,
+  },
 ];
 
 // The scholarship page's "what happens after you enrol", for a
@@ -252,7 +307,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is there a higher tier I am missing?",
-    a: "No. This is Pro, and Pro is everything an individual learner can get. The only other plan is Enterprise, which exists so companies can buy seats for a team and manage them together. Nothing is held back from you for a higher tier.",
+    a: "No. This membership is everything an individual learner can get. The only other plan is Enterprise, which exists so companies can buy seats for a team and manage them together. Nothing is held back from you for a higher tier.",
   },
   {
     q: "How do I pay?",
@@ -432,6 +487,11 @@ export function LpPro9999Page() {
                 first 3 days of learning.
               </span>
             </p>
+            <p className="mt-2 text-xs text-white/60">
+              Price rises to {PRICE_AFTER} a month on {PRICE_RISES_ON}.
+              Subscribe before then and you keep {price} for as long as you
+              stay subscribed.
+            </p>
           </div>
 
           <div className="w-full max-w-md lg:justify-self-end">
@@ -482,11 +542,11 @@ export function LpPro9999Page() {
         <SectionHeading
           eyebrow="People who learned here"
           heading="What some of our learners have to say."
-          description="Six Masteringbackend learners on what changed, named where they agreed to be, so you can look them up before you pay. Tap any one to watch."
+          description="Masteringbackend learners on what changed, named where they agreed to be, so you can look them up before you pay. Tap any one to watch."
           descriptionClassName="mt-3 text-muted-foreground"
         />
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TESTIMONIALS.map((t) => (
+          {TESTIMONIALS.filter((t) => t.youtubeId !== heroProof.youtubeId).map((t) => (
             <TestimonialCard key={t.youtubeId} {...t} />
           ))}
         </div>
@@ -496,7 +556,7 @@ export function LpPro9999Page() {
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrow="Everything in Pro"
+            eyebrow="Everything included"
             eyebrowVariant="outline"
             heading="One subscription. Nothing held back."
             description={`${price} a month opens all of it. There is no higher tier for individuals; Enterprise exists for companies buying seats.`}
@@ -526,12 +586,49 @@ export function LpPro9999Page() {
             ))}
           </div>
 
-          <div className="mx-auto mt-8 max-w-3xl">
+          <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-6 border-y border-white/12 py-7 sm:grid-cols-4">
+            {PLATFORM_STATS.map(([value, label]) => (
+              <div key={label} className="text-center">
+                <dt className="text-[32px] font-bold leading-none tracking-tight">
+                  {value}
+                </dt>
+                <dd className="mt-1.5 text-[13px] text-white/60">{label}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-10">
             <p className="text-center text-sm text-white/55">
               Unlimited access to all courses, including
             </p>
-            <ul className="mt-3 flex flex-wrap justify-center gap-2">
-              {COURSE_NAMES.map((title) => (
+            <div className="mx-auto mt-4 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURED_COURSES.map((c) => (
+                <div
+                  key={c.title}
+                  className="overflow-hidden rounded border border-white/12 bg-white/[0.04] transition-colors duration-200 hover:border-primary/40"
+                >
+                  <img
+                    src={c.banner}
+                    alt={`${c.title} course`}
+                    loading="lazy"
+                    className="aspect-[16/9] w-full object-cover"
+                  />
+                  <div className="p-4">
+                    <h3 className="text-[15px] font-bold leading-snug">
+                      {c.title}
+                    </h3>
+                    <p className="mt-2 text-[12.5px] text-white/55">
+                      {c.level} · {c.hours} hr · {c.chapters} chapters
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <ul className="mx-auto mt-5 flex max-w-3xl flex-wrap justify-center gap-2">
+              {COURSE_NAMES.filter(
+                (title) => !FEATURED_COURSES.some((c) => c.title === title),
+              ).map((title) => (
                 <li
                   key={title}
                   className="rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/85"
@@ -560,6 +657,12 @@ export function LpPro9999Page() {
               key={path.title}
               className="flex flex-col rounded border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/30"
             >
+              <img
+                src={path.banner}
+                alt={`${path.title} learning path`}
+                loading="lazy"
+                className="mb-4 aspect-[16/9] w-full rounded object-cover"
+              />
               <h3 className="text-[19px] font-bold tracking-tight">
                 {path.title}
               </h3>
@@ -606,6 +709,19 @@ export function LpPro9999Page() {
           </b>
           . You do not pay extra for any of it.
         </p>
+
+        <div className="mt-10 text-center">
+          <button
+            type="button"
+            onClick={() => openCheckout("route")}
+            className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
+          >
+            Start learning for {price}
+          </button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {PRICE_AFTER} from {PRICE_RISES_ON}.
+          </p>
+        </div>
       </section>
 
       {/* FOR YOU / NOT FOR YOU */}
@@ -652,8 +768,19 @@ export function LpPro9999Page() {
               for. Enter your name and email, pay in naira, and your login
               details land in your inbox the moment the payment clears.
             </p>
-            <p className="mt-5 text-xs text-white/46">
-              Cancel any time. No hidden fees. Full access from day one.
+            <p className="mt-5 text-[15px] text-white/72">
+              That is {price} a month for nineteen courses, 152 chapters
+              and both learning paths. Cancel any time, no hidden fees,
+              full access from day one.
+            </p>
+            <p className="mt-4 text-xs">
+              <span className="text-red-500">
+                Full refund if you are not satisfied and ask within the
+                first 3 days of learning.
+              </span>
+            </p>
+            <p className="mt-2 text-xs text-white/46">
+              Price rises to {PRICE_AFTER} a month on {PRICE_RISES_ON}.
             </p>
           </div>
           <InlineCheckout checkout={checkout} />

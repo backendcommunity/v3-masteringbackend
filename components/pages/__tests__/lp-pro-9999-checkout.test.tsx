@@ -143,6 +143,23 @@ describe("LpPro9999Page", () => {
     expect(screen.queryByText(/as low as/i)).not.toBeInTheDocument();
   });
 
+  // The price-rise notice is a real commitment to every visitor who sees
+  // it. It must name a date and the new price, and it must appear both in
+  // the hero and at the checkout, where the decision is actually made.
+  it("states the price rise with its date, at the top and at the checkout", () => {
+    render(<LpPro9999Page />);
+    const notices = screen.getAllByText(/₦12,999/);
+    expect(notices.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/1 October 2026/).length).toBeGreaterThanOrEqual(2);
+  });
+
+  // The strongest quote anchors the hero; repeating the same card in the
+  // proof grid made six learners look like one.
+  it("does not repeat the hero testimonial in the proof grid", () => {
+    render(<LpPro9999Page />);
+    expect(screen.getAllByText(/Literally immediately after the bootcamp/i)).toHaveLength(1);
+  });
+
   // A monthly subscription has no spots and no deadline. Borrowed scarcity
   // is the first thing a sceptical buyer catches, so no CTA may imply it.
   it("uses no scarcity language on its calls to action", () => {
