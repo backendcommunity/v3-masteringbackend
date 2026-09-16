@@ -542,7 +542,7 @@ export function LpPro9999Page() {
 
           <div className="mx-auto mt-8 max-w-3xl">
             <p className="text-center text-sm text-white/55">
-              All nineteen courses, included
+              Unlimited access to all courses, including
             </p>
             <ul className="mt-3 flex flex-wrap justify-center gap-2">
               {COURSE_NAMES.map((title) => (
