@@ -448,9 +448,6 @@ export function LpPro9999Page() {
 
           <div className="w-full max-w-md lg:justify-self-end">
             <TestimonialCard {...heroProof} />
-            <p className="mt-3 text-xs text-white/46">
-              Five more learner films further down. Tap any one to watch.
-            </p>
           </div>
         </div>
       </header>
