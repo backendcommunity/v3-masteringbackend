@@ -295,7 +295,8 @@ function SectionHeading({
   description,
   descriptionClassName,
 }: {
-  eyebrow: string;
+  /** Omit when the heading needs no small label above it. */
+  eyebrow?: string;
   eyebrowVariant?: "muted" | "outline" | "background";
   heading: ReactNode;
   description?: ReactNode;
@@ -310,8 +311,8 @@ function SectionHeading({
 
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <span className={eyebrowClassName}>{eyebrow}</span>
-      <h2 className="mt-2 text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+      {eyebrow ? <span className={eyebrowClassName}>{eyebrow}</span> : null}
+      <h2 className={`${eyebrow ? "mt-2" : ""} text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight`}>
         {heading}
       </h2>
       {description ? (
@@ -384,7 +385,7 @@ export function LpPro9999Page() {
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
           <div>
-            <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend pro</span>
+            <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend membership</span>
             <h1 className="mt-3 max-w-[16ch] text-balance text-[clamp(34px,4.4vw,52px)] font-semibold leading-[0.98] tracking-tight">
               Learn backend and AI skills
               <br />
@@ -610,8 +611,7 @@ export function LpPro9999Page() {
       {/* FOR YOU / NOT FOR YOU */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
-          eyebrow="Is this for you?"
-          heading="For you if. Not for you if."
+          heading="Is this for you?"
         />
         <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-8 sm:grid-cols-2">
           <div>
@@ -662,7 +662,7 @@ export function LpPro9999Page() {
 
       {/* FAQ */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <SectionHeading eyebrow="Questions" heading="Frequently asked." />
+        <SectionHeading heading="Frequently asked." />
         <div className="mx-auto mt-8 max-w-2xl">
           {FAQ.map(({ q, a }) => (
             <details key={q} className="group border-b border-border py-1 first:border-t">
