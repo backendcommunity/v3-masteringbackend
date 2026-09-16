@@ -17,6 +17,7 @@ import {
 import { routes } from "@/lib/routes";
 import { executeCode } from "@/lib/executor";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { useAppStore } from "@/lib/store";
 
 interface CourseExercisePageProps {
   courseId: string;
@@ -32,7 +33,10 @@ export function CourseExercisePage({
   const [code, setCode] = useState("");
   const [testResults, setTestResults] = useState<any[]>([]);
   const [showHint, setShowHint] = useState(false);
+  const store = useAppStore();
   const [showSolution, setShowSolution] = useState(false);
+  // Fetched on reveal; see components/exercise.tsx for the rationale.
+  const [solutionText, setSolutionText] = useState<string>("");
   const [isRunning, setIsRunning] = useState(false);
 
   // Mock exercise data
@@ -296,12 +300,24 @@ createUser("Jane", 16) should return { name: "Jane", age: 16, isAdult: false }
                   <CardContent>
                     {showSolution ? (
                       <pre className="bg-gray-50 p-3 rounded text-sm overflow-x-auto">
-                        <code>{exercise.solution}</code>
+                        <code>{solutionText}</code>
                       </pre>
                     ) : (
                       <Button
                         variant="outline"
-                        onClick={() => setShowSolution(true)}
+                        onClick={async () => {
+                          setShowSolution(true);
+                          if (!solutionText) {
+                            try {
+                              setSolutionText(
+                                exercise?.solution ??
+                                  (await store.getExerciseSolution(exercise.id)),
+                              );
+                            } catch {
+                              setSolutionText("Could not load the solution. Please try again.");
+                            }
+                          }
+                        }}
                         className="flex items-center gap-2"
                       >
                         <Eye className="h-4 w-4" />

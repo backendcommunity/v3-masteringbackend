@@ -168,7 +168,13 @@ export function PathExerciseIde({
   const [tests, setTests] = useState<TestResult[]>([]);
   // stdin piped to the program on a plain "Run" (exercise:run). One value per
   // line; persisted across runs but reset when the exercise changes.
-  const [stdin, setStdin] = useState<string>("");
+  //
+  // Seeded from the exercise's first VISIBLE test case (`sampleStdin`, computed
+  // server-side). Without it the box starts empty, so the first press of Run on
+  // any exercise that reads input hands the program nothing — a driver exercise
+  // would die with a raw Scanner NoSuchElementException and no hint about the
+  // expected format. The learner can still edit or clear it.
+  const [stdin, setStdin] = useState<string>(() => exercise?.sampleStdin ?? "");
   // F4 — streaming phase status and per-check stdout blocks.
   // `phaseStatus` is null when no run is in flight; a human-readable string otherwise.
   // `streamChecks` accumulates visible per-check stdout chunks while running.
@@ -220,7 +226,13 @@ export function PathExerciseIde({
   const points: number | undefined = exercise?.points;
   // Hint cost comes from the exercise field; fall back to 30 MB.
   const hintCost: number = exercise?.hintCost ?? 30;
-  const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
+  // The hint text is what the learner pays for, so the API withholds it until
+  // they have (older builds still inline it — hence the fallback chain). What
+  // ships unconditionally is `hasHint`, which is all the button needs to exist.
+  const [hintHtml, setHintHtml] = useState<string>(
+    () => exercise?.hint ?? exercise?.hints?.[0] ?? "",
+  );
+  const hasHint: boolean = exercise?.hasHint ?? Boolean(hintHtml);
   // Track whether the hint has been taken (paid) this session or was pre-paid.
   const [hintTaken, setHintTaken] = useState<boolean>(
     () => exercise?.hintTaken === true,
@@ -884,7 +896,7 @@ export function PathExerciseIde({
           </div>
         </div>
 
-        {hintHtml && (
+        {hasHint && (
           <div className="mt-4">
             {showHint ? (
               <div
@@ -908,6 +920,9 @@ export function PathExerciseIde({
                     if (r && "error" in r && r.error === "INSUFFICIENT") {
                       setInsufficientModal({ open: true, shortfall: r.shortfall });
                     } else if (r && "points" in r) {
+                      // The response carries the text; with it withheld from the
+                      // exercise payload this is where the hint arrives.
+                      if (typeof r.hint === "string" && r.hint) setHintHtml(r.hint);
                       setShowHint(true);
                       setHintTaken(true);
                       store.syncUserSnapshot({

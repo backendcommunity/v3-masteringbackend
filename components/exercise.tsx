@@ -37,6 +37,10 @@ export function ExercisePage({
   const [testResults, setTestResults] = useState<any[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
+  // The solution no longer ships with the exercise payload — reveal fetches it.
+  // The `?? exercise?.solution` fallback keeps this working against an API
+  // that still inlines it, so the two deploys can land in either order.
+  const [solutionText, setSolutionText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -316,12 +320,24 @@ export function ExercisePage({
               <CardContent>
                 {showSolution ? (
                   <pre className="bg-transparent p-3 rounded text-sm overflow-x-auto">
-                    <code>{exercise?.solution}</code>
+                    <code>{solutionText}</code>
                   </pre>
                 ) : (
                   <Button
                     variant="outline"
-                    onClick={() => setShowSolution(true)}
+                    onClick={async () => {
+                      setShowSolution(true);
+                      if (!solutionText) {
+                        try {
+                          setSolutionText(
+                            exercise?.solution ??
+                              (await store.getExerciseSolution(exercise.id)),
+                          );
+                        } catch {
+                          setSolutionText("Could not load the solution. Please try again.");
+                        }
+                      }
+                    }}
                     className="flex items-center gap-2"
                   >
                     <Eye className="h-4 w-4" />

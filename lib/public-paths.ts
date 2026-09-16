@@ -21,6 +21,10 @@ export const PUBLIC_PATH_PREFIXES = [
   // Scholarship flyer generator: a campaign tool handed to people who have no
   // account and may never make one.
   "/scholarship/flyer",
+
+  // ₦9,999/month ads landing page: paid-traffic destination, no account
+  // required to view or to start checkout.
+  "/lp/pro-9999",
 ];
 
 /** True when `pathname` is a public (no-login) route. */

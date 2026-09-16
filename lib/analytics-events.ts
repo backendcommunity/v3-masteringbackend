@@ -62,6 +62,20 @@ export const PRICING_EVENTS = {
   subscribed: "subscribed",
 } as const;
 
+// The ₦9,999/month ads landing page (/lp/pro-9999) gets its OWN event
+// names, deliberately separate from PRICING_EVENTS — this route has no
+// login wall and a different funnel shape (name+email inline, not a
+// redirect to /checkout), so folding it into pricing_viewed/checkout_started
+// would silently merge two funnels that convert at very different rates
+// and make neither one readable.
+export const LP_9999_EVENTS = {
+  viewed: "lp9999_viewed",
+  ctaClicked: "lp9999_cta_clicked",
+  checkoutStarted: "lp9999_checkout_started",
+  subscribed: "lp9999_subscribed",
+  whatsappClicked: "lp9999_whatsapp_clicked",
+} as const;
+
 export const MOCK_INTERVIEW_EVENTS = {
   templateViewed: "mock_interview_template_viewed",
   bookingOpened: "mock_interview_booking_opened",
