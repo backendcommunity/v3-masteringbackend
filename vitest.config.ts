@@ -54,7 +54,6 @@ export default defineConfig({
       "components/pages/path/__tests__/path-feedback-dialog.test.tsx",
       "components/pages/__tests__/courses-skeleton.test.tsx",
       "components/pages/__tests__/lp-pro-9999-checkout.test.tsx",
-      "components/pages/__tests__/lp-pro-9999-live-gate.test.tsx",
       "components/atoms/__tests__/terminal-run-api.test.tsx",
       "components/pages/__tests__/project-playground-terminal-mode.test.tsx",
       "components/pages/__tests__/pricing-enterprise-card.test.tsx",

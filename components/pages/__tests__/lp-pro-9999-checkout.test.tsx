@@ -26,7 +26,7 @@
  * hero copy or weakening the assertion.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 const { mockTrack } = vi.hoisted(() => ({ mockTrack: vi.fn() }));
 vi.mock("@/lib/analytics", () => ({ analytics: { track: mockTrack } }));
@@ -71,5 +71,26 @@ describe("LpPro9999Page", () => {
     expect(screen.getByText(/Python Programming/i, { selector: "h3" })).toBeInTheDocument();
     expect(screen.getByText(/AntiGravity/i, { selector: "h3" })).toBeInTheDocument();
     expect(screen.getByText(/Advanced Java/i, { selector: "h3" })).toBeInTheDocument();
+  });
+
+  // This is a production page for paid traffic: no placeholder, memo or
+  // internal-team text may ever render (design review, 2026-09-16).
+  it("renders no placeholder or internal-team text", () => {
+    render(<LpPro9999Page />);
+    expect(screen.queryByText(/Placeholder/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Answer needed/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Two open decisions/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Methods to confirm/)).not.toBeInTheDocument();
+  });
+
+  it("the hero CTA opens the checkout dialog with name and email fields", async () => {
+    render(<LpPro9999Page />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /secure your spot for/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    // The dialog carries its own form; the bottom-of-page form is still there.
+    expect(screen.getAllByLabelText(/full name/i).length).toBe(2);
+    expect(mockTrack).toHaveBeenCalledWith("lp9999_cta_clicked", { section: "hero" });
   });
 });

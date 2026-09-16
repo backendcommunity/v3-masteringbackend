@@ -13,12 +13,24 @@
  * provisioning succeeded, because that happens async via webhook.
  */
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { useLpCheckout } from "@/hooks/use-lp-checkout";
+import type { UseLpCheckoutResult } from "@/hooks/use-lp-checkout";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
 
-export function InlineCheckout() {
-  const { status, priceLabel, error, pay, reset } = useLpCheckout();
+export function InlineCheckout({
+  checkout,
+  variant = "card",
+}: {
+  /**
+   * The page owns the single useLpCheckout() call and passes it down, so
+   * the price in the copy and the price the SDK charges come from one
+   * response, and the dialog and the bottom-of-page form share one state.
+   */
+  checkout: UseLpCheckoutResult;
+  /** "card" draws its own surface; "plain" is for use inside a dialog. */
+  variant?: "card" | "plain";
+}) {
+  const { status, priceLabel, error, pay, reset } = checkout;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const nameId = useId();
@@ -54,7 +66,7 @@ export function InlineCheckout() {
   }
 
   return (
-    <div className="rounded bg-card p-7">
+    <div className={variant === "card" ? "rounded bg-card p-7" : ""}>
       <div className="flex items-baseline justify-between gap-3 border-b border-border pb-4">
         <div className="text-[38px] font-bold leading-none tracking-tight">
           {status === "loading" ? (
@@ -62,9 +74,6 @@ export function InlineCheckout() {
           ) : (
             priceLabel
           )}
-          <span className="ml-1.5 text-sm font-semibold text-muted-foreground">
-            /month
-          </span>
         </div>
         <div className="text-xs text-muted-foreground">Billed monthly</div>
       </div>
@@ -143,9 +152,6 @@ export function InlineCheckout() {
             {m}
           </span>
         ))}
-        <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11.5px] text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400">
-          Methods to confirm
-        </span>
       </div>
     </div>
   );

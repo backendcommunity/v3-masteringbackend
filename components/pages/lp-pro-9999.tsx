@@ -2,38 +2,33 @@
 
 /**
  * The ₦9,999/month ads landing page. Public, no login, payment happens on
- * this page. Design validated across nine rounds of iteration — see the
- * plan header for the artifact link.
+ * this page. Every CTA opens the checkout dialog (name, email, then the
+ * payment SDK's own secure window); the bottom of the page carries the
+ * same form inline for people who scroll the whole way.
  *
- * FOUR OPEN PRODUCT DECISIONS are marked inline with `{/* DECISION n *\/}`
- * comments, each rendering an honest placeholder until the real answer
- * lands (numbered 1-4; a fifth, the WhatsApp invite link, is resolved).
- * Search this file for "DECISION" to find every one.
+ * Pricing: the page owns one useLpCheckout() call. The price the copy
+ * names, the price the card shows and the price the SDK charges all come
+ * from that single regional response, so a visitor in Nigeria sees ₦9,999
+ * and is charged the ₦9,999 AsyncPay plan, and a visitor anywhere else
+ * sees their own tier throughout. Nothing on the charge path is hardcoded.
  *
- * `SectionHeading` below is a local, page-only helper (not a new file —
- * see the plan's global constraint on not fragmenting this page into a
- * component-per-section tree). It exists purely to deduplicate one JSX
- * shape — an eyebrow pill + `<h2>`, centered, sometimes with a lede
- * paragraph — that otherwise repeats verbatim eight times below. It
- * changes no rendered output: same wrapper div, same classes, same DOM
- * shape as writing each section's header out by hand.
+ * `SectionHeading` is a local, page-only helper that deduplicates one JSX
+ * shape (eyebrow pill + centered h2, optional lede) used by every section.
  */
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Instrument_Serif } from "next/font/google";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
-import { VideoPoster } from "@/components/pages/lp/video-poster";
 import { TestimonialCard } from "@/components/pages/lp/testimonial-card";
 import { InlineCheckout } from "@/components/pages/lp/inline-checkout";
+import { CheckoutDialog } from "@/components/pages/lp/checkout-dialog";
+import { useLpCheckout } from "@/hooks/use-lp-checkout";
 
-// The hero headline's accent typeface — deliberately requested and
-// reaffirmed twice in this project's design-review history. Imported
-// directly here (rather than in the pass-through app/lp/pro-9999/layout.tsx)
-// because next/font/google works in any component, and this avoids giving
-// the layout a wrapping element it doesn't otherwise need. The font file is
-// itself italic-only, so no Tailwind `italic`/`not-italic` utility is
-// needed on the element that uses it.
+// The hero headline's accent typeface, chosen deliberately in design
+// review. Imported here rather than in the pass-through layout because
+// next/font/google works in any component. The font file is italic-only,
+// so no Tailwind italic utility is needed on the element that uses it.
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
@@ -43,23 +38,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 const WHATSAPP_URL = "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t";
-// The button only renders once this is a real invite link — otherwise a
-// visitor who clicks it lands on WhatsApp's invalid-link error page.
-const hasWhatsappLink = !WHATSAPP_URL.includes("REPLACE_WITH");
 
-// The same flag hooks/use-lp-checkout.ts gates the charge on. While it is
-// off, unfinished content (placeholder testimonials, the open-decision memo,
-// unanswered FAQ rows, un-wired video posters) renders so the team can see
-// what is still missing. Once it is "true" and ad traffic is arriving, none
-// of that reaches a buyer: unfinished sections are hidden, never shown as
-// placeholders.
-const IS_LIVE = process.env.NEXT_PUBLIC_LP_9999_LIVE === "true";
-
-// DECISION: the 3-minute overview film has no Vimeo ID yet. Set it here and
-// the hero poster becomes a real click-to-play video.
-const HERO_VIMEO_ID: string | undefined = undefined;
-
-const COURSES = [
+// The four tracks the campaign leads with, in the brief's words.
+const FEATURED_COURSES = [
   {
     eyebrow: "Artificial intelligence",
     title: "AI Engineering",
@@ -78,104 +59,103 @@ const COURSES = [
     eyebrow: "Backend skills",
     title: "AntiGravity",
     sub: "For backend engineers",
-    body: "Practical, modern backend engineering skills employers actually want.",
+    body: "The modern backend engineering skills employers actually hire for.",
     level: "Intermediate",
   },
   {
     eyebrow: "Enterprise",
     title: "Advanced Java",
     sub: "Systems that scale",
-    body: "For scalable, enterprise-grade backend systems.",
+    body: "Build the enterprise-grade backend systems big companies run on.",
     level: "Advanced",
   },
 ];
 
+// The rest of the catalog, from GET /public/courses on 2026-09-16
+// (courses.masteringbackend.com). Advanced Java is above, so it is not
+// repeated here.
+const MORE_COURSES = [
+  "Python Essentials",
+  "Advanced Python",
+  "Ship 30 Python Projects in 30 Days",
+  "Mastering Django: From Basics to Advanced",
+  "Java Essentials",
+  "Design Patterns in Java",
+  "Node.js Essentials",
+  "Rust Essentials",
+];
+
 const WHO_THIS_IS_FOR = [
-  "Beginners who want to start a tech career from zero",
-  "Developers who want to level up into AI Engineering",
+  "Beginners starting a tech career from zero",
+  "Developers levelling up into AI Engineering",
   "Backend engineers modernising with AntiGravity or Advanced Java",
   "Anyone chasing a remote job, a dollar-income role, or a career switch into tech",
   "Students and professionals who need flexible, self-paced, mobile-friendly learning",
 ];
 
-const FAQ: { q: string; a: string; needsAnswer?: boolean }[] = [
+// Six Learner Spotlight films from the Masteringbackend YouTube channel.
+// Titles are the videos' own, trimmed of the "Learner Spotlight:" prefix.
+const TESTIMONIALS = [
   {
-    q: "Do I need a powerful laptop or fast internet?",
-    a: "No. Our courses are built to work well even on modest devices and average data speeds.",
+    youtubeId: "FwNvNAMpuF8",
+    title: "Max landed a job right after our bootcamp training",
   },
   {
-    q: "I have zero coding experience. Can I still join?",
-    a: "Yes. Our AI Engineering and Python tracks include a beginner path designed for complete starters.",
+    youtubeId: "HX7vyFqATlk",
+    title: "From complete beginner to building backend systems with Python",
   },
   {
-    q: "What if I don't have time to finish everything in a month?",
-    a: "Your access continues as long as your subscription is active. Learn at your own pace, and pick up where you left off.",
+    youtubeId: "YP1hx2Wlaqs",
+    title: "Scaling an AI system to 1 million users",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes. There's no lock-in contract, and you can cancel whenever you want.",
+    youtubeId: "C5V2e4sjDvo",
+    title: "From a novice to a backend engineer",
   },
+  {
+    youtubeId: "85AdK_S7bxY",
+    title: "AI Engineering became less of a mystery to me",
+  },
+  {
+    youtubeId: "kseZZTywxpc",
+    title: "I learned how to communicate and build AI systems effectively",
+  },
+];
+
+const FAQ: { q: string; a: string }[] = [
   {
     q: "How do I pay?",
-    a: "On this page. Enter your name and email, and a secure payment window opens over the page. You never get sent somewhere else, and you don’t create an account first.",
-    needsAnswer: true, // DECISION 4: exact AsyncPay method list
+    a: "Right here on this page. Enter your name and email, and a secure payment window opens. Pay in naira with your debit card (Verve, Mastercard or Visa) or by bank transfer. You never leave the page, and you don't create an account first.",
   },
   {
     q: "Will my Naira card work?",
-    a: "",
-    needsAnswer: true, // DECISION 4
+    a: "Yes. Payments are processed in naira by AsyncPay, which is built for Nigerian cards. Verve, Mastercard and Visa debit cards all work, and bank transfer is there if your card gives you trouble.",
+  },
+  {
+    q: "Do I need a powerful laptop or fast internet?",
+    a: "No. Our courses are built to work well on modest devices and average data speeds.",
+  },
+  {
+    q: "I have zero coding experience. Can I still join?",
+    a: "Yes. The AI Engineering and Python tracks include a beginner path designed for complete starters.",
+  },
+  {
+    q: "What if I don't finish everything in a month?",
+    a: "Your access continues for as long as your subscription is active. Learn at your own pace and pick up where you left off.",
   },
   {
     q: "What happens if I miss a month?",
-    a: "",
-    needsAnswer: true, // DECISION 3: refund/lapse position not yet set
+    a: "Your access pauses at the end of the month you paid for. Your progress, certificates and account stay exactly where you left them. Subscribe again whenever you're ready and continue from the same lesson.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. There's no lock-in contract. Cancel whenever you want and you won't be charged again.",
   },
 ];
-
-// DECISION: which of the five Learner Spotlight films belongs to which
-// track, and each learner's real quote. Every entry stays a placeholder
-// until that lands, and placeholders never render once IS_LIVE.
-const TESTIMONIALS: {
-  name: string;
-  track: string;
-  quote: string;
-  isPlaceholderQuote: boolean;
-  vimeoId?: string;
-}[] = [
-  {
-    name: "Goodness Mbakara",
-    track: "AI engineering",
-    quote: "pull-quote for the AI Engineering track, confirm before shipping",
-    isPlaceholderQuote: true,
-  },
-  {
-    name: "Ifechukwu Ogidi",
-    track: "Backend and Java",
-    quote: "pull-quote for the Backend and Java track, confirm before shipping",
-    isPlaceholderQuote: true,
-  },
-  {
-    name: "Stephen Oba",
-    track: "Masteringbackend learner",
-    quote: "the outcome, in the learner's own words, confirm with Stephen before this ships",
-    isPlaceholderQuote: true,
-    // Real footage exists: "Learner Spotlight — Stephen Oba.mp4", 171MB
-    // raw in the docs vault. Needs a Vimeo upload and an ID.
-  },
-];
-
-// What a visitor actually sees. While the page is not live, everything
-// renders so the team can review it; once live, only finished content.
-const VISIBLE_TESTIMONIALS = IS_LIVE
-  ? TESTIMONIALS.filter((t) => !t.isPlaceholderQuote)
-  : TESTIMONIALS;
-const VISIBLE_FAQ = IS_LIVE ? FAQ.filter((f) => !f.needsAnswer) : FAQ;
 
 /**
  * Deduplicates the repeated "eyebrow pill + centered h2 (+ optional lede
- * paragraph)" section header shape used across the page. Purely a JSX
- * shape extraction — every className, wrapper element and text string a
- * caller passes renders exactly as if written inline.
+ * paragraph)" section header used across the page.
  */
 function SectionHeading({
   eyebrow,
@@ -200,7 +180,7 @@ function SectionHeading({
   return (
     <div className="mx-auto max-w-2xl text-center">
       <span className={eyebrowClassName}>{eyebrow}</span>
-      <h2 className="mt-2 text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+      <h2 className="mt-2 text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
         {heading}
       </h2>
       {description ? (
@@ -210,54 +190,64 @@ function SectionHeading({
   );
 }
 
+const CTA_CLASS =
+  "inline-flex items-center justify-center rounded-full bg-primary font-bold text-[#05262F] transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0";
+
 export function LpPro9999Page() {
   useEffect(() => {
     analytics.track(LP_9999_EVENTS.viewed, {});
   }, []);
 
+  // One pricing fetch for the whole page (see the file comment).
+  const checkout = useLpCheckout();
+  // Loading placeholder for decorative copy only. The Pay button and the
+  // SDK call never read this literal; they wait for the real price.
+  const price = checkout.priceLabel || "₦9,999";
+
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+
+  // Every CTA opens the dialog and records which one did.
+  const openCheckout = useCallback((section: string) => {
+    analytics.track(LP_9999_EVENTS.ctaClicked, { section });
+    setCheckoutOpen(true);
+  }, []);
+
   const onWhatsappClick = () => {
     analytics.track(LP_9999_EVENTS.whatsappClicked, {});
-  };
-  // Shared by all three CTA anchors below (nav, hero, footer) — each call
-  // site passes its own section name so lp9999_cta_clicked can actually
-  // distinguish which one converted, instead of every click reading "hero".
-  const onCtaClick = (section: string) => {
-    analytics.track(LP_9999_EVENTS.ctaClicked, { section });
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* NAV — matches the real app nav's chrome (bg-card, its shadow
-          token, sticky) but drops search/notifications/avatar: there is no
-          session on this route to show them for. */}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        checkout={checkout}
+      />
+
+      {/* NAV. The real app nav's chrome (bg-card, its shadow token, sticky)
+          without search, notifications or avatar: no session on this route. */}
       <nav className="sticky top-0 z-30 bg-card shadow-[0_1px_2px_rgba(14,31,51,.06),0_4px_16px_rgba(14,31,51,.06)]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-5 px-4 sm:px-6">
           <span className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
-            <img
-              src="/blue-icon-logo.png"
-              alt=""
-              className="h-6 w-6 object-contain"
-            />
+            <img src="/blue-icon-logo.png" alt="" className="h-6 w-6 object-contain" />
             masteringbackend.
           </span>
-          <a
-            href="#start"
-            onClick={() => onCtaClick("nav")}
-            className="rounded-full bg-primary px-4 py-3 text-sm font-bold text-[#05262F] transition-colors duration-200 hover:bg-primary/90"
+          <button
+            type="button"
+            onClick={() => openCheckout("nav")}
+            className={`${CTA_CLASS} px-4 py-3 text-sm`}
           >
             Secure your spot
-          </a>
+          </button>
         </div>
       </nav>
 
       {/* HERO */}
       <header className="relative overflow-hidden bg-[#0E1F33] text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-14 text-center">
-          <span className="rounded-full border border-white/25 px-3.5 py-1.5 text-xs">
-            Monthly subscription
-          </span>
-          <h1 className="mx-auto mt-3 max-w-xl text-[clamp(34px,5.4vw,64px)] font-semibold leading-[0.98] tracking-tight">
+        <div className="relative mx-auto max-w-[1200px] px-4 py-14 text-center sm:px-8 lg:px-12">
+          <span className="eyebrow-mono text-[#4AC5E8]">monthly subscription</span>
+          <h1 className="mx-auto mt-3 max-w-5xl text-balance text-[clamp(32px,5vw,56px)] font-semibold leading-[0.98] tracking-tight">
             Become a backend or AI engineer
             <br />
             <em className={`${instrumentSerif.className} text-primary`}>
@@ -265,45 +255,37 @@ export function LpPro9999Page() {
             </em>
           </h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-[16.5px] leading-relaxed text-white/72">
-            Every Backend and AI Engineering course on Masteringbackend:
-            Python, Advanced Java, AntiGravity, and AI Engineering from
-            beginner to advanced. One subscription.
+            Python, Advanced Java, AntiGravity and AI Engineering, from
+            beginner to advanced. Every course on Masteringbackend, one
+            subscription.
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <a
-              href="#start"
-              onClick={() => onCtaClick("hero")}
-              className="rounded-full bg-primary px-7 py-3.5 text-base font-bold text-[#05262F] shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)] transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0"
+            <button
+              type="button"
+              onClick={() => openCheckout("hero")}
+              className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
             >
-              Secure your spot for ₦9,999
+              Secure your spot for {price}
+            </button>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onWhatsappClick}
+              className="inline-flex items-center rounded-full border border-white/30 px-7 py-3.5 text-base font-bold transition-colors duration-200 hover:bg-white/10"
+            >
+              Join the WhatsApp group
             </a>
-            {hasWhatsappLink ? (
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onWhatsappClick}
-                className="rounded-full border border-white/30 px-7 py-3.5 text-base font-bold transition-colors duration-200 hover:bg-white/10"
-              >
-                Join the WhatsApp group
-              </a>
-            ) : null}
           </div>
           <p className="mt-3 text-xs text-white/46">
-            Pay on this page. No signup first. Cancel anytime.
+            Pay in naira on this page. No signup first. Cancel anytime.
           </p>
-
-          {!IS_LIVE || HERO_VIMEO_ID ? (
-            <div className="mx-auto mt-10 max-w-3xl">
-              <VideoPoster label="overview" aspect="wide" vimeoId={HERO_VIMEO_ID} />
-            </div>
-          ) : null}
         </div>
       </header>
 
       {/* PROBLEM */}
-      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           eyebrow="The problem"
           heading="You want to break into tech. Here's what's stopping you."
@@ -333,7 +315,7 @@ export function LpPro9999Page() {
             .
           </p>
         </div>
-        <p className="mx-auto mt-6 max-w-xl text-center text-xl font-semibold tracking-tight">
+        <p className="mx-auto mt-6 max-w-xl text-balance text-center text-xl font-semibold tracking-tight">
           You don&apos;t need more motivation. You need one affordable
           subscription that removes every excuse.
         </p>
@@ -346,13 +328,16 @@ export function LpPro9999Page() {
             eyebrow="What's included"
             eyebrowVariant="outline"
             heading="Everything. One price. No stress."
-            description="For ₦9,999 a month, less than a weekend of data and transport combined, you get full access to every track."
+            description={`For ${price} a month, less than a weekend of data and transport, you get every track.`}
             descriptionClassName="mt-4 text-white/72"
           />
 
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {COURSES.map((c) => (
-              <div key={c.title} className="rounded border border-white/12 bg-white/[0.04] p-6 transition-colors duration-200 hover:border-primary/40 hover:bg-white/[0.06]">
+            {FEATURED_COURSES.map((c) => (
+              <div
+                key={c.title}
+                className="rounded border border-white/12 bg-white/[0.04] p-6 transition-colors duration-200 hover:border-primary/40 hover:bg-white/[0.06]"
+              >
                 <div className="text-[11px] text-primary">{c.eyebrow}</div>
                 <h3 className="mt-2.5 text-lg font-bold">{c.title}</h3>
                 <p className="mt-2 text-[13px] text-white/55">{c.sub}</p>
@@ -364,24 +349,28 @@ export function LpPro9999Page() {
             ))}
           </div>
 
+          <div className="mx-auto mt-8 max-w-3xl">
+            <p className="text-center text-sm text-white/55">
+              Also in your subscription
+            </p>
+            <ul className="mt-3 flex flex-wrap justify-center gap-2">
+              {MORE_COURSES.map((title) => (
+                <li
+                  key={title}
+                  className="rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/85"
+                >
+                  {title}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <ul className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
             {[
-              [
-                "Structured learning paths",
-                "so you never guess what to learn next",
-              ],
-              [
-                "Project-based training",
-                "built for real jobs, not just certificates",
-              ],
-              [
-                "Beginner-friendly entry points",
-                "so no coding experience is never an excuse",
-              ],
-              [
-                "One login, one price",
-                "switch tracks whenever you want",
-              ],
+              ["Structured learning paths", "so you never guess what to learn next"],
+              ["Project-based training", "built for real jobs, not just certificates"],
+              ["Beginner-friendly entry points", "so “no coding experience” is never an excuse"],
+              ["One login, one price", "switch tracks whenever you want"],
             ].map(([bold, rest]) => (
               <li key={bold} className="flex gap-3 text-[15.5px] text-white/85">
                 <span className="mt-0.5 text-primary">✓</span>
@@ -391,26 +380,13 @@ export function LpPro9999Page() {
               </li>
             ))}
           </ul>
-
-          {/* DECISION 1 & 2: course-access wording and full offer scope.
-              Team-facing memo; never rendered once the page is live. */}
-          {!IS_LIVE ? (
-            <div className="mx-auto mt-6 max-w-3xl rounded border border-amber-700/40 bg-amber-950/40 p-4 text-[13.5px] text-amber-200">
-              <b>Two open decisions:</b> the &quot;lifetime-style access to
-              every new course&quot; claim stays removed until the accurate
-              wording is confirmed. No version of it appears on this page
-              yet. Separately, if ₦9,999 also unlocks projects, the code
-              playground, mock interviews and certificates (not just these
-              four courses), this list undersells the offer and should grow.
-            </div>
-          ) : null}
         </div>
       </section>
 
-      {/* WHY ₦9,999 */}
-      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
+      {/* WHY */}
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
-          eyebrow="Why ₦9,999"
+          eyebrow={`Why ${price}`}
           heading="Because we know the real barriers."
         />
         <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-5 text-[17px] leading-relaxed text-muted-foreground">
@@ -434,37 +410,36 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* TESTIMONIALS. Hidden entirely while every card is still a
-          placeholder and the page is live; a buyer never sees "Placeholder:". */}
-      {VISIBLE_TESTIMONIALS.length > 0 ? (
-        <section className="bg-muted/40 py-16">
-          <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
-            <SectionHeading
-              eyebrow="Testimonials"
-              eyebrowVariant="background"
-              heading="What our students are saying."
-              description="Shown side by side rather than in a carousel, because a carousel hides the later stories behind a swipe almost nobody performs."
-              descriptionClassName="mt-3 text-muted-foreground"
-            />
-
-            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {VISIBLE_TESTIMONIALS.map((t) => (
-                <TestimonialCard key={t.name} {...t} />
-              ))}
-            </div>
+      {/* TESTIMONIALS */}
+      <section className="bg-muted/40 py-16">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
+          <SectionHeading
+            eyebrow="Student stories"
+            eyebrowVariant="background"
+            heading="Hear it from people who did it."
+            description="Six learners, in their own words. Tap any one to watch."
+            descriptionClassName="mt-3 text-muted-foreground"
+          />
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {TESTIMONIALS.map((t) => (
+              <TestimonialCard key={t.youtubeId} {...t} />
+            ))}
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
       {/* WHO THIS IS FOR */}
-      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           eyebrow="Who this is for"
           heading="If this sounds like you, it's for you."
         />
         <ul className="mx-auto mt-8 max-w-2xl divide-y divide-border border-y border-border">
           {WHO_THIS_IS_FOR.map((line) => (
-            <li key={line} className="flex gap-3 py-4 text-[16.5px] text-muted-foreground transition-colors duration-200 hover:text-foreground">
+            <li
+              key={line}
+              className="flex gap-3 py-4 text-[16.5px] text-muted-foreground transition-colors duration-200 hover:text-foreground"
+            >
               <span className="mt-0.5 text-primary">✓</span>
               <span>{line}</span>
             </li>
@@ -482,18 +457,10 @@ export function LpPro9999Page() {
           />
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["1", "Pay on this page", "No account to create first."],
+              ["1", "Pay on this page", "Name, email, pay in naira. No account to create first."],
               ["2", "Pick your path", "Backend, AI Engineering, or both."],
-              [
-                "3",
-                "Learn at your pace",
-                "Structured lessons, real projects, practical skills.",
-              ],
-              [
-                "4",
-                "Get job-ready",
-                "Build a portfolio that proves what you can do.",
-              ],
+              ["3", "Learn at your pace", "Structured lessons, real projects, practical skills."],
+              ["4", "Get job-ready", "Build a portfolio that proves what you can do."],
             ].map(([n, title, body]) => (
               <div key={n} className="text-center transition-transform duration-200 hover:-translate-y-1">
                 <div className="mx-auto grid h-[62px] w-[62px] place-items-center rounded-full border border-border bg-background font-mono text-base text-primary">
@@ -507,34 +474,32 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* CHECKOUT */}
-      <section id="start" className="bg-[#0A1726] py-16 text-white">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-10 px-4 sm:px-8 lg:px-12 lg:grid-cols-2 lg:items-center">
+      {/* CHECKOUT (inline, for people who scroll the whole way) */}
+      <section id="start" className="scroll-mt-14 bg-[#0A1726] py-16 text-white">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:items-center lg:px-12">
           <div>
-            <span className="rounded-full border border-white/25 px-3.5 py-1.5 text-xs">
-              Start today
-            </span>
-            <h2 className="mt-3 max-w-[15ch] text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
+            <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
+            <h2 className="mt-3 max-w-[15ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
               Pay here. Start in the next minute.
             </h2>
             <p className="mt-4 max-w-[42ch] text-white/72">
-              No account to create first, no verification email to go
-              hunting for. Enter your name and email, pay, and your login
+              No account to create first, no verification email to go hunting
+              for. Enter your name and email, pay in naira, and your login
               details land in your inbox the moment the payment clears.
             </p>
             <p className="mt-5 text-xs text-white/46">
               Cancel anytime. No hidden fees. Full access from day one.
             </p>
           </div>
-          <InlineCheckout />
+          <InlineCheckout checkout={checkout} />
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
+      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading eyebrow="Questions" heading="Before you subscribe." />
         <div className="mx-auto mt-8 max-w-2xl">
-          {VISIBLE_FAQ.map(({ q, a, needsAnswer }) => (
+          {FAQ.map(({ q, a }) => (
             <details key={q} className="group border-b border-border py-1 first:border-t">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[17px] font-bold transition-colors duration-200 hover:text-primary [&::-webkit-details-marker]:hidden">
                 {q}
@@ -542,16 +507,7 @@ export function LpPro9999Page() {
                   +
                 </span>
               </summary>
-              <p className="pb-5 text-[15.5px] text-muted-foreground">
-                {needsAnswer ? (
-                  <>
-                    <b className="text-foreground">Answer needed.</b>{" "}
-                    {a || "This objection is what actually decides a naira checkout, and the real answer needs to come from the team before this ships."}
-                  </>
-                ) : (
-                  a
-                )}
-              </p>
+              <p className="pb-5 text-[15.5px] text-muted-foreground">{a}</p>
             </details>
           ))}
         </div>
@@ -562,21 +518,17 @@ export function LpPro9999Page() {
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <span className="flex items-center gap-2 text-[17px] font-bold">
-              <img
-                src="/logo-white-icon.png"
-                alt=""
-                className="h-6 w-6 object-contain"
-              />
+              <img src="/logo-white-icon.png" alt="" className="h-6 w-6 object-contain" />
               masteringbackend.
             </span>
             <p className="text-sm text-white/46">Learn. Build. Grow.</p>
-            <a
-              href="#start"
-              onClick={() => onCtaClick("footer")}
-              className="rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition-colors duration-200 hover:bg-white/10"
+            <button
+              type="button"
+              onClick={() => openCheckout("footer")}
+              className="inline-flex items-center rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition-colors duration-200 hover:bg-white/10"
             >
               Start learning today
-            </a>
+            </button>
           </div>
           <div
             aria-hidden="true"
