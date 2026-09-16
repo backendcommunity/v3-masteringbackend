@@ -440,9 +440,11 @@ export function LpPro9999Page() {
                 Join the WhatsApp group
               </a>
             </div>
-            <p className="mt-3 text-xs text-white/46">
-              Pay in naira on this page. No account first. Cancel any time
-              and keep your progress.
+            <p className="mt-3 text-xs">
+              <span className="text-red-500">
+                Full refund if you are not satisfied and ask within the
+                first 3 days of learning.
+              </span>
             </p>
           </div>
 
