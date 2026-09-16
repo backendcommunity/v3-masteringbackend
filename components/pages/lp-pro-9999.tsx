@@ -182,29 +182,6 @@ const AFTER_YOU_SUBSCRIBE = [
   },
 ];
 
-// What the subscription changes about the reader's week. Each lead is an
-// outcome in their life, and each body names the platform feature that
-// delivers it, in that order: nobody wants "code review", everybody wants
-// someone to read their code.
-const CHANGES: [string, string][] = [
-  [
-    "You always know what's next.",
-    "A learning path is the whole journey in order: foundations, then systems, then production, then AI. No guessing, no forty answers.",
-  ],
-  [
-    "Someone reads your code.",
-    "Every project you submit gets a code review. Free tutorials can never give you that, and it is the part that makes you hireable.",
-  ],
-  [
-    "You practise the interview before it counts.",
-    "Unlimited AI mock interviews, up to 30 minutes each, with a report after. Walk into the real one having already done it.",
-  ],
-  [
-    "You are not doing this alone.",
-    "A community forum on the platform, and a WhatsApp group full of Nigerians on the same route.",
-  ],
-];
-
 // Scholarship-page pattern: saying who should NOT buy is what makes the
 // rest of the page believable.
 const FOR_YOU = [
@@ -513,27 +490,6 @@ export function LpPro9999Page() {
             </li>
           ))}
         </ol>
-      </section>
-
-      {/* WHAT CHANGES: outcomes first, features second. */}
-      <section className="bg-muted/40 py-16">
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
-          <SectionHeading
-            eyebrow="What changes"
-            eyebrowVariant="background"
-            heading="A route, a reviewer, and a room full of people on the same road."
-          />
-          <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-            {CHANGES.map(([lead, body]) => (
-              <div key={lead} className="border-t-2 border-primary pt-4">
-                <h3 className="text-[19px] font-bold tracking-tight">{lead}</h3>
-                <p className="mt-2 text-[15.5px] leading-relaxed text-muted-foreground">
-                  {body}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* PROOF, before the inventory. */}
