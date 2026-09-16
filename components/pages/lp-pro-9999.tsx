@@ -47,6 +47,18 @@ const WHATSAPP_URL = "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t
 // visitor who clicks it lands on WhatsApp's invalid-link error page.
 const hasWhatsappLink = !WHATSAPP_URL.includes("REPLACE_WITH");
 
+// The same flag hooks/use-lp-checkout.ts gates the charge on. While it is
+// off, unfinished content (placeholder testimonials, the open-decision memo,
+// unanswered FAQ rows, un-wired video posters) renders so the team can see
+// what is still missing. Once it is "true" and ad traffic is arriving, none
+// of that reaches a buyer: unfinished sections are hidden, never shown as
+// placeholders.
+const IS_LIVE = process.env.NEXT_PUBLIC_LP_9999_LIVE === "true";
+
+// DECISION: the 3-minute overview film has no Vimeo ID yet. Set it here and
+// the hero poster becomes a real click-to-play video.
+const HERO_VIMEO_ID: string | undefined = undefined;
+
 const COURSES = [
   {
     eyebrow: "Artificial intelligence",
@@ -119,6 +131,45 @@ const FAQ: { q: string; a: string; needsAnswer?: boolean }[] = [
     needsAnswer: true, // DECISION 3: refund/lapse position not yet set
   },
 ];
+
+// DECISION: which of the five Learner Spotlight films belongs to which
+// track, and each learner's real quote. Every entry stays a placeholder
+// until that lands, and placeholders never render once IS_LIVE.
+const TESTIMONIALS: {
+  name: string;
+  track: string;
+  quote: string;
+  isPlaceholderQuote: boolean;
+  vimeoId?: string;
+}[] = [
+  {
+    name: "Goodness Mbakara",
+    track: "AI engineering",
+    quote: "pull-quote for the AI Engineering track, confirm before shipping",
+    isPlaceholderQuote: true,
+  },
+  {
+    name: "Ifechukwu Ogidi",
+    track: "Backend and Java",
+    quote: "pull-quote for the Backend and Java track, confirm before shipping",
+    isPlaceholderQuote: true,
+  },
+  {
+    name: "Stephen Oba",
+    track: "Masteringbackend learner",
+    quote: "the outcome, in the learner's own words, confirm with Stephen before this ships",
+    isPlaceholderQuote: true,
+    // Real footage exists: "Learner Spotlight — Stephen Oba.mp4", 171MB
+    // raw in the docs vault. Needs a Vimeo upload and an ID.
+  },
+];
+
+// What a visitor actually sees. While the page is not live, everything
+// renders so the team can review it; once live, only finished content.
+const VISIBLE_TESTIMONIALS = IS_LIVE
+  ? TESTIMONIALS.filter((t) => !t.isPlaceholderQuote)
+  : TESTIMONIALS;
+const VISIBLE_FAQ = IS_LIVE ? FAQ.filter((f) => !f.needsAnswer) : FAQ;
 
 /**
  * Deduplicates the repeated "eyebrow pill + centered h2 (+ optional lede
@@ -243,11 +294,11 @@ export function LpPro9999Page() {
             Pay on this page. No signup first. Cancel anytime.
           </p>
 
-          <div className="mx-auto mt-10 max-w-3xl">
-            <VideoPoster label="overview" aspect="wide" />
-            {/* DECISION: hero overview Vimeo ID not yet supplied — see
-                video-poster.tsx, which renders an honest note until then. */}
-          </div>
+          {!IS_LIVE || HERO_VIMEO_ID ? (
+            <div className="mx-auto mt-10 max-w-3xl">
+              <VideoPoster label="overview" aspect="wide" vimeoId={HERO_VIMEO_ID} />
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -341,15 +392,18 @@ export function LpPro9999Page() {
             ))}
           </ul>
 
-          {/* DECISION 1 & 2: course-access wording and full offer scope */}
-          <div className="mx-auto mt-6 max-w-3xl rounded border border-amber-700/40 bg-amber-950/40 p-4 text-[13.5px] text-amber-200">
-            <b>Two open decisions:</b> the &quot;lifetime-style access to
-            every new course&quot; claim stays removed until the accurate
-            wording is confirmed. No version of it appears on this page
-            yet. Separately, if ₦9,999 also unlocks projects, the code
-            playground, mock interviews and certificates (not just these
-            four courses), this list undersells the offer and should grow.
-          </div>
+          {/* DECISION 1 & 2: course-access wording and full offer scope.
+              Team-facing memo; never rendered once the page is live. */}
+          {!IS_LIVE ? (
+            <div className="mx-auto mt-6 max-w-3xl rounded border border-amber-700/40 bg-amber-950/40 p-4 text-[13.5px] text-amber-200">
+              <b>Two open decisions:</b> the &quot;lifetime-style access to
+              every new course&quot; claim stays removed until the accurate
+              wording is confirmed. No version of it appears on this page
+              yet. Separately, if ₦9,999 also unlocks projects, the code
+              playground, mock interviews and certificates (not just these
+              four courses), this list undersells the offer and should grow.
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -380,41 +434,27 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="bg-muted/40 py-16">
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
-          <SectionHeading
-            eyebrow="Testimonials"
-            eyebrowVariant="background"
-            heading="What our students are saying."
-            description="Shown side by side rather than in a carousel, because a carousel hides the later stories behind a swipe almost nobody performs."
-            descriptionClassName="mt-3 text-muted-foreground"
-          />
+      {/* TESTIMONIALS. Hidden entirely while every card is still a
+          placeholder and the page is live; a buyer never sees "Placeholder:". */}
+      {VISIBLE_TESTIMONIALS.length > 0 ? (
+        <section className="bg-muted/40 py-16">
+          <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
+            <SectionHeading
+              eyebrow="Testimonials"
+              eyebrowVariant="background"
+              heading="What our students are saying."
+              description="Shown side by side rather than in a carousel, because a carousel hides the later stories behind a swipe almost nobody performs."
+              descriptionClassName="mt-3 text-muted-foreground"
+            />
 
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <TestimonialCard
-              name="Goodness Mbakara"
-              track="AI engineering"
-              quote="pull-quote for the AI Engineering track, confirm before shipping"
-              isPlaceholderQuote
-            />
-            <TestimonialCard
-              name="Ifechukwu Ogidi"
-              track="Backend and Java"
-              quote="pull-quote for the Backend and Java track, confirm before shipping"
-              isPlaceholderQuote
-            />
-            <TestimonialCard
-              name="Stephen Oba"
-              track="Masteringbackend learner"
-              quote="the outcome, in the learner's own words, confirm with Stephen before this ships"
-              isPlaceholderQuote
-              // DECISION: Vimeo ID not yet supplied (real footage exists,
-              // 171MB raw, "Learner Spotlight — Stephen Oba.mp4")
-            />
+            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {VISIBLE_TESTIMONIALS.map((t) => (
+                <TestimonialCard key={t.name} {...t} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* WHO THIS IS FOR */}
       <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
@@ -494,7 +534,7 @@ export function LpPro9999Page() {
       <section className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12 py-16">
         <SectionHeading eyebrow="Questions" heading="Before you subscribe." />
         <div className="mx-auto mt-8 max-w-2xl">
-          {FAQ.map(({ q, a, needsAnswer }) => (
+          {VISIBLE_FAQ.map(({ q, a, needsAnswer }) => (
             <details key={q} className="group border-b border-border py-1 first:border-t">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[17px] font-bold transition-colors duration-200 hover:text-primary [&::-webkit-details-marker]:hidden">
                 {q}
