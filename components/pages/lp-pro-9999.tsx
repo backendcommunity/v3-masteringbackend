@@ -153,6 +153,35 @@ const HERO_POINTS = [
   "Mock interviews and a portfolio that make you job-ready",
 ];
 
+// The scholarship page's "what happens after you enrol", for a
+// subscription. Every line describes something that actually happens, in
+// the order it happens, with no time promised that the platform does not
+// control (a code review is promised; its turnaround is not).
+const AFTER_YOU_SUBSCRIBE = [
+  {
+    when: "Immediately",
+    body: "Your login details land in your email the moment the payment clears. No account to create first, no verification email to go hunting for.",
+  },
+  {
+    when: "In your first hour",
+    body: "Pick a learning path, backend or AI engineering, and start milestone one. Every path opens at foundations, so there is nothing to know before you begin.",
+  },
+  {
+    when: "In your first weeks",
+    body: "Submit your first project and get a code review on it. Sit your first AI mock interview whenever you like; there is no limit on how many you take.",
+  },
+  {
+    when: "Whenever you have a question",
+    body: "Ask in the community forum on the platform, or in the WhatsApp group, where other Nigerians on the same route and the Masteringbackend team are.",
+    href: WHATSAPP_URL,
+    linkLabel: "Join the WhatsApp group",
+  },
+  {
+    when: "Any month you need to stop",
+    body: "Cancel and you are not charged again. Your progress, projects and certificates stay on your profile, and you continue from the same lesson when you come back.",
+  },
+];
+
 // What the subscription changes about the reader's week. Each lead is an
 // outcome in their life, and each body names the platform feature that
 // delivers it, in that order: nobody wants "code review", everybody wants
@@ -449,41 +478,41 @@ export function LpPro9999Page() {
         </div>
       </header>
 
-      {/* THE LOOP: their week, rendered. One column, left-aligned, no
-          cards. This is the one section that has to feel like a person
-          talking, not a layout. */}
+      {/* AFTER YOU SUBSCRIBE: the exact sequence, before anyone is asked
+          for anything. */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-2xl">
-          <span className="rounded-full bg-muted px-3.5 py-1.5 text-xs">
-            Sound familiar?
-          </span>
-          <h2 className="mt-3 text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-            You know the loop.
-          </h2>
-          <div className="mt-6 flex flex-col gap-5 border-l-2 border-primary/40 pl-5 text-[17px] leading-relaxed text-muted-foreground">
-            <p>
-              A four-hour YouTube video. You follow along, it works, you
-              close the laptop. A week later you open a blank file and
-              nothing comes.
-            </p>
-            <p>
-              You ask which language to learn and get forty answers. You
-              start Python. Someone says Java pays more, so you start Java.
-            </p>
-            <p>
-              The bootcamp that would fix all of this costs more than your
-              rent. So you buy another course, and it joins the others in
-              your downloads folder.
-            </p>
-            <p>
-              Meanwhile someone from your set posts{" "}
-              <b className="text-foreground">&ldquo;I got the remote role.&rdquo;</b>
-            </p>
-          </div>
-          <p className="mt-7 text-balance text-xl font-semibold tracking-tight">
-            The problem was never your effort. Nobody gave you the route.
-          </p>
-        </div>
+        <SectionHeading
+          eyebrow="After you subscribe"
+          heading="What happens after you subscribe."
+          description="The full sequence, in order, and how to reach a person along the way."
+          descriptionClassName="mt-4 text-muted-foreground"
+        />
+        <ol className="mx-auto mt-8 max-w-3xl divide-y divide-border border-y border-border">
+          {AFTER_YOU_SUBSCRIBE.map((item) => (
+            <li
+              key={item.when}
+              className="grid grid-cols-1 gap-2 py-6 sm:grid-cols-[13rem_1fr] sm:gap-8"
+            >
+              <h3 className="text-[17px] font-bold tracking-tight">{item.when}</h3>
+              <div>
+                <p className="text-[16px] leading-relaxed text-muted-foreground">
+                  {item.body}
+                </p>
+                {item.href ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onWhatsappClick}
+                    className="mt-3 inline-block text-[15px] font-bold text-primary underline underline-offset-4 transition-opacity duration-150 hover:opacity-70"
+                  >
+                    {item.linkLabel}
+                  </a>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* WHAT CHANGES: outcomes first, features second. */}
@@ -707,32 +736,6 @@ export function LpPro9999Page() {
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="bg-muted/40 py-16">
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
-          <SectionHeading
-            eyebrow="How it works"
-            eyebrowVariant="background"
-            heading="Three steps to your first lesson."
-          />
-          <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
-            {[
-              ["1", "Pay on this page", "Your name, your email, and a secure naira payment window. About two minutes, and no account to create first."],
-              ["2", "Check your inbox", "Your login details land the moment the payment clears."],
-              ["3", "Pick a path and start", "Choose backend, AI engineering, or both, and begin the first lesson today."],
-            ].map(([n, title, body]) => (
-              <div key={n} className="text-center transition-transform duration-200 hover:-translate-y-1">
-                <div className="mx-auto grid h-[62px] w-[62px] place-items-center rounded-full border border-border bg-background font-mono text-base text-primary">
-                  {n}
-                </div>
-                <h3 className="mt-3 text-[17.5px] font-bold">{title}</h3>
-                <p className="mt-2 text-[13.5px] text-muted-foreground">{body}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
