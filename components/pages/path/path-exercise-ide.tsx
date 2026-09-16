@@ -226,7 +226,13 @@ export function PathExerciseIde({
   const points: number | undefined = exercise?.points;
   // Hint cost comes from the exercise field; fall back to 30 MB.
   const hintCost: number = exercise?.hintCost ?? 30;
-  const hintHtml: string = exercise?.hint ?? exercise?.hints?.[0] ?? "";
+  // The hint text is what the learner pays for, so the API withholds it until
+  // they have (older builds still inline it — hence the fallback chain). What
+  // ships unconditionally is `hasHint`, which is all the button needs to exist.
+  const [hintHtml, setHintHtml] = useState<string>(
+    () => exercise?.hint ?? exercise?.hints?.[0] ?? "",
+  );
+  const hasHint: boolean = exercise?.hasHint ?? Boolean(hintHtml);
   // Track whether the hint has been taken (paid) this session or was pre-paid.
   const [hintTaken, setHintTaken] = useState<boolean>(
     () => exercise?.hintTaken === true,
@@ -890,7 +896,7 @@ export function PathExerciseIde({
           </div>
         </div>
 
-        {hintHtml && (
+        {hasHint && (
           <div className="mt-4">
             {showHint ? (
               <div
@@ -914,6 +920,9 @@ export function PathExerciseIde({
                     if (r && "error" in r && r.error === "INSUFFICIENT") {
                       setInsufficientModal({ open: true, shortfall: r.shortfall });
                     } else if (r && "points" in r) {
+                      // The response carries the text; with it withheld from the
+                      // exercise payload this is where the hint arrives.
+                      if (typeof r.hint === "string" && r.hint) setHintHtml(r.hint);
                       setShowHint(true);
                       setHintTaken(true);
                       store.syncUserSnapshot({

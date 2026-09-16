@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppStore } from "@/lib/store"
 import {
   ArrowLeft,
   Play,
@@ -43,6 +44,7 @@ export function RoadmapCourseExercise({
   onBack,
   onComplete,
 }: RoadmapCourseExerciseProps) {
+  const store = useAppStore()
   const [code, setCode] = useState("")
   const [isRunning, setIsRunning] = useState(false)
   const [testResults, setTestResults] = useState<
@@ -114,10 +116,16 @@ export function RoadmapCourseExercise({
     setActiveTab("problem")
   }
 
-  const handleShowSolution = () => {
+  const handleShowSolution = async () => {
     setShowSolution(true)
-    setCode(exercise.solution)
     setActiveTab("code")
+    // Fetched on demand now that the payload no longer carries it; the
+    // `?? exercise.solution` fallback tolerates an API that still does.
+    try {
+      setCode(exercise.solution ?? (await store.getExerciseSolution(exercise.id)))
+    } catch {
+      // Leave the learner's own code alone if the fetch fails.
+    }
   }
 
   // Initialize code with starter code if empty

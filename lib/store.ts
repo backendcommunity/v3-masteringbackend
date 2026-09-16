@@ -769,6 +769,9 @@ interface AppState {
     | { hint: string; points: number; charged: boolean; cost: number }
     | { error: "INSUFFICIENT"; shortfall: number }
   >;
+  /** The reference solution, fetched on demand — it no longer ships with the
+   *  exercise payload, so revealing it is an explicit request. */
+  getExerciseSolution: (exerciseId: string) => Promise<string>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -940,6 +943,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     return data?.data;
   },
+  getExerciseSolution: async (exerciseId: string) => {
+    const { data } = await api.get(`/exercises/${exerciseId}/solution`);
+    return data?.data?.solution ?? "";
+  },
+
   takeExerciseHint: async (exerciseId: string) => {
     try {
       const { data } = await api.post(`/exercises/${exerciseId}/hint`);
