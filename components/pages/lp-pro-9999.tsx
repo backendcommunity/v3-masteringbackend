@@ -559,7 +559,7 @@ export function LpPro9999Page() {
           slabs. */}
       <GridSection className="bg-[#F4F7FA] py-16">
         <SectionHeading
-          eyebrow="Before you register"
+          eyebrow="Before you subscribe"
           heading="What happens after you subscribe."
           description="The full sequence, in order, and how to reach a person along the way."
           descriptionClassName="mt-4 text-muted-foreground"
