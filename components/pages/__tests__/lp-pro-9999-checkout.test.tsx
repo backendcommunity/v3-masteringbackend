@@ -169,7 +169,14 @@ describe("LpPro9999Page", () => {
   it("opens and closes the hero with the mission, in second person", () => {
     render(<LpPro9999Page />);
     expect(
-      screen.getByText(/building the platform that puts backend and AI/i),
+      screen.getByText(/Our mission is to put backend and AI engineering within reach/i),
+    ).toBeInTheDocument();
+    // "We are building the platform" read as work in progress on a page
+    // asking to be paid today. The platform is live; the mission is the
+    // thing still in progress, and only the mission may say so.
+    expect(screen.queryByText(/we are building the platform/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Everything you need is already on the platform/i),
     ).toBeInTheDocument();
     // Twice by design: once in the hero, once closing the page.
     expect(screen.getAllByText(/one million Africans/i).length).toBeGreaterThanOrEqual(2);

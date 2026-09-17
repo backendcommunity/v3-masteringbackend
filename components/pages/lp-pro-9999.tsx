@@ -484,16 +484,16 @@ export function LpPro9999Page() {
               .
             </h1>
             <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
-              We are building the platform that puts backend and AI
-              engineering within reach of{" "}
+              Our mission is to put backend and AI engineering within reach
+              of{" "}
               <em
                 className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
               >
                 one million Africans
               </em>
-              . Yours opens the moment you subscribe: learn it, build it,
-              and practise the interview, at your own pace, on your own
-              schedule.
+              . Everything you need is already on the platform, and your
+              access opens the moment you subscribe: learn it, build it, and
+              practise the interview, at your own pace.
             </p>
             <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
