@@ -181,8 +181,12 @@ describe("LpPro9999Page", () => {
     // Twice by design: once in the hero, once closing the page.
     expect(screen.getAllByText(/one million Africans/i).length).toBeGreaterThanOrEqual(2);
     expect(
-      screen.getByText(/because we are opening this to one million of you/i),
+      screen.getByText(/this is how we democratize these skills for one\s+million of you/i),
     ).toBeInTheDocument();
+
+    // One idea, one verb. All three mission statements on the page say
+    // "democratize"; an earlier pass left this one on "opening ... to".
+    expect(screen.queryByText(/opening this to one million/i)).not.toBeInTheDocument();
 
     // Masteringbackend is a product, not a training institute. "We train
     // you" framing makes the subscription read as a course someone enrols

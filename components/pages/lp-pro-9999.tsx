@@ -153,8 +153,8 @@ const COURSE_NAMES = [
 // a Pro inclusion named further down the page.
 const HERO_POINTS = [
   "Structured learning paths from fundamentals to production",
-  "Real-world projects and coding exercises, not just videos",
-  "Mock interviews and a portfolio that make you job-ready",
+  "Real-world projects and coding exercises to build and practise, not just long videos",
+  "Mock interviews to prepare and a portfolio that make you job-ready",
 ];
 
 // The campaign's deadline. This is a real commitment: on this date the
@@ -541,9 +541,9 @@ export function LpPro9999Page() {
                   {DISCOUNT_ENDS_ON}
                 </>
               )}
-              , because we are opening this to one million of you.
-              Subscribe before that date and you keep this rate for as long
-              as you stay subscribed.
+              , because this is how we democratize these skills for one
+              million of you. Subscribe before that date and you keep this
+              rate for as long as you stay subscribed.
             </p>
           </div>
 
