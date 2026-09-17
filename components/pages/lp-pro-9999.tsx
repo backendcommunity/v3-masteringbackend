@@ -887,12 +887,13 @@ export function LpPro9999Page() {
       <GridSection className="border-t border-border bg-[#F4F7FA] py-16">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-            You already know what you want to build.
+            Launch and grow your tech career.
           </h2>
-          <p className="mx-auto mt-4 max-w-[50ch] text-[17px] leading-relaxed text-muted-foreground">
-            You have the path, the projects, the code reviews and the mock
-            interviews waiting on the other side of one payment. Open your
-            account today and start the first milestone tonight.
+          <p className="mx-auto mt-4 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
+            Whether you are starting out or levelling up the career you
+            already have, the learning paths, the projects with your code
+            reviewed, and the mock interviews are all on the other side of
+            one payment. Subscribe today and open your first lesson tonight.
           </p>
           <button
             type="button"
@@ -901,6 +902,18 @@ export function LpPro9999Page() {
           >
             Start learning for {price}
           </button>
+          <p className="mt-3 text-[13.5px] text-muted-foreground">
+            {showNairaDiscount ? (
+              <>
+                <s>{STANDARD_PRICE_NGN}</s>{" "}
+                <b className="text-foreground">{price}</b> until{" "}
+                {DISCOUNT_ENDS_ON}.
+              </>
+            ) : (
+              <>Discounted until {DISCOUNT_ENDS_ON}.</>
+            )}{" "}
+            Cancel any time.
+          </p>
           <p className="mx-auto mt-10 max-w-[48ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
             You would be one of the one million Africans we are opening
             backend and AI engineering to.
