@@ -310,40 +310,40 @@ const TESTIMONIALS = [
 
 const FAQ: { q: string; a: string }[] = [
   {
-    q: "What exactly do I get for the subscription?",
-    a: "The whole platform. Every paid course and learning path, all projects with a code review on each submission, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional profile and portfolio, and the community forum.",
+    q: "What exactly do you get?",
+    a: "The whole platform. Every paid course and career-engineering path, every project with a code review on what you submit, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional profile and portfolio you can share, and the community forum. Nothing on this page costs extra.",
   },
   {
-    q: "Is there a higher tier I am missing?",
-    a: "No. This membership is everything an individual learner can get. The only other plan is Enterprise, which exists so companies can buy seats for a team and manage them together. Nothing is held back from you for a higher tier.",
+    q: "Is there a higher tier you are not showing me?",
+    a: "No. This is everything the platform gives an individual learner. Nothing is held back from you and there is nothing else to upgrade to.",
   },
   {
-    q: "How do I pay?",
-    a: "Right here on this page. Enter your name and email, and a secure payment window opens. Pay in naira with your debit card (Verve, Mastercard or Visa) or by bank transfer. You never leave the page, and you don't create an account first.",
+    q: "How do you pay?",
+    a: "Right here on this page. Enter your name and email and a secure payment window opens over it. Pay in naira with your debit card, Verve, Mastercard or Visa, or by bank transfer. You never leave the page and you do not create an account first.",
   },
   {
-    q: "Will my Naira card work?",
-    a: "Yes. Payments are processed in naira by AsyncPay, which is built for Nigerian cards. Verve, Mastercard and Visa debit cards all work, and bank transfer is there if your card gives you trouble.",
+    q: "Will your naira card work?",
+    a: "Yes. Your payment is processed in naira by AsyncPay, which is built for Nigerian cards. Verve, Mastercard and Visa debit cards all work, and bank transfer is there if your card gives you trouble.",
   },
   {
-    q: "Do I need a powerful laptop or fast internet?",
-    a: "No. Our courses are built to work well on modest devices and average data speeds.",
+    q: "Do you need a powerful laptop or fast internet?",
+    a: "No. The platform is built to work on a modest laptop and average data. You can learn on the connection you already have.",
   },
   {
-    q: "I have zero coding experience. Can I still join?",
-    a: "Yes. The AI Engineering and Python tracks include a beginner path designed for complete starters.",
+    q: "You have never written code. Can you still start?",
+    a: "Yes. Every path opens at foundations, and the Python and AI Engineering tracks begin from zero. There is nothing you need to know before your first lesson.",
   },
   {
-    q: "What if I don't finish everything in a month?",
-    a: "Your access continues for as long as your subscription is active. Learn at your own pace and pick up where you left off.",
+    q: "What if you do not finish everything in a month?",
+    a: "Nothing is lost. Your access continues for as long as your subscription is active, so you move at your own pace and pick up exactly where you stopped.",
   },
   {
-    q: "What happens if I miss a month?",
-    a: "Your access pauses at the end of the month you paid for. Your progress, certificates and account stay exactly where you left them. Subscribe again whenever you're ready and continue from the same lesson.",
+    q: "What happens if you miss a month?",
+    a: "Your access pauses at the end of the month you paid for. Your progress, projects and certificates stay on your profile. Subscribe again whenever you are ready and you continue from the same lesson.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes. There's no lock-in contract. Cancel whenever you want and you won't be charged again.",
+    q: "Can you cancel any time?",
+    a: "Yes. There is no lock-in contract. Cancel whenever you want and you are not charged again, and what you have already built stays yours.",
   },
 ];
 
@@ -382,6 +382,28 @@ function SectionHeading({
         <p className={descriptionClassName}>{description}</p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A section on the light canvas carrying the hero's linework. The pattern
+ * sits on its own absolutely positioned layer: `.section-grid` applies a
+ * mask, and a mask on the section itself would fade the copy with it.
+ */
+function GridSection({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`relative overflow-hidden ${className}`}>
+      <div className="section-grid absolute inset-0" aria-hidden="true" />
+      <div className="relative mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -462,15 +484,16 @@ export function LpPro9999Page() {
               .
             </h1>
             <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
-              We are on a mission to train{" "}
+              We are building the platform that puts backend and AI
+              engineering within reach of{" "}
               <em
                 className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
               >
                 one million Africans
-              </em>{" "}
-              in backend and AI engineering, and you can start today.
-              Whether you are beginning your tech career or growing the one
-              you already have, this opens the whole platform to you.
+              </em>
+              . Yours opens the moment you subscribe: learn it, build it,
+              and practise the interview, at your own pace, on your own
+              schedule.
             </p>
             <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
@@ -518,9 +541,9 @@ export function LpPro9999Page() {
                   {DISCOUNT_ENDS_ON}
                 </>
               )}
-              , because we are reaching for one million of you. Subscribe
-              before that date and you keep this rate for as long as you
-              stay subscribed.
+              , because we are opening this to one million of you.
+              Subscribe before that date and you keep this rate for as long
+              as you stay subscribed.
             </p>
           </div>
 
@@ -530,42 +553,47 @@ export function LpPro9999Page() {
         </div>
       </header>
 
-      {/* AFTER YOU SUBSCRIBE: the exact sequence, before anyone is asked
-          for anything. */}
-      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
+      {/* BEFORE YOU REGISTER: the exact sequence, before anyone is asked
+          for anything. Whitish ground carrying the same linework as the
+          hero, so the page reads as one surface rather than alternating
+          slabs. */}
+      <GridSection className="bg-[#F4F7FA] py-16">
         <SectionHeading
-          eyebrow="Before you subscribe"
+          eyebrow="Before you register"
           heading="What happens after you subscribe."
           description="The full sequence, in order, and how to reach a person along the way."
           descriptionClassName="mt-4 text-muted-foreground"
         />
-        <ol className="mx-auto mt-8 max-w-3xl divide-y divide-border border-y border-border">
-          {AFTER_YOU_SUBSCRIBE.map((item) => (
+        <ol className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {AFTER_YOU_SUBSCRIBE.map((item, i) => (
             <li
               key={item.when}
-              className="grid grid-cols-1 gap-2 py-6 sm:grid-cols-[13rem_1fr] sm:gap-8"
+              className="flex flex-col rounded-xl border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/50"
             >
-              <h3 className="text-[17px] font-bold tracking-tight">{item.when}</h3>
-              <div>
-                <p className="text-[16px] leading-relaxed text-muted-foreground">
-                  {item.body}
-                </p>
-                {item.href ? (
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={onWhatsappClick}
-                    className="mt-3 inline-block text-[15px] font-bold text-primary underline underline-offset-4 transition-opacity duration-150 hover:opacity-70"
-                  >
-                    {item.linkLabel}
-                  </a>
-                ) : null}
-              </div>
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 font-mono text-[13px] text-primary">
+                {i + 1}
+              </span>
+              <h3 className="mt-4 text-[17px] font-bold tracking-tight">
+                {item.when}
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                {item.body}
+              </p>
+              {item.href ? (
+                <a
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onWhatsappClick}
+                  className="mt-3 inline-block text-[15px] font-bold text-primary underline underline-offset-4 transition-opacity duration-150 hover:opacity-70"
+                >
+                  {item.linkLabel}
+                </a>
+              ) : null}
             </li>
           ))}
         </ol>
-      </section>
+      </GridSection>
 
       {/* PROOF, before the inventory. */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
@@ -586,10 +614,10 @@ export function LpPro9999Page() {
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrow="Everything included"
+            eyebrow="What you get"
             eyebrowVariant="outline"
-            heading="One subscription. Nothing held back."
-            description={`${price} a month opens all of it. There is no higher tier for individuals; Enterprise exists for companies buying seats.`}
+            heading={<>Those three promises, and what is behind each one.</>}
+            description="Learn it, build it, then get ready for the job. Your subscription opens all three from day one, and nothing here costs extra."
             descriptionClassName="mt-4 text-white/72"
           />
 
@@ -671,13 +699,12 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* THE ROUTE. Numbered markers are used here on purpose: a path IS a
+      {/* THE PATHS. Numbered markers are used here on purpose: a path IS a
           sequence, and the order is the product. */}
-      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
+      <GridSection className="bg-[#F4F7FA] py-16">
         <SectionHeading
-          eyebrow="The route"
-          heading="Unlimited access to our structured learning paths."
-          description="A path is the whole journey in order, so you never have to guess what to learn next. Two paths run end to end today, and this is every milestone in each one."
+          heading="Unlimited access to our career-engineering learning paths."
+          description="You never have to guess what to learn next. A path takes you from your first line of code to a system you can defend in an interview, in order, and you can see every milestone before you pay."
           descriptionClassName="mt-4 text-muted-foreground"
         />
 
@@ -731,19 +758,10 @@ export function LpPro9999Page() {
           ))}
         </div>
 
-        <p className="mx-auto mt-6 max-w-[62ch] text-center text-[15.5px] leading-relaxed text-muted-foreground">
-          AI Engineering is a milestone on the Python path, and a full course
-          of its own alongside{" "}
-          <b className="text-foreground">
-            Building Reliable AI Workflows Beyond Chatbots
-          </b>
-          . You do not pay extra for any of it.
-        </p>
-
         <div className="mt-10 text-center">
           <button
             type="button"
-            onClick={() => openCheckout("route")}
+            onClick={() => openCheckout("paths")}
             className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
           >
             Start learning for {price}
@@ -759,15 +777,15 @@ export function LpPro9999Page() {
             )}
           </p>
         </div>
-      </section>
+      </GridSection>
 
       {/* FOR YOU / NOT FOR YOU */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
         <SectionHeading
           heading="Is this for you?"
         />
-        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-8 sm:grid-cols-2">
-          <div>
+        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="rounded-xl border border-primary/30 bg-card p-6">
             <h3 className="text-[17px] font-bold">This is for you if</h3>
             <ul className="mt-4 flex flex-col gap-3.5">
               {FOR_YOU.map((line) => (
@@ -778,7 +796,7 @@ export function LpPro9999Page() {
               ))}
             </ul>
           </div>
-          <div>
+          <div className="rounded-xl border border-border bg-card p-6">
             <h3 className="text-[17px] font-bold">This is not for you if</h3>
             <ul className="mt-4 flex flex-col gap-3.5">
               {NOT_FOR_YOU.map((line) => (
@@ -800,15 +818,16 @@ export function LpPro9999Page() {
             <h2 className="mt-3 max-w-[16ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
               Your first lesson is one payment away.
             </h2>
-            <p className="mt-4 max-w-[42ch] text-white/72">
-              No account to create first, no verification email to go hunting
-              for. Enter your name and email, pay in naira, and your login
-              details land in your inbox the moment the payment clears.
+            <p className="mt-4 max-w-[44ch] text-[17px] leading-relaxed text-white/80">
+              Your name, your email, and a secure naira payment window. You
+              are not creating an account or waiting on a verification
+              email: your login details reach your inbox the moment the
+              payment clears, and you can open your first lesson tonight.
             </p>
-            <p className="mt-5 text-[15px] text-white/72">
-              That is {price} a month for nineteen courses, 152 chapters
-              and both learning paths. Cancel any time, no hidden fees,
-              full access from day one.
+            <p className="mt-5 max-w-[44ch] text-[15px] leading-relaxed text-white/72">
+              For {price} a month you get all 19 courses, 152 chapters and
+              both career-engineering paths. Cancel any time, keep your
+              progress, and pay nothing else.
             </p>
             <p className="mt-4 text-xs">
               <span className="text-red-500">
@@ -833,7 +852,7 @@ export function LpPro9999Page() {
       </section>
 
       {/* FAQ */}
-      <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
+      <GridSection className="bg-[#F4F7FA] py-16">
         <SectionHeading heading="Frequently asked." />
         <div className="mx-auto mt-8 max-w-2xl">
           {FAQ.map(({ q, a }) => (
@@ -848,17 +867,18 @@ export function LpPro9999Page() {
             </details>
           ))}
         </div>
-      </section>
+      </GridSection>
 
       {/* LAST PUSH + MISSION */}
-      <section className="border-t border-border bg-muted/40 py-16">
-        <div className="mx-auto max-w-2xl px-4 text-center">
+      <GridSection className="border-t border-border bg-[#F4F7FA] py-16">
+        <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-            Every learner in those films started where you are now.
+            You already know what you want to build.
           </h2>
-          <p className="mx-auto mt-4 max-w-[48ch] text-[17px] leading-relaxed text-muted-foreground">
-            Same route. Same price as a data bundle. The only thing between
-            you and your first lesson is one payment.
+          <p className="mx-auto mt-4 max-w-[50ch] text-[17px] leading-relaxed text-muted-foreground">
+            You have the path, the projects, the code reviews and the mock
+            interviews waiting on the other side of one payment. Open your
+            account today and start the first milestone tonight.
           </p>
           <button
             type="button"
@@ -867,12 +887,12 @@ export function LpPro9999Page() {
           >
             Start learning for {price}
           </button>
-          <p className="mx-auto mt-10 max-w-[46ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
-            Our mission is to make backend and AI engineering skills
-            affordable for young Africans.
+          <p className="mx-auto mt-10 max-w-[48ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
+            You would be one of the one million Africans we are opening
+            backend and AI engineering to.
           </p>
         </div>
-      </section>
+      </GridSection>
 
       {/* FOOTER */}
       <footer className="bg-[#0E1F33] py-12 text-white">

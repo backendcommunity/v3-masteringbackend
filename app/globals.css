@@ -177,6 +177,31 @@
     );
   }
 
+  /* Light-canvas sibling of .hero-grid: same diamond tessellation, navy
+     strokes instead of white, so the linework reads on the whitish
+     sections of the ads landing page. The mask fades it out through the
+     middle of the band, keeping copy legible while the texture still
+     registers at the edges. .hero-grid stays navy-hero-only. */
+  .section-grid {
+    background-image: url("/section-linework.svg");
+    background-size: 80px 80px;
+    background-repeat: repeat;
+    -webkit-mask-image: linear-gradient(
+      175deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.25) 45%,
+      rgba(0, 0, 0, 0.25) 55%,
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      175deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.25) 45%,
+      rgba(0, 0, 0, 0.25) 55%,
+      #000 100%
+    );
+  }
+
   /* Eyebrow label — small tracked-caps section markers on heroes (Satoshi) */
   .eyebrow-mono {
     font-size: 11px;

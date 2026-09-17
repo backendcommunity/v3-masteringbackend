@@ -168,11 +168,19 @@ describe("LpPro9999Page", () => {
   // the reader directly rather than describing them in the third person.
   it("opens and closes the hero with the mission, in second person", () => {
     render(<LpPro9999Page />);
-    expect(screen.getByText(/We are on a mission to train/i)).toBeInTheDocument();
-    expect(screen.getByText(/one million Africans/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/because we are reaching for one million of you/i),
+      screen.getByText(/building the platform that puts backend and AI/i),
     ).toBeInTheDocument();
+    // Twice by design: once in the hero, once closing the page.
+    expect(screen.getAllByText(/one million Africans/i).length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(/because we are opening this to one million of you/i),
+    ).toBeInTheDocument();
+
+    // Masteringbackend is a product, not a training institute. "We train
+    // you" framing makes the subscription read as a course someone enrols
+    // in, which is the wrong mental model for a self-serve platform.
+    expect(screen.queryByText(/mission to train/i)).not.toBeInTheDocument();
 
     // Third-person framing sorts the reader into a demographic; it must not
     // come back. Nor may the price ever be sold as a floor.
