@@ -9,6 +9,7 @@ import { usePricing } from "@/hooks/use-pricing";
 import { useAppStore } from "@/lib/store";
 import { formatPrice } from "@/lib/pricing";
 import type { TeamRemovalNotice } from "@/lib/data";
+import { JourneyGlyph } from "./journey-glyph";
 
 /**
  * The dismissal key, per user.
@@ -205,10 +206,17 @@ export function TeamRemovalBanner() {
     ? null
     : isGlobal
       ? { label: "50% OFF", ghost: false }
-      : { label: pricing.tier === "NG" ? "Naira pricing" : "Regional price", ghost: true };
+      : {
+          label: pricing.tier === "NG" ? "Naira pricing" : "Regional price",
+          ghost: true,
+        };
 
   return (
-    <div className="border-b border-cyan-200/70 bg-gradient-to-r from-cyan-50 to-transparent dark:border-cyan-900/50 dark:from-cyan-950/50">
+    <div className="relative top-0 z-[9999] w-full border-b border-cyan-200/70  bg-[#0E1F33] dark:bg-[#080F1A]  dark:border-cyan-900/50 dark:from-cyan-950/50">
+      <div
+        className="hero-grid absolute inset-0 pointer-events-none"
+        aria-hidden="true"
+      />
       <div className="flex items-center gap-4 px-4 py-3 sm:px-6">
         <div className="hidden h-8 w-8 flex-none place-items-center rounded-lg bg-cyan-500 text-[#04222b] sm:grid">
           {isGlobal ? (
@@ -219,10 +227,10 @@ export function TeamRemovalBanner() {
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm font-semibold text-white dark:text-white sm:text-base">
             Your Pro access through {teamName} has ended
           </p>
-          <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
+          <p className="mt-0.5 text-[13px] leading-relaxed text-white/[.78]">
             {!pricing ? (
               // Pricing has not resolved yet. The message and the CTA still
               // stand on their own; a figure that might be the wrong region's
@@ -234,12 +242,18 @@ export function TeamRemovalBanner() {
                 <span className="rounded border border-dashed border-cyan-600 bg-muted px-1.5 py-0.5 font-mono text-xs font-bold tracking-wide text-cyan-700 dark:text-cyan-400">
                   {GLOBAL_COUPON_CODE}
                 </span>{" "}
-                at checkout. <s className="opacity-60">{formatPrice(pricing.monthly, pricing.currency)}</s>{" "}
-                <strong className="text-foreground">
+                at checkout.{" "}
+                <s className="opacity-60">
+                  {formatPrice(pricing.monthly, pricing.currency)}
+                </s>{" "}
+                <strong className="text-white">
                   {formatPrice(halfPrice(pricing.monthly), pricing.currency)}
                 </strong>
-                /month, or <s className="opacity-60">{formatPrice(pricing.annual, pricing.currency)}</s>{" "}
-                <strong className="text-foreground">
+                /month, or{" "}
+                <s className="opacity-60">
+                  {formatPrice(pricing.annual, pricing.currency)}
+                </s>{" "}
+                <strong className="text-white">
                   {formatPrice(halfPrice(pricing.annual), pricing.currency)}
                 </strong>
                 /year.
@@ -247,16 +261,16 @@ export function TeamRemovalBanner() {
             ) : (
               <>
                 Pro is{" "}
-                <strong className="text-foreground">
+                <strong className="text-white">
                   {formatPrice(pricing.monthly, pricing.currency)}
                 </strong>
                 /month or{" "}
-                <strong className="text-foreground">
+                <strong className="text-white">
                   {formatPrice(pricing.annual, pricing.currency)}
                 </strong>
                 /year
-                {pricing.tier === "PPP" ? " at your region's pricing" : ""} — carry on from exactly
-                where you stopped.
+                {pricing.tier === "PPP" ? " at your region's pricing" : ""} —
+                carry on from exactly where you stopped.
               </>
             )}
           </p>
