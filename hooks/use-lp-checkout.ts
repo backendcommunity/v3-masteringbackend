@@ -69,9 +69,15 @@ const LP_9999_LIVE = process.env.NEXT_PUBLIC_LP_9999_LIVE === "true";
  * constant so the override is dead code stripped from the production
  * bundle entirely. That matters: this substitutes the object the charge
  * path reads, so in production a query parameter could otherwise change
- * what a stranger is billed. `monthlyPriceId` is deliberately left empty,
- * which `pay()` already refuses to charge against, so even in dev the
- * preview can never open a real SDK session against a fabricated plan.
+ * what a stranger is billed.
+ *
+ * The plan UUID here is AsyncPay's TEST-ACCOUNT plan, never production's
+ * dea62b89… — see scripts/pricing/pricing-catalog.ts in academy, which
+ * keeps the two separated. AsyncPay selects environment by key prefix
+ * (async_pkt_ test vs async_pk_ live) rather than by host, so a dev
+ * machine holding a test key cannot move real money against it; pairing
+ * the test plan with the test key is what makes a local run openable at
+ * all, since the production plan does not exist on the test account.
  */
 const DEV_REGION_PREVIEW = process.env.NODE_ENV !== "production";
 
@@ -82,8 +88,8 @@ const NG_PREVIEW: CheckoutCapablePricing = {
   currency: "NGN",
   monthly: 9999,
   annual: 99990,
-  monthlyPriceId: "",
-  annualPriceId: "",
+  monthlyPriceId: "ee1e371f-9b6a-11f1-8e83-2a667c266b94",
+  annualPriceId: "2e449d97-9b6b-11f1-8e83-2a667c266b94",
   // `enterprise` is the PUBLIC shape: provider and price IDs are stripped
   // from it by design (see PublicEnterprisePricing), so they are absent here
   // too rather than being added back to satisfy the compiler.
