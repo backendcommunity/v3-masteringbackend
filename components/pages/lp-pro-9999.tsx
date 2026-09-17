@@ -63,7 +63,7 @@ const PILLARS = [
   {
     stage: "Build",
     heading: "Real projects, not long videos",
-    body: "You practise by building. Every project you submit gets a code review, and bite-size exercises in the playground keep you writing code between projects.",
+    body: "You practise by building. Every project you submit gets a code review from our team, and bite-size exercises in the playground keep you writing code between projects.",
     items: [
       "All projects, with code review on each submission",
       "Bite-size practice exercises in the playground",
@@ -73,7 +73,7 @@ const PILLARS = [
   {
     stage: "Grow",
     heading: "Get ready for the job",
-    body: "Practise before it counts, build a profile employers can check, and ask questions in a community of people doing the same thing.",
+    body: "Mock interviews to practise before before the real job interview, build a portfolio international employers can check, and ask questions in a community of people learning, building, and growing with you.",
     items: [
       "Unlimited AI mock interviews, up to 30 minutes each",
       "A professional profile and shareable portfolio",
@@ -231,15 +231,15 @@ const FEATURED_COURSES = [
 const AFTER_YOU_SUBSCRIBE = [
   {
     when: "Immediately",
-    body: "Your login details land in your email the moment the payment clears. No account to create first, no verification email to go hunting for.",
+    body: "Your login details land in your email after payment. Next, our onboarding process begins to help you pick a learning path.",
   },
   {
     when: "In your first hour",
-    body: "Pick a learning path, backend or AI engineering, and start milestone one. Every path opens at foundations, so there is nothing to know before you begin.",
+    body: "Pick a learning path, backend or AI engineering, and start milestone one. Every path starts from the foundation, so there is nothing to know before you begin.",
   },
   {
     when: "In your first weeks",
-    body: "Submit your first project and get a code review on it. Sit your first AI mock interview whenever you like; there is no limit on how many you take.",
+    body: "Build and submit your first real world project and get a code review from our team. Take your first AI mock interview to test your job readiness.",
   },
   {
     when: "Whenever you have a question",
@@ -257,7 +257,7 @@ const AFTER_YOU_SUBSCRIBE = [
 // rest of the page believable.
 const FOR_YOU = [
   "You have watched tutorials for months and still cannot build something on your own.",
-  "You want a remote role, a dollar income, or a switch into tech, and you need the route, not more videos.",
+  "You want a remote role, a dollar income, or a switch into tech, and you need a structured learning path, not more videos.",
   "You are starting from zero, or from another field. Every path begins at foundations.",
   "You can give it a few hours a week, on a modest laptop and average data.",
 ];
@@ -357,7 +357,7 @@ const TEXT_TESTIMONIALS = [
 const FAQ: { q: string; a: string }[] = [
   {
     q: "What exactly do you get?",
-    a: "The whole platform. Every paid course and career-engineering path, every project with a code review on what you submit, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional profile and portfolio you can share, and the community forum. Nothing on this page costs extra.",
+    a: "The whole platform. Every paid course and career-engineering path, every project with a code review on what you submit, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional portfolio you can share, and the community forum.",
   },
   {
     q: "Is there a higher tier you are not showing me?",
@@ -365,7 +365,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How do you pay?",
-    a: "Right here on this page. Enter your name and email and a secure payment window opens over it. Pay in naira with your debit card, Verve, Mastercard or Visa, or by bank transfer. You never leave the page and you do not create an account first.",
+    a: "Right here on this page. Enter your name and email and a secure payment window opens over it. Pay in naira with your debit card, Verve, Mastercard or Visa, or by bank transfer.",
   },
   {
     q: "Will your naira card work?",
@@ -377,7 +377,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "You have never written code. Can you still start?",
-    a: "Yes. Every path opens at foundations, and the Python and AI Engineering tracks begin from zero. There is nothing you need to know before your first lesson.",
+    a: "Yes. Every of our learning path starts from foundations, and the Python and AI Engineering tracks begin from zero. There is nothing you need to know before your first lesson.",
   },
   {
     q: "What if you do not finish everything in a month?",
@@ -389,7 +389,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Can you cancel any time?",
-    a: "Yes. There is no lock-in contract. Cancel whenever you want and you are not charged again, and what you have already built stays yours.",
+    a: "Yes. Cancel whenever you want and you are not charged again, and what you have already built stays yours.",
   },
 ];
 
@@ -545,9 +545,9 @@ export function LpPro9999Page() {
               >
                 one million Africans
               </em>
-              . Everything you need is already on the platform, and your access
-              opens the moment you subscribe: Learn it, Build it, and Practise
-              it, at your own pace.
+              . Access to structured learning paths, real-world projects, and a
+              supportive community that takes you from fundamentals to
+              job-ready.
             </p>
             {/* <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
@@ -666,7 +666,7 @@ export function LpPro9999Page() {
         <SectionHeading
           eyebrow="Before you subscribe"
           heading="What happens after you subscribe."
-          description="The full sequence, in order, and how to reach a person along the way."
+          description="Here's the full sequence, and how to reach a person along the way."
           descriptionClassName="mt-4 text-muted-foreground"
         />
         <ol className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -719,7 +719,7 @@ export function LpPro9999Page() {
         <SectionHeading
           eyebrow="People who learned here"
           heading="What some of our learners have to say."
-          description="Every person below is named, with the company they work for where they gave it, so you can look them up before you pay."
+          description="Every person below is named, with the company they work for, so you can look them up before you pay."
           descriptionClassName="mt-3 text-muted-foreground"
         />
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -752,9 +752,8 @@ export function LpPro9999Page() {
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrow="What you get"
             eyebrowVariant="outline"
-            heading={<>Those three promises, and what is behind each one.</>}
+            heading={<>What you get</>}
             description="Learn it, build it, then get ready for the job. Your subscription opens all three from day one, and nothing here costs extra."
             descriptionClassName="mt-4 text-white/72"
           />
@@ -824,6 +823,9 @@ export function LpPro9999Page() {
               ))}
             </div>
 
+            <p className="text-center pt-4 text-sm text-white/55">
+              ...and many more
+            </p>
             <ul className="mx-auto mt-5 flex max-w-3xl flex-wrap justify-center gap-2">
               {COURSE_NAMES.filter(
                 (title) => !FEATURED_COURSES.some((c) => c.title === title),
@@ -845,7 +847,7 @@ export function LpPro9999Page() {
       <GridSection className="bg-[#F4F7FA] py-16">
         <SectionHeading
           heading="Unlimited access to our career-engineering learning paths."
-          description="You never have to guess what to learn next. A path takes you from your first line of code to a system you can defend in an interview, in order, and you can see every milestone before you pay."
+          description="You never have to guess what to learn next. Our learning paths are designed to takes you from your first line of code to job readiness."
           descriptionClassName="mt-4 text-muted-foreground"
         />
 
@@ -891,10 +893,6 @@ export function LpPro9999Page() {
                   );
                 })}
               </ol>
-              <p className="mt-4 text-xs text-muted-foreground">
-                {path.milestones.length} milestones · included in your
-                subscription
-              </p>
             </div>
           ))}
         </div>
@@ -965,23 +963,18 @@ export function LpPro9999Page() {
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
             <h2 className="mt-3 max-w-[16ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-              Your first lesson is one payment away.
+              Just do it.
             </h2>
-            <p className="mt-4 max-w-[44ch] text-[17px] leading-relaxed text-white/80">
-              Your name, your email, and a secure naira payment window. You are
-              not creating an account or waiting on a verification email: your
-              login details reach your inbox the moment the payment clears, and
-              you can open your first lesson tonight.
-            </p>
+
             <p className="mt-5 max-w-[44ch] text-[15px] leading-relaxed text-white/72">
               For {price} a month you get all 19 courses, 152 chapters and both
-              career-engineering paths. Cancel any time, keep your progress, and
-              pay nothing else.
+              career-engineering paths. You can cancel any time while keeping
+              your progress.
             </p>
             <p className="mt-4 text-xs">
               <span className="text-red-500">
                 Full refund if you are not satisfied and ask within the first 3
-                days of learning.
+                days of subscription.
               </span>
             </p>
             <p className="mt-2 text-xs text-white/46">
@@ -1030,9 +1023,8 @@ export function LpPro9999Page() {
           </h2>
           <p className="mx-auto mt-4 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
             Whether you are starting out or levelling up the career you already
-            have, the learning paths, the projects with your code reviewed, and
-            the mock interviews are all on the other side of one payment.
-            Subscribe today and open your first lesson tonight.
+            have, we provide the tools to transform your career and become
+            job-ready. Subscribe today and open your first lesson tonight.
           </p>
           <button
             type="button"
