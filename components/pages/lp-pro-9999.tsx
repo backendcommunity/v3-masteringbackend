@@ -67,7 +67,7 @@ const PILLARS = [
   {
     stage: "Grow",
     heading: "Get ready for the job",
-    body: "Practise the interview before you sit it, build a profile employers can check, and ask questions in a community of people doing the same thing.",
+    body: "Practise before it counts, build a profile employers can check, and ask questions in a community of people doing the same thing.",
     items: [
       "Unlimited AI mock interviews, up to 30 minutes each",
       "A professional profile and shareable portfolio",
@@ -493,7 +493,7 @@ export function LpPro9999Page() {
               </em>
               . Everything you need is already on the platform, and your
               access opens the moment you subscribe: learn it, build it, and
-              practise the interview, at your own pace.
+              practise it, at your own pace.
             </p>
             <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
