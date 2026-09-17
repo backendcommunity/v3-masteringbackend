@@ -24,6 +24,11 @@ import { TestimonialCard } from "@/components/pages/lp/testimonial-card";
 import { InlineCheckout } from "@/components/pages/lp/inline-checkout";
 import { CheckoutDialog } from "@/components/pages/lp/checkout-dialog";
 import { useLpCheckout } from "@/hooks/use-lp-checkout";
+// The same list /pricing and /pricing/enterprise render, so the three
+// surfaces can never disagree about where learners work. Its own comment
+// is why the label reads "our learners work at" and not "trusted by":
+// the claim is employment, not a customer relationship.
+import { TRUSTED_BY_COMPANIES } from "@/lib/plan-features";
 
 // The hero headline's accent typeface, chosen deliberately in design
 // review. Imported here rather than in the pass-through layout because
@@ -346,16 +351,6 @@ const TEXT_TESTIMONIALS = [
   },
 ];
 
-// Where Masteringbackend members work, from the logo marquee on
-// masteringbackend.com. Same company's own hosted assets, named in alt
-// text so the row is legible to a screen reader as well as an eye.
-const EMPLOYER_LOGOS = [
-  { name: "Salesforce", src: "https://global.divhunt.com/1155b7114b718a1920d913cf5954aaf2_93820.svg" },
-  { name: "Razorpay", src: "https://global.divhunt.com/02cd350e5c16432197774e1e33df845c_106042.svg" },
-  { name: "SentinelOne", src: "https://global.divhunt.com/d2c103d544affe34b9c1fc526ba66854_163436.svg" },
-  { name: "Directi", src: "https://global.divhunt.com/0d540434f3fc5bc0a3729da99ef53f08_6151.svg" },
-];
-
 const FAQ: { q: string; a: string }[] = [
   {
     q: "What exactly do you get?",
@@ -634,19 +629,17 @@ export function LpPro9999Page() {
               </div>
             </dl>
 
-            <div className="flex flex-col items-center gap-3 lg:items-end">
+            <div className="flex flex-col items-center gap-3 lg:max-w-[52%] lg:items-end">
               <p className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground">
-                Our members work at
+                Our learners work at
               </p>
-              <ul className="flex flex-wrap items-center justify-center gap-x-7 gap-y-4">
-                {EMPLOYER_LOGOS.map((logo) => (
-                  <li key={logo.name}>
-                    <img
-                      src={logo.src}
-                      alt={logo.name}
-                      loading="lazy"
-                      className="h-7 w-auto opacity-90 sm:h-8"
-                    />
+              <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5 lg:justify-end">
+                {TRUSTED_BY_COMPANIES.map((name) => (
+                  <li
+                    key={name}
+                    className="text-[17px] font-semibold tracking-tight text-foreground/85"
+                  >
+                    {name}
                   </li>
                 ))}
               </ul>

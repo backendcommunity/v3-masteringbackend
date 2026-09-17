@@ -252,9 +252,12 @@ describe("LpPro9999Page", () => {
     expect(screen.getByText("1,000+")).toBeInTheDocument();
     expect(screen.getByText(/developers trained since 2021/i)).toBeInTheDocument();
     expect(screen.getByText("3,200+")).toBeInTheDocument();
-    ["Salesforce", "Razorpay", "SentinelOne", "Directi"].forEach((company) =>
-      expect(screen.getByAltText(company)).toBeInTheDocument(),
+    // Nigerian employers first: this page is for Nigerians, and a band of
+    // only foreign names would not read as "people like me work there".
+    ["Kuda", "Paystack", "Cowrywise", "Flutterwave", "Andela"].forEach((company) =>
+      expect(screen.getByText(company)).toBeInTheDocument(),
     );
+    expect(screen.getByText(/Our learners work at/i)).toBeInTheDocument();
   });
 
   // A monthly subscription has no spots and no deadline. Borrowed scarcity
