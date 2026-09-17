@@ -169,7 +169,7 @@ describe("LpPro9999Page", () => {
   it("opens and closes the hero with the mission, in second person", () => {
     render(<LpPro9999Page />);
     expect(
-      screen.getByText(/Our mission is to put backend and AI engineering within reach/i),
+      screen.getByText(/Our mission is to democratize backend and AI engineering\s+skills for/i),
     ).toBeInTheDocument();
     // "We are building the platform" read as work in progress on a page
     // asking to be paid today. The platform is live; the mission is the

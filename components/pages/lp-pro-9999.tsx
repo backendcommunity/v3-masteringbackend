@@ -484,8 +484,8 @@ export function LpPro9999Page() {
               .
             </h1>
             <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
-              Our mission is to put backend and AI engineering within reach
-              of{" "}
+              Our mission is to democratize backend and AI engineering
+              skills for{" "}
               <em
                 className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
               >
@@ -915,8 +915,8 @@ export function LpPro9999Page() {
             Cancel any time.
           </p>
           <p className="mx-auto mt-10 max-w-[48ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
-            You would be one of the one million Africans we are opening
-            backend and AI engineering to.
+            You would be one of the one million Africans we are
+            democratizing backend and AI engineering skills for.
           </p>
         </div>
       </GridSection>
