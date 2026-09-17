@@ -568,8 +568,22 @@ export function LpPro9999Page() {
           {AFTER_YOU_SUBSCRIBE.map((item, i) => (
             <li
               key={item.when}
-              className="flex flex-col rounded-xl border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/50"
+              /* The arrow lives in the grid gap and has to disappear at the
+                 end of each row, which is a different card at every
+                 breakpoint: 1 column stacks (never a row end), 2 columns end
+                 on every 2nd, 3 columns on every 3rd. The `lg` rule re-shows
+                 the 2nd card's arrow, since `sm` still applies there. */
+              className="relative flex flex-col rounded-xl border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/50 sm:[&:nth-child(2n)>[data-step-arrow]]:hidden lg:[&:nth-child(2n)>[data-step-arrow]]:block lg:[&:nth-child(3n)>[data-step-arrow]]:hidden"
             >
+              {i < AFTER_YOU_SUBSCRIBE.length - 1 ? (
+                <span
+                  data-step-arrow
+                  aria-hidden="true"
+                  className="absolute -bottom-[18px] left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 rotate-90 place-items-center rounded-full bg-[#F4F7FA] text-[15px] font-bold text-primary sm:-right-[22px] sm:bottom-auto sm:left-auto sm:top-1/2 sm:-translate-y-1/2 sm:translate-x-0 sm:rotate-0"
+                >
+                  ➝
+                </span>
+              ) : null}
               <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 font-mono text-[13px] text-primary">
                 {i + 1}
               </span>
