@@ -582,7 +582,7 @@ export function LpPro9999Page() {
                 days of subscription.
               </span>
             </p>
-            <p className="mt-3.5 max-w-[52ch] text-[15.5px] leading-relaxed text-white/80">
+            {/* <p className="mt-3.5 max-w-[52ch] text-[15.5px] leading-relaxed text-white/80">
               {showNairaDiscount ? (
                 <>
                   <s className="text-white/45">{STANDARD_PRICE_NGN}</s>{" "}
@@ -597,7 +597,7 @@ export function LpPro9999Page() {
               )}
               . Subscribe now and you keep this rate for as long as you stay
               subscribed.
-            </p>
+            </p> */}
           </div>
 
           <div className="w-full max-w-md lg:justify-self-end">
