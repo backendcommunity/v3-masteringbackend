@@ -34,7 +34,14 @@ class SoundManager {
     soundFiles.forEach(({ name, src }) => {
       try {
         const audio = new Audio();
-        audio.preload = "auto";
+        // "none", not "auto": this class is constructed at module scope, and
+        // the module is reachable from the root layout (GamificationModals →
+        // LevelUpModal → ConfettiCelebration), so "auto" pulled ~413KB of
+        // celebration audio on EVERY page — including the logged-out ads
+        // landing page, which can never fire either sound. play() still
+        // loads on demand, so the only cost is a short delay the very first
+        // time a sound plays.
+        audio.preload = "none";
         audio.volume = this.masterVolume;
 
         // Try primary format first
