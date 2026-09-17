@@ -42,7 +42,8 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
-const WHATSAPP_URL = "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t";
+const WHATSAPP_URL =
+  "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t";
 
 // What one subscription opens, in the platform's own three stages.
 // Every claim here is copied from the Pro column of /pricing
@@ -193,7 +194,8 @@ const PLATFORM_STATS: [string, string][] = [
 const FEATURED_COURSES = [
   {
     title: "AI Engineering",
-    banner: "https://images.masteringbackend.com/AI%20Engineering%20%20Bootcamp.png",
+    banner:
+      "https://images.masteringbackend.com/AI%20Engineering%20%20Bootcamp.png",
     level: "Beginner",
     hours: 5,
     chapters: 9,
@@ -214,7 +216,8 @@ const FEATURED_COURSES = [
   },
   {
     title: "Ship 30 Python Projects in 30 Days",
-    banner: "https://images.masteringbackend.com/Ship%2030%20Python%20Projects%20in%2030%20Days.png",
+    banner:
+      "https://images.masteringbackend.com/Ship%2030%20Python%20Projects%20in%2030%20Days.png",
     level: "Intermediate",
     hours: 15,
     chapters: 4,
@@ -418,7 +421,9 @@ function SectionHeading({
   return (
     <div className="mx-auto max-w-2xl text-center">
       {eyebrow ? <span className={eyebrowClassName}>{eyebrow}</span> : null}
-      <h2 className={`${eyebrow ? "mt-2" : ""} text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight`}>
+      <h2
+        className={`${eyebrow ? "mt-2" : ""} text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight`}
+      >
         {heading}
       </h2>
       {description ? (
@@ -498,7 +503,11 @@ export function LpPro9999Page() {
       <nav className="sticky top-0 z-30 bg-card shadow-[0_1px_2px_rgba(14,31,51,.06),0_4px_16px_rgba(14,31,51,.06)]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-5 px-4 sm:px-6">
           <span className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
-            <img src="/blue-icon-logo.png" alt="" className="h-6 w-6 object-contain" />
+            <img
+              src="/blue-icon-logo.png"
+              alt=""
+              className="h-6 w-6 object-contain"
+            />
             masteringbackend.
           </span>
           <button
@@ -518,7 +527,9 @@ export function LpPro9999Page() {
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
           <div>
-            <span className="eyebrow-mono text-[#4AC5E8]">masteringbackend membership</span>
+            <span className="eyebrow-mono text-[#4AC5E8]">
+              masteringbackend membership
+            </span>
             <h1 className="mt-3 max-w-[15ch] text-balance text-[clamp(34px,4.6vw,54px)] font-bold leading-[1.02] tracking-tight">
               Learn backend and AI skills for{" "}
               <span className="whitespace-nowrap text-primary">
@@ -527,25 +538,25 @@ export function LpPro9999Page() {
               .
             </h1>
             <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
-              Our mission is to democratize backend and AI engineering
-              skills for{" "}
+              Our mission is to democratize backend and AI engineering skills
+              for{" "}
               <em
                 className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
               >
                 one million Africans
               </em>
-              . Everything you need is already on the platform, and your
-              access opens the moment you subscribe: learn it, build it, and
-              practise it, at your own pace.
+              . Everything you need is already on the platform, and your access
+              opens the moment you subscribe: Learn it, Build it, and Practise
+              it, at your own pace.
             </p>
-            <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
+            {/* <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
               {HERO_POINTS.map((point) => (
                 <li key={point} className="flex gap-2.5">
                   <span className="mt-0.5 text-primary">✓</span>
                   <span>{point}</span>
                 </li>
               ))}
-            </ul>
+            </ul> */}
 
             <div className="mt-7 flex flex-wrap gap-3">
               <button
@@ -567,8 +578,8 @@ export function LpPro9999Page() {
             </div>
             <p className="mt-3 text-xs">
               <span className="text-red-500">
-                Full refund if you are not satisfied and ask within the
-                first 3 days of learning.
+                Full refund if you are not satisfied and ask within the first 3
+                days of subscription.
               </span>
             </p>
             <p className="mt-3.5 max-w-[52ch] text-[15.5px] leading-relaxed text-white/80">
@@ -584,9 +595,8 @@ export function LpPro9999Page() {
                   {DISCOUNT_ENDS_ON}
                 </>
               )}
-              , because this is how we democratize these skills for one
-              million of you. Subscribe before that date and you keep this
-              rate for as long as you stay subscribed.
+              . Subscribe now and you keep this rate for as long as you stay
+              subscribed.
             </p>
           </div>
 
@@ -713,9 +723,11 @@ export function LpPro9999Page() {
           descriptionClassName="mt-3 text-muted-foreground"
         />
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TESTIMONIALS.filter((t) => t.youtubeId !== heroProof.youtubeId).map((t) => (
-            <TestimonialCard key={t.youtubeId} {...t} />
-          ))}
+          {TESTIMONIALS.filter((t) => t.youtubeId !== heroProof.youtubeId).map(
+            (t) => (
+              <TestimonialCard key={t.youtubeId} {...t} />
+            ),
+          )}
         </div>
 
         <ul className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -760,7 +772,10 @@ export function LpPro9999Page() {
                 </p>
                 <ul className="mt-5 flex flex-col gap-2.5 border-t border-white/12 pt-4">
                   {pillar.items.map((item) => (
-                    <li key={item} className="flex gap-2.5 text-[14px] text-white/85">
+                    <li
+                      key={item}
+                      className="flex gap-2.5 text-[14px] text-white/85"
+                    >
                       <span className="mt-0.5 text-primary">✓</span>
                       <span>{item}</span>
                     </li>
@@ -895,8 +910,9 @@ export function LpPro9999Page() {
           <p className="mt-3 text-xs text-muted-foreground">
             {showNairaDiscount ? (
               <>
-                <s>{STANDARD_PRICE_NGN}</s> <b className="text-foreground">{price}</b>{" "}
-                until {DISCOUNT_ENDS_ON}.
+                <s>{STANDARD_PRICE_NGN}</s>{" "}
+                <b className="text-foreground">{price}</b> until{" "}
+                {DISCOUNT_ENDS_ON}.
               </>
             ) : (
               <>Discounted until {DISCOUNT_ENDS_ON}.</>
@@ -907,15 +923,16 @@ export function LpPro9999Page() {
 
       {/* FOR YOU / NOT FOR YOU */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
-        <SectionHeading
-          heading="Is this for you?"
-        />
+        <SectionHeading heading="Is this for you?" />
         <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="rounded-xl border border-primary/30 bg-card p-6">
             <h3 className="text-[17px] font-bold">This is for you if</h3>
             <ul className="mt-4 flex flex-col gap-3.5">
               {FOR_YOU.map((line) => (
-                <li key={line} className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground">
+                <li
+                  key={line}
+                  className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground"
+                >
                   <span className="mt-0.5 text-primary">✓</span>
                   <span>{line}</span>
                 </li>
@@ -926,7 +943,10 @@ export function LpPro9999Page() {
             <h3 className="text-[17px] font-bold">This is not for you if</h3>
             <ul className="mt-4 flex flex-col gap-3.5">
               {NOT_FOR_YOU.map((line) => (
-                <li key={line} className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground">
+                <li
+                  key={line}
+                  className="flex gap-3 text-[15.5px] leading-relaxed text-muted-foreground"
+                >
                   <span className="mt-0.5 text-muted-foreground/60">✕</span>
                   <span>{line}</span>
                 </li>
@@ -937,7 +957,10 @@ export function LpPro9999Page() {
       </section>
 
       {/* CHECKOUT (inline, for people who scroll the whole way) */}
-      <section id="start" className="scroll-mt-14 bg-[#0A1726] py-16 text-white">
+      <section
+        id="start"
+        className="scroll-mt-14 bg-[#0A1726] py-16 text-white"
+      >
         <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:items-center lg:px-12">
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
@@ -945,27 +968,28 @@ export function LpPro9999Page() {
               Your first lesson is one payment away.
             </h2>
             <p className="mt-4 max-w-[44ch] text-[17px] leading-relaxed text-white/80">
-              Your name, your email, and a secure naira payment window. You
-              are not creating an account or waiting on a verification
-              email: your login details reach your inbox the moment the
-              payment clears, and you can open your first lesson tonight.
+              Your name, your email, and a secure naira payment window. You are
+              not creating an account or waiting on a verification email: your
+              login details reach your inbox the moment the payment clears, and
+              you can open your first lesson tonight.
             </p>
             <p className="mt-5 max-w-[44ch] text-[15px] leading-relaxed text-white/72">
-              For {price} a month you get all 19 courses, 152 chapters and
-              both career-engineering paths. Cancel any time, keep your
-              progress, and pay nothing else.
+              For {price} a month you get all 19 courses, 152 chapters and both
+              career-engineering paths. Cancel any time, keep your progress, and
+              pay nothing else.
             </p>
             <p className="mt-4 text-xs">
               <span className="text-red-500">
-                Full refund if you are not satisfied and ask within the
-                first 3 days of learning.
+                Full refund if you are not satisfied and ask within the first 3
+                days of learning.
               </span>
             </p>
             <p className="mt-2 text-xs text-white/46">
               {showNairaDiscount ? (
                 <>
-                  <s>{STANDARD_PRICE_NGN}</s> <b className="text-white/80">{price}</b>{" "}
-                  a month until {DISCOUNT_ENDS_ON}.
+                  <s>{STANDARD_PRICE_NGN}</s>{" "}
+                  <b className="text-white/80">{price}</b> a month until{" "}
+                  {DISCOUNT_ENDS_ON}.
                 </>
               ) : (
                 <>Discounted until {DISCOUNT_ENDS_ON}.</>
@@ -982,7 +1006,10 @@ export function LpPro9999Page() {
         <SectionHeading heading="Frequently asked." />
         <div className="mx-auto mt-8 max-w-2xl">
           {FAQ.map(({ q, a }) => (
-            <details key={q} className="group border-b border-border py-1 first:border-t">
+            <details
+              key={q}
+              className="group border-b border-border py-1 first:border-t"
+            >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[17px] font-bold transition-colors duration-200 hover:text-primary [&::-webkit-details-marker]:hidden">
                 {q}
                 <span className="shrink-0 text-xl font-normal text-muted-foreground transition-transform duration-200 group-open:rotate-45">
@@ -1002,10 +1029,10 @@ export function LpPro9999Page() {
             Launch and grow your tech career.
           </h2>
           <p className="mx-auto mt-4 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
-            Whether you are starting out or levelling up the career you
-            already have, the learning paths, the projects with your code
-            reviewed, and the mock interviews are all on the other side of
-            one payment. Subscribe today and open your first lesson tonight.
+            Whether you are starting out or levelling up the career you already
+            have, the learning paths, the projects with your code reviewed, and
+            the mock interviews are all on the other side of one payment.
+            Subscribe today and open your first lesson tonight.
           </p>
           <button
             type="button"
@@ -1027,8 +1054,8 @@ export function LpPro9999Page() {
             Cancel any time.
           </p>
           <p className="mx-auto mt-10 max-w-[48ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
-            You would be one of the one million Africans we are
-            democratizing backend and AI engineering skills for.
+            You would be one of the one million Africans we are democratizing
+            backend and AI engineering skills for.
           </p>
         </div>
       </GridSection>
@@ -1038,7 +1065,11 @@ export function LpPro9999Page() {
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <span className="flex items-center gap-2 text-[17px] font-bold">
-              <img src="/logo-white-icon.png" alt="" className="h-6 w-6 object-contain" />
+              <img
+                src="/logo-white-icon.png"
+                alt=""
+                className="h-6 w-6 object-contain"
+              />
               masteringbackend.
             </span>
             <p className="text-sm text-white/46">Learn. Build. Grow.</p>

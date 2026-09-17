@@ -29,7 +29,7 @@ export function TestimonialCard({
   return (
     <div className="overflow-hidden rounded border border-border bg-card transition-colors duration-200 hover:border-primary/30">
       <VideoPoster youtubeId={youtubeId} title={title} aspect="wide" />
-      <div className="p-4">
+      {/* <div className="p-4">
         {quote ? (
           <p className="text-[15px] leading-snug text-muted-foreground">
             &ldquo;{quote}&rdquo;
@@ -53,7 +53,7 @@ export function TestimonialCard({
             Masteringbackend learner
           </p>
         )}
-      </div>
+      </div> */}
     </div>
   );
 }
