@@ -233,6 +233,30 @@ describe("LpPro9999Page", () => {
     expect(screen.getAllByText(/Literally immediately after the bootcamp/i)).toHaveLength(1);
   });
 
+  // Proof is the thing a cold visitor weighs hardest, so every claim in it
+  // has to be checkable. No anonymous card may return: one sitting beside
+  // named ones reads as filler and drags the real ones down with it.
+  it("attributes every testimonial to a named person", () => {
+    render(<LpPro9999Page />);
+    expect(screen.queryByText(/^Masteringbackend learner$/)).not.toBeInTheDocument();
+    ["Maximilian Ogbuabor", "Ifechukwu Ogidi", "Stephen Oba", "Daniel Tinivella", "Agoro, Adegbenga B."].forEach(
+      (name) => expect(screen.getAllByText(name).length).toBeGreaterThanOrEqual(1),
+    );
+  });
+
+  // The institutional signal the page had none of. These are real figures;
+  // if they ever change they must change here and on masteringbackend.com
+  // together, so the two never contradict each other.
+  it("shows the track record and where members work", () => {
+    render(<LpPro9999Page />);
+    expect(screen.getByText("1,000+")).toBeInTheDocument();
+    expect(screen.getByText(/developers trained since 2021/i)).toBeInTheDocument();
+    expect(screen.getByText("3,200+")).toBeInTheDocument();
+    ["Salesforce", "Razorpay", "SentinelOne", "Directi"].forEach((company) =>
+      expect(screen.getByAltText(company)).toBeInTheDocument(),
+    );
+  });
+
   // A monthly subscription has no spots and no deadline. Borrowed scarcity
   // is the first thing a sceptical buyer catches, so no CTA may imply it.
   it("uses no scarcity language on its calls to action", () => {

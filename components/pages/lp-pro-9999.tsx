@@ -260,11 +260,15 @@ const NOT_FOR_YOU = [
   "You want someone to do it for you. We give you the route, the review and the room. You do the work.",
 ];
 
-// Six Learner Spotlight films from the Masteringbackend YouTube channel.
-// Names, roles and quotes for four of them come from the graduate data on
-// the MasteringAI scholarship page (lib/scholarship.ts), so a visitor can
-// look these people up before paying. The remaining two carry the video's
-// own title until we have the learner's name.
+// Learner Spotlight films from the Masteringbackend YouTube channel.
+// Names, roles and quotes come from the graduate data on the MasteringAI
+// scholarship page (lib/scholarship.ts), so a visitor can look these
+// people up before paying.
+//
+// Two further films exist (HX7vyFqATlk, C5V2e4sjDvo) and are deliberately
+// NOT shown: neither carries a name we are cleared to publish, and an
+// anonymous card sitting beside named ones reads as filler and drags the
+// credibility of the real ones down with it.
 const TESTIMONIALS = [
   {
     youtubeId: "FwNvNAMpuF8",
@@ -275,20 +279,12 @@ const TESTIMONIALS = [
       "Literally immediately after the bootcamp I got a gig to build a full-stack application for an NGO. This is my first big gig.",
   },
   {
-    youtubeId: "HX7vyFqATlk",
-    title: "From complete beginner to building backend systems with Python",
-  },
-  {
     youtubeId: "YP1hx2Wlaqs",
     title: "Scaling an AI system to 1 million users",
     name: "Ifechukwu Ogidi",
     role: "Backend engineer, 4+ years building systems",
     quote:
       "We went from core backend principles to RAG systems, embeddings, vector databases and agentic systems. It gave me the tools to build AI systems from the ground up.",
-  },
-  {
-    youtubeId: "C5V2e4sjDvo",
-    title: "From a novice to a backend engineer",
   },
   {
     youtubeId: "85AdK_S7bxY",
@@ -306,6 +302,58 @@ const TESTIMONIALS = [
     quote:
       "There were a lot of concepts in AI engineering I had struggled with, especially in the RAG space. These weeks gave me an understanding of how to build secure, robust systems that solve real problems.",
   },
+];
+
+// Written reviews, verbatim from masteringbackend.com, for readers who
+// will not commit to pressing play. Each carries a full name and a role,
+// and most carry an employer, so every one of them is checkable.
+const TEXT_TESTIMONIALS = [
+  {
+    quote:
+      "The projects, quizzes, and hands-on coding examples helped me solidify the concepts and prepared me to ace my interview.",
+    name: "Daniel Tinivella",
+    role: "Software Engineer, Globant",
+  },
+  {
+    quote:
+      "I strongly recommend exploring Mastering Backend as a resource for your personal and/or professional growth.",
+    name: "Agoro, Adegbenga B.",
+    role: "CTO, Crenet",
+  },
+  {
+    quote:
+      "There is order to the way your topics are handled, making sure necessary concepts are learned before the next one, because the previous concept is needed to understand the upcoming one.",
+    name: "Orevaoghene Eguwe",
+    role: "Backend Engineer",
+  },
+  {
+    quote:
+      "The course is an excellent resource for beginners. Your explanations of the basics are clear, making it easy for newcomers to grasp.",
+    name: "Eshan Shafeeq",
+    role: "Blockchain & Web3 Engineer, Cake DeFi",
+  },
+  {
+    quote:
+      "The course covers basics to advanced concepts, breaking each one down with proper practical examples and projects. I think this is the best course to learn backend engineering.",
+    name: "Debasish Mohanta",
+    role: "Backend Software Engineer",
+  },
+  {
+    quote:
+      "The course structure and progression make sense, especially the clear explanations of core Node.js concepts like modules, event-driven architecture, and asynchronous programming.",
+    name: "Imran Munawar",
+    role: "Software Engineer",
+  },
+];
+
+// Where Masteringbackend members work, from the logo marquee on
+// masteringbackend.com. Same company's own hosted assets, named in alt
+// text so the row is legible to a screen reader as well as an eye.
+const EMPLOYER_LOGOS = [
+  { name: "Salesforce", src: "https://global.divhunt.com/1155b7114b718a1920d913cf5954aaf2_93820.svg" },
+  { name: "Razorpay", src: "https://global.divhunt.com/02cd350e5c16432197774e1e33df845c_106042.svg" },
+  { name: "SentinelOne", src: "https://global.divhunt.com/d2c103d544affe34b9c1fc526ba66854_163436.svg" },
+  { name: "Directi", src: "https://global.divhunt.com/0d540434f3fc5bc0a3729da99ef53f08_6151.svg" },
 ];
 
 const FAQ: { q: string; a: string }[] = [
@@ -553,6 +601,60 @@ export function LpPro9999Page() {
         </div>
       </header>
 
+      {/* TRUST BAR. Five years, a real headcount, and where members work,
+          placed immediately under the hero because that is where a reader
+          deciding whether this is a real company looks first. */}
+      <section className="border-b border-border bg-card py-8">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
+          <div className="flex flex-col items-center gap-7 lg:flex-row lg:justify-between lg:gap-10">
+            <dl className="flex flex-wrap items-center justify-center gap-x-9 gap-y-4 lg:justify-start">
+              <div className="text-center lg:text-left">
+                <dt className="text-[26px] font-bold leading-none tracking-tight">
+                  1,000+
+                </dt>
+                <dd className="mt-1 text-[13px] text-muted-foreground">
+                  developers trained since 2021
+                </dd>
+              </div>
+              <div className="text-center lg:text-left">
+                <dt className="text-[26px] font-bold leading-none tracking-tight">
+                  3,200+
+                </dt>
+                <dd className="mt-1 text-[13px] text-muted-foreground">
+                  course enrolments
+                </dd>
+              </div>
+              <div className="text-center lg:text-left">
+                <dt className="text-[26px] font-bold leading-none tracking-tight">
+                  500+
+                </dt>
+                <dd className="mt-1 text-[13px] text-muted-foreground">
+                  members working in the industry
+                </dd>
+              </div>
+            </dl>
+
+            <div className="flex flex-col items-center gap-3 lg:items-end">
+              <p className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground">
+                Our members work at
+              </p>
+              <ul className="flex flex-wrap items-center justify-center gap-x-7 gap-y-4">
+                {EMPLOYER_LOGOS.map((logo) => (
+                  <li key={logo.name}>
+                    <img
+                      src={logo.src}
+                      alt={logo.name}
+                      loading="lazy"
+                      className="h-7 w-auto opacity-90 sm:h-8"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* BEFORE YOU REGISTER: the exact sequence, before anyone is asked
           for anything. Whitish ground carrying the same linework as the
           hero, so the page reads as one surface rather than alternating
@@ -614,7 +716,7 @@ export function LpPro9999Page() {
         <SectionHeading
           eyebrow="People who learned here"
           heading="What some of our learners have to say."
-          description="Masteringbackend learners on what changed, named where they agreed to be, so you can look them up before you pay. Tap any one to watch."
+          description="Every person below is named, with the company they work for where they gave it, so you can look them up before you pay."
           descriptionClassName="mt-3 text-muted-foreground"
         />
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -622,6 +724,23 @@ export function LpPro9999Page() {
             <TestimonialCard key={t.youtubeId} {...t} />
           ))}
         </div>
+
+        <ul className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TEXT_TESTIMONIALS.map((t) => (
+            <li
+              key={t.name}
+              className="flex flex-col rounded-xl border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/40"
+            >
+              <p className="text-[15px] leading-relaxed text-muted-foreground">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <p className="mt-4 text-[14px] font-semibold tracking-tight text-foreground">
+                {t.name}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t.role}</p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* WHAT YOU GET: the inventory, now that they believe it. */}
