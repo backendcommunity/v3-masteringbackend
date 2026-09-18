@@ -20,7 +20,10 @@ interface DashboardLayoutProps {
   fluid?: boolean;
 }
 
-export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  fluid = false,
+}: DashboardLayoutProps) {
   const isMobile = useMobile();
   const pathname = usePathname();
   const router = useRouter();
@@ -51,9 +54,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   // Routes where content is the point of arrival (deep link, share, bookmark) —
   // don't interrupt with onboarding. hasFinishedOnboarding stays false, so
   // onboarding still triggers if they land elsewhere afterwards.
-  const ONBOARDING_EXEMPT_PREFIXES = ["/projects", "/mock-interviews", "/courses", "/paths"];
+  const ONBOARDING_EXEMPT_PREFIXES = [
+    "/projects",
+    "/mock-interviews",
+    "/courses",
+    "/paths",
+  ];
   const isOnboardingExempt = ONBOARDING_EXEMPT_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`),
   );
 
   // Lock background scroll while the mobile drawer is open.
@@ -88,7 +96,9 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
       }
       // Preserve redirect through onboarding for new users
       const existingRedirect = redirect || pathname || "/";
-      router.replace(`/onboarding?redirect=${encodeURIComponent(existingRedirect)}`);
+      router.replace(
+        `/onboarding?redirect=${encodeURIComponent(existingRedirect)}`,
+      );
       return;
     }
 
@@ -104,17 +114,27 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const skipOnboarding =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("skip") === "true";
-  if (user?.hasFinishedOnboarding === false && !skipOnboarding && !isOnboardingExempt) return null;
+  if (
+    user?.hasFinishedOnboarding === false &&
+    !skipOnboarding &&
+    !isOnboardingExempt
+  )
+    return null;
 
   return (
     <>
+      <div className={isCollapsed ? "md:ml-20" : "md:ml-72"}>
+        <TeamRemovalBanner />
+      </div>
       {(user?.mustResetPassword || user?.nameIsProvisional) && (
-        <ForcePasswordChangeModal nameIsProvisional={!!user?.nameIsProvisional} />
+        <ForcePasswordChangeModal
+          nameIsProvisional={!!user?.nameIsProvisional}
+        />
       )}
       {/* Full-bleed: outside the max-w-7xl container and the sidebar row, so the
           offer spans the viewport. Renders nothing unless the API says this
           user lost Pro with a team seat. */}
-      <TeamRemovalBanner />
+
       <NavigationBar
         onNavigate={handleNavigate}
         onMenuToggle={toggleSidebar}
@@ -126,6 +146,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             Mobile is ALWAYS the full-width drawer (w-72); the collapsed rail is
             a desktop-only concept, so width/margin switch at the md breakpoint
             via CSS, not the JS isMobile flag (avoids hydration flash). */}
+
         <aside
           className={`fixed inset-y-0 left-0 z-50 h-full bg-[#0E1F33] transition-transform duration-300 ease-in-out
           md:translate-x-0
@@ -152,6 +173,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
         {/* Main content area — drawer overlays on mobile (no margin), rail
             offsets on desktop via CSS breakpoints. */}
+
         <div
           className={`flex-1 flex w-full min-w-0 flex-col transition-all duration-300 ${
             isCollapsed ? "md:ml-20" : "md:ml-72"
@@ -160,11 +182,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
           {/* Centralized content container — every page aligns to the same
               `max-w-7xl` width + `px-6 py-6` padding (matches mock-interviews).
               Full-bleed pages opt out via `fluid`. */}
+          {/* <TeamRemovalBanner /> */}
           <main className="flex-1 overflow-y-auto w-full">
             {fluid ? (
               <div className="p-4 md:p-6">{children}</div>
             ) : (
-              <div className="mx-auto w-full max-w-7xl px-6 py-6">{children}</div>
+              <div className="mx-auto w-full max-w-7xl px-6 py-6">
+                {children}
+              </div>
             )}
           </main>
           {/* <KapAIAssistant /> */}

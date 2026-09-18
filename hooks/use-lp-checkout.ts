@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCheckoutPricing } from "@/hooks/use-pricing";
+import type { CheckoutCapablePricing } from "@/hooks/use-pricing";
 import {
   asyncpayBaseOptions,
   PADDLE_ENVIRONMENT,
@@ -55,8 +56,72 @@ const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_TOKEN as string;
 // short-circuits before any SDK is touched.
 const LP_9999_LIVE = process.env.NEXT_PUBLIC_LP_9999_LIVE === "true";
 
+/**
+ * Dev-only regional preview: `?region=ng` (or `?region=global`) on the
+ * landing page renders it as a visitor in that region would see it.
+ *
+ * This exists because the pricing API sits behind Cloudflare and its CORS
+ * list does not admit localhost:3001, so a dev machine ALWAYS falls back
+ * to the global tier and the Nigerian page — the one the whole campaign is
+ * for — cannot be looked at locally at all.
+ *
+ * Hard-gated on NODE_ENV !== "production", and the gate is a build-time
+ * constant so the override is dead code stripped from the production
+ * bundle entirely. That matters: this substitutes the object the charge
+ * path reads, so in production a query parameter could otherwise change
+ * what a stranger is billed.
+ *
+ * The plan UUID here is AsyncPay's TEST-ACCOUNT plan, never production's
+ * dea62b89… — see scripts/pricing/pricing-catalog.ts in academy, which
+ * keeps the two separated. AsyncPay selects environment by key prefix
+ * (async_pkt_ test vs async_pk_ live) rather than by host, so a dev
+ * machine holding a test key cannot move real money against it; pairing
+ * the test plan with the test key is what makes a local run openable at
+ * all, since the production plan does not exist on the test account.
+ */
+const DEV_REGION_PREVIEW = process.env.NODE_ENV !== "production";
+
+const NG_PREVIEW: CheckoutCapablePricing = {
+  tier: "NG",
+  country: "NG",
+  provider: "ASYNCPAY",
+  currency: "NGN",
+  monthly: 9999,
+  annual: 99990,
+  monthlyPriceId: "ee1e371f-9b6a-11f1-8e83-2a667c266b94",
+  annualPriceId: "2e449d97-9b6b-11f1-8e83-2a667c266b94",
+  // `enterprise` is the PUBLIC shape: provider and price IDs are stripped
+  // from it by design (see PublicEnterprisePricing), so they are absent here
+  // too rather than being added back to satisfy the compiler.
+  enterprise: {
+    tier: "NG",
+    currency: "NGN",
+    monthlyPerUser: 15000,
+    annualPerUser: 150000,
+    minSeats: 2,
+    selfServe: true,
+  },
+};
+
+/** Reads ?region= once on mount. Returns null unless dev AND ?region=ng. */
+function useDevRegionOverride(): CheckoutCapablePricing | null {
+  const [override, setOverride] = useState<CheckoutCapablePricing | null>(null);
+  useEffect(() => {
+    if (!DEV_REGION_PREVIEW) return;
+    const region = new URLSearchParams(window.location.search)
+      .get("region")
+      ?.toLowerCase();
+    setOverride(region === "ng" || region === "nigeria" ? NG_PREVIEW : null);
+  }, []);
+  return override;
+}
+
 export function useLpCheckout(): UseLpCheckoutResult {
-  const pricing = useCheckoutPricing();
+  const livePricing = useCheckoutPricing();
+  // Applied after the real fetch, never instead of it, so the loading and
+  // error behaviour a real visitor gets is exactly what is exercised here.
+  const devOverride = useDevRegionOverride();
+  const pricing = devOverride ?? livePricing;
   const [status, setStatus] = useState<LpCheckoutStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 

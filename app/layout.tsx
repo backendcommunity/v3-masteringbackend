@@ -125,6 +125,8 @@ export default function RootLayout({
         ></script>
       </head>
       <body className={satoshi.className} suppressHydrationWarning>
+        {/* <TeamRemovalBanner /> */}
+
         <PostHogProviderComponent>
           <ThemeProvider
             attribute="class"
