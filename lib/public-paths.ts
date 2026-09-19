@@ -24,7 +24,7 @@ export const PUBLIC_PATH_PREFIXES = [
 
   // ₦9,999/month ads landing page: paid-traffic destination, no account
   // required to view or to start checkout.
-  "/lp/pro-9999",
+  "/campaigns/learn-tech",
 ];
 
 /** True when `pathname` is a public (no-login) route. */
