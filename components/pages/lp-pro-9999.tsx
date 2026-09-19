@@ -43,7 +43,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 const WHATSAPP_URL =
-  "https://chat.whatsapp.com/Dqo9AdnXyI4IoSfo1h0YLH?mode=gi_t";
+  "https://chat.whatsapp.com/LtCzfQlb9ex0BtWtcbwmDJ?s=cl&p=i&mlu=4&ilr=4";
 
 // What one subscription opens, in the platform's own three stages.
 // Every claim here is copied from the Pro column of /pricing
