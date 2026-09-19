@@ -279,7 +279,7 @@ const NOT_FOR_YOU = [
 // credibility of the real ones down with it.
 const TESTIMONIALS = [
   {
-    youtubeId: "FwNvNAMpuF8",
+    youtubeId: "44TN-mIhqQw",
     title: "Max landed a job right after our bootcamp training",
     name: "Maximilian Ogbuabor",
     role: "Backend engineer",
@@ -527,9 +527,6 @@ export function LpPro9999Page() {
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
           <div>
-            <span className="eyebrow-mono text-[#4AC5E8]">
-              masteringbackend membership
-            </span>
             <h1 className="mt-3 max-w-[15ch] text-balance text-[clamp(34px,4.6vw,54px)] font-bold leading-[1.02] tracking-tight">
               Learn backend and AI skills for{" "}
               <span className="whitespace-nowrap text-primary">
