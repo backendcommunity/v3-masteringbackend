@@ -125,7 +125,9 @@ export function useLpCheckout(): UseLpCheckoutResult {
   const [status, setStatus] = useState<LpCheckoutStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  const priceLabel = pricing ? formatPrice(pricing.monthly, pricing.currency) : "";
+  const priceLabel = pricing
+    ? formatPrice(pricing.monthly, pricing.currency)
+    : "";
   const provider = pricing?.provider ?? null;
 
   // Eagerly prefetches the @asyncpay/checkout chunk once we know THIS
@@ -172,7 +174,9 @@ export function useLpCheckout(): UseLpCheckoutResult {
             typeof err?.error_description === "string"
               ? err.error_description
               : "";
-          setError(description || "We couldn't start checkout. Please try again.");
+          setError(
+            description || "We couldn't start checkout. Please try again.",
+          );
           setStatus("error");
         },
       });
@@ -269,7 +273,9 @@ export function useLpCheckout(): UseLpCheckoutResult {
       // — it CAN be "" for an unconfigured tier, in which case the deeper
       // open*() calls would just silently no-op and leave the button stuck.
       if (!pricing.monthlyPriceId) {
-        setError("Checkout is temporarily unavailable — please try again shortly.");
+        setError(
+          "Checkout is temporarily unavailable — please try again shortly.",
+        );
         setStatus("error");
         return;
       }

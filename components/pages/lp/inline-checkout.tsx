@@ -58,8 +58,8 @@ export function InlineCheckout({
       <div className="rounded bg-primary/10 p-6" role="status">
         <p className="mb-1.5 text-base font-bold">You&apos;re in.</p>
         <p className="text-sm text-muted-foreground">
-          Check {email || "your email"} for your login details. They land
-          the moment the payment clears.
+          Check {email || "your email"} for your login details. They land the
+          moment the payment clears.
         </p>
       </div>
     );
@@ -80,7 +80,10 @@ export function InlineCheckout({
 
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={nameId} className="text-xs font-bold text-foreground/80">
+          <label
+            htmlFor={nameId}
+            className="text-xs font-bold text-foreground/80"
+          >
             Full name
           </label>
           <input
@@ -96,7 +99,10 @@ export function InlineCheckout({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={emailId} className="text-xs font-bold text-foreground/80">
+          <label
+            htmlFor={emailId}
+            className="text-xs font-bold text-foreground/80"
+          >
             Email address
           </label>
           <input
@@ -138,8 +144,8 @@ export function InlineCheckout({
         </p>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          Payment is processed securely in a window over this page. Your
-          card details never touch Masteringbackend.
+          Payment is processed securely in a window over this page. Your card
+          details never touch Masteringbackend.
         </p>
       )}
 
