@@ -100,5 +100,6 @@ export function asyncpayBaseOptions(user: {
       lastName: user?.name?.split(" ")?.[1],
       email: user?.email ?? undefined,
     },
+    metadata: { source: "learn-tech" },
   };
 }
