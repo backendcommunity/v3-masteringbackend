@@ -16,13 +16,12 @@
  * pattern works). `vi.hoisted()` is Vitest's own documented fix for
  * exactly this TDZ class of bug and changes no test semantics.
  *
- * The platform test scopes its queries with `{ selector: "h3" }`: the
- * pillar headings are the only `<h3>`s in the "What you get" section, and
- * scoping keeps the assertion off the course chips and the hero copy,
- * which repeat some of the same words.
+ * The path test scopes its queries with `{ selector: "h3" }`: the path
+ * titles are also named in the hero, the offer card and the FAQ, and
+ * scoping keeps the assertion on the "What you get" blocks.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 const { mockTrack } = vi.hoisted(() => ({ mockTrack: vi.fn() }));
 vi.mock("@/lib/analytics", () => ({ analytics: { track: mockTrack } }));
@@ -59,6 +58,21 @@ const NG_PRICING = {
   },
 };
 
+// A visitor quoted outside Nigeria. Note that the default (null) is NOT
+// this: with no data the price never resolves, so those tests render the
+// page as it looks while the price is still loading.
+const GLOBAL_PRICING = {
+  ...NG_PRICING,
+  tier: "GLOBAL",
+  country: "US",
+  provider: "PADDLE",
+  currency: "USD",
+  monthly: 19.99,
+  annual: 199.99,
+  monthlyPriceId: "pri_global_monthly",
+  annualPriceId: "pri_global_annual",
+};
+
 // next/font/google only works through Next's own compiler (the SWC font
 // plugin swaps it for a real loader at build time); under plain Vitest the
 // real export throws. Stub it the way Next's own testing docs recommend —
@@ -90,67 +104,54 @@ describe("LpPro9999Page", () => {
     expect(screen.queryByText(/log in/i)).not.toBeInTheDocument();
   });
 
-  // The campaign sells the platform, not a bundle of four courses. These
-  // three pillars and their inclusions are the offer; if a pillar stops
-  // rendering, the page is back to selling a course list.
-  it("names the three stages of the platform in the offer", () => {
+  // The brief: two paths, and the difference between them obvious at a
+  // glance. Each path is its own block in "What you get".
+  it("sells two paths, Backend Engineering and AI Engineering", () => {
     render(<LpPro9999Page />);
     expect(
-      screen.getByText(/Every course and learning path/i, { selector: "h3" }),
+      screen.getByText("Backend Engineering", { selector: "h3" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Real projects, not long videos/i, { selector: "h3" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Get ready for the job/i, { selector: "h3" }),
+      screen.getByText("AI Engineering", { selector: "h3" }),
     ).toBeInTheDocument();
   });
 
   // Each of these is a paid inclusion copied from the Pro column of
-  // /pricing. A visitor who pays for "the whole platform" and cannot find
-  // one of them has been mis-sold, so the page must keep naming them.
+  // /pricing. A visitor who pays and cannot find one of them has been
+  // mis-sold, so the page must keep naming them.
   it("names the platform inclusions beyond courses", () => {
     render(<LpPro9999Page />);
-    // Scoped to the pillar list items: the new "What exactly do I get"
-    // FAQ answer names the same inclusions in prose, so an unscoped query
-    // matches twice.
+    // Scoped to list items: the FAQ answer names the same inclusions in
+    // prose, so an unscoped query matches twice.
     const inclusions = screen
       .getAllByText(/.+/, { selector: "li > span" })
       .map((el) => el.textContent ?? "");
     expect(inclusions).toContain(
-      "All projects, with code review on each submission",
+      "Backend projects, with a code review from our team on every submission",
     );
-    expect(inclusions).toContain(
-      "Bite-size practice exercises in the playground",
-    );
+    expect(inclusions).toContain("Bite-size coding exercises in the playground");
     expect(inclusions).toContain(
       "Unlimited AI mock interviews, up to 30 minutes each",
     );
     expect(inclusions).toContain("Community forum access");
   });
 
-  // "Show them exactly what they get." The paths section names every
-  // milestone of the two paths that actually run end to end in production,
-  // and AI Engineering appears as what it is: a milestone on the Python
-  // path, not a path of its own. If a path is ever listed that a buyer
-  // cannot walk on the day they pay, this is the test that should fail.
-  it("lists the Python path milestones, AI Engineering among them", () => {
+  // "AI Engineering" is sold as a named selection of what exists, not as a
+  // roadmap of its own: its route is the Python path's own milestones,
+  // walked to the AI Engineering milestone. If a milestone is ever listed
+  // that a buyer cannot walk on the day they pay, this test should fail.
+  it("routes AI Engineering through the real Python path milestones", () => {
     render(<LpPro9999Page />);
-    expect(
-      screen.getByText(/Become a Python Backend Engineer/i, { selector: "h3" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Become a Java and Spring Backend Engineer/i, {
-        selector: "h3",
-      }),
-    ).toBeInTheDocument();
     const milestones = screen
       .getAllByText(/.+/, { selector: "ol > li > span:last-child" })
       .map((el) => el.textContent ?? "");
     expect(milestones).toContain("Python Foundations");
+    expect(milestones).toContain("Backend Engineering Core");
     expect(milestones).toContain("AI Engineering with Python");
     expect(milestones).toContain("Ship and defend");
-    expect(milestones).toContain("Building RESTful APIs");
+    expect(screen.getByText(/Or the Java and Spring route/i)).toBeInTheDocument();
+    // No roadmap by this name exists in production.
+    expect(screen.queryByText(/Become an AI Engineer/i)).not.toBeInTheDocument();
   });
 
   // The Node.js and Rust paths carry one milestone each in production. They
@@ -162,43 +163,45 @@ describe("LpPro9999Page", () => {
     ).not.toBeInTheDocument();
   });
 
-  // The mission is what makes the price make sense: cheap invites
-  // suspicion, "we are reaching for a million people" turns cheap into
-  // purposeful. It opens the hero and closes it, and both halves address
-  // the reader directly rather than describing them in the third person.
-  it("opens and closes the hero with the mission, in second person", () => {
-    render(<LpPro9999Page />);
+  // The brief moves the mission out of the hero to directly after "Our
+  // learners work at": proof that this is a real company first, then the
+  // reason the price is low.
+  it("states the mission after the employers, not in the hero", () => {
+    const { container } = render(<LpPro9999Page />);
+    const mission = screen.getByText(
+      /Our mission is to democratize backend and AI engineering\s+skills for/i,
+    );
+    expect(container.querySelector("header")).not.toContainElement(mission);
+    const employers = screen.getByText(/Our learners work at/i);
     expect(
-      screen.getByText(/Our mission is to democratize backend and AI engineering\s+skills for/i),
-    ).toBeInTheDocument();
-    // "We are building the platform" read as work in progress on a page
-    // asking to be paid today. The platform is live; the mission is the
-    // thing still in progress, and only the mission may say so.
-    expect(screen.queryByText(/we are building the platform/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Everything you need is already on the platform/i),
-    ).toBeInTheDocument();
-    // Twice by design: once in the hero, once closing the page.
+      employers.compareDocumentPosition(mission) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Once in the mission, once closing the page.
     expect(screen.getAllByText(/one million Africans/i).length).toBeGreaterThanOrEqual(2);
-    expect(
-      screen.getByText(/this is how we democratize these skills for one\s+million of you/i),
-    ).toBeInTheDocument();
 
-    // One idea, one verb. All three mission statements on the page say
-    // "democratize"; an earlier pass left this one on "opening ... to".
-    expect(screen.queryByText(/opening this to one million/i)).not.toBeInTheDocument();
-
-    // Masteringbackend is a product, not a training institute. "We train
-    // you" framing makes the subscription read as a course someone enrols
-    // in, which is the wrong mental model for a self-serve platform.
+    // Masteringbackend is a product, not a training institute, and the
+    // reader is never sorted into a demographic. Nor may the price ever be
+    // sold as a floor.
     expect(screen.queryByText(/mission to train/i)).not.toBeInTheDocument();
-
-    // Third-person framing sorts the reader into a demographic; it must not
-    // come back. Nor may the price ever be sold as a floor.
     expect(
       screen.queryByText(/opens (its|it) learning platform to young Africans/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/as low as/i)).not.toBeInTheDocument();
+  });
+
+  // The hero's "₦100k+" is a naira comparison. A visitor quoted in another
+  // currency gets the same point without a figure that is not theirs.
+  // It stays up while the price loads (the ads run in Nigeria), so the
+  // test waits for the dollar quote before checking it has gone.
+  it("keeps the naira bootcamp comparison out of a non-naira hero", async () => {
+    pricingState.value = GLOBAL_PRICING;
+    render(<LpPro9999Page />);
+    expect(
+      await screen.findByText(/Still thinking of paying for an expensive bootcamp\?/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/₦100k/)).not.toBeInTheDocument();
+    expect(screen.getByText(/You don.t have to\./i)).toBeInTheDocument();
   });
 
   // The deadline is a real commitment to every visitor who sees it, so it
@@ -226,20 +229,24 @@ describe("LpPro9999Page", () => {
     expect(screen.getAllByText(/Discounted until 1 October 2026/).length).toBeGreaterThanOrEqual(2);
   });
 
-  // The strongest quote anchors the hero; repeating the same card in the
+  // The strongest film anchors the hero; repeating the same card in the
   // proof grid made six learners look like one.
   it("does not repeat the hero testimonial in the proof grid", () => {
     render(<LpPro9999Page />);
-    expect(screen.getAllByText(/Literally immediately after the bootcamp/i)).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", {
+        name: /Play: Max landed a job right after our bootcamp training/i,
+      }),
+    ).toHaveLength(1);
   });
 
-  // Proof is the thing a cold visitor weighs hardest, so every claim in it
-  // has to be checkable. No anonymous card may return: one sitting beside
-  // named ones reads as filler and drags the real ones down with it.
-  it("attributes every testimonial to a named person", () => {
+  // Proof is the thing a cold visitor weighs hardest, so every written
+  // review carries a full name. No anonymous card may return: one sitting
+  // beside named ones reads as filler and drags the real ones down with it.
+  it("attributes every written testimonial to a named person", () => {
     render(<LpPro9999Page />);
     expect(screen.queryByText(/^Masteringbackend learner$/)).not.toBeInTheDocument();
-    ["Maximilian Ogbuabor", "Ifechukwu Ogidi", "Stephen Oba", "Daniel Tinivella", "Agoro, Adegbenga B."].forEach(
+    ["Daniel Tinivella", "Agoro, Adegbenga B.", "Orevaoghene Eguwe"].forEach(
       (name) => expect(screen.getAllByText(name).length).toBeGreaterThanOrEqual(1),
     );
   });
@@ -270,7 +277,12 @@ describe("LpPro9999Page", () => {
       .join(" | ");
     expect(ctas).not.toMatch(/secure your spot/i);
     expect(ctas).not.toMatch(/spots? left|limited|hurry|last chance/i);
-    expect(screen.getAllByRole("button", { name: /start learning/i }).length,
+    // The brief: two path buttons instead of one generic CTA.
+    expect(
+      screen.getAllByRole("button", { name: /^Start Backend — /i }).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByRole("button", { name: /^Start AI Engineering — /i }).length,
     ).toBeGreaterThanOrEqual(2);
   });
 
@@ -284,16 +296,38 @@ describe("LpPro9999Page", () => {
     expect(screen.queryByText(/Methods to confirm/)).not.toBeInTheDocument();
   });
 
-  it("the hero CTA opens the checkout dialog with name and email fields", async () => {
+  it("a hero path CTA opens the checkout dialog with that path chosen", async () => {
     render(<LpPro9999Page />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: /start learning for/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /^Start AI Engineering — /i })[0],
+    );
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toBeInTheDocument();
     // The dialog carries its own form; the bottom-of-page form is still there.
     expect(screen.getAllByLabelText(/full name/i).length).toBe(2);
-    expect(mockTrack).toHaveBeenCalledWith("lp9999_cta_clicked", { section: "hero" });
+    expect(
+      within(dialog).getByRole("button", { name: "AI Engineering" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(mockTrack).toHaveBeenCalledWith("lp9999_cta_clicked", {
+      section: "hero",
+      path: "ai-engineering",
+    });
   });
+
+  // The dialog and the bottom form share one path: switching it in one
+  // switches it in the other, and the Pay button names the path.
+  it("switches path from the checkout form's toggle", () => {
+    render(<LpPro9999Page />);
+    const form = screen.getByRole("group", { name: "Your path" });
+    expect(
+      within(form).getByRole("button", { name: "Backend" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(form).getByRole("button", { name: "AI Engineering" }));
+    expect(
+      within(form).getByRole("button", { name: "AI Engineering" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   // What 10,000 Nigerians actually see, which a dev machine cannot render:
   // the pricing API's CORS list does not admit localhost:3001, so the page
   // always falls back to the global tier there. This is the only place the
@@ -309,7 +343,11 @@ describe("LpPro9999Page", () => {
     expect(screen.getAllByText(/1 October 2026/).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText(/Discounted until/)).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: /Start learning for ₦9,999/ }).length,
+      screen.getAllByRole("button", { name: /Start Backend — ₦9,999\/mo/ }).length,
     ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(/Still thinking of spending ₦100k\+ on a bootcamp\?/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/New subscribers pay ₦12,999\/month after that/)).toBeInTheDocument();
   });
 });

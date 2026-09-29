@@ -24,9 +24,17 @@ import { formatPrice } from "@/lib/pricing";
 /** The one export @asyncpay/checkout's chunk actually has. */
 type AsyncpayModule = { AsyncpayCheckout: (...args: any[]) => unknown };
 
+/**
+ * The two paths the campaign sells. Both buy the same subscription; the
+ * path only records which one the buyer chose, so it travels to analytics
+ * and to AsyncPay's metadata and nowhere near the price or plan.
+ */
+export type LpPath = "backend" | "ai-engineering";
+
 export interface LpBuyer {
   name: string;
   email: string;
+  path?: LpPath;
 }
 
 export type LpCheckoutStatus =
@@ -164,8 +172,17 @@ export function useLpCheckout(): UseLpCheckoutResult {
       // Promise.resolve(...).catch() below exists only to swallow that
       // already-handled rejection so it doesn't surface as unhandled; it
       // must not set error state again.
+      const base = asyncpayBaseOptions({
+        name: buyer.name,
+        email: buyer.email,
+      });
       const started = mod.AsyncpayCheckout({
-        ...asyncpayBaseOptions({ name: buyer.name, email: buyer.email }),
+        ...base,
+        // The chosen path rides along with the payment so the choice is on
+        // record; academy's webhook reads only the keys it knows.
+        metadata: buyer.path
+          ? { ...base.metadata, path: buyer.path }
+          : base.metadata,
         subscriptionPlanUUID: pricing.monthlyPriceId,
         onSuccess: () => setStatus("succeeded"),
         onClose: () => setStatus("ready"),
