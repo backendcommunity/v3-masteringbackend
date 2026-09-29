@@ -19,28 +19,37 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { InlineCheckout } from "@/components/pages/lp/inline-checkout";
-import type { UseLpCheckoutResult } from "@/hooks/use-lp-checkout";
+import type { LpPath, UseLpCheckoutResult } from "@/hooks/use-lp-checkout";
 
 export function CheckoutDialog({
   open,
   onOpenChange,
   checkout,
+  path,
+  onPathChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   checkout: UseLpCheckoutResult;
+  path: LpPath;
+  onPathChange: (path: LpPath) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Secure your spot</DialogTitle>
+          <DialogTitle>Start your path</DialogTitle>
           <DialogDescription>
-            Your name and email, then a secure naira payment window. No
-            account to create first.
+            Your name and email, then a secure payment window. No account to
+            create first, and one subscription opens both paths.
           </DialogDescription>
         </DialogHeader>
-        <InlineCheckout checkout={checkout} variant="plain" />
+        <InlineCheckout
+          checkout={checkout}
+          path={path}
+          onPathChange={onPathChange}
+          variant="plain"
+        />
       </DialogContent>
     </Dialog>
   );

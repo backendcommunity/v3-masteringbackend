@@ -13,12 +13,22 @@
  * provisioning succeeded, because that happens async via webhook.
  */
 import { useEffect, useId, useState, type FormEvent } from "react";
-import type { UseLpCheckoutResult } from "@/hooks/use-lp-checkout";
+import type { LpPath, UseLpCheckoutResult } from "@/hooks/use-lp-checkout";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
 
+/** How each path is named on buttons and in the path toggle. */
+export const LP_PATH_LABELS: Record<LpPath, string> = {
+  backend: "Backend",
+  "ai-engineering": "AI Engineering",
+};
+
+const PATHS = Object.keys(LP_PATH_LABELS) as LpPath[];
+
 export function InlineCheckout({
   checkout,
+  path,
+  onPathChange,
   variant = "card",
 }: {
   /**
@@ -27,6 +37,13 @@ export function InlineCheckout({
    * response, and the dialog and the bottom-of-page form share one state.
    */
   checkout: UseLpCheckoutResult;
+  /**
+   * The path this buyer is starting. Owned by the page so a path CTA can
+   * preselect it and the dialog and bottom form always agree. Both paths
+   * are the same subscription; this only records the choice.
+   */
+  path: LpPath;
+  onPathChange: (path: LpPath) => void;
   /** "card" draws its own surface; "plain" is for use inside a dialog. */
   variant?: "card" | "plain";
 }) {
@@ -42,15 +59,18 @@ export function InlineCheckout({
   // click.
   useEffect(() => {
     if (status === "succeeded") {
-      analytics.track(LP_9999_EVENTS.subscribed, {});
+      analytics.track(LP_9999_EVENTS.subscribed, { path });
     }
+    // Only the transition into "succeeded" counts; a path change after
+    // success must not fire a second conversion.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
-    analytics.track(LP_9999_EVENTS.checkoutStarted, {});
-    pay({ name: name.trim(), email: email.trim() });
+    analytics.track(LP_9999_EVENTS.checkoutStarted, { path });
+    pay({ name: name.trim(), email: email.trim(), path });
   };
 
   if (status === "succeeded") {
@@ -79,6 +99,27 @@ export function InlineCheckout({
       </div>
 
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
+        <div
+          role="group"
+          aria-label="Your path"
+          className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted p-1"
+        >
+          {PATHS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={path === p}
+              onClick={() => onPathChange(p)}
+              className={`rounded-md py-2.5 text-sm font-bold transition-colors duration-150 ${
+                path === p
+                  ? "bg-primary text-[#05262F] shadow-sm"
+                  : "text-muted-foreground hover:bg-card hover:text-foreground"
+              }`}
+            >
+              {LP_PATH_LABELS[p]}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor={nameId}
@@ -127,7 +168,7 @@ export function InlineCheckout({
             ? "Loading…"
             : status === "processing"
               ? "Opening secure checkout…"
-              : `Pay ${priceLabel} and start learning`}
+              : `Start ${LP_PATH_LABELS[path]} · Pay ${priceLabel}`}
         </button>
       </form>
 
