@@ -150,6 +150,46 @@ describe("useLpCheckout", () => {
     expect(mockPaddleOpen).not.toHaveBeenCalled();
   });
 
+  // The path a buyer picked is recorded on the payment beside the campaign
+  // source, and never changes which plan is charged: both paths are the
+  // same subscription.
+  it("sends the chosen path in AsyncPay metadata without changing the plan", async () => {
+    apiGetResponse = { data: { data: NG_ASYNCPAY_PRICING } };
+
+    const { result } = renderHook(() => useLpCheckout());
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    act(() => {
+      result.current.pay({
+        name: "Chinedu Okafor",
+        email: "chinedu@example.com",
+        path: "ai-engineering",
+      });
+    });
+
+    expect(mockAsyncpayCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionPlanUUID: "async-monthly-id",
+        metadata: { source: "learn-tech", path: "ai-engineering" },
+      }),
+    );
+  });
+
+  it("keeps the campaign source alone when no path was chosen", async () => {
+    apiGetResponse = { data: { data: NG_ASYNCPAY_PRICING } };
+
+    const { result } = renderHook(() => useLpCheckout());
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    act(() => {
+      result.current.pay({ name: "Chinedu Okafor", email: "chinedu@example.com" });
+    });
+
+    expect(mockAsyncpayCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { source: "learn-tech" } }),
+    );
+  });
+
   it("opens Paddle instead, for a visitor who resolves outside Nigeria", async () => {
     apiGetResponse = {
       data: {

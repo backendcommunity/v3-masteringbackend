@@ -2,15 +2,23 @@
 
 /**
  * The ₦9,999/month ads landing page. Public, no login, payment happens on
- * this page. Every CTA opens the checkout dialog (name, email, then the
- * payment SDK's own secure window); the bottom of the page carries the
- * same form inline for people who scroll the whole way.
+ * this page. It sells two paths, Backend Engineering and AI Engineering,
+ * on one subscription: every path CTA opens the checkout dialog with that
+ * path preselected (name, email, then the payment SDK's own secure
+ * window), and the bottom of the page carries the same form inline for
+ * people who scroll the whole way. The nav and footer point at the
+ * "choose your path" offer instead, so nobody reaches checkout without
+ * having picked one.
  *
  * Pricing: the page owns one useLpCheckout() call. The price the copy
  * names, the price the card shows and the price the SDK charges all come
  * from that single regional response, so a visitor in Nigeria sees ₦9,999
  * and is charged the ₦9,999 AsyncPay plan, and a visitor anywhere else
  * sees their own tier throughout. Nothing on the charge path is hardcoded.
+ *
+ * The chosen path is recorded, not enforced: it goes to analytics and to
+ * AsyncPay's metadata. Both paths buy the same plan, and onboarding still
+ * asks the learner to pick a path after login.
  *
  * `SectionHeading` is a local, page-only helper that deduplicates one JSX
  * shape (eyebrow pill + centered h2, optional lede) used by every section.
@@ -21,9 +29,14 @@ import { Instrument_Serif } from "next/font/google";
 import { analytics } from "@/lib/analytics";
 import { LP_9999_EVENTS } from "@/lib/analytics-events";
 import { TestimonialCard } from "@/components/pages/lp/testimonial-card";
-import { InlineCheckout } from "@/components/pages/lp/inline-checkout";
+import { VideoPoster } from "@/components/pages/lp/video-poster";
+import {
+  InlineCheckout,
+  LP_PATH_LABELS,
+} from "@/components/pages/lp/inline-checkout";
 import { CheckoutDialog } from "@/components/pages/lp/checkout-dialog";
 import { useLpCheckout } from "@/hooks/use-lp-checkout";
+import type { LpPath } from "@/hooks/use-lp-checkout";
 // The same list /pricing and /pricing/enterprise render, so the three
 // surfaces can never disagree about where learners work. Its own comment
 // is why the label reads "our learners work at" and not "trusted by":
@@ -45,122 +58,109 @@ const instrumentSerif = Instrument_Serif({
 const WHATSAPP_URL =
   "https://chat.whatsapp.com/LtCzfQlb9ex0BtWtcbwmDJ?s=cl&p=i&mlu=4&ilr=4";
 
-// What one subscription opens, in the platform's own three stages.
-// Every claim here is copied from the Pro column of /pricing
-// (components/pages/pricing.tsx), so the two pages can never disagree
-// about what a subscriber gets.
-const PILLARS = [
-  {
-    stage: "Learn",
-    heading: "Every course and learning path",
-    body: "All paid courses on the platform, and structured learning paths that take you from fundamentals to production. Beginner entry points on every track.",
-    items: [
-      "All paid courses and learning paths",
-      "Bootcamps and certification exams",
-      "Beginner to advanced, at your own pace",
-    ],
-  },
-  {
-    stage: "Build",
-    heading: "Real projects, not long videos",
-    body: "You practise by building. Every project you submit gets a code review from our team, and bite-size exercises in the playground keep you writing code between projects.",
-    items: [
-      "All projects, with code review on each submission",
-      "Bite-size practice exercises in the playground",
-      "A portfolio you can share with employers",
-    ],
-  },
-  {
-    stage: "Grow",
-    heading: "Get ready for the job",
-    body: "Mock interviews to practise before before the real job interview, build a portfolio international employers can check, and ask questions in a community of people learning, building, and growing with you.",
-    items: [
-      "Unlimited AI mock interviews, up to 30 minutes each",
-      "A professional profile and shareable portfolio",
-      "Community forum access",
-    ],
-  },
-];
-
-// The two learning paths that run end to end in production, with every
-// milestone in order, from GET /public/roadmaps and GET /roadmap/:slug on
-// prod.masteringbackend.com, 2026-09-16.
+// The two paths the page sells, as the brief asks: Backend Engineering and
+// AI Engineering, each with the route, courses and practice it includes.
+// Every item is from GET /public/courses and GET /public/roadmaps on
+// prod.masteringbackend.com, 2026-09-16, and between them the two course
+// lists name all nineteen courses on the platform.
 //
-// The Node.js and Rust paths are deliberately NOT listed: each carries a
-// single Essentials milestone today, and a buyer who picks one expecting a
-// route to a job would find one course. Their Essentials courses are in the
-// course list below, which is what they honestly are.
+// There is no standalone AI Engineering roadmap in production. "AI
+// Engineering" here is a named selection of what exists: the Python path,
+// walked to its AI Engineering milestone, plus the AI courses. The route
+// below is that path's own milestones, so a buyer who picks it lands on a
+// path they can actually walk. Do not give it a "Become an AI Engineer"
+// title until a roadmap by that name ships.
 //
-// There is no standalone AI Engineering path in production. AI Engineering
-// is a milestone inside the Python path and a course of its own, so that is
-// how the page shows it. Nothing here promises a path that does not exist.
-const LEARNING_PATHS = [
+// The Node.js and Rust paths are still not offered as routes: each carries
+// a single Essentials milestone, so they appear as courses only.
+const PATH_OFFERS: {
+  id: LpPath;
+  title: string;
+  summary: string;
+  routeLabel: string;
+  route: string[];
+  /** Milestones called out as the destination of the route. */
+  highlight: string[];
+  routeNote: string;
+  courses: string[];
+  practice: string[];
+}[] = [
   {
-    title: "Become a Python Backend Engineer",
-    banner:
-      "https://pub-63da695b9ece47c5b3b49bd78b86d884.r2.dev/Become%20a%20python%20engineer.png",
+    id: "backend",
+    title: "Backend Engineering",
     summary:
-      "The full route, from your first line of Python to shipping and defending a production system with AI in it.",
-    milestones: [
+      "Build the servers, APIs and systems every product runs on.",
+    routeLabel: "Your route · Python",
+    route: [
       "Python Foundations",
       "Backend Engineering Core",
       "Building Backend Systems",
       "Production Infrastructure",
+      "Ship and defend",
+    ],
+    highlight: [],
+    routeNote:
+      "Or the Java and Spring route: Java Essentials, Advanced Java, Building Backend Systems, Building RESTful APIs.",
+    courses: [
+      "Python Essentials",
+      "Advanced Python",
+      "Mastering Django: From Basics to Advanced",
+      "Dockerizing Python Apps",
+      "Logging and Caching in Python",
+      "Java Essentials",
+      "Advanced Java",
+      "Spring Framework & Spring Boot",
+      "Design Patterns in Java",
+      "Unit Testing in Java",
+      "Node.js Essentials",
+      "Rust Essentials",
+      "Introduction to GraphQL",
+      "Introduction to Software Testing",
+      "Intro to Data Structures & Algorithms",
+    ],
+    practice: [
+      "Backend projects, with a code review from our team on every submission",
+      "Bite-size coding exercises in the playground",
+    ],
+  },
+  {
+    id: "ai-engineering",
+    title: "AI Engineering",
+    summary:
+      "Build the AI systems behind real products: LLM apps, RAG and reliable workflows.",
+    routeLabel: "Your route",
+    route: [
+      "Python Foundations",
+      "Backend Engineering Core",
       "AI Engineering with Python",
       "Ship and defend",
     ],
-    /** Milestones worth calling out by name in the campaign. */
     highlight: ["AI Engineering with Python"],
-  },
-  {
-    title: "Become a Java and Spring Backend Engineer",
-    banner:
-      "https://pub-63da695b9ece47c5b3b49bd78b86d884.r2.dev/become%20a%20java%20engineer.png",
-    summary:
-      "For the enterprise track: Java from the ground up, then the Spring systems and APIs companies actually run.",
-    milestones: [
-      "Java Essentials",
-      "Advanced Java",
-      "Building Backend Systems",
-      "Building RESTful APIs",
+    routeNote:
+      "AI engineers ship production systems, so the route builds your backend first.",
+    courses: [
+      "AI Engineering",
+      "Building Reliable AI Workflows Beyond Chatbots",
+      "AntiGravity for Backend Engineers",
+      "Python Essentials",
+      "Advanced Python",
+      "Ship 30 Python Projects in 30 Days",
     ],
-    highlight: [],
+    practice: [
+      "AI and Python projects, with a code review on every submission",
+      "A 30-project sprint to build the habit of shipping",
+    ],
   },
 ];
 
-// Every course on the platform, from GET /public/courses on
-// prod.masteringbackend.com, 2026-09-16. All nineteen are included in the
-// subscription, so all nineteen are named: the offer is the catalogue, not
-// a shortlist.
-const COURSE_NAMES = [
-  "AI Engineering",
-  "Building Reliable AI Workflows Beyond Chatbots",
-  "AntiGravity for Backend Engineers",
-  "Python Essentials",
-  "Advanced Python",
-  "Ship 30 Python Projects in 30 Days",
-  "Mastering Django: From Basics to Advanced",
-  "Dockerizing Python Apps",
-  "Logging and Caching in Python",
-  "Java Essentials",
-  "Advanced Java",
-  "Spring Framework & Spring Boot",
-  "Design Patterns in Java",
-  "Unit Testing in Java",
-  "Node.js Essentials",
-  "Rust Essentials",
-  "Introduction to GraphQL",
-  "Introduction to Software Testing",
-  "Intro to Data Structures & Algorithms",
-];
-
-// The three promises in the hero, in the campaign's own words. Each one
-// is a stage of the platform (Learn, Build, Grow) and each is backed by
-// a Pro inclusion named further down the page.
-const HERO_POINTS = [
-  "Structured learning paths from fundamentals to production",
-  "Real-world projects and coding exercises to build and practise, not just long videos",
-  "Mock interviews to prepare and a portfolio that make you job-ready",
+// What every subscriber gets whichever path they pick. Copied from the Pro
+// column of /pricing (components/pages/pricing.tsx), so the two pages can
+// never disagree about what a subscriber gets.
+const SHARED_INCLUSIONS = [
+  "Unlimited AI mock interviews, up to 30 minutes each",
+  "A professional profile and shareable portfolio",
+  "Community forum access",
+  "Bootcamps and certification exams",
 ];
 
 // The campaign's deadline. This is a real commitment: on this date the
@@ -168,6 +168,7 @@ const HERO_POINTS = [
 // subscribed before it must keep their rate, because the page promises
 // both. If either changes, change it here.
 const DISCOUNT_ENDS_ON = "1 October 2026";
+const DISCOUNT_ENDS_SHORT = "1st October";
 const STANDARD_PRICE_NGN = "₦12,999";
 
 // The struck-through standard price is a naira figure, so it is only
@@ -179,91 +180,26 @@ function isNairaPrice(priceLabel: string): boolean {
 
 // What the platform actually holds, counted from GET /public/courses and
 // GET /public/roadmaps on prod.masteringbackend.com, 2026-09-16: nineteen
-// courses, 152 chapters across them, 57 hours of video, and the two
-// learning paths that run end to end. Recount before changing these.
+// courses, 152 chapters across them, 57 hours of video. Recount before
+// changing these.
 const PLATFORM_STATS: [string, string][] = [
   ["19", "courses"],
   ["152", "chapters"],
   ["57", "hours of video"],
-  ["2", "full learning paths"],
-];
-
-// Four courses shown with the artwork and figures the catalogue itself
-// carries, so the page shows the product rather than only describing it.
-// Banner URLs, chapter counts, hours and levels are the API's own.
-const FEATURED_COURSES = [
-  {
-    title: "AI Engineering",
-    banner:
-      "https://images.masteringbackend.com/AI%20Engineering%20%20Bootcamp.png",
-    level: "Beginner",
-    hours: 5,
-    chapters: 9,
-  },
-  {
-    title: "Advanced Python",
-    banner: "https://images.masteringbackend.com/advanced-python.png",
-    level: "Intermediate",
-    hours: 5,
-    chapters: 12,
-  },
-  {
-    title: "Advanced Java",
-    banner: "https://images.masteringbackend.com/advanced-java.png",
-    level: "Intermediate",
-    hours: 5,
-    chapters: 23,
-  },
-  {
-    title: "Ship 30 Python Projects in 30 Days",
-    banner:
-      "https://images.masteringbackend.com/Ship%2030%20Python%20Projects%20in%2030%20Days.png",
-    level: "Intermediate",
-    hours: 15,
-    chapters: 4,
-  },
-];
-
-// The scholarship page's "what happens after you enrol", for a
-// subscription. Every line describes something that actually happens, in
-// the order it happens, with no time promised that the platform does not
-// control (a code review is promised; its turnaround is not).
-const AFTER_YOU_SUBSCRIBE = [
-  {
-    when: "Immediately",
-    body: "Your login details land in your email after payment. Next, our onboarding process begins to help you pick a learning path.",
-  },
-  {
-    when: "In your first hour",
-    body: "Pick a learning path, backend or AI engineering, and start milestone one. Every path starts from the foundation, so there is nothing to know before you begin.",
-  },
-  {
-    when: "In your first weeks",
-    body: "Build and submit your first real world project and get a code review from our team. Take your first AI mock interview to test your job readiness.",
-  },
-  {
-    when: "Whenever you have a question",
-    body: "Ask in the community forum on the platform, or in the WhatsApp group, where other Nigerians on the same route and the Masteringbackend team are.",
-    href: WHATSAPP_URL,
-    linkLabel: "Join the WhatsApp group",
-  },
-  {
-    when: "Any month you need to stop",
-    body: "Cancel and you are not charged again. Your progress, projects and certificates stay on your profile, and you continue from the same lesson when you come back.",
-  },
+  ["2", "focused paths"],
 ];
 
 // Scholarship-page pattern: saying who should NOT buy is what makes the
 // rest of the page believable.
 const FOR_YOU = [
   "You have watched tutorials for months and still cannot build something on your own.",
-  "You want a remote role, a dollar income, or a switch into tech, and you need a structured learning path, not more videos.",
-  "You are starting from zero, or from another field. Every path begins at foundations.",
+  "You want a remote role, a dollar income, or a switch into tech, and you need one clear path, not more videos.",
+  "You are starting from zero, or from another field. Both paths begin at foundations.",
   "You can give it a few hours a week, on a modest laptop and average data.",
 ];
 
 const NOT_FOR_YOU = [
-  "You want a certificate without building anything. Every path here ends in projects someone reviews.",
+  "You want a certificate without building anything. Both paths end in projects someone reviews.",
   "You are looking for a quick win. This is a route to a career, and routes take months.",
   "You want someone to do it for you. We give you the route, the review and the room. You do the work.",
 ];
@@ -356,8 +292,16 @@ const TEXT_TESTIMONIALS = [
 
 const FAQ: { q: string; a: string }[] = [
   {
+    q: "What is the difference between the two paths?",
+    a: "Backend Engineering takes you through Python, or Java and Spring, to building and running production APIs and systems. AI Engineering starts on the same backend foundation, then goes into AI systems: LLM apps, RAG and reliable workflows. The price is the same.",
+  },
+  {
+    q: "Can you switch paths later?",
+    a: "Yes. One subscription opens both paths and every course. Picking a path sets where you start. Nothing is locked.",
+  },
+  {
     q: "What exactly do you get?",
-    a: "The whole platform. Every paid course and career-engineering path, every project with a code review on what you submit, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional portfolio you can share, and the community forum.",
+    a: "Your chosen path and the whole platform behind it. Every paid course, every project with a code review on what you submit, bite-size practice exercises in the playground, unlimited AI mock interviews of up to 30 minutes each, bootcamps and certification exams, a professional portfolio you can share, and the community forum.",
   },
   {
     q: "Is there a higher tier you are not showing me?",
@@ -377,7 +321,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "You have never written code. Can you still start?",
-    a: "Yes. Every of our learning path starts from foundations, and the Python and AI Engineering tracks begin from zero. There is nothing you need to know before your first lesson.",
+    a: "Yes. Both paths start from foundations, so there is nothing you need to know before your first lesson.",
   },
   {
     q: "What if you do not finish everything in a month?",
@@ -458,6 +402,18 @@ function GridSection({
 const CTA_CLASS =
   "inline-flex items-center justify-center rounded-full bg-primary font-bold text-[#05262F] transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0";
 
+const CTA_GLOW =
+  "shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]";
+
+// The second path button on a navy ground: same shape as CTA_CLASS, white
+// fill, so the two paths read as a pair rather than primary and secondary.
+const CTA_ON_NAVY_CLASS =
+  "inline-flex items-center justify-center rounded-full bg-white font-bold text-[#0E1F33] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-white/90 active:translate-y-0";
+
+// Its counterpart on a light ground.
+const CTA_ON_LIGHT_CLASS =
+  "inline-flex items-center justify-center rounded-full bg-[#0E1F33] font-bold text-white transition-transform duration-200 hover:-translate-y-0.5 hover:brightness-125 active:translate-y-0";
+
 export function LpPro9999Page() {
   useEffect(() => {
     analytics.track(LP_9999_EVENTS.viewed, {});
@@ -473,12 +429,21 @@ export function LpPro9999Page() {
   // while the request is in flight, so testing it would flash a naira
   // figure at everyone, including visitors billed in dollars.
   const showNairaDiscount = isNairaPrice(checkout.priceLabel);
+  // The hero's "₦100k+ bootcamp" is a naira comparison too, but it is the
+  // campaign's opening line, so it stays up while the price loads (the ads
+  // run in Nigeria) and gives way only once a visitor is quoted elsewhere.
+  const quotedOutsideNaira =
+    checkout.priceLabel !== "" && !showNairaDiscount;
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  // One path for the dialog and the bottom form, so they always agree.
+  const [path, setPath] = useState<LpPath>("backend");
 
-  // Every CTA opens the dialog and records which one did.
-  const openCheckout = useCallback((section: string) => {
-    analytics.track(LP_9999_EVENTS.ctaClicked, { section });
+  // Every path CTA preselects its path, opens the dialog, and records
+  // which button did it.
+  const openCheckout = useCallback((section: string, chosen: LpPath) => {
+    analytics.track(LP_9999_EVENTS.ctaClicked, { section, path: chosen });
+    setPath(chosen);
     setCheckoutOpen(true);
   }, []);
 
@@ -490,16 +455,48 @@ export function LpPro9999Page() {
   // of six, section six. Belief has to arrive before the inventory does.
   const heroProof = TESTIMONIALS[0];
 
+  // The brief's two path buttons. Rendered in the hero, the offer card, each
+  // path block and the closing section, always Backend first.
+  const pathCtas = (section: string, secondClassName: string) => (
+    <>
+      <button
+        type="button"
+        onClick={() => openCheckout(section, "backend")}
+        className={`${CTA_CLASS} ${CTA_GLOW} px-7 py-3.5 text-base`}
+      >
+        Start {LP_PATH_LABELS.backend} — {price}/mo
+      </button>
+      <button
+        type="button"
+        onClick={() => openCheckout(section, "ai-engineering")}
+        className={`${secondClassName} px-7 py-3.5 text-base`}
+      >
+        Start {LP_PATH_LABELS["ai-engineering"]} — {price}/mo
+      </button>
+    </>
+  );
+
+  const discountLine = showNairaDiscount ? (
+    <>
+      <s>{STANDARD_PRICE_NGN}</s> <b>{price}</b> until {DISCOUNT_ENDS_ON}.
+    </>
+  ) : (
+    <>Discounted until {DISCOUNT_ENDS_ON}.</>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <CheckoutDialog
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         checkout={checkout}
+        path={path}
+        onPathChange={setPath}
       />
 
       {/* NAV. The real app nav's chrome (bg-card, its shadow token, sticky)
-          without search, notifications or avatar: no session on this route. */}
+          without search, notifications or avatar: no session on this route.
+          It points at the path choice, not at checkout. */}
       <nav className="sticky top-0 z-30 bg-card shadow-[0_1px_2px_rgba(14,31,51,.06),0_4px_16px_rgba(14,31,51,.06)]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-5 px-4 sm:px-6">
           <span className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
@@ -510,95 +507,76 @@ export function LpPro9999Page() {
             />
             masteringbackend.
           </span>
-          <button
-            type="button"
-            onClick={() => openCheckout("nav")}
-            className={`${CTA_CLASS} px-4 py-3 text-sm`}
-          >
-            Start learning
-          </button>
+          <a href="#offer" className={`${CTA_CLASS} px-4 py-3 text-sm`}>
+            Choose your path
+          </a>
         </div>
       </nav>
 
-      {/* HERO: the promise, in their words, next to a real face saying it
-          worked. Left-aligned on purpose; the rest of the page is centered
-          and the hero should not look like one more section. */}
+      {/* HERO: the cost of the alternative, the two paths, and a real face
+          saying it worked. Laid out like the MasteringAI scholarship hero:
+          a compact two-column block, copy and video both centred on one
+          axis, the two path buttons side by side. Two columns only from xl:
+          below that the copy column is too narrow for both buttons on one
+          line, so the video drops beneath the copy instead. The container uses the
+          nav's own gutter so the headline starts under the logo. */}
       <header className="relative overflow-hidden bg-[#0E1F33] text-white">
         <div className="hero-grid absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-12 lg:py-20">
-          <div>
-            <h1 className="mt-3 max-w-[15ch] text-balance text-[clamp(34px,4.6vw,54px)] font-bold leading-[1.02] tracking-tight">
-              Learn backend and AI skills for{" "}
-              <span className="whitespace-nowrap text-primary">
-                {price} a month
-              </span>
-              .
-            </h1>
-            <p className="mt-5 max-w-[52ch] text-[17.5px] leading-relaxed text-white/80">
-              Our mission is to democratize backend and AI engineering skills
-              for{" "}
+        <div className="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-10 px-4 py-14 sm:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:gap-12 xl:py-24">
+          <div className="max-w-[640px] xl:max-w-none">
+            <h1 className="text-balance text-[clamp(32px,3.4vw,46px)] font-bold leading-[1.08] tracking-tight">
+              {quotedOutsideNaira
+                ? "Still thinking of paying for an expensive bootcamp?"
+                : "Still thinking of spending ₦100k+ on a bootcamp?"}
               <em
-                className={`${instrumentSerif.className} text-[1.18em] leading-none text-primary`}
+                className={`${instrumentSerif.className} mt-1 block text-[1.18em] font-normal leading-[1.05] text-primary`}
               >
-                one million Africans
+                You don&apos;t have to.
               </em>
-              . Access to structured learning paths, real-world projects, and a
-              supportive community that takes you from fundamentals to
-              job-ready.
+            </h1>
+            <p className="mt-5 max-w-[50ch] text-[17px] leading-relaxed text-white/75">
+              Pick one path,{" "}
+              <b className="font-semibold text-white">Backend Engineering</b> or{" "}
+              <b className="font-semibold text-white">AI Engineering</b>, and
+              learn everything from the basics to job-ready, all with one
+              low-cost subscription.
             </p>
-            {/* <ul className="mt-5 flex max-w-[50ch] flex-col gap-2.5 text-[15.5px] text-white/85">
-              {HERO_POINTS.map((point) => (
-                <li key={point} className="flex gap-2.5">
-                  <span className="mt-0.5 text-primary">✓</span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul> */}
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => openCheckout("hero")}
-                className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
-              >
-                Start learning for {price}
-              </button>
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onWhatsappClick}
-                className="inline-flex items-center rounded-full border border-white/30 px-7 py-3.5 text-base font-bold transition-colors duration-200 hover:bg-white/10"
-              >
-                Join the WhatsApp group
-              </a>
+            {/* The two paths are peers: side by side, each sized to its
+                label. Full width only on phones, where both cannot fit. */}
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap [&>button]:whitespace-nowrap [&>button]:px-5 [&>button]:text-[15px]">
+              {pathCtas("hero", CTA_ON_NAVY_CLASS)}
             </div>
-            <p className="mt-3 text-xs">
-              <span className="text-red-500">
-                Full refund if you are not satisfied and ask within the first 3
-                days of subscription.
-              </span>
-            </p>
-            {/* <p className="mt-3.5 max-w-[52ch] text-[15.5px] leading-relaxed text-white/80">
-              {showNairaDiscount ? (
-                <>
-                  <s className="text-white/45">{STANDARD_PRICE_NGN}</s>{" "}
-                  <b className="text-[1.12em] text-white">{price} a month</b>{" "}
-                  until {DISCOUNT_ENDS_ON}
-                </>
-              ) : (
-                <>
-                  <b className="text-white">Discounted</b> until{" "}
-                  {DISCOUNT_ENDS_ON}
-                </>
-              )}
-              . Subscribe now and you keep this rate for as long as you stay
-              subscribed.
-            </p> */}
+
+            <ul className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px] text-white/70">
+              <li className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-primary">
+                  ✓
+                </span>
+                Full refund within 3 days
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-primary">
+                  ✓
+                </span>
+                Cancel any time
+              </li>
+              <li>
+                <a
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onWhatsappClick}
+                  className="font-semibold text-white underline decoration-white/40 underline-offset-4 transition-colors duration-150 hover:decoration-white"
+                >
+                  Join the WhatsApp group
+                </a>
+              </li>
+            </ul>
           </div>
 
-          <div className="w-full max-w-md lg:justify-self-end">
-            <TestimonialCard {...heroProof} />
+          <div className="w-full max-w-[720px] overflow-hidden rounded-2xl shadow-[0_24px_60px_-20px_rgba(0,0,0,.6)] ring-1 ring-white/15">
+            <VideoPoster youtubeId={heroProof.youtubeId} title={heroProof.title} />
           </div>
         </div>
       </header>
@@ -655,60 +633,134 @@ export function LpPro9999Page() {
         </div>
       </section>
 
-      {/* BEFORE YOU REGISTER: the exact sequence, before anyone is asked
-          for anything. Whitish ground carrying the same linework as the
-          hero, so the page reads as one surface rather than alternating
-          slabs. */}
-      <GridSection className="bg-[#F4F7FA] py-16">
-        <SectionHeading
-          eyebrow="Before you subscribe"
-          heading="What happens after you subscribe."
-          description="Here's the full sequence, and how to reach a person along the way."
-          descriptionClassName="mt-4 text-muted-foreground"
-        />
-        <ol className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {AFTER_YOU_SUBSCRIBE.map((item, i) => (
-            <li
-              key={item.when}
-              /* The arrow lives in the grid gap and has to disappear at the
-                 end of each row, which is a different card at every
-                 breakpoint: 1 column stacks (never a row end), 2 columns end
-                 on every 2nd, 3 columns on every 3rd. The `lg` rule re-shows
-                 the 2nd card's arrow, since `sm` still applies there. */
-              className="relative flex flex-col rounded-xl border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/50 sm:[&:nth-child(2n)>[data-step-arrow]]:hidden lg:[&:nth-child(2n)>[data-step-arrow]]:block lg:[&:nth-child(3n)>[data-step-arrow]]:hidden"
+      {/* MISSION. Directly after "our learners work at": the proof says
+          this is a real company, the mission says why the price is low. */}
+      <section className="border-b border-border bg-card py-14">
+        <div className="mx-auto max-w-[820px] px-4 text-center sm:px-8">
+          <span className="eyebrow-mono text-primary">our mission</span>
+          <p className="mt-3 text-balance text-[clamp(20px,2.4vw,27px)] font-semibold leading-snug tracking-tight">
+            Our mission is to democratize backend and AI engineering skills
+            for{" "}
+            <em
+              className={`${instrumentSerif.className} text-[1.15em] font-normal text-primary`}
             >
-              {i < AFTER_YOU_SUBSCRIBE.length - 1 ? (
-                <span
-                  data-step-arrow
-                  aria-hidden="true"
-                  className="absolute -bottom-[18px] left-1/2 z-10 grid h-6 w-6 -translate-x-1/2 rotate-90 place-items-center rounded-full bg-[#F4F7FA] text-[15px] font-bold text-primary sm:-right-[22px] sm:bottom-auto sm:left-auto sm:top-1/2 sm:-translate-y-1/2 sm:translate-x-0 sm:rotate-0"
-                >
-                  ➝
+              one million Africans
+            </em>
+            .
+          </p>
+          <p className="mx-auto mt-3 max-w-[60ch] text-[16px] leading-relaxed text-muted-foreground">
+            Access to structured learning paths, real-world projects, and a
+            supportive community that takes you from fundamentals to
+            job-ready.
+          </p>
+        </div>
+      </section>
+
+      {/* THE OFFER: why the price matters, the two paths, the price and the
+          deadline in one place. The reassurance the old "what happens after
+          you subscribe" steps carried lives on in the checklist. */}
+      <GridSection className="scroll-mt-14 bg-[#F4F7FA] py-16">
+        <div
+          id="offer"
+          className="grid scroll-mt-20 grid-cols-1 items-start gap-10 lg:grid-cols-[1.1fr_0.9fr]"
+        >
+          <div>
+            <h2 className="max-w-[20ch] text-balance text-[clamp(26px,3.2vw,40px)] font-bold leading-[1.1] tracking-tight">
+              Want to start a career in tech, but the cost of courses keeps
+              holding you back?
+            </h2>
+            <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-muted-foreground">
+              MasteringBackend gives you a structured learning path in{" "}
+              <b className="text-foreground">Backend Engineering</b> or{" "}
+              <b className="text-foreground">AI Engineering</b>. Your choice,
+              one focused route. With real-world projects, code reviews from
+              our team, unlimited AI mock interviews, and a community of
+              learners on the same journey, you move from your first lesson to
+              job-ready without guesswork.
+            </p>
+            <ul className="mt-6 flex flex-col gap-2.5 text-[15px] text-muted-foreground">
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 text-primary">✓</span>
+                <span>Your login details arrive by email right after payment.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 text-primary">✓</span>
+                <span>
+                  Cancel any month. Your progress, projects and certificates
+                  stay on your profile.
                 </span>
-              ) : null}
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 font-mono text-[13px] text-primary">
-                {i + 1}
-              </span>
-              <h3 className="mt-4 text-[17px] font-bold tracking-tight">
-                {item.when}
-              </h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-                {item.body}
-              </p>
-              {item.href ? (
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={onWhatsappClick}
-                  className="mt-3 inline-block text-[15px] font-bold text-primary underline underline-offset-4 transition-opacity duration-150 hover:opacity-70"
+              </li>
+              <li className="flex gap-2.5">
+                <span className="mt-0.5 text-primary">✓</span>
+                <span>
+                  Questions before you pay?{" "}
+                  <a
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onWhatsappClick}
+                    className="font-bold text-foreground underline underline-offset-4 transition-opacity duration-150 hover:opacity-70"
+                  >
+                    Ask in the WhatsApp group
+                  </a>
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(14,31,51,.04),0_18px_40px_-22px_rgba(14,31,51,.25)]">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              Choose your path
+            </p>
+            <div className="mt-3 flex flex-col gap-2.5">
+              {PATH_OFFERS.map((offer) => (
+                <button
+                  key={offer.id}
+                  type="button"
+                  onClick={() => openCheckout("offer", offer.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-[#F4F7FA] px-4 py-3.5 text-left transition-colors duration-150 hover:border-primary hover:bg-primary/5"
                 >
-                  {item.linkLabel}
-                </a>
+                  <span>
+                    <span className="block text-base font-bold">
+                      {offer.title}
+                    </span>
+                    <span className="mt-0.5 block text-[13px] text-muted-foreground">
+                      {offer.summary}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="text-xl text-primary">
+                    →
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-5 flex flex-wrap items-baseline gap-2.5">
+              <b className="text-[40px] font-bold leading-none tracking-tight">
+                {price}
+              </b>
+              <span className="text-muted-foreground">/month</span>
+              {showNairaDiscount ? (
+                <s className="text-muted-foreground">{STANDARD_PRICE_NGN}</s>
               ) : null}
-            </li>
-          ))}
-        </ol>
+            </p>
+            <p className="mt-2 flex items-center gap-2 text-sm font-bold">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 rounded-full bg-red-500"
+              />
+              Offer ends {DISCOUNT_ENDS_SHORT}*
+            </p>
+            <p className="mt-4 border-t border-border pt-4 text-[12.5px] leading-relaxed text-muted-foreground">
+              *Subscribe before {DISCOUNT_ENDS_ON} and keep{" "}
+              {showNairaDiscount ? price : "this rate"} for as long as you stay
+              subscribed.
+              {showNairaDiscount
+                ? ` New subscribers pay ${STANDARD_PRICE_NGN}/month after that.`
+                : ""}{" "}
+              One subscription opens both paths.
+            </p>
+          </div>
+        </div>
       </GridSection>
 
       {/* PROOF, before the inventory. */}
@@ -745,40 +797,137 @@ export function LpPro9999Page() {
         </ul>
       </section>
 
-      {/* WHAT YOU GET: the inventory, now that they believe it. */}
+      {/* WHAT YOU GET: one block per path, so the difference reads at a
+          glance, then what both share. Numbered markers inside the routes
+          on purpose: a path IS a sequence, and the order is the product. */}
       <section className="bg-[#0E1F33] py-16 text-white">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-12">
           <SectionHeading
-            eyebrowVariant="outline"
-            heading={<>What you get</>}
-            description="Learn it, build it, then get ready for the job. Your subscription opens all three from day one, and nothing here costs extra."
+            heading="What you get"
+            description="Two focused paths. Pick the one that fits the job you want. Your subscription opens both, so you can switch any time."
             descriptionClassName="mt-4 text-white/72"
           />
 
-          <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {PILLARS.map((pillar) => (
+          <div className="mt-9 grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {PATH_OFFERS.map((offer, index) => (
+              // A <div>, not an <article>: globals.css styles every
+              // `article ul` as blog prose (bullets, grey text).
               <div
-                key={pillar.stage}
-                className="rounded border border-white/12 bg-white/[0.04] p-6 transition-colors duration-200 hover:border-primary/40 hover:bg-white/[0.06]"
+                key={offer.id}
+                className={`flex flex-col rounded-xl border p-6 sm:p-7 ${
+                  offer.id === "ai-engineering"
+                    ? "border-primary/45 bg-[linear-gradient(180deg,rgba(19,174,206,.10),rgba(255,255,255,.03)_45%)]"
+                    : "border-white/14 bg-white/[0.04]"
+                }`}
               >
-                <div className="text-[11px] text-primary">{pillar.stage}</div>
-                <h3 className="mt-2.5 text-xl font-bold">{pillar.heading}</h3>
-                <p className="mt-2.5 text-[15px] leading-relaxed text-white/72">
-                  {pillar.body}
+                <span className="eyebrow-mono text-primary">
+                  path 0{index + 1}
+                </span>
+                <h3 className="mt-2 text-[26px] font-bold tracking-tight">
+                  {offer.title}
+                </h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-white/72">
+                  {offer.summary}
                 </p>
-                <ul className="mt-5 flex flex-col gap-2.5 border-t border-white/12 pt-4">
-                  {pillar.items.map((item) => (
-                    <li
-                      key={item}
-                      className="flex gap-2.5 text-[14px] text-white/85"
-                    >
-                      <span className="mt-0.5 text-primary">✓</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+
+                <div className="mt-6 border-t border-white/12 pt-4">
+                  <h4 className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/55">
+                    {offer.routeLabel}
+                  </h4>
+                  <ol className="mt-2 flex flex-col">
+                    {offer.route.map((milestone, i) => {
+                      const isHighlight = offer.highlight.includes(milestone);
+                      return (
+                        <li
+                          key={milestone}
+                          className="flex items-center gap-3 py-1.5"
+                        >
+                          <span
+                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[11px] ${
+                              isHighlight
+                                ? "bg-primary text-[#05262F]"
+                                : "bg-white/10 text-white/70"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          <span
+                            className={
+                              isHighlight
+                                ? "text-[15px] font-bold text-primary"
+                                : "text-[15px] text-white/90"
+                            }
+                          >
+                            {milestone}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                    {offer.routeNote}
+                  </p>
+                </div>
+
+                <div className="mt-5 border-t border-white/12 pt-4">
+                  <h4 className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/55">
+                    Courses included
+                  </h4>
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {offer.courses.map((course) => (
+                      <li
+                        key={course}
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-[13px] text-white/85"
+                      >
+                        {course}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-5 border-t border-white/12 pt-4">
+                  <h4 className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/55">
+                    Practical training
+                  </h4>
+                  <ul className="mt-3 flex flex-col gap-2.5">
+                    {offer.practice.map((item) => (
+                      <li
+                        key={item}
+                        className="flex gap-2.5 text-[14.5px] text-white/85"
+                      >
+                        <span className="mt-0.5 text-primary">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openCheckout("what-you-get", offer.id)}
+                  className={`${CTA_CLASS} mt-7 self-start px-6 py-3 text-[15px]`}
+                >
+                  Start {LP_PATH_LABELS[offer.id]} — {price}/mo
+                </button>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 items-center gap-4 rounded-xl border border-dashed border-white/25 px-6 py-5 lg:grid-cols-[auto_1fr] lg:gap-8">
+            <p className="text-base font-bold">
+              In both paths
+              <span className="block text-[13.5px] font-normal text-white/72">
+                One subscription. Nothing costs extra.
+              </span>
+            </p>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2 lg:justify-end">
+              {SHARED_INCLUSIONS.map((item) => (
+                <li key={item} className="flex gap-2 text-[14px] text-white/90">
+                  <span className="text-primary">+</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-6 border-y border-white/12 py-7 sm:grid-cols-4">
@@ -791,130 +940,8 @@ export function LpPro9999Page() {
               </div>
             ))}
           </dl>
-
-          <div className="mt-10">
-            <p className="text-center text-sm text-white/55">
-              Unlimited access to all courses, including
-            </p>
-            <div className="mx-auto mt-4 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURED_COURSES.map((c) => (
-                <div
-                  key={c.title}
-                  className="overflow-hidden rounded border border-white/12 bg-white/[0.04] transition-colors duration-200 hover:border-primary/40"
-                >
-                  <img
-                    src={c.banner}
-                    alt={`${c.title} course`}
-                    loading="lazy"
-                    className="aspect-[16/9] w-full object-cover"
-                  />
-                  <div className="p-4">
-                    <h3 className="text-[15px] font-bold leading-snug">
-                      {c.title}
-                    </h3>
-                    <p className="mt-2 text-[12.5px] text-white/55">
-                      {c.level} · {c.hours} hr · {c.chapters} chapters
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-center pt-4 text-sm text-white/55">
-              ...and many more
-            </p>
-            <ul className="mx-auto mt-5 flex max-w-3xl flex-wrap justify-center gap-2">
-              {COURSE_NAMES.filter(
-                (title) => !FEATURED_COURSES.some((c) => c.title === title),
-              ).map((title) => (
-                <li
-                  key={title}
-                  className="rounded-full border border-white/15 px-3.5 py-1.5 text-[13px] text-white/85"
-                >
-                  {title}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       </section>
-
-      {/* THE PATHS. Numbered markers are used here on purpose: a path IS a
-          sequence, and the order is the product. */}
-      <GridSection className="bg-[#F4F7FA] py-16">
-        <SectionHeading
-          heading="Unlimited access to our career-engineering learning paths."
-          description="You never have to guess what to learn next. Our learning paths are designed to takes you from your first line of code to job readiness."
-          descriptionClassName="mt-4 text-muted-foreground"
-        />
-
-        <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 lg:grid-cols-2">
-          {LEARNING_PATHS.map((path) => (
-            <div
-              key={path.title}
-              className="flex flex-col rounded border border-border bg-card p-6 transition-colors duration-200 hover:border-primary/30"
-            >
-              <img
-                src={path.banner}
-                alt={`${path.title} learning path`}
-                loading="lazy"
-                className="mb-4 aspect-[16/9] w-full rounded object-cover"
-              />
-              <h3 className="text-[19px] font-bold tracking-tight">
-                {path.title}
-              </h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-                {path.summary}
-              </p>
-              <ol className="mt-5 flex flex-col gap-0 border-t border-border pt-2">
-                {path.milestones.map((milestone, i) => {
-                  const isHighlight = path.highlight.includes(milestone);
-                  return (
-                    <li
-                      key={milestone}
-                      className="flex items-center gap-3 border-b border-border/60 py-2.5 last:border-0"
-                    >
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted font-mono text-[11px] text-muted-foreground">
-                        {i + 1}
-                      </span>
-                      <span
-                        className={
-                          isHighlight
-                            ? "text-[15px] font-bold text-primary"
-                            : "text-[15px] text-foreground"
-                        }
-                      >
-                        {milestone}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-10 text-center">
-          <button
-            type="button"
-            onClick={() => openCheckout("paths")}
-            className={`${CTA_CLASS} px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
-          >
-            Start learning for {price}
-          </button>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {showNairaDiscount ? (
-              <>
-                <s>{STANDARD_PRICE_NGN}</s>{" "}
-                <b className="text-foreground">{price}</b> until{" "}
-                {DISCOUNT_ENDS_ON}.
-              </>
-            ) : (
-              <>Discounted until {DISCOUNT_ENDS_ON}.</>
-            )}
-          </p>
-        </div>
-      </GridSection>
 
       {/* FOR YOU / NOT FOR YOU */}
       <section className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 lg:px-12">
@@ -960,13 +987,13 @@ export function LpPro9999Page() {
           <div>
             <span className="eyebrow-mono text-[#4AC5E8]">start today</span>
             <h2 className="mt-3 max-w-[16ch] text-balance text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.06] tracking-tight">
-              Just do it.
+              Pick your path. Start tonight.
             </h2>
 
             <p className="mt-5 max-w-[44ch] text-[15px] leading-relaxed text-white/72">
-              For {price} a month you get all 19 courses, 152 chapters and both
-              career-engineering paths. You can cancel any time while keeping
-              your progress.
+              For {price} a month you get your path, all 19 courses, code
+              reviews on your projects and unlimited AI mock interviews. You
+              can cancel any time while keeping your progress.
             </p>
             <p className="mt-4 text-xs">
               <span className="text-red-500">
@@ -974,20 +1001,16 @@ export function LpPro9999Page() {
                 days of subscription.
               </span>
             </p>
-            <p className="mt-2 text-xs text-white/46">
-              {showNairaDiscount ? (
-                <>
-                  <s>{STANDARD_PRICE_NGN}</s>{" "}
-                  <b className="text-white/80">{price}</b> a month until{" "}
-                  {DISCOUNT_ENDS_ON}.
-                </>
-              ) : (
-                <>Discounted until {DISCOUNT_ENDS_ON}.</>
-              )}{" "}
-              Your rate stays the same for as long as you stay subscribed.
+            <p className="mt-2 text-xs text-white/46 [&_b]:text-white/80">
+              {discountLine} Your rate stays the same for as long as you stay
+              subscribed.
             </p>
           </div>
-          <InlineCheckout checkout={checkout} />
+          <InlineCheckout
+            checkout={checkout}
+            path={path}
+            onPathChange={setPath}
+          />
         </div>
       </section>
 
@@ -1020,27 +1043,14 @@ export function LpPro9999Page() {
           </h2>
           <p className="mx-auto mt-4 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
             Whether you are starting out or levelling up the career you already
-            have, we provide the tools to transform your career and become
-            job-ready. Subscribe today and open your first lesson tonight.
+            have, pick a path, subscribe today and open your first lesson
+            tonight.
           </p>
-          <button
-            type="button"
-            onClick={() => openCheckout("final")}
-            className={`${CTA_CLASS} mt-7 px-7 py-3.5 text-base shadow-[0_2px_6px_rgba(19,174,206,.3),0_12px_26px_-8px_rgba(19,174,206,.45)]`}
-          >
-            Start learning for {price}
-          </button>
-          <p className="mt-3 text-[13.5px] text-muted-foreground">
-            {showNairaDiscount ? (
-              <>
-                <s>{STANDARD_PRICE_NGN}</s>{" "}
-                <b className="text-foreground">{price}</b> until{" "}
-                {DISCOUNT_ENDS_ON}.
-              </>
-            ) : (
-              <>Discounted until {DISCOUNT_ENDS_ON}.</>
-            )}{" "}
-            Cancel any time.
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            {pathCtas("final", CTA_ON_LIGHT_CLASS)}
+          </div>
+          <p className="mt-3 text-[13.5px] text-muted-foreground [&_b]:text-foreground">
+            {discountLine} Cancel any time.
           </p>
           <p className="mx-auto mt-10 max-w-[48ch] text-balance text-[15px] leading-relaxed text-muted-foreground">
             You would be one of the one million Africans we are democratizing
@@ -1062,13 +1072,12 @@ export function LpPro9999Page() {
               masteringbackend.
             </span>
             <p className="text-sm text-white/46">Learn. Build. Grow.</p>
-            <button
-              type="button"
-              onClick={() => openCheckout("footer")}
+            <a
+              href="#offer"
               className="inline-flex items-center rounded-full border border-white/30 px-5 py-3 text-sm font-bold transition-colors duration-200 hover:bg-white/10"
             >
-              Start learning for {price}
-            </button>
+              Choose your path
+            </a>
           </div>
           <div
             aria-hidden="true"
