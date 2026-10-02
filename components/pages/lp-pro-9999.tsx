@@ -168,7 +168,7 @@ const SHARED_INCLUSIONS = [
 // both. If either changes, change it here.
 const DISCOUNT_ENDS_ON = "1 November 2026";
 const DISCOUNT_ENDS_SHORT = "1st November";
-const STANDARD_PRICE_NGN = "₦59,999";
+const STANDARD_PRICE_NGN = "₦49,999";
 
 // The struck-through standard price is a naira figure, so it is only
 // shown to visitors the pricing API actually quotes in naira. Everyone
