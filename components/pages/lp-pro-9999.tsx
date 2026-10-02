@@ -88,8 +88,7 @@ const PATH_OFFERS: {
   {
     id: "backend",
     title: "Backend Engineering",
-    summary:
-      "Build the servers, APIs and systems every product runs on.",
+    summary: "Build the servers, APIs and systems every product runs on.",
     routeLabel: "Your route · Python",
     route: [
       "Python Foundations",
@@ -167,9 +166,9 @@ const SHARED_INCLUSIONS = [
 // naira price must actually become STANDARD_PRICE_NGN, and everyone who
 // subscribed before it must keep their rate, because the page promises
 // both. If either changes, change it here.
-const DISCOUNT_ENDS_ON = "1 October 2026";
-const DISCOUNT_ENDS_SHORT = "1st October";
-const STANDARD_PRICE_NGN = "₦12,999";
+const DISCOUNT_ENDS_ON = "1 November 2026";
+const DISCOUNT_ENDS_SHORT = "1st November";
+const STANDARD_PRICE_NGN = "₦49,999";
 
 // The struck-through standard price is a naira figure, so it is only
 // shown to visitors the pricing API actually quotes in naira. Everyone
@@ -432,8 +431,7 @@ export function LpPro9999Page() {
   // The hero's "₦100k+ bootcamp" is a naira comparison too, but it is the
   // campaign's opening line, so it stays up while the price loads (the ads
   // run in Nigeria) and gives way only once a visitor is quoted elsewhere.
-  const quotedOutsideNaira =
-    checkout.priceLabel !== "" && !showNairaDiscount;
+  const quotedOutsideNaira = checkout.priceLabel !== "" && !showNairaDiscount;
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   // One path for the dialog and the bottom form, so they always agree.
@@ -576,7 +574,10 @@ export function LpPro9999Page() {
           </div>
 
           <div className="w-full max-w-[720px] overflow-hidden rounded-2xl shadow-[0_24px_60px_-20px_rgba(0,0,0,.6)] ring-1 ring-white/15">
-            <VideoPoster youtubeId={heroProof.youtubeId} title={heroProof.title} />
+            <VideoPoster
+              youtubeId={heroProof.youtubeId}
+              title={heroProof.title}
+            />
           </div>
         </div>
       </header>
@@ -639,8 +640,7 @@ export function LpPro9999Page() {
         <div className="mx-auto max-w-[820px] px-4 text-center sm:px-8">
           <span className="eyebrow-mono text-primary">our mission</span>
           <p className="mt-3 text-balance text-[clamp(20px,2.4vw,27px)] font-semibold leading-snug tracking-tight">
-            Our mission is to democratize backend and AI engineering skills
-            for{" "}
+            Our mission is to democratize backend and AI engineering skills for{" "}
             <em
               className={`${instrumentSerif.className} text-[1.15em] font-normal text-primary`}
             >
@@ -650,8 +650,7 @@ export function LpPro9999Page() {
           </p>
           <p className="mx-auto mt-3 max-w-[60ch] text-[16px] leading-relaxed text-muted-foreground">
             Access to structured learning paths, real-world projects, and a
-            supportive community that takes you from fundamentals to
-            job-ready.
+            supportive community that takes you from fundamentals to job-ready.
           </p>
         </div>
       </section>
@@ -673,15 +672,17 @@ export function LpPro9999Page() {
               MasteringBackend gives you a structured learning path in{" "}
               <b className="text-foreground">Backend Engineering</b> or{" "}
               <b className="text-foreground">AI Engineering</b>. Your choice,
-              one focused route. With real-world projects, code reviews from
-              our team, unlimited AI mock interviews, and a community of
-              learners on the same journey, you move from your first lesson to
-              job-ready without guesswork.
+              one focused route. With real-world projects, code reviews from our
+              team, unlimited AI mock interviews, and a community of learners on
+              the same journey, you move from your first lesson to job-ready
+              without guesswork.
             </p>
             <ul className="mt-6 flex flex-col gap-2.5 text-[15px] text-muted-foreground">
               <li className="flex gap-2.5">
                 <span className="mt-0.5 text-primary">✓</span>
-                <span>Your login details arrive by email right after payment.</span>
+                <span>
+                  Your login details arrive by email right after payment.
+                </span>
               </li>
               <li className="flex gap-2.5">
                 <span className="mt-0.5 text-primary">✓</span>
@@ -992,8 +993,8 @@ export function LpPro9999Page() {
 
             <p className="mt-5 max-w-[44ch] text-[15px] leading-relaxed text-white/72">
               For {price} a month you get your path, all 19 courses, code
-              reviews on your projects and unlimited AI mock interviews. You
-              can cancel any time while keeping your progress.
+              reviews on your projects and unlimited AI mock interviews. You can
+              cancel any time while keeping your progress.
             </p>
             <p className="mt-4 text-xs">
               <span className="text-red-500">
