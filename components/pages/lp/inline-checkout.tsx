@@ -86,7 +86,7 @@ export function InlineCheckout({
   }
 
   return (
-    <div className={variant === "card" ? "rounded bg-card p-7 z-50" : ""}>
+    <div className={variant === "card" ? "rounded bg-card p-7 z-50" : "z-50"}>
       <div className="flex items-baseline justify-between gap-3 border-b border-border pb-4">
         <div className="text-[38px] font-bold leading-none tracking-tight">
           {status === "loading" ? (
