@@ -35,7 +35,13 @@ export function CheckoutDialog({
   onPathChange: (path: LpPath) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(l) => {
+        onOpenChange(false);
+        open === false;
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Start your path</DialogTitle>
