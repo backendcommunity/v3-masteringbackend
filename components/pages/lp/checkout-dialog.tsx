@@ -35,13 +35,7 @@ export function CheckoutDialog({
   onPathChange: (path: LpPath) => void;
 }) {
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(l) => {
-        onOpenChange(false);
-        open === false;
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Start your path</DialogTitle>
@@ -53,7 +47,10 @@ export function CheckoutDialog({
         <InlineCheckout
           checkout={checkout}
           path={path}
-          onPathChange={onPathChange}
+          onPathChange={(path) => {
+            onPathChange(path);
+            onOpenChange(false);
+          }}
           variant="plain"
         />
       </DialogContent>

@@ -68,6 +68,7 @@ export function InlineCheckout({
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    onPathChange(path); // in case the user changed it before hitting submit
     if (!name.trim() || !email.trim()) return;
     analytics.track(LP_9999_EVENTS.checkoutStarted, { path });
     pay({ name: name.trim(), email: email.trim(), path });
