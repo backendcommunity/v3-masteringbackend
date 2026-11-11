@@ -79,7 +79,7 @@ export default function ScholarshipFlyerPage() {
             className="font-bold"
             style={{ color: "#0E1F33", fontSize: 26, lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
-            Tell the world you&apos;re joining Cohort 2
+            Tell the world you&apos;re joining Cohort 3
           </h1>
           <p className="mt-1.5 text-[14.5px] leading-relaxed" style={{ color: "#64748B" }}>
             Add your photo and name, and get a flyer built for LinkedIn and X.
