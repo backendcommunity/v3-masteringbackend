@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Make your scholarship flyer",
   description:
-    "Generate a personalised flyer announcing that you're joining the AI Engineering Bootcamp Cohort 2, through the ₦27 Million AI Engineering Scholarship Initiative.",
+    "Generate a personalised flyer announcing that you're joining the AI Engineering Bootcamp Cohort 3, through the ₦27 Million AI Engineering Scholarship Initiative.",
   openGraph: {
     title: "₦27 Million AI Engineering Scholarship Initiative",
     description:
-      "Make your own flyer and tell the world you're joining AI Engineering Bootcamp Cohort 2.",
+      "Make your own flyer and tell the world you're joining AI Engineering Bootcamp Cohort 3.",
     type: "website",
   },
 };
