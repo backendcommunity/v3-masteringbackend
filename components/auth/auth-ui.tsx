@@ -103,3 +103,12 @@ export function GoogleGlyph() {
     </svg>
   );
 }
+
+/** Marks the sign-in method the visitor used last. Parent must be `relative`. */
+export function LastUsedBadge() {
+  return (
+    <span className="pointer-events-none absolute -top-2.5 right-3 rounded-full bg-[#0E1F33] px-2 py-0.5 text-[11px] font-semibold leading-4 text-white ring-2 ring-white">
+      Last used
+    </span>
+  );
+}

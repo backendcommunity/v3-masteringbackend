@@ -4,12 +4,19 @@ export const dynamic = "force-dynamic";
 
 import type React from "react";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/store/auth";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  clearPendingLoginMethod,
+  getLastLoginMethod,
+  setLastLoginMethod,
+  setPendingLoginMethod,
+  type LoginMethod,
+} from "@/lib/last-login-method";
 import { AuthShell } from "@/components/auth/auth-shell";
 import {
   AuthHeading,
@@ -20,6 +27,7 @@ import {
   authSocialBtnClass,
   GithubGlyph,
   GoogleGlyph,
+  LastUsedBadge,
 } from "@/components/auth/auth-ui";
 
 export default function LoginPage() {
@@ -37,7 +45,15 @@ function LoginContent() {
   const [rememberMe, setRememberMe] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
+  const [lastMethod, setLastMethod] = useState<LoginMethod | null>(null);
   const auth = useAuth();
+
+  // Read after mount so server and client markup match.
+  // Landing here means any OAuth attempt from this tab did not finish.
+  useEffect(() => {
+    clearPendingLoginMethod();
+    setLastMethod(getLastLoginMethod());
+  }, []);
   const [formData, setFormData] = useState({ email: "", password: "" });
 
   const ref = searchParams?.get("ref") ?? searchParams?.get("utm_source") ?? "";
@@ -55,6 +71,7 @@ function LoginContent() {
         setEmailLoading(false);
         return;
       }
+      setLastLoginMethod("email");
       // Keep the button spinning through the redirect — the page unmounts on
       // navigation, so we intentionally don't reset emailLoading on success.
       const redirectPath = redirect || "/";
@@ -85,7 +102,7 @@ function LoginContent() {
       <div className="space-y-3">
         <a
           href={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?ref=${ref}&redirect=${redirect}`}
-          className={authSocialBtnClass}
+          className={`${authSocialBtnClass} relative`}
           aria-disabled={isAuthLoading}
           onClick={(event) => {
             if (isAuthLoading) {
@@ -93,16 +110,18 @@ function LoginContent() {
               return;
             }
             setOauthLoading("github");
+            setPendingLoginMethod("github");
             analytics.track("oauth_initiated", { provider: "github", page: "login" });
           }}
         >
           {oauthLoading === "github" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GithubGlyph />}
           <span>Log in with GitHub</span>
+          {lastMethod === "github" && <LastUsedBadge />}
         </a>
 
         <a
           href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google?ref=${ref}&redirect=${redirect}`}
-          className={authSocialBtnClass}
+          className={`${authSocialBtnClass} relative`}
           aria-disabled={isAuthLoading}
           onClick={(event) => {
             if (isAuthLoading) {
@@ -110,11 +129,13 @@ function LoginContent() {
               return;
             }
             setOauthLoading("google");
+            setPendingLoginMethod("google");
             analytics.track("oauth_initiated", { provider: "google", page: "login" });
           }}
         >
           {oauthLoading === "google" ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleGlyph />}
           <span>Log in with Google</span>
+          {lastMethod === "google" && <LastUsedBadge />}
         </a>
       </div>
 
@@ -171,7 +192,7 @@ function LoginContent() {
           <span className="text-sm text-[#64748B]">Remember me</span>
         </label>
 
-        <button type="submit" disabled={isAuthLoading} className={`${authPrimaryBtnClass} mt-2`}>
+        <button type="submit" disabled={isAuthLoading} className={`${authPrimaryBtnClass} relative mt-2`}>
           {emailLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -180,6 +201,7 @@ function LoginContent() {
           ) : (
             <span>Log In</span>
           )}
+          {lastMethod === "email" && <LastUsedBadge />}
         </button>
       </form>
 
