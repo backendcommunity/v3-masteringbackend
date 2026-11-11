@@ -23,9 +23,9 @@ describe("captions", () => {
   it("names the campaign, the cohort and the start date", () => {
     for (const caption of [LINKEDIN_CAPTION, X_CAPTION]) {
       expect(caption).toContain("₦27 Million");
-      expect(caption).toContain("Cohort 2");
+      expect(caption).toContain("Cohort 3");
     }
-    expect(LINKEDIN_CAPTION).toContain("September 7");
+    expect(LINKEDIN_CAPTION).toContain("November 11");
   });
 
   it("stays inside the X character limit", () => {

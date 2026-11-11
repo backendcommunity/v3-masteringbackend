@@ -15,15 +15,15 @@
 
 export const SCHOLARSHIP_URL = "https://masteringai.dev/scholarship";
 
-export const LINKEDIN_CAPTION = `I'm joining the AI Engineering Bootcamp Cohort 2 through the ₦27 Million AI Engineering Scholarship Initiative by @Mastering Backend.
+export const LINKEDIN_CAPTION = `I'm joining the AI Engineering Bootcamp Cohort 3 through the ₦27 Million AI Engineering Scholarship Initiative by @Mastering Backend.
 
 Over the next six weeks, I'll be moving beyond simply using AI tools and learning how to build real AI systems.
 
-Cohort 2 starts September 7. Apply here: ${SCHOLARSHIP_URL}
+Cohort 3 starts November 11. Apply here: ${SCHOLARSHIP_URL}
 
 #AIEngineering #MasteringBackend`;
 
-export const X_CAPTION = `I'm joining the AI Engineering Bootcamp Cohort 2 through the ₦27 Million AI Engineering Scholarship Initiative by @master_backend 🚀
+export const X_CAPTION = `I'm joining the AI Engineering Bootcamp Cohort 3 through the ₦27 Million AI Engineering Scholarship Initiative by @master_backend 🚀
 
 Time to move beyond using AI tools and start building real AI systems.
 

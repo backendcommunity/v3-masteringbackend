@@ -400,7 +400,7 @@ export function drawFlyer(ctx: CanvasRenderingContext2D, input: FlyerInput): voi
   ctx.font = font(family, 500, 46);
   drawTracked(ctx, "AI Engineering Scholarship Initiative", MARGIN, y, 46 * -0.018);
   y += 46 * 1.2 + 6;
-  drawTracked(ctx, "Cohort 2", MARGIN, y, 46 * -0.018);
+  drawTracked(ctx, "Cohort 3", MARGIN, y, 46 * -0.018);
 
   // ── Bottom band, measured up from the base so it never drifts ──────────
   const plateHeight = 40 + 24;
@@ -409,7 +409,7 @@ export function drawFlyer(ctx: CanvasRenderingContext2D, input: FlyerInput): voi
 
   ctx.fillStyle = t.ink;
   ctx.font = font(family, 400, 42);
-  drawTracked(ctx, "Starts September 7, 2026", MARGIN, bandTop - 46 - 42, 42 * -0.015);
+  drawTracked(ctx, "Starts November 11, 2026", MARGIN, bandTop - 46 - 42, 42 * -0.015);
 
   ctx.fillStyle = t.mute;
   ctx.font = font(family, 500, 18);
