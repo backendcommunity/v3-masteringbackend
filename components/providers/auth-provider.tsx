@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { fetchUser } from "@/lib/auth";
+import { commitPendingLoginMethod } from "@/lib/last-login-method";
 import { updateUser } from "@/lib/data";
 import { getStoredUser } from "@/lib/user-store";
 import { analytics } from "@/lib/analytics";
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser()
       .then((res) => {
         updateUser(res.data);
+        commitPendingLoginMethod();
         analytics.identify(res.data.id, {
           email: res.data.email,
           name: res.data.name,
