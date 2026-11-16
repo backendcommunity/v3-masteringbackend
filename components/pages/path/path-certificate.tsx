@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
 import confetti from "canvas-confetti";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import {
+  ScaledCertificatePaper,
+  downloadCertificatePdf,
+} from "@/components/certificate-paper";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,6 @@ import { useAppStore } from "@/lib/store";
 import type { PathCertificate as PathCertificateData } from "@/lib/path-types";
 import { cn } from "@/lib/utils";
 import {
-  Award,
-  Calendar,
   CheckCircle2,
   Copy,
   Check,
@@ -157,31 +156,17 @@ export function PathCertificate({
     if (!certificateRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      const canvas = await html2canvas(certificateRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgProps = pdf.getImageProperties(imgData);
-      const scale = Math.min(
-        pdfWidth / imgProps.width,
-        pdfHeight / imgProps.height,
-      );
-      const scaledWidth = imgProps.width * scale;
-      const scaledHeight = imgProps.height * scale;
-      const x = (pdfWidth - scaledWidth) / 2;
-      const y = (pdfHeight - scaledHeight) / 2;
-      pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
       const name = data?.unlocked ? data.recipientName : "certificate";
-      pdf.save(`${name}-${pathTitle}-certificate.pdf`);
+      await downloadCertificatePdf(
+        {
+          studentName: data?.unlocked ? data.recipientName : "",
+          title: data?.unlocked ? data.pathTitle : pathTitle,
+          completionDate: data?.unlocked ? formatIssuedAt(data.issuedAt) : "",
+          certCode: data?.unlocked ? data.certId : undefined,
+        },
+        certificateRef.current,
+        `${name}-${pathTitle}-certificate.pdf`,
+      );
     } catch {
       toast.error("Failed to generate PDF. Please try again.");
     } finally {
@@ -298,150 +283,15 @@ export function PathCertificate({
           </div>
         </div>
 
-        {/* Certificate card (printable) */}
-        <div
-          ref={certificateRef}
-          className={cn(
-            "relative mx-auto overflow-hidden rounded-lg border-2 bg-white p-8 text-center sm:p-12",
-            isGeneratingPDF ? "w-[1100px]" : "w-full",
-          )}
-          style={{ borderColor: BRAND }}
-        >
-          {/* Top accent bar */}
-          <div
-            className="absolute left-0 top-0 h-2 w-full"
-            style={{
-              background: `linear-gradient(90deg, ${BRAND} 0%, ${BRAND_2} 50%, ${GOLD} 100%)`,
-            }}
-          />
-
-          {/* Verified badge */}
-          <div className="absolute right-4 top-6">
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
-              style={{ backgroundColor: "#e6f9fd", color: "#0a7d93" }}
-            >
-              <CheckCircle2 className="h-3 w-3" />
-              Verified
-            </span>
-          </div>
-
-          <div className="space-y-6 pt-2">
-            {/* Brand header */}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl"
-                style={{
-                  background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_2} 100%)`,
-                }}
-              >
-                <GraduationCap className="h-6 w-6 text-white" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">
-                MasteringBackend
-              </h2>
-              <p className="text-sm uppercase tracking-[0.2em] text-gray-500">
-                Certificate of Completion
-              </p>
-            </div>
-
-            {/* Recipient */}
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">This is to certify that</p>
-              <h3
-                className="inline-block border-b-2 pb-1 text-3xl font-bold text-gray-900 sm:text-4xl"
-                style={{ borderColor: GOLD }}
-              >
-                {data?.recipientName}
-              </h3>
-              <p className="pt-2 text-sm text-gray-600">
-                has successfully completed the {nounLower}
-              </p>
-              <p className="text-xl font-semibold" style={{ color: BRAND }}>
-                {data?.pathTitle}
-              </p>
-            </div>
-
-            {/* Meta grid */}
-            <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">
-                  Final Score
-                </p>
-                <p
-                  className="mt-1 text-lg font-bold"
-                  style={{ color: "#27AE60" }}
-                >
-                  {data?.finalScore}%
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">
-                  Issued On
-                </p>
-                <div className="mt-1 flex items-center justify-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <p className="font-semibold text-gray-900">{issued}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">
-                  Certificate ID
-                </p>
-                <p className="mt-1 font-mono text-sm text-gray-700">
-                  {data?.certId}
-                </p>
-              </div>
-            </div>
-
-            {/* Footer: two signatures + seal/QR center */}
-            <div className="mt-6 flex items-end justify-between border-t border-gray-200 pt-6">
-              {/* Curriculum signatory */}
-              <div className="text-left">
-                <div
-                  className="mb-1.5 h-px w-28"
-                  style={{ backgroundColor: "#9ca3af" }}
-                />
-                <p className="text-sm font-medium text-gray-900">
-                  Solomon Eseme
-                </p>
-                <p className="text-xs text-gray-500">Curriculum Director</p>
-              </div>
-
-              {/* Seal + QR center */}
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-full border-2"
-                  style={{ borderColor: GOLD }}
-                >
-                  <Award className="h-6 w-6" style={{ color: GOLD }} />
-                </div>
-                <QRCodeCanvas
-                  value={`${window.location.origin}/certifications/verify/${data.certId}`}
-                  size={80}
-                  level="M"
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                />
-                <p className="text-[10px] text-gray-400">Scan to verify</p>
-              </div>
-
-              {/* CEO signature */}
-              <div className="text-right">
-                <div
-                  className="mb-1.5 ml-auto h-px w-28"
-                  style={{ backgroundColor: "#9ca3af" }}
-                />
-                <p className="text-sm font-medium text-gray-900">
-                  Solomon Eseme
-                </p>
-                <p className="text-xs text-gray-500">
-                  Founder & CEO, MasteringBackend
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Certificate (printable) */}
+        <ScaledCertificatePaper
+          captureRef={certificateRef}
+          studentName={data.recipientName}
+          title={data.pathTitle}
+          completionDate={issued}
+          certCode={data.certId}
+          qrValue={`${window.location.origin}/certifications/verify/${data.certId}`}
+        />
 
         {/* Actions */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -2,12 +2,10 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Download,
   Share2,
   Award,
-  Calendar,
   CheckCircle2,
   BookOpen,
   Star,
@@ -19,9 +17,10 @@ import {
 } from "lucide-react";
 import { Course } from "@/lib/data";
 import React, { useEffect, useRef, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import {
+  ScaledCertificatePaper,
+  downloadCertificatePdf,
+} from "@/components/certificate-paper";
 import { CompletionShare } from "@/components/week-completion-share";
 import { toast } from "sonner";
 
@@ -49,7 +48,6 @@ export function Certificate({
   onShare,
 }: CertificateProps) {
   const certificateRef = useRef<HTMLDivElement>(null);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [copiedResume, setCopiedResume] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
@@ -64,48 +62,16 @@ export function Certificate({
 
   const handleDownload = async () => {
     if (!certificateRef.current) return;
-
-    setIsGeneratingPDF(true);
-
-    // Render the HTML element to canvas
-    const canvas = await html2canvas(certificateRef.current, {
-      scale: 2,
-      useCORS: true,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth(); // 297 mm
-    const pdfHeight = pdf.internal.pageSize.getHeight(); // 210 mm
-
-    const imgProps = pdf.getImageProperties(imgData);
-    const imgWidth = imgProps.width;
-    const imgHeight = imgProps.height;
-
-    // Calculate scale to fit image within PDF page, preserving aspect ratio
-    const scale = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-
-    const scaledWidth = imgWidth * scale;
-    const scaledHeight = imgHeight * scale;
-
-    // Center the image precisely
-    const x = (pdfWidth - scaledWidth) / 2;
-    const y = (pdfHeight - scaledHeight) / 2;
-
-    // Add image to PDF
-    pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
-
-    // Download the file
-    pdf.save(`${studentName}-certificate.pdf`);
-    setIsGeneratingPDF(false);
-
-    onDownload?.();
+    try {
+      await downloadCertificatePdf(
+        { studentName, title: courseName, completionDate, certCode, qrValue: qrUrl },
+        certificateRef.current,
+        `${studentName}-certificate.pdf`,
+      );
+      onDownload?.();
+    } catch {
+      toast.error("Failed to generate PDF. Please try again.");
+    }
   };
 
   const handleLinkedInShare = () => {
@@ -205,144 +171,14 @@ export function Certificate({
       </div>
 
       {/* Certificate Display */}
-      <Card
-        ref={certificateRef}
-        className={
-          isGeneratingPDF
-            ? "w-[1100px] mx-auto relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
-            : "relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-primary/30"
-        }
-      >
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-background  to-primary"></div>
-
-        <div
-          className={
-            isGeneratingPDF ? "flex justify-end p-5" : "absolute top-4 right-4"
-          }
-        >
-          <Badge
-            variant="secondary"
-            className="bg-green-100 text-green-800 border-green-200 flex items-center"
-          >
-            <Award className="mr-1 h-3 w-3" />
-            Verified
-          </Badge>
-        </div>
-
-        <CardContent className="p-12 text-center space-y-8">
-          {/* Header */}
-          <div className="space-y-4">
-            <div className="flex justify-center">
-              <div className="flex flex-col items-center justify-center h-xs w-md">
-                <img src="/logo.png" alt="logo" />
-
-                <h1 className="text-3xl font-bold text-gray-900">
-                  MasteringBackend
-                </h1>
-              </div>
-            </div>
-
-            <p className="text-lg text-gray-600">Certificate of Completion</p>
-          </div>
-
-          {/* Certificate Content */}
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="text-lg text-gray-700">This is to certify that</p>
-              <h2 className="text-4xl font-bold text-gray-900 border-b-2 border-gray-300 pb-2 inline-block">
-                {studentName}
-              </h2>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-lg text-gray-700">
-                has successfully completed the{" "}
-                {type === "bootcamp"
-                  ? "bootcamp"
-                  : type === "roadmap"
-                    ? "roadmap"
-                    : "course"}{" "}
-              </p>
-              <h3 className="text-2xl font-semibold text-primary">
-                {courseName}
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-              <div className="space-y-2">
-                <p className="text-sm text-gray-500 uppercase tracking-wide">
-                  Completion Date
-                </p>
-                <div className="flex items-center justify-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-600" />
-                  <p className="font-semibold text-gray-900">
-                    {completionDate}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm text-gray-500 uppercase tracking-wide">
-                  Instructor
-                </p>
-                <p className="font-semibold text-gray-900">{instructorName}</p>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm text-gray-500 uppercase tracking-wide">
-                  Certificate ID
-                </p>
-                <p className="font-mono text-sm text-gray-600">
-                  {certCode ?? "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="pt-8 border-t border-gray-200">
-            <div className="flex justify-between items-center">
-              {/* Instructor signature */}
-              <div className="text-left">
-                <div className="w-32 h-px bg-gray-400 mb-2"></div>
-                <p className="text-sm font-medium text-gray-900">
-                  {instructorName}
-                </p>
-                <p className="text-xs text-gray-500">Course Instructor</p>
-              </div>
-
-              {/* Seal + QR */}
-              <div className="flex flex-col items-center gap-2">
-                <Award className="h-10 w-10 text-yellow-500" />
-                {qrUrl && (
-                  <>
-                    <QRCodeCanvas
-                      value={qrUrl}
-                      size={80}
-                      level="M"
-                      bgColor="#ffffff"
-                      fgColor="#000000"
-                    />
-                    <p className="text-[10px] text-gray-400">Scan to verify</p>
-                  </>
-                )}
-              </div>
-
-              {/* Platform authority signature */}
-              <div className="text-right">
-                <div className="w-32 h-px bg-gray-400 mb-2 ml-auto"></div>
-                <p className="text-sm font-medium text-gray-900">
-                  Solomon Eseme
-                </p>
-                <p className="text-xs text-gray-500">
-                  Founder & CEO, MasteringBackend
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ScaledCertificatePaper
+        captureRef={certificateRef}
+        studentName={studentName}
+        title={courseName}
+        completionDate={completionDate}
+        certCode={certCode}
+        qrValue={qrUrl}
+      />
 
       {/* Certificate Details */}
       <Card className="w-full">
